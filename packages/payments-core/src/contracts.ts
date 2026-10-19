@@ -56,15 +56,47 @@ export type Delivery = { consumerId: string; messageId: string; acknowledged: bo
 export type ScanCheckpoint = { scanId: string; epoch: string; queryFingerprint: string; after?: string; status: 'running' | 'complete' | 'gap'; issue?: string };
 /** Payment-owner state. Drafts cannot escape atomic(); stores must isolate readers and rollback on exceptions. */
 export type PaymentState = { revision: number; recoveryFenced: boolean; intents: Record<string, PurchaseIntent>; operations: Record<string, PaymentOperation>; requestKeys: Record<string, string>; bindings: Record<string, TransactionBinding>; subscriptionBindings: Record<string, SubscriptionBinding>; transactions: Record<string, TransactionAggregate>; subscriptions: Record<string, SubscriptionAggregate>; inbox: Record<string, InboxRecord>; evidence: Record<string, EvidenceMessage>; deliveries: Record<string, Delivery>; consumers: string[]; scans: Record<string, ScanCheckpoint>; issues: string[] };
+/** A bounded owner-local working set, never a complete scope ledger. Missing rows carry revision null. */
+export type PaymentReadVersion = Readonly<{ table: 'intents' | 'operations' | 'bindings' | 'subscriptionBindings' | 'transactions' | 'subscriptions' | 'inbox' | 'configuration'; id: string; revision: number | null }>;
+export type ReductionInput = Readonly<{ inputId: string; state: PaymentState; expected: readonly PaymentReadVersion[]; incompleteReason?: string }>;
+export type ReductionCommit = Readonly<{ inputId: string; expected: readonly PaymentReadVersion[]; state: PaymentState }>;
+export type IntentAdmission = Readonly<{ intent: PurchaseIntent; operation: PaymentOperation; subscriptionBinding?: SubscriptionBinding }>;
+export type OperationInput = Readonly<{ operation: PaymentOperation; intent?: PurchaseIntent; subscriptionBinding?: SubscriptionBinding; transactionBinding?: TransactionBinding; laneRevision: number }>;
+export type OperationCommit = Readonly<{ expectedRevision: number; expectedLaneRevision: number; operation: PaymentOperation; binding?: TransactionBinding; subscriptionBinding?: SubscriptionBinding; intent?: PurchaseIntent }>;
+export type StoreCommitResult = Readonly<{ kind: 'committed' }> | Readonly<{ kind: 'conflict' }> | Readonly<{ kind: 'recovery_fenced' }>;
 /**
- * Atomic owner-local protocol. Implementations serialize all mutations for a scope and durably commit
- * the resulting state before resolving. The callback is synchronous, deterministic and performs no I/O.
- * A throw rolls back all changes. Return values and snapshots are detached. A lost commit response must
- * reject (unknown commit), never report rollback or authorize external dispatch. No cross-owner UoW.
+ * Consumer-shaped storage protocol. Every successful mutation is a confirmed durable commit.
+ * No external I/O runs inside a store transaction. Implementations lock only the relevant rows in
+ * one stable order. T1 admission locks the transaction placeholder and increments its revision for
+ * adverse inputs; T2 validates the complete bounded read set, persists observations/facts/evidence/
+ * targets and marks its inbox record processed atomically. Incomplete working sets must be explicit
+ * and can publish only held control. Missing/overflow data is never interpreted as absent.
+ * A lost COMMIT reply rejects; it cannot authorize dispatch. No cross-owner SQL or UoW escapes.
  */
 export interface PaymentStore {
-  atomic<T>(scope: PaymentScope, mutation: (draft: PaymentState) => T): Promise<T>;
-  read(scope: PaymentScope): Promise<PaymentState>;
+  admitIntent(scope: PaymentScope, admission: IntentAdmission): Promise<Readonly<{ kind: 'created' | 'existing'; operation: PaymentOperation }> | Readonly<{ kind: 'conflict' | 'recovery_fenced' }>>;
+  findRequest(scope: PaymentScope, buyerId: string, requestKey: string): Promise<PaymentOperation | undefined>;
+  loadOperation(scope: PaymentScope, operationId: string): Promise<OperationInput | undefined>;
+  /** Atomic CAS of operation and its mutation lane; dispatch marker must commit before SDK call. */
+  beginExternalDispatch(scope: PaymentScope, commit: OperationCommit): Promise<StoreCommitResult>;
+  /** Append immutable late evidence even when the original attempt no longer owns the lane. */
+  recordAttemptObservation(scope: PaymentScope, operationId: string, attemptId: string, result: ProviderResult<JsonValue>): Promise<void>;
+  finishAttempt(scope: PaymentScope, commit: OperationCommit): Promise<StoreCommitResult>;
+  /** Owned audited resolution uses the same revision/lane CAS, never a direct record edit. */
+  commitOperation(scope: PaymentScope, commit: OperationCommit): Promise<StoreCommitResult>;
+  admitVerifiedInputs(scope: PaymentScope, inputs: readonly VerifiedInput[]): Promise<readonly Readonly<{ inputId: string; kind: 'admitted' | 'duplicate' | 'conflict' }>[]>;
+  loadReductionInput(scope: PaymentScope, inputId: string): Promise<ReductionInput | undefined>;
+  commitReduction(scope: PaymentScope, commit: ReductionCommit): Promise<StoreCommitResult>;
+  loadPublicationInput(scope: PaymentScope, aggregate: AggregateIdentity): Promise<ReductionInput | undefined>;
+  readPurchase(scope: PaymentScope, buyerId: string, intentId: string): Promise<Readonly<{ intent: PurchaseIntent; transactions: readonly TransactionAggregate[] }> | undefined>;
+  readSubscription(scope: PaymentScope, buyerId: string, bindingId: string): Promise<Readonly<{ binding: SubscriptionBinding; observations: readonly SubscriptionAggregate[] }> | undefined>;
+  listWork(scope: PaymentScope, kind: 'inbox' | 'publication' | 'prepared' | 'unknown', limit: number): Promise<readonly string[]>;
+  registerConsumer(scope: PaymentScope, consumerId: string, backfill: boolean): Promise<void>;
+  listDeliveries(scope: PaymentScope, consumerId: string, limit: number): Promise<readonly EvidenceMessage[]>;
+  acknowledgeDelivery(scope: PaymentScope, consumerId: string, messageId: string, bodyDigest: string): Promise<'acknowledged' | 'duplicate' | 'conflict'>;
+  setRecoveryFence(scope: PaymentScope, fenced: boolean, auditRef: string): Promise<void>;
+  readCheckpoint(scope: PaymentScope, scanId: string): Promise<ScanCheckpoint | undefined>;
+  commitScanPage(scope: PaymentScope, expected: ScanCheckpoint | undefined, next: ScanCheckpoint, inputs: readonly VerifiedInput[]): Promise<StoreCommitResult>;
 }
 export type StartPurchase = Readonly<{ buyerId: string; offerId: string; requestKey: string }>;
 export type ResolveUnknown = Readonly<{ operationId: string; expectedRevision: number; actorId: string; auditRef: string; reason: string; action: 'keep_unknown' | 'retry' | 'bind_outcome'; acceptedDuplicateRisk?: boolean; outcome?: ProviderResult<JsonValue> }>;
