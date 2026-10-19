@@ -60,7 +60,11 @@ export type TransactionAggregate = { transactionRef: string; revision: number; e
 export type SubscriptionAggregate = { subscriptionRef: string; revision: number; evidenceRevision: number; current?: SubscriptionObservation; lastKnown?: SubscriptionObservation; flags: EvidenceFlag[]; publicationRequired: boolean };
 export type InboxRecord = { input: VerifiedInput; state: 'pending' | 'processed' | 'quarantined'; conflict: boolean; attempts: number; issue?: string };
 export type Delivery = { consumerId: string; messageId: string; acknowledged: boolean; attempts: number };
-export type ScanCheckpoint = { scanId: string; epoch: string; queryFingerprint: string; after?: string; status: 'running' | 'complete' | 'gap'; issue?: string };
+/** Fixed event windows are exclusive and must overlap; each required type has its own scan. */
+export type ReconciliationQuery = Readonly<{ kind: 'events'; from: string; to: string; eventType?: string; perPage: number; purpose: 'catch_up' | 'retention_sweep'; queryVersion: string }> | Readonly<{ kind: 'adjustments'; transactionRef: string; queryVersion: string }>;
+export type ScanReadFailure = Readonly<{ at: string; reason: string; after?: string; sdkVersion?: string; code?: string }>;
+/** query is optional only for legacy checkpoints, which cannot be resumed without explicit migration. */
+export type ScanCheckpoint = { scanId: string; epoch: string; queryFingerprint: string; query?: ReconciliationQuery; after?: string; status: 'running' | 'complete' | 'gap'; issue?: string; failureCount?: number; lastFailure?: ScanReadFailure };
 /** Payment-owner state. Drafts cannot escape atomic(); stores must isolate readers and rollback on exceptions. */
 export type PaymentState = { revision: number; recoveryFenced: boolean; intents: Record<string, PurchaseIntent>; operations: Record<string, PaymentOperation>; requestKeys: Record<string, string>; bindings: Record<string, TransactionBinding>; subscriptionBindings: Record<string, SubscriptionBinding>; transactions: Record<string, TransactionAggregate>; subscriptions: Record<string, SubscriptionAggregate>; inbox: Record<string, InboxRecord>; evidence: Record<string, EvidenceMessage>; deliveries: Record<string, Delivery>; consumers: string[]; scans: Record<string, ScanCheckpoint>; issues: string[] };
 /** A bounded owner-local working set, never a complete scope ledger. Missing rows carry revision null. */

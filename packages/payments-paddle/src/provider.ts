@@ -15,8 +15,8 @@ export type PaddleProviderOptions = Readonly<{
   authorizeCustomerManagement?: (input: Readonly<{ scope: PaymentScope; customerRef: string; subscriptionRefs: readonly string[] }>) => Promise<boolean>;
 }>;
 export type PaddleEventScanQuery = Readonly<{ from: string; to: string; after?: string; eventTypes?: readonly string[]; perPage?: number; epoch: string; queryVersion: string }>;
-export type PaddleEventScanResult = Readonly<{ kind: 'page'; inputs: readonly VerifiedInput[]; hasMore: boolean; lastEventId?: string }> | Readonly<{ kind: 'gap'; reason: string; query: PaddleEventScanQuery; sdkVersion: string }>;
-export type PaddleAdjustmentPage = Readonly<{ inputs: readonly VerifiedInput[]; hasMore: boolean; lastAdjustmentId?: string }>;
+export type PaddleEventScanResult = Readonly<{ kind: 'page'; inputs: readonly VerifiedInput[]; hasMore: boolean; lastEventId?: string }> | Readonly<{ kind: 'gap'; reason: string; query: PaddleEventScanQuery; sdkVersion: string; code?: string }>;
+export type PaddleAdjustmentPage = Readonly<{ inputs: readonly VerifiedInput[]; adjustmentIds: readonly string[]; hasMore: boolean; lastAdjustmentId?: string }>;
 type ObjectValue = Record<string, unknown>;
 function object(value: unknown): ObjectValue { if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new TypeError('Expected object'); return value as ObjectValue; }
 function string(value: unknown): string { if (typeof value !== 'string' || value.length === 0) throw new TypeError('Expected string'); return value; }
@@ -196,10 +196,16 @@ export class PaddlePaymentProvider implements PaymentProvider {
         if (previous !== undefined && eventId <= previous) return gap('nonprogressing_event_page');
         previous = eventId; exactTime(event.occurredAt);
         const source: EvidenceSource = { ...placeholderSource(json(query)), eventId, eventType: event.eventType, occurredAt: event.occurredAt };
-        inputs.push(apiReceipt(normalizeObservation(event.data, event.eventType, 'mapped', source, this.scope), this.scope, event));
+        const input = apiReceipt(normalizeObservation(event.data, event.eventType, 'mapped', source, this.scope), this.scope, event);
+        const adverseRef = event.eventType.startsWith('adjustment.') ? object(event.data)['transactionId'] : undefined;
+        inputs.push({ ...input, ...(typeof adverseRef === 'string' && /^txn_[0-9a-z]{26}$/u.test(adverseRef) ? { adverseTransactionRef: adverseRef } : {}) });
       }
       return { kind: 'page', inputs, hasMore: collection.hasMore, ...(previous === undefined ? {} : { lastEventId: previous }) };
-    } catch { return gap('sdk_acquisition_or_mapping_failed'); }
+    } catch (error) {
+      const failure = translatePaddleError(error, false);
+      return { kind: 'gap', reason: 'sdk_acquisition_or_mapping_failed', query, sdkVersion: SDK_VERSION,
+        ...(failure.kind === 'rejected' ? { code: failure.code } : {}) };
+    }
   }
 
   async readAdjustmentPage(transactionRef: string, after?: string): Promise<ProviderResult<PaddleAdjustmentPage>> {
@@ -208,13 +214,14 @@ export class PaddlePaymentProvider implements PaymentProvider {
       const collection = this.#sdk.adjustments.list({ transactionId: [transactionRef], orderBy: 'id[ASC]', ...(after === undefined ? {} : { after }) }), values = await collection.next();
       if (values.length === 0 && collection.hasMore) return { kind: 'rejected', code: 'unclassified_external_state' };
       let previous = after;
+      const adjustmentIds: string[] = [];
       const inputs = values.map(value => {
         const ref = providerId(value.id, 'adj');
         if ((previous !== undefined && ref <= previous) || value.transactionId !== transactionRef) throw new TypeError('Invalid adjustment page');
-        previous = ref;
-        return apiReceipt(normalizeObservation(value, 'adjustment.snapshot', 'mapped', placeholderSource(json({ transactionRef, after: after ?? null })), this.scope), this.scope, value);
+        previous = ref; adjustmentIds.push(ref);
+        return { ...apiReceipt(normalizeObservation(value, 'adjustment.snapshot', 'mapped', placeholderSource(json({ transactionRef, after: after ?? null })), this.scope), this.scope, value), adverseTransactionRef: transactionRef };
       });
-      return { kind: 'succeeded', value: { inputs, hasMore: collection.hasMore, ...(previous === undefined ? {} : { lastAdjustmentId: previous }) } };
+      return { kind: 'succeeded', value: { inputs, adjustmentIds, hasMore: collection.hasMore, ...(previous === undefined ? {} : { lastAdjustmentId: previous }) } };
     } catch (error) { return translatePaddleError(error, false); }
   }
 }
