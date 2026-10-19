@@ -21,6 +21,7 @@ The four packages currently declare version `0.1.0`. A version in a manifest doe
 - [Architecture and guarantees](docs/architecture.md): ownership, T1/T2/T3, uncertainty, identities and extension boundaries.
 - [Operations and recovery runbook](docs/operations.md): migrations, concurrency, shutdown, reconciliation and independent restore.
 - [Qualification and deployment gates](docs/qualification.md): what the automated suites prove and what needs a real deployment or Paddle sandbox.
+- [Implementation and review status](docs/implementation-status.md): P0–P7 plan traceability, independent review reports and correction evidence.
 - [Current upstream qualification](docs/upstream-qualification.md): exact dependency pins, merged Get Modular observation source and its unpublished train, and the official browser declaration blocker.
 - [Release process](docs/releasing.md): audited tarballs, checksums, exact-commit CI and GitHub prereleases.
 
