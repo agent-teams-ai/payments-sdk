@@ -166,7 +166,8 @@ function reduceTransaction(state: PaymentState, scope: PaymentScope, observation
   const classification = classifyCompletion(state, scope, effective);
   if (classification.kind === 'commercial') {
     if (aggregate.completion) {
-      if (!compatible(semantic({ ...aggregate.completion, source: undefined }), semantic({ ...classification.fact, source: undefined }))) flag(aggregate, 'conflict');
+      const comparable = (fact: CompletionFact) => semantic({ ...fact, classification: fact.classification === 'recovery' ? 'renewal' : fact.classification, source: undefined });
+      if (!compatible(comparable(aggregate.completion), comparable(classification.fact))) flag(aggregate, 'conflict');
     } else aggregate.completion = classification.fact;
     removeFlag(aggregate, 'incomplete'); removeFlag(aggregate, 'unresolved_binding');
     if (classification.holdReason) flag(aggregate, classification.holdReason);
@@ -176,6 +177,7 @@ function reduceTransaction(state: PaymentState, scope: PaymentScope, observation
     const subscription = subRef ? state.subscriptions[subRef]?.current : undefined;
     if (subscription) reduceSubscription(state, subscription);
   } else if (classification.kind === 'held') flag(aggregate, classification.reason);
+  else if (classification.kind === 'management') removeFlag(aggregate, 'unresolved_binding');
   aggregate.revision += 1; aggregate.publicationRequired = true;
 }
 function reduceSubscription(state: PaymentState, observation: SubscriptionObservation): void {

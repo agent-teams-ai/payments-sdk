@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import type { AggregateIdentity, CancellationOutcome, CheckoutReady, EvidenceMessage, JsonValue, OperationCommit, OperationInput, OperationResult, PaymentOperation, PaymentReadVersion, PaymentUpdateReady, PaymentRuntimeOptions, ProviderResult, ResolveUnknown, StartPurchase, SubscriptionBinding, TransactionBinding, VerifiedInput } from './contracts.js';
+import type { AggregateIdentity, CancellationOutcome, CheckoutReady, EvidenceMessage, JsonValue, OperationCommit, OperationInput, OperationResult, PaymentOperation, PaymentReadVersion, PaymentUpdateReady, PaymentRuntimeOptions, ProviderResult, ResolveUnknown, StartPurchase, SubscriptionBinding, VerifiedInput } from './contracts.js';
 import { processInput, publishEvidence, reduceObservation, publishHeldEvidence, validateOffer } from './reducer.js';
-import { assertIdentifier, assertScope, canonicalJson, digest, sameScope } from './values.js';
+import { assertIdentifier, assertScope, canonicalJson, digest, exactTime, sameScope } from './values.js';
 
 const jsonResult = <T>(result: ProviderResult<T>): ProviderResult<JsonValue> => structuredClone(result) as ProviderResult<JsonValue>;
 function toResult<T>(operation: PaymentOperation): OperationResult<T> {
@@ -16,6 +16,31 @@ function operationCommit(input: OperationInput, operation: PaymentOperation): Op
 }
 function resultState(result: ProviderResult<JsonValue>): PaymentOperation['state'] {
   return result.kind === 'succeeded' ? 'succeeded' : result.kind === 'outcome_unknown' ? 'outcome_unknown' : 'rejected';
+}
+/** One successful-outcome rule for SDK settlement and authorized unknown resolution. */
+function successfulOutcomeChanges(input: OperationInput, value: JsonValue): Pick<OperationCommit, 'binding' | 'intent'> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Invalid successful outcome');
+  if (input.operation.kind === 'cancellation') {
+    const outcome = value as Readonly<Record<string, JsonValue>>;
+    if (outcome['kind'] === 'scheduled' && typeof outcome['effectiveAt'] === 'string') exactTime(outcome['effectiveAt']);
+    else if (outcome['kind'] === 'applied' && typeof outcome['observedStatus'] === 'string') assertIdentifier(outcome['observedStatus']);
+    else throw new TypeError('Invalid cancellation outcome');
+    return {};
+  }
+  const checkout = value as unknown as CheckoutReady;
+  assertIdentifier(checkout.transactionRef);
+  const instructions = checkout.checkout;
+  if (instructions === null || typeof instructions !== 'object' || Array.isArray(instructions)) throw new TypeError('Invalid checkout instructions');
+  for (const instruction of [instructions.url, instructions.token]) if (instruction !== undefined && (typeof instruction !== 'string' || instruction.length === 0 || instruction.length > 8192)) throw new TypeError('Invalid checkout instruction');
+  if (input.operation.kind === 'purchase') {
+    const intent = input.intent ? structuredClone(input.intent) : undefined;
+    if (!intent || intent.buyerId !== input.operation.buyerId || checkout.intentId !== intent.intentId) throw new TypeError('Checkout intent mismatch');
+    if (!intent.transactionRefs.includes(checkout.transactionRef)) intent.transactionRefs.push(checkout.transactionRef);
+    return { intent, binding: { transactionRef: checkout.transactionRef, intentId: intent.intentId, buyerId: intent.buyerId, purpose: 'commercial', customerRef: null } };
+  }
+  const binding = input.subscriptionBinding, update = value as unknown as PaymentUpdateReady;
+  if (!binding || binding.buyerId !== input.operation.buyerId || !input.operation.providerSubscriptionRef || !binding.providerSubscriptionRefs.includes(input.operation.providerSubscriptionRef) || checkout.intentId !== binding.originatingIntentId || input.operation.intentId !== binding.originatingIntentId || !['payment_method', 'recovery'].includes(update.purpose)) throw new TypeError('Invalid payment update outcome');
+  return { binding: { transactionRef: checkout.transactionRef, intentId: binding.originatingIntentId, buyerId: input.operation.buyerId, purpose: update.purpose, customerRef: binding.customerRef } };
 }
 /** Ordinary factory. Host supplies authenticated commands, catalog, connection, storage and lifecycle. */
 export function createPayments(options: PaymentRuntimeOptions) {
@@ -52,22 +77,10 @@ export function createPayments(options: PaymentRuntimeOptions) {
       if (!attempt) throw new Error('Attempt disappeared');
       const currentAttempt = operation.attempts.at(-1)?.attemptId === attemptId;
       const mayFinish = currentAttempt && (['dispatch_started', 'outcome_unknown'].includes(operation.state) || (operation.state === 'prepared' && result.kind === 'succeeded'));
-      let binding: TransactionBinding | undefined;
-      const intent = input.intent ? structuredClone(input.intent) : undefined;
-      if (result.kind === 'succeeded' && operation.kind === 'purchase') {
-        const checkout = result.value as unknown as CheckoutReady;
-        assertIdentifier(checkout.transactionRef);
-        if (!intent || checkout.intentId !== intent.intentId) throw new Error('Provider checkout intent mismatch');
-        binding = { transactionRef: checkout.transactionRef, intentId: intent.intentId, buyerId: intent.buyerId, purpose: 'commercial', customerRef: null };
-        if (!intent.transactionRefs.includes(checkout.transactionRef)) intent.transactionRefs.push(checkout.transactionRef);
-      } else if (result.kind === 'succeeded' && operation.kind === 'payment_update') {
-        const checkout = result.value as unknown as PaymentUpdateReady;
-        if (!['payment_method', 'recovery'].includes(checkout.purpose)) throw new Error('Unproven payment update purpose');
-        if (input.subscriptionBinding) binding = { transactionRef: checkout.transactionRef, intentId: input.subscriptionBinding.originatingIntentId, buyerId: operation.buyerId, purpose: checkout.purpose, customerRef: input.subscriptionBinding.customerRef };
-      }
+      const changes = result.kind === 'succeeded' ? successfulOutcomeChanges(input, result.value) : {};
       if (mayFinish) { operation.state = resultState(result); operation.result = result; }
       operation.revision += 1;
-      const committed = await store.finishAttempt(scope, { ...operationCommit(input, operation), ...(binding ? { binding } : {}), ...(intent ? { intent } : {}) });
+      const committed = await store.finishAttempt(scope, { ...operationCommit(input, operation), ...changes });
       if (committed.kind === 'committed' || committed.kind === 'recovery_fenced') return;
     }
     throw new Error('Attempt settlement CAS contention; observation remains durable');
@@ -299,16 +312,11 @@ export function createPayments(options: PaymentRuntimeOptions) {
     if (command.action === 'retry') { operation.state = 'prepared'; delete operation.result; }
     else if (command.action === 'bind_outcome' && command.outcome) { operation.result = command.outcome; operation.state = resultState(command.outcome); }
     else operation.state = 'outcome_unknown';
-    let binding: TransactionBinding | undefined;
-    const intent = input.intent ? structuredClone(input.intent) : undefined;
-    if (command.action === 'bind_outcome' && command.outcome?.kind === 'succeeded' && operation.kind === 'purchase') {
-      const checkout = command.outcome.value as unknown as CheckoutReady;
-      if (!intent || checkout.intentId !== intent.intentId || typeof checkout.transactionRef !== 'string') return { kind: 'rejected', code: 'validation' };
-      assertIdentifier(checkout.transactionRef);
-      binding = { transactionRef: checkout.transactionRef, intentId: intent.intentId, buyerId: intent.buyerId, purpose: 'commercial', customerRef: null };
-      if (!intent.transactionRefs.includes(checkout.transactionRef)) intent.transactionRefs.push(checkout.transactionRef);
+    let changes: Pick<OperationCommit, 'binding' | 'intent'> = {};
+    if (command.action === 'bind_outcome' && command.outcome?.kind === 'succeeded') {
+      try { changes = successfulOutcomeChanges(input, command.outcome.value); } catch (error) { if (error instanceof TypeError) return { kind: 'rejected', code: 'validation' }; throw error; }
     }
-    const committed = await store.commitOperation(scope, { ...operationCommit(input, operation), ...(binding ? { binding } : {}), ...(intent ? { intent } : {}) });
+    const committed = await store.commitOperation(scope, { ...operationCommit(input, operation), ...changes });
     return committed.kind === 'committed' ? { kind: 'succeeded', value: operation } : committed.kind === 'recovery_fenced' ? unavailable : { kind: 'rejected', code: 'conflict' };
   }
   async function readSubscriptionSelection(buyerId: string, bindingId: string, providerSubscriptionRef?: string): Promise<Readonly<{ binding: SubscriptionBinding; expectedReadSet: readonly PaymentReadVersion[] }> | undefined> {

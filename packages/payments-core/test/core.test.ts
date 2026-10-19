@@ -528,3 +528,42 @@ test('oversized version certification retains custody and a bounded persistent h
   await observe(context, transaction(checkout.transactionRef, 'after-version-budget'));
   const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.flags.includes('incomplete_history')); assert.ok(aggregate.pendingAdverse.includes(adjustment.source.receiptId)); assert.equal((await context.payments.readDeliveries('version-budget')).at(-1)?.kind, 'held');
 });
+
+test('audited payment update outcomes bind the same durable purpose and reclassify early evidence', async () => {
+  for (const purpose of ['payment_method', 'recovery'] as const) {
+    const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, `operator-initial-${purpose}`, 'monthly'));
+    const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis); Object.assign(context.provider.capabilities, { paymentUpdate: true });
+    context.provider.openPaymentUpdate = async () => ({ kind: 'outcome_unknown' });
+    const unknownResult = await context.payments.openPaymentUpdate({ buyerId: 'buyer', bindingId: basis, requestKey: `operator-${purpose}` }); assert.equal(unknownResult.kind, 'outcome_unknown'); if (unknownResult.kind !== 'outcome_unknown') throw new Error('Fixture');
+    const ref = `operator-transaction-${purpose}`, early = transaction(ref, `early-operator-evidence-${purpose}`, 'monthly', { origin: yes(purpose === 'payment_method' ? 'subscription_payment_method_change' : 'subscription_recurring') });
+    if (early.lines.presence !== 'known') throw new Error('Fixture');
+    await observe(context, { ...early, lines: yes(early.lines.value.map(line => ({ ...line, period: yes({ startsAt: '2026-02-01T00:00:00Z', endsAt: '2026-03-01T00:00:00Z' }) }))) });
+    const priorFact = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions.find(aggregate => aggregate.transactionRef === ref)?.completion;
+    const operation = await context.payments.readOperation(unknownResult.operationId); assert.ok(operation);
+    const value = { intentId: checkout.intentId, transactionRef: ref, purpose, checkout: { token: 'proven-checkout' } };
+    const resolved = await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: `proven-${purpose}`, reason: 'verified provider outcome', action: 'bind_outcome', outcome: { kind: 'succeeded', value } }); assert.equal(resolved.kind, 'succeeded');
+    assert.deepEqual(await context.payments.openPaymentUpdate({ buyerId: 'buyer', bindingId: basis, requestKey: `operator-${purpose}` }), { kind: 'succeeded', value });
+    const loaded = await context.store.loadPublicationInput(scope, { type: 'transaction', id: ref }); assert.equal(loaded?.state.bindings[ref]?.purpose, purpose); assert.equal(loaded?.state.bindings[ref]?.intentId, checkout.intentId);
+    assert.deepEqual(await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'repeat', reason: 'repeat stale decision', action: 'bind_outcome', outcome: { kind: 'succeeded', value } }), { kind: 'rejected', code: 'conflict' });
+    await context.payments.repair(); const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions.find(item => item.transactionRef === ref); assert.ok(aggregate); assert.ok(!aggregate.flags.includes('unresolved_binding')); assert.ok(!aggregate.flags.includes('conflict'));
+    if (purpose === 'payment_method') assert.equal(aggregate.completion, undefined);
+    else { assert.equal(aggregate.completion?.lines[0]?.period?.startsAt, '2026-02-01T00:00:00Z'); assert.equal(aggregate.completion?.factId, priorFact?.factId); assert.deepEqual(aggregate.completion, priorFact); }
+  }
+});
+
+test('invalid audited successful outcomes preserve the unknown operation and cannot expose checkout', async () => {
+  const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, 'invalid-operator-initial', 'monthly'));
+  const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis); Object.assign(context.provider.capabilities, { paymentUpdate: true }); context.provider.openPaymentUpdate = async () => ({ kind: 'outcome_unknown' });
+  const unknownResult = await context.payments.openPaymentUpdate({ buyerId: 'buyer', bindingId: basis, requestKey: 'invalid-operator' }); assert.equal(unknownResult.kind, 'outcome_unknown'); if (unknownResult.kind !== 'outcome_unknown') throw new Error('Fixture');
+  const operation = await context.payments.readOperation(unknownResult.operationId); assert.ok(operation);
+  for (const invalid of [
+    { intentId: 'wrong-intent', transactionRef: 'invalid-proof', purpose: 'payment_method', checkout: {} },
+    { intentId: checkout.intentId, transactionRef: 'invalid-proof', purpose: 'unproven', checkout: {} },
+    { intentId: checkout.intentId, transactionRef: '', purpose: 'recovery', checkout: {} },
+  ]) {
+    assert.deepEqual(await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'bad-proof', reason: 'invalid proof submitted', action: 'bind_outcome', outcome: { kind: 'succeeded', value: invalid } }), { kind: 'rejected', code: 'validation' });
+    assert.deepEqual(await context.payments.readOperation(operation.operationId), operation);
+  }
+  assert.deepEqual(await context.payments.openPaymentUpdate({ buyerId: 'buyer', bindingId: basis, requestKey: 'invalid-operator' }), { kind: 'outcome_unknown', operationId: operation.operationId });
+  assert.equal((await context.store.loadPublicationInput(scope, { type: 'transaction', id: 'invalid-proof' }))?.state.bindings['invalid-proof'], undefined);
+});
