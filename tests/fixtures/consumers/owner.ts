@@ -135,7 +135,10 @@ export class ConsumerOwner {
       const receipts = await client.query<{ digest: string; source_key: string }>(`SELECT digest,source_key FROM ${this.sql}.receipts WHERE message_id=$1`, [message.messageId]);
       const receipt = receipts.rows[0];
       if (receipt?.digest === message.bodyDigest && receipt.source_key === sourceKey) return { acknowledge: true, outcome: 'duplicate' } as const;
-      const sources = buyerId ? await this.sources(client, buyerId) : prior ? [prior] : [], current = sources.find(source => source.sourceKey === sourceKey);
+      // Routing discovers contributions; it must never decide whether a source revision exists.
+      // A first held/unknown-schema envelope has no buyer yet, but its source-key fence is already
+      // authoritative. Re-reading it through a buyer filter would let an older complete erase it.
+      const sources = buyerId ? await this.sources(client, buyerId) : prior ? [prior] : [], current = prior;
       let outcome: ReceiptOutcome;
       if (receipt || (current?.revision === message.revision && current.digest !== message.bodyDigest)) {
         outcome = 'conflict';

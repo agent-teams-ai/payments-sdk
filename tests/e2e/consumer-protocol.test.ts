@@ -122,6 +122,48 @@ test('control overflow, unknown schema and conflicts hold monotonically; unknown
   } finally { await fixture.close(); }
 });
 
+test('a first unrouted held or unknown-schema source fences older complete evidence across restart in both owners', async t => {
+  for (const controlKind of ['held', 'unknown-schema'] as const) {
+    await t.test(controlKind, async () => {
+      const fixture = await consumers();
+      try {
+        const paid = message(3), active = subscription(3);
+        function control(previous: typeof paid) {
+          if (controlKind === 'held') return held(4, previous);
+          const complete4 = previous.aggregate.type === 'transaction' ? message(4) : subscription(4);
+          const { bodyDigest: _digest, ...body } = complete4;
+          return signFixtureMessage({ ...body, schemaVersion: 9 });
+        }
+        const creditControl = control(paid), accessControl = control(active);
+        assert.equal((await fixture.credit.receive(creditControl)).outcome, 'held');
+        await fixture.access.receive(message(1));
+        assert.equal((await fixture.access.receive(accessControl)).outcome, 'held');
+        const credit = new CreditFixture({ pool: fixture.pool, schema: fixture.credit.owner.options.schema, trust: fixture.trust });
+        const access = new AccessFixture({ pool: fixture.pool, schema: fixture.access.owner.options.schema, trust: fixture.trust, now: () => '2026-10-15T00:00:00Z' });
+        assert.equal((await credit.receive(paid)).outcome, 'stale');
+        assert.equal((await access.receive(active)).outcome, 'stale');
+        assert.equal((await credit.receive(creditControl)).outcome, 'duplicate');
+        assert.equal((await access.receive(accessControl)).outcome, 'duplicate');
+        const creditSource = (await credit.owner.inspect<{ revision: string; held: boolean }>('evidence_projection'))[0]!;
+        const accessSource = (await access.owner.inspect<{ revision: string; held: boolean; source_key: string }>('evidence_projection')).find(row => row.source_key === sourceIdentity(active))!;
+        assert.deepEqual([Number(creditSource.revision), creditSource.held], [4, true]);
+        assert.deepEqual([Number(accessSource.revision), accessSource.held], [4, true]);
+        assert.equal((await credit.decisions()).length, 0); assert.equal((await effects(credit)).length, 0);
+        const accessDecision = (await access.decisions())[0]!.body;
+        assert.equal(accessDecision.newAction, false); assert.equal(accessDecision.expand, false);
+        assert.ok((await credit.owner.inspect<{ state: string }>('obligations')).some(row => row.state === 'pending'));
+        assert.ok((await access.owner.inspect<{ state: string }>('obligations')).some(row => row.state === 'pending'));
+        assert.equal((await credit.receive(message(5))).outcome, 'accepted');
+        assert.equal((await access.receive(subscription(5))).outcome, 'accepted');
+        assert.equal(BigInt((await onlyCredit(credit)).eligible), Q);
+        assert.equal((await access.decisions())[0]!.body.newAction, true);
+        await credit.receive(message(5)); await access.receive(subscription(5));
+        assert.equal((await effects(credit)).filter(effect => effect.kind === 'grant').length, 1);
+      } finally { await fixture.close(); }
+    });
+  }
+});
+
 test('initial stream guard, distinct renewal periods and intentional top-ups preserve separate stable benefit identities', async () => {
   const fixture = await consumers();
   try {
