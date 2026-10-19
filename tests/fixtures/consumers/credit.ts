@@ -10,7 +10,7 @@ const POLICY = 'fixture-credit-policy-v1';
 type Contribution = Readonly<{ source: Source; message: Extract<PaymentEvidenceChanged, { kind: 'complete' }>; fact: CompletionFact; slot: string; period?: Readonly<{ startsAt: string; endsAt: string }> }>;
 export type CreditDecision = Readonly<{ basisKey: string; buyerId: string; slot: string; period?: Readonly<{ startsAt: string; endsAt: string }>; bucket: 'included' | 'purchased'; amount: string; allocated: string; eligible: string; held: string; status: 'issued' | 'withheld' | 'held'; applied: 'never_issued' | 'issued' | 'reduced' | 'restored' | 'reassigned'; initialGuardKey?: string; initialGuardDigest?: string; originalGrant?: string; originalSource?: string; supportSource?: string; selectedStream?: string; selectedByResolution?: string; reviewedPartialDigest?: string; policyVersion: string; readSet: ReadSet }>;
 export type HeldResolution = Readonly<{ basisKey: string; expectedDecisionRevision: number; expectedReadSet: ReadSet; selectedSource: string; actorId: string; approvalRef: string; policyVersion: string; reviewedPartialPolicy?: 'retain_full_symbolic_benefit' }>;
-type InitialGuard = { guardKey: string; status: 'selected' | 'held'; selectedSource?: string; selectedPeriod?: string; selectedStream?: string; selectedByResolution?: string; originalGrant?: string; originalSource?: string; allocationOwner?: string; readSet: ReadSet };
+type InitialGuard = { guardKey: string; status: 'selected' | 'held'; selectedSource?: string; selectedPeriod?: string; selectedStream?: string; selectedByResolution?: string; originalGrant?: string; originalSource?: string; allocationOwner?: string; allocationRevision: number; readSet: ReadSet };
 
 function basis(contribution: Contribution): string {
   const { fact, slot, period } = contribution;
@@ -77,7 +77,7 @@ export class CreditFixture {
       const selectedDecision = chosen ? await this.owner.decision<CreditDecision>(client, basis(chosen)) : undefined;
       const reviewedPartial = chosen && reviewablePartial(chosen) && ((resolvedInitial && resolution?.reviewedPartialPolicy) || selectedDecision?.body.reviewedPartialDigest === chosen.source.digest);
       const status = chosen && (condition(chosen) !== 'held' || reviewedPartial) ? 'selected' : 'held';
-      const guard: InitialGuard = { guardKey, status, ...(chosen ? { selectedSource: chosen.source.sourceKey, selectedPeriod: basis(chosen) } : {}), ...(chosen?.fact.providerSubscriptionRef ? { selectedStream: chosen.fact.providerSubscriptionRef } : {}), ...(selectedByResolution ? { selectedByResolution } : {}), ...(old?.originalGrant ? { originalGrant: old.originalGrant } : {}), ...(old?.originalSource ? { originalSource: old.originalSource } : {}), ...(old?.allocationOwner ? { allocationOwner: old.allocationOwner } : {}), readSet: evidenceReadSet(sources) };
+      const guard: InitialGuard = { guardKey, status, ...(chosen ? { selectedSource: chosen.source.sourceKey, selectedPeriod: basis(chosen) } : {}), ...(chosen?.fact.providerSubscriptionRef ? { selectedStream: chosen.fact.providerSubscriptionRef } : {}), ...(selectedByResolution ? { selectedByResolution } : {}), ...(old?.originalGrant ? { originalGrant: old.originalGrant } : {}), ...(old?.originalSource ? { originalSource: old.originalSource } : {}), ...(old?.allocationOwner ? { allocationOwner: old.allocationOwner } : {}), allocationRevision: old?.allocationRevision ?? 0, readSet: evidenceReadSet(sources) };
       guards.set(guardKey, guard);
       if (status === 'selected' && chosen?.fact.subscriptionBasisId && chosen.fact.providerSubscriptionRef) selectedStreams.set(chosen.fact.subscriptionBasisId, chosen.fact.providerSubscriptionRef);
     }
@@ -105,18 +105,25 @@ export class CreditFixture {
       const quantity = first.fact.classification === 'one_time' ? TOP_UP : QUOTA;
       let allocated = BigInt(old?.allocated ?? '0'), applied = old?.applied ?? 'never_issued';
       let originalGrant = old?.originalGrant, originalSource = old?.originalSource;
-      let transferred = false;
       // Selecting a competing initial in a different period may move an already issued symbolic
-      // allocation. Preserve its original issuance and audit a policy transfer, never a refund.
-      if (!reason && chosenCondition === 'paid' && guard?.originalGrant && !originalGrant && guard.allocationOwner !== basisKey) {
+      // allocation. Historical originalGrant metadata is NOT current allocation ownership: A may
+      // remember its issuance after A→B and must receive a transfer, not restoration, on B→A.
+      if (!reason && chosenCondition === 'paid' && guard?.originalGrant && guard.allocationOwner !== basisKey) {
         const previous = guard.allocationOwner ? await this.owner.decision<CreditDecision>(client, guard.allocationOwner) : undefined;
-        if (previous && BigInt(previous.body.allocated) > 0n) {
+        const nextAllocationRevision = guard.allocationRevision + 1;
+        if (previous && BigInt(previous.body.allocated) > 0n && allocated > 0n) reason = 'conflicting_initial_allocations';
+        else if (previous && BigInt(previous.body.allocated) > 0n) {
           const amount = BigInt(previous.body.allocated);
-          await this.owner.effect(client, { effectKey: hash(['support-transfer-out', guard.originalGrant, previous.body.basisKey, basisKey]), basisKey: previous.body.basisKey, kind: 'support_transfer_out', amount: (-amount).toString(), causeEffectKey: guard.originalGrant, policyVersion: previous.body.policyVersion });
+          const transition = [guard.guardKey, nextAllocationRevision, previous.body.basisKey, basisKey];
+          await this.owner.effect(client, { effectKey: hash(['support-transfer-out', transition]), basisKey: previous.body.basisKey, kind: 'support_transfer_out', amount: (-amount).toString(), causeEffectKey: guard.originalGrant, policyVersion: previous.body.policyVersion });
+          await this.owner.effect(client, { effectKey: hash(['support-transfer-in', transition]), basisKey, kind: 'support_transfer_in', amount: amount.toString(), ...(chosen ? { sourceKey: chosen.source.sourceKey } : {}), causeEffectKey: guard.originalGrant, policyVersion: old?.policyVersion ?? POLICY });
           await this.owner.putDecision(client, previous.body.basisKey, previous.revision + 1, { ...previous.body, allocated: '0', eligible: '0', held: '0', status: 'held', applied: 'reassigned', readSet: evidenceReadSet(sources) } satisfies CreditDecision);
-          transferred = true;
+          allocated = amount; applied = 'reassigned';
         }
-        originalGrant = guard.originalGrant; originalSource = guard.originalSource; guard.allocationOwner = basisKey;
+        if (!reason) {
+          originalGrant ??= guard.originalGrant; originalSource ??= guard.originalSource;
+          guard.allocationOwner = basisKey; guard.allocationRevision = nextAllocationRevision;
+        }
       }
       const supportSource = chosen?.source.sourceKey ?? old?.supportSource;
       // A policy hold never pretends to be a provider reversal. Correct only the causal support.
@@ -133,7 +140,7 @@ export class CreditFixture {
           await this.owner.effect(client, { effectKey: originalGrant, basisKey, kind: 'grant', amount: quantity.toString(), sourceKey: originalSource, policyVersion: POLICY });
           applied = 'issued';
         } else {
-          await this.owner.effect(client, { effectKey: hash([transferred ? 'support-transfer-in' : 'restoration', originalGrant, chosen.source.sourceKey, chosen.source.revision, resolution?.approvalRef ?? null]), basisKey, kind: transferred ? 'support_transfer_in' : 'restoration', amount: quantity.toString(), sourceKey: chosen.source.sourceKey, causeEffectKey: originalGrant, policyVersion: old?.policyVersion ?? POLICY });
+          await this.owner.effect(client, { effectKey: hash(['restoration', originalGrant, chosen.source.sourceKey, chosen.source.revision, resolution?.approvalRef ?? null]), basisKey, kind: 'restoration', amount: quantity.toString(), sourceKey: chosen.source.sourceKey, causeEffectKey: originalGrant, policyVersion: old?.policyVersion ?? POLICY });
           applied = 'restored';
         }
         allocated = quantity;

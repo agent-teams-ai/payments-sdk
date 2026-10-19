@@ -234,24 +234,41 @@ test('initial, renewal and recovery share one exact paid-period decision in eith
   }
 });
 
-test('authorized selection across competing initial periods transfers support without another original grant or a fictitious refund', async () => {
+test('reentrant initial support A→B→A→B conserves one allocation across restart, replay and partial adverse evidence', async () => {
   const fixture = await consumers();
   try {
-    const a = message(1), b = message(1, fact({ factId: 'initial-B', transactionRef: 'initial-B', providerSubscriptionRef: 'subscription-B', lines: [{ ...fact().lines[0]!, providerLineRef: 'initial-B-line', period: nextPeriod }] }));
+    const a = message(1), bFact = fact({ factId: 'initial-B', transactionRef: 'initial-B', providerSubscriptionRef: 'subscription-B', lines: [{ ...fact().lines[0]!, providerLineRef: 'initial-B-line', period: nextPeriod }] }), b = message(1, bFact);
     await fixture.credit.receive(a); const original = (await effects(fixture.credit)).find(effect => effect.kind === 'grant')!;
     await fixture.credit.receive(b);
     assert.ok((await fixture.credit.decisions()).every(row => row.body.eligible === '0'));
-    const target = (await fixture.credit.decisions()).find(row => row.body.period?.startsAt === nextPeriod.startsAt)!;
-    const command: HeldResolution = { basisKey: target.basis_key, expectedDecisionRevision: Number(target.revision), expectedReadSet: target.body.readSet, selectedSource: sourceIdentity(b), actorId: 'authorized-initial-owner', approvalRef: 'transfer-initial-support', policyVersion: 'fixture-credit-policy-v1' };
-    assert.equal(await fixture.credit.resolveHeldDecision(command), 'resolved'); assert.equal(await fixture.credit.resolveHeldDecision(command), 'duplicate');
-    const decisions = await fixture.credit.decisions();
-    assert.equal(decisions.reduce((sum, row) => sum + BigInt(row.body.eligible), 0n), Q);
-    assert.equal(decisions.reduce((sum, row) => sum + BigInt(row.body.allocated), 0n), Q);
-    assert.equal(decisions.find(row => row.body.period?.startsAt === nextPeriod.startsAt)?.body.originalGrant, original.effectKey);
-    const history = await effects(fixture.credit);
-    assert.equal(history.filter(effect => effect.kind === 'grant').length, 1); assert.equal(history.filter(effect => effect.kind === 'correction').length, 0);
-    assert.equal(history.filter(effect => effect.kind === 'support_transfer_out').length, 1); assert.equal(history.filter(effect => effect.kind === 'support_transfer_in').length, 1);
-    assert.equal((await fixture.credit.initialGuards())[0]?.body.originalGrant, original.effectKey);
+    const select = async (input: typeof a, startsAt: string, approvalRef: string, transition: number) => {
+      const credit = new CreditFixture({ pool: fixture.pool, schema: fixture.credit.owner.options.schema, trust: fixture.trust });
+      const target = (await credit.decisions()).find(row => row.body.period?.startsAt === startsAt)!;
+      const command: HeldResolution = { basisKey: target.basis_key, expectedDecisionRevision: Number(target.revision), expectedReadSet: target.body.readSet, selectedSource: sourceIdentity(input), actorId: 'authorized-initial-owner', approvalRef, policyVersion: 'fixture-credit-policy-v1' };
+      assert.equal(await credit.resolveHeldDecision(command), 'resolved'); assert.equal(await credit.resolveHeldDecision(command), 'duplicate');
+      const decisions = await credit.decisions(), history = await effects(credit), guard = (await credit.initialGuards())[0]!.body;
+      assert.equal(decisions.reduce((sum, row) => sum + BigInt(row.body.eligible), 0n), Q);
+      assert.equal(decisions.reduce((sum, row) => sum + BigInt(row.body.allocated), 0n), Q);
+      assert.equal(decisions.reduce((sum, row) => sum + BigInt(row.body.held), 0n), 0n);
+      assert.equal(history.reduce((sum, effect) => sum + BigInt(effect.amount), 0n), Q);
+      for (const decision of decisions) assert.equal(history.filter(effect => effect.basisKey === decision.basis_key).reduce((sum, effect) => sum + BigInt(effect.amount), 0n), BigInt(decision.body.allocated), 'per-period effect net equals durable allocation');
+      assert.equal(decisions.find(row => row.basis_key === target.basis_key)?.body.originalGrant, original.effectKey);
+      assert.equal(guard.allocationOwner, target.basis_key); assert.equal(guard.allocationRevision, transition); assert.equal(guard.originalGrant, original.effectKey);
+      assert.equal(history.filter(effect => effect.kind === 'grant').length, 1);
+      assert.equal(history.filter(effect => ['correction', 'restoration'].includes(effect.kind)).length, 0, 'changing support is neither a refund nor restoration');
+      assert.equal(history.filter(effect => effect.kind === 'support_transfer_out').length, transition);
+      assert.equal(history.filter(effect => effect.kind === 'support_transfer_in').length, transition);
+      assert.equal(new Set(history.map(effect => effect.effectKey)).size, history.length);
+    };
+    await select(b, nextPeriod.startsAt, 'select-B-first', 1);
+    await select(a, period.startsAt, 'select-A-again', 2);
+    await select(b, nextPeriod.startsAt, 'select-B-again', 3);
+    const partial = adjustment({ adjustmentRef: 'partial-B', transactionRef: 'initial-B', type: 'partial', amount: { currency: 'USD', minorUnits: '333' }, allocations: [{ providerLineRef: 'initial-B-line', type: 'partial', amount: { currency: 'USD', minorUnits: '333' } }] });
+    await fixture.credit.receive(message(2, bFact, [partial]));
+    assert.equal((await fixture.credit.decisions()).reduce((sum, row) => sum + BigInt(row.body.eligible), 0n), 0n);
+    assert.equal((await fixture.credit.decisions()).reduce((sum, row) => sum + BigInt(row.body.allocated), 0n), Q);
+    assert.equal((await effects(fixture.credit)).filter(effect => effect.kind === 'correction').length, 0, 'partial uncertainty never compensates an unqualified amount');
+    await select(a, period.startsAt, 'select-A-after-partial-B', 4);
   } finally { await fixture.close(); }
 });
 
