@@ -30,6 +30,9 @@ export interface PaymentProvider {
   createCheckout(input: Readonly<{ intentId: string; attemptId: string; buyerId: string; offer: OfferSnapshot }>): Promise<ProviderResult<CheckoutReady>>;
   readTransaction(transactionRef: string): Promise<ProviderResult<TransactionObservation>>;
   readSubscription(subscriptionRef: string): Promise<ProviderResult<SubscriptionObservation>>;
+  /** Exact API receipt custody. representationDigest is digest(retainedRepresentation), not a projection digest. */
+  readTransactionInput?(transactionRef: string): Promise<ProviderResult<VerifiedInput>>;
+  readSubscriptionInput?(subscriptionRef: string): Promise<ProviderResult<VerifiedInput>>;
   cancelSubscription?(input: Readonly<{ subscriptionRef: string; timing: 'now' | 'period_end'; attemptId: string }>): Promise<ProviderResult<CancellationOutcome>>;
   openPaymentUpdate?(input: Readonly<{ subscriptionRef: string; intentId: string; attemptId: string }>): Promise<ProviderResult<PaymentUpdateReady>>;
   createManagementLink?(input: Readonly<{ customerRef: string; subscriptionRefs: readonly string[] }>): Promise<ProviderResult<Readonly<{ url: string; expiresAt?: string }>>>;

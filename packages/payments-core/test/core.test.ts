@@ -16,11 +16,19 @@ function transaction(ref: string, receiptId: string, profile: 'one_time' | 'mont
 function input(observation: TransactionObservation | SubscriptionObservation, adverseTransactionRef?: string): VerifiedInput {
   return { scope, inputId: observation.source.receiptId, source: observation.source, observation, retainedRepresentation: JSON.parse(canonicalJson(observation)) as VerifiedInput['retainedRepresentation'], ...(adverseTransactionRef ? { adverseTransactionRef } : {}) };
 }
+function acquired(observation: TransactionObservation | SubscriptionObservation): VerifiedInput {
+  const { source: original, ...projection } = observation;
+  const retainedRepresentation = { representationKind: 'fake_mapped_receipt', projection: JSON.parse(canonicalJson(projection)) as VerifiedInput['retainedRepresentation'], diagnostic: { retainedOnlyHere: 'full provider diagnostic' } };
+  const source = { ...original, kind: 'authenticated_api' as const, representationDigest: digest(retainedRepresentation) };
+  return { scope, inputId: source.receiptId, source, observation: { ...observation, source }, retainedRepresentation };
+}
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; }
 function setup(profile: 'one_time' | 'monthly' = 'one_time', allowZeroTotal = false, timeoutMs = 1000) {
   const store = new MemoryPaymentStore(); let counter = 0, calls = 0, currentOffer = offer(profile, allowZeroTotal);
   let create: PaymentProvider['createCheckout'] = async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: `tx-${calls}`, checkout: { token: `token-${calls}` } } });
   const provider: PaymentProvider = { scope, capabilities: { checkout: true, transactionRead: true, subscriptionRead: true, cancellation: [], paymentUpdate: false, customerManagement: false }, createCheckout: command => { calls += 1; return create(command); }, readTransaction: async () => ({ kind: 'unsupported', capability: 'test-read' }), readSubscription: async () => ({ kind: 'unsupported', capability: 'test-read' }) };
+  provider.readTransactionInput = async ref => { const result = await provider.readTransaction(ref); return result.kind === 'succeeded' ? { kind: 'succeeded', value: acquired(result.value) } : result; };
+  provider.readSubscriptionInput = async ref => { const result = await provider.readSubscription(ref); return result.kind === 'succeeded' ? { kind: 'succeeded', value: acquired(result.value) } : result; };
   const payments = createPayments({ scope, producerNamespace: 'payments', provider, store, catalog: { resolveOffer: async () => currentOffer }, now: () => at, newId: () => `id-${++counter}`, operationTimeoutMs: timeoutMs });
   return { payments, store, provider, calls: () => calls, replaceCreate: (next: PaymentProvider['createCheckout']) => { create = next; }, replaceOffer: (next: OfferSnapshot) => { currentOffer = next; } };
 }
@@ -318,4 +326,31 @@ test('audited payment update retry preserves its pinned provider subject across 
   assert.equal((await context.payments.executeOperation(operation.operationId)).kind, 'succeeded');
   assert.deepEqual(targets, ['sub-a', 'sub-a']); assert.equal((await context.payments.readOperation(operation.operationId))?.providerSubscriptionRef, 'sub-a');
   old.resolve({ kind: 'outcome_unknown' }); await context.payments.drain();
+});
+
+test('public refresh preserves exact acquired receipts and honestly rejects providers without custody capability', async () => {
+  const context = setup('monthly'), checkout = await purchase(context), transactionReceipt = acquired(transaction(checkout.transactionRef, 'full-provider-transaction', 'monthly'));
+  context.provider.readTransactionInput = async () => ({ kind: 'succeeded', value: transactionReceipt });
+  assert.deepEqual(await context.payments.refreshPurchase('buyer', checkout.intentId), { kind: 'succeeded', value: 1 });
+  const storedTransaction = await context.store.loadReductionInput(scope, transactionReceipt.inputId); assert.ok(storedTransaction);
+  assert.deepEqual(storedTransaction.state.inbox[transactionReceipt.inputId]?.input, transactionReceipt);
+  assert.equal(digest(storedTransaction.state.inbox[transactionReceipt.inputId]?.input.retainedRepresentation), transactionReceipt.source.representationDigest);
+  const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis);
+  const subscriptionReceipt = acquired({ kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), currentPeriod: yes(period), scheduledChange: yes(null), priceRefs: yes(['price']), source: source('full-provider-subscription') });
+  context.provider.readSubscriptionInput = async () => ({ kind: 'succeeded', value: subscriptionReceipt });
+  assert.deepEqual(await context.payments.refreshSubscription('buyer', basis), { kind: 'succeeded', value: 1 });
+  assert.deepEqual((await context.store.loadReductionInput(scope, subscriptionReceipt.inputId))?.state.inbox[subscriptionReceipt.inputId]?.input, subscriptionReceipt);
+  assert.equal((await context.payments.ingestVerifiedInput(transactionReceipt)).kind, 'succeeded');
+  assert.deepEqual((await context.store.loadReductionInput(scope, transactionReceipt.inputId))?.state.inbox[transactionReceipt.inputId]?.input, transactionReceipt);
+  delete context.provider.readTransactionInput; delete context.provider.readSubscriptionInput;
+  context.provider.readTransaction = async () => { throw new Error('Neutral read must not masquerade as custody'); };
+  assert.deepEqual(await context.payments.refreshPurchase('buyer', checkout.intentId), { kind: 'unsupported', capability: 'transaction_evidence_acquisition' });
+  assert.deepEqual(await context.payments.refreshSubscription('buyer', basis), { kind: 'unsupported', capability: 'subscription_evidence_acquisition' });
+});
+
+test('refresh rejects a substituted body under an otherwise valid receipt digest', async () => {
+  const context = setup(), checkout = await purchase(context), receipt = acquired(transaction(checkout.transactionRef, 'digest-substitution'));
+  context.provider.readTransactionInput = async () => ({ kind: 'succeeded', value: { ...receipt, retainedRepresentation: {} } });
+  assert.deepEqual(await context.payments.refreshPurchase('buyer', checkout.intentId), { kind: 'rejected', code: 'validation' });
+  assert.equal(await context.store.loadReductionInput(scope, receipt.inputId), undefined);
 });

@@ -175,30 +175,50 @@ export function createPayments(options: PaymentRuntimeOptions) {
     }
     return 'conflict';
   }
+  function acquiredInputError(input: VerifiedInput, entity: AggregateIdentity): 'validation' | 'ownership_mismatch' | undefined {
+    if (!sameScope(input.scope, scope)) return 'ownership_mismatch';
+    const observation = input.observation;
+    if ((entity.type === 'transaction' && (observation.kind !== 'transaction' || observation.transactionRef !== entity.id)) || (entity.type === 'subscription' && (observation.kind !== 'subscription' || observation.subscriptionRef !== entity.id))) return 'ownership_mismatch';
+    if (input.source.kind !== 'authenticated_api' || canonicalJson(input.source) !== canonicalJson(observation.source) || digest(input.retainedRepresentation) !== input.source.representationDigest) return 'validation';
+    try { assertIdentifier(input.inputId); assertIdentifier(input.source.receiptId); } catch { return 'validation'; }
+    return undefined;
+  }
+  async function acquireAndProcess(input: VerifiedInput, entity: AggregateIdentity): Promise<OperationResult<number>> {
+    const error = acquiredInputError(input, entity); if (error) return { kind: 'rejected', code: error };
+    await store.admitVerifiedInputs(scope, [input]);
+    const processed = await processInbox(input.inputId);
+    if (processed === 'recovery_fenced') return unavailable;
+    return { kind: 'succeeded', value: processed === 'processed' || processed === 'duplicate' ? 1 : 0 };
+  }
+  function readFault(result: Exclude<ProviderResult<VerifiedInput>, { kind: 'succeeded' }>): OperationResult<number> {
+    if (result.kind === 'outcome_unknown') return unavailable;
+    return result.kind === 'rejected' ? { kind: 'rejected', code: result.code } : result;
+  }
   async function refreshPurchase(buyerId: string, intentId: string): Promise<OperationResult<number>> {
+    if (!provider.readTransactionInput) return { kind: 'unsupported', capability: 'transaction_evidence_acquisition' };
     const purchase = await store.readPurchase(scope, buyerId, intentId);
     if (!purchase) return { kind: 'rejected', code: 'ownership_mismatch' };
     let refreshed = 0;
     for (const ref of purchase.intent.transactionRefs) {
-      const observation = await provider.readTransaction(ref);
-      if (observation.kind !== 'succeeded') continue;
-      const value = observation.value;
-      if (value.transactionRef !== ref) return { kind: 'rejected', code: 'ownership_mismatch' };
-      await store.admitVerifiedInputs(scope, [{ scope, inputId: value.source.receiptId, source: value.source, observation: value, retainedRepresentation: JSON.parse(canonicalJson(value)) as JsonValue }]);
-      const processed = await processInbox(value.source.receiptId); if (processed === 'processed' || processed === 'duplicate') refreshed += 1;
+      const receipt = await provider.readTransactionInput(ref);
+      if (receipt.kind !== 'succeeded') return readFault(receipt);
+      const acquired = await acquireAndProcess(receipt.value, { type: 'transaction', id: ref });
+      if (acquired.kind !== 'succeeded') return acquired;
+      refreshed += acquired.value;
     }
     return { kind: 'succeeded', value: refreshed };
   }
   async function refreshSubscription(buyerId: string, bindingId: string): Promise<OperationResult<number>> {
+    if (!provider.readSubscriptionInput) return { kind: 'unsupported', capability: 'subscription_evidence_acquisition' };
     const subscription = await store.readSubscription(scope, buyerId, bindingId);
     if (!subscription) return { kind: 'rejected', code: 'ownership_mismatch' };
     let refreshed = 0;
     for (const ref of subscription.binding.providerSubscriptionRefs) {
-      const observation = await provider.readSubscription(ref); if (observation.kind !== 'succeeded') continue;
-      const value = observation.value;
-      if (value.subscriptionRef !== ref) return { kind: 'rejected', code: 'ownership_mismatch' };
-      await store.admitVerifiedInputs(scope, [{ scope, inputId: value.source.receiptId, source: value.source, observation: value, retainedRepresentation: JSON.parse(canonicalJson(value)) as JsonValue }]);
-      const processed = await processInbox(value.source.receiptId); if (processed === 'processed' || processed === 'duplicate') refreshed += 1;
+      const receipt = await provider.readSubscriptionInput(ref);
+      if (receipt.kind !== 'succeeded') return readFault(receipt);
+      const acquired = await acquireAndProcess(receipt.value, { type: 'subscription', id: ref });
+      if (acquired.kind !== 'succeeded') return acquired;
+      refreshed += acquired.value;
     }
     return { kind: 'succeeded', value: refreshed };
   }
