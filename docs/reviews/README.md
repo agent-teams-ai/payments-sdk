@@ -30,7 +30,7 @@ in the frozen [implementation plan](../implementation-plan.md).
 | 1 | [Core](code/wave1-core.md), [Paddle](code/wave1-paddle.md), [consumers](code/wave1-consumers.md), [platform](code/wave1-platform.md) | All ten accepted findings corrected |
 | 2 | [Domain](code/wave2-domain.md), [consumers](code/wave2-consumers.md), [Paddle](code/wave2-paddle.md), [PostgreSQL and recovery](code/wave2-postgres.md) | All seven accepted findings corrected |
 | 3 | [Domain](code/wave3-domain.md), [consumers](code/wave3-consumers.md), [platform](code/wave3-platform.md), [provider](code/wave3-provider.md) | All five accepted findings corrected |
-| 4 | [PostgreSQL](code/wave4-postgres.md), [platform](code/wave4-platform.md); consumer and domain/provider reviews in progress | Final review and correction cycle in progress |
+| 4 | [PostgreSQL](code/wave4-postgres.md), [platform](code/wave4-platform.md), [consumers](code/wave4-consumers.md); domain/provider report in progress | Final review and correction cycle in progress |
 
 ### Wave 1 corrections
 
@@ -94,7 +94,8 @@ separate gates.
 | --- | --- | --- |
 | Ordinary renewal processing reopened unchanged reclassification quarantine and bypassed its persisted cooldown | Correction in progress | Independent actual pg-boss fault probes compare the unchanged cursor/decision and exact persisted deadline |
 | Historical adjustment reparenting omitted the original parent's T1 fence before its already prepared publication T2 | Correction in progress | Independent inverse-order admission/publication probe on both Node floors |
-| The documented unpublished tarball installation tried to resolve internal packages from npm | 70db2ef in the documentation/release PR | Explicit workspace overrides in both plain and Get Modular recipes; fresh documented installation qualification |
+| The documented unpublished tarball installation tried to resolve internal packages from npm | 70db2ef in the documentation/release PR | Both fresh hosts install using the documented commands/configuration directly; runtime imports and strict NodeNext/Bundler pass on both Node floors |
+| Access accepted an uncorrelated reversed adjustment and rejected the later qualified restoration pair | Correction in progress | Independent actual-SDK probes on both hosts and Node floors compare access capabilities with retained credit allocation across restart and duplicate ACK |
 
 ## Qualification boundaries
 
