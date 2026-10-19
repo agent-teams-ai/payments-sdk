@@ -30,7 +30,7 @@ async function prepare(store: PaymentStore, id: string): Promise<void> {
 }
 function input(transactionRef: string, id: string): VerifiedInput {
   const retainedRepresentation = { fixture: id }, source = { kind: 'authenticated_api' as const, receiptId: id, representationDigest: digest(retainedRepresentation), decoderVersion: '1', apiProfile: 'fake-v1' };
-  return { scope, inputId: id, source, retainedRepresentation, observation: { kind: 'transaction', transactionRef, version: '2026-10-01T00:00:00.000001Z', status: 'completed', origin: known('api'), customerRef: known('customer'), subscriptionRef: known(null), intentCorrelation: { presence: 'unknown' }, currency: known('USD'), total: known(money('USD', '1000')), lines: known([{ providerLineRef: `line-${transactionRef}`, providerPriceRef: 'price', quantity: 1, amount: money('USD', '1000'), billingCycle: known(null), trial: known(false), proration: known(false), period: known(null) }]), source } };
+  return { scope, inputId: id, source, retainedRepresentation, observation: { kind: 'transaction', transactionRef, version: '2026-10-01T00:00:00.000001Z', status: 'completed', statusMeaning: { kind: 'completed' }, origin: known('api'), customerRef: known('customer'), subscriptionRef: known(null), intentCorrelation: { presence: 'unknown' }, currency: known('USD'), total: known(money('USD', '1000')), lines: known([{ providerLineRef: `line-${transactionRef}`, providerPriceRef: 'price', quantity: 1, amount: money('USD', '1000'), billingCycle: known(null), trial: known(false), proration: known(false), period: known(null) }]), source } };
 }
 async function fixture() {
   const suffix = randomUUID().replaceAll('-', '').slice(0, 16), paymentSchema = `pj_${suffix}`, jobSchema = `jq_${suffix}`;

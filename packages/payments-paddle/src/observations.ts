@@ -1,5 +1,5 @@
 import { assertIdentifier, compareTime, exactTime, money } from '@agent-teams/payments-core';
-import type { AdjustmentObservation, EvidenceSource, Field, Money, Observation, PaymentScope, Period, ProviderLine, SubscriptionObservation, TransactionObservation, UnsupportedObservation } from '@agent-teams/payments-core';
+import type { AdjustmentObservation, CollectionMethod, EvidenceSource, Field, Money, Observation, PaymentScope, Period, ProviderLine, SubscriptionObservation, TransactionObservation, TransactionStatusMeaning, UnsupportedObservation } from '@agent-teams/payments-core';
 
 type RecordValue = Record<string, unknown>;
 type Mode = 'raw' | 'mapped';
@@ -89,6 +89,19 @@ function lines(data: RecordValue, mode: Mode, code: string): readonly ProviderLi
   });
 }
 
+/** Explicit API1 status allowlist. SDK enums do not enforce runtime values. */
+function transactionStatusMeaning(status: string): TransactionStatusMeaning {
+  if (status === 'completed') return { kind: 'completed' };
+  if (['draft', 'ready', 'billed', 'paid', 'canceled', 'past_due'].includes(status)) return { kind: 'not_completed' };
+  return { kind: 'unsupported' };
+}
+function collectionMethod(value: unknown): CollectionMethod {
+  const mode = text(value);
+  if (mode === 'automatic') return { kind: 'automatic' };
+  if (mode === 'manual') return { kind: 'invoice' };
+  return { kind: 'unsupported', value: mode };
+}
+
 function intentCorrelation(data: RecordValue, mode: Mode, scope: PaymentScope): Field<string | null> {
   const custom = get(data, mode, 'custom_data', 'customData');
   if (custom === null) return mode === 'raw' ? known(null) : unknown();
@@ -101,7 +114,7 @@ function intentCorrelation(data: RecordValue, mode: Mode, scope: PaymentScope): 
 }
 
 export function transactionObservation(value: unknown, mode: Mode, source: EvidenceSource, scope: PaymentScope): TransactionObservation {
-  const data = record(value);
+  const data = record(value), status = text(data['status']);
   if (get(data, mode, 'collection_mode', 'collectionMode') !== 'automatic') throw new TypeError('Unsupported collection mode');
   const code = field(() => currency(get(data, mode, 'currency_code', 'currencyCode')));
   const total = field(() => {
@@ -112,7 +125,7 @@ export function transactionObservation(value: unknown, mode: Mode, source: Evide
   });
   return {
     kind: 'transaction', transactionRef: id(data['id']), version: timestamp(get(data, mode, 'updated_at', 'updatedAt')),
-    status: text(data['status']), origin: field(() => text(data['origin'])),
+    status, statusMeaning: transactionStatusMeaning(status), origin: field(() => text(data['origin'])),
     customerRef: nullable(get(data, mode, 'customer_id', 'customerId'), mode, false, id),
     subscriptionRef: nullable(get(data, mode, 'subscription_id', 'subscriptionId'), mode, false, id),
     intentCorrelation: intentCorrelation(data, mode, scope), currency: code, total,
@@ -129,7 +142,13 @@ export function subscriptionObservation(value: unknown, mode: Mode, source: Evid
       const current = record(value); return { action: text(current['action']), effectiveAt: timestamp(get(current, mode, 'effective_at', 'effectiveAt')) };
     }),
     currentPeriod: nullable(get(data, mode, 'current_billing_period', 'currentBillingPeriod'), mode, false, value => period(value, mode)),
-    priceRefs: field(() => array(data['items']).map(value => id(record(record(value)['price'])['id']))), source,
+    collection: field(() => collectionMethod(get(data, mode, 'collection_mode', 'collectionMode'))),
+    items: field(() => array(data['items']).map(value => {
+      const item = record(value), price = record(item['price']);
+      return { providerPriceRef: id(price['id']), quantity: field(() => positiveInteger(item['quantity'])),
+        billingCycle: nullable(get(price, mode, 'billing_cycle', 'billingCycle'), mode, true, value => { const cycle = record(value); return { interval: text(cycle['interval']), frequency: positiveInteger(cycle['frequency']) }; }),
+        trial: nonTrial(get(price, mode, 'trial_period', 'trialPeriod'), mode) };
+    })), source,
   };
 }
 
