@@ -5,11 +5,11 @@ import { canonicalJson, digest } from '@agent-teams/payments-core';
 import type { EvidenceMessage, PaymentOperation, PurchaseIntent, SubscriptionBinding } from '@agent-teams/payments-core';
 import {
   createPostgresPaymentRecovery, PaymentRecoveryBlockedError, PaymentRecoveryConflictError, recoveryCheckpointDigest,
-} from '../dist/index.js';
-import type { PaymentRecoverySession, RecoveryCheckpoint, RecoveryManifest } from '../dist/index.js';
-import { CreditFixture } from '../../../tests/fixtures/consumers/credit.ts';
-import type { Effect } from '../../../tests/fixtures/consumers/owner.ts';
-import { databaseFixture, offer, runtime, scope } from './helpers.ts';
+} from '@agent-teams/payments-postgres';
+import type { PaymentRecoverySession, RecoveryCheckpoint, RecoveryManifest } from '@agent-teams/payments-postgres';
+import { CreditFixture } from '../fixtures/consumers/credit.ts';
+import type { Effect } from '../fixtures/consumers/owner.ts';
+import { databaseFixture, offer, runtime, scope } from '../../packages/payments-postgres/test/helpers.ts';
 
 const producerNamespace = 'database-fixture';
 const audit = { actorId: 'trusted-operator', auditRef: 'incident-restore-2026-001', reason: 'Reconcile independently restored owners before resuming' };
