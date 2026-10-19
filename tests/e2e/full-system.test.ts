@@ -4,6 +4,7 @@ import { request as httpRequest } from 'node:http';
 import test from 'node:test';
 import { Pool } from 'pg';
 import { MockAgent, getGlobalDispatcher, install, setGlobalDispatcher } from 'undici';
+import { createPayments } from '@agent-teams/payments-core';
 import { createPaddleProvider } from '@agent-teams/payments-paddle';
 import { createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
 import type { CheckoutReady, EvidenceMessage, OfferSnapshot, OperationResult, PaymentRuntimeOptions } from '@agent-teams/payments-core';
@@ -288,5 +289,65 @@ test('both public hosts hold distinct initial and renewal transactions for equiv
       });
     }
   } finally { await emulation.restore(); }
+});
+
+test('actual SDK unknown outcome and approved duplicate-risk retry retain one reentrant initial allocation', { timeout: 15_000 }, async () => {
+  const emulation = paddleEmulation(), { api, agent } = emulation;
+  const connectionString = process.env['DATABASE_URL']; if (!connectionString) throw new Error('DATABASE_URL is required');
+  const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
+  const prefix = `transfer_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
+  const trust = { producerNamespace, scope }, credit = new CreditFixture({ pool, schema: `${prefix}_credit`, trust });
+  await migratePaymentSchema({ pool, schema, scope }); await credit.migrate();
+  const provider = createPaddleProvider({ scope, apiKey: 'synthetic-never-valid-key', apiVersion: 1, webhook: { endpointId: 'transfer-destination', secret: SECRET, apiVersion: 1 } });
+  const store = await createPostgresPaymentStore({ pool, schema, scope });
+  const payments = createPayments({ scope, producerNamespace, provider, store, catalog: { resolveOffer: async () => offer }, operationTimeoutMs: 100 });
+  let release: () => void = () => undefined, intentId = '';
+  const firstBarrier = new Promise<void>(resolve => { release = resolve; });
+  try {
+    await payments.registerConsumer('credit');
+    api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, options => {
+      const body = JSON.parse(String(options.body)) as { custom_data: { payments: { intentId: string } } }; intentId = body.custom_data.payments.intentId;
+      return firstBarrier.then(() => responseFixture(transactionFixture({ intentId, status: 'ready', customerRef: null })));
+    });
+    const unknown = await payments.startPurchase({ buyerId: 'buyer-a', offerId: 'monthly', requestKey: 'transfer-initial' });
+    assert.equal(unknown.kind, 'outcome_unknown'); if (unknown.kind !== 'outcome_unknown') throw new Error('Expected unresolved create behind the barrier');
+    const operation = await payments.readOperation(unknown.operationId); assert.ok(operation);
+    success(await payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'authorized-risk-owner', auditRef: 'explicit-duplicate-risk', reason: 'reviewed missing first create', action: 'retry', acceptedDuplicateRisk: true }));
+    api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, responseFixture(transactionFixture({ id: paddleIds.secondTransaction, intentId, status: 'ready', customerRef: null })));
+    const checkout = success(await payments.executeOperation<CheckoutReady>(operation.operationId)); assert.equal(checkout.transactionRef, paddleIds.secondTransaction);
+    release(); await payments.drain();
+    let sequence = 500;
+    const ingress = async (data: Record<string, unknown>) => {
+      const body = JSON.stringify(eventFixture('transaction.completed', data, `evt_${String(++sequence).padStart(26, '0')}`));
+      const verified = await provider.verifyWebhook(Buffer.from(body), sign(body)); if (verified.kind !== 'succeeded') throw new Error('Expected official signature verification');
+      success(await payments.ingestVerifiedInput(verified.value)); assert.equal(await payments.processInbox(verified.value.inputId), 'processed');
+      await payments.repair(100); await deliver(payments, 'credit', credit);
+    };
+    await ingress(transactionFixture({ intentId }));
+    const b = transactionFixture({ id: paddleIds.secondTransaction, intentId, subscriptionRef: 'sub_00000000000000000000000003' });
+    b['billing_period'] = { starts_at: nextPeriod.startsAt, ends_at: nextPeriod.endsAt }; await ingress(b);
+    const purchase = await payments.readPurchase('buyer-a', intentId); assert.ok(purchase);
+    assert.equal(purchase.transactions.filter(transaction => transaction.completion?.classification === 'initial').length, 2);
+    assert.ok(purchase.transactions.every(transaction => transaction.flags.includes('duplicate_initial_purchase')));
+    const original = (await credit.owner.inspect<{ body: Effect }>('effects')).find(effect => effect.body.kind === 'grant')!.body;
+    for (const [transition, transactionRef] of [[1, paddleIds.secondTransaction], [2, paddleIds.transaction], [3, paddleIds.secondTransaction]] as const) {
+      const restarted = new CreditFixture({ pool, schema: credit.owner.options.schema, trust });
+      const snapshot = (await restarted.owner.inspect<{ source_key: string; body: EvidenceMessage }>('evidence_projection')).find(source => source.body.aggregate.id === transactionRef)!;
+      const period = snapshot.body.kind === 'complete' ? snapshot.body.completion?.lines[0]?.period : undefined; assert.ok(period);
+      const target = (await restarted.decisions()).find(row => row.body.period?.startsAt === period.startsAt)!;
+      const command = { basisKey: target.basis_key, expectedDecisionRevision: Number(target.revision), expectedReadSet: target.body.readSet, selectedSource: snapshot.source_key, actorId: 'authorized-local-owner', approvalRef: `public-support-${transition}`, policyVersion: 'fixture-credit-policy-v1' };
+      assert.equal(await restarted.resolveHeldDecision(command), 'resolved'); assert.equal(await restarted.resolveHeldDecision(command), 'duplicate');
+      const decisions = await restarted.decisions(), effects = (await restarted.owner.inspect<{ body: Effect }>('effects')).map(effect => effect.body), guard = (await restarted.initialGuards())[0]!.body;
+      assert.equal(decisions.reduce((sum, row) => sum + BigInt(row.body.eligible), 0n), Q);
+      assert.equal(decisions.reduce((sum, row) => sum + BigInt(row.body.allocated), 0n), Q);
+      assert.equal(decisions.reduce((sum, row) => sum + BigInt(row.body.held), 0n), 0n);
+      assert.equal(effects.reduce((sum, effect) => sum + BigInt(effect.amount), 0n), Q);
+      for (const row of decisions) assert.equal(effects.filter(effect => effect.basisKey === row.basis_key).reduce((sum, effect) => sum + BigInt(effect.amount), 0n), BigInt(row.body.allocated));
+      assert.equal(guard.allocationOwner, target.basis_key); assert.equal(guard.allocationRevision, transition); assert.equal(guard.originalGrant, original.effectKey);
+      assert.equal(effects.filter(effect => effect.kind === 'grant').length, 1); assert.equal(effects.filter(effect => ['correction', 'restoration'].includes(effect.kind)).length, 0);
+      assert.equal(effects.filter(effect => effect.kind === 'support_transfer_out').length, transition); assert.equal(effects.filter(effect => effect.kind === 'support_transfer_in').length, transition);
+    }
+    agent.assertNoPendingInterceptors();
+  } finally { release(); payments.stop(); await payments.drain(); await pool.query(`DROP SCHEMA "${schema}" CASCADE; DROP SCHEMA ${credit.owner.sql} CASCADE`); await pool.end(); await emulation.restore(); }
 });
 
