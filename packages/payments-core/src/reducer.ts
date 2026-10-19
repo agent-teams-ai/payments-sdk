@@ -7,7 +7,7 @@ function removeFlag(target: { flags: EvidenceFlag[] }, value: EvidenceFlag): voi
 export function transactionAggregate(state: PaymentState, ref: string): TransactionAggregate {
   return state.transactions[ref] ??= { transactionRef: ref, revision: 0, evidenceRevision: 0, observations: [], adjustments: {}, pendingAdverse: [], flags: [], publicationRequired: false };
 }
-function subscriptionAggregate(state: PaymentState, ref: string): SubscriptionAggregate {
+export function subscriptionAggregate(state: PaymentState, ref: string): SubscriptionAggregate {
   return state.subscriptions[ref] ??= { subscriptionRef: ref, revision: 0, evidenceRevision: 0, flags: [], publicationRequired: false };
 }
 function semantic(value: unknown): unknown {
