@@ -60,7 +60,7 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
         const store = await createPostgresPaymentStore({ pool, schema, scope });
         const topup: OfferSnapshot = { ...offer, offerId: 'topup', profile: 'one_time', lines: [{ providerPriceRef: paddleIds.price, benefitSlotId: 'purchased', quantity: 1 }] };
         const zero: OfferSnapshot = { ...topup, offerId: 'free', allowZeroTotal: true };
-        const runtimeOptions: PaymentRuntimeOptions = { scope, producerNamespace, provider, store, catalog: { resolveOffer: async (_scope, offerId) => ({ monthly: offer, topup, free: zero } as Record<string, OfferSnapshot>)[offerId] }, now: () => now, newId: () => `host-${++id}` };
+        const runtimeOptions: PaymentRuntimeOptions = { scope, producerNamespace, provider, store, catalog: { resolveOffer: async (_scope, offerId) => ({ monthly: offer, topup, free: zero } as Record<string, OfferSnapshot>)[offerId] }, now: () => now, newId: () => `host-${++id}`, operationTimeoutMs: 15_000 };
         const authenticate = async (request: Request): Promise<string | undefined> => request.headers.get('x-fixture-auth') === 'buyer-a-token' ? 'buyer-a' : undefined;
         const verify = provider.verifyWebhook.bind(provider);
         const host = kind === 'node-http-factory' ? await createNodeHttpHost(runtimeOptions, verify, authenticate) : await createFetchModularHost(runtimeOptions, verify, authenticate);
@@ -76,6 +76,8 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
           return post('/webhooks/paddle', body, { 'paddle-signature': invalidSignature ? 'ts=0;h1=invalid' : sign(body) });
         };
         const flush = async () => { await payments.repair(100); await deliver(payments, 'credit', credit); await deliver(payments, 'access', access); };
+        const sdkEntered = Promise.withResolvers<void>(), checkoutReply = Promise.withResolvers<void>();
+        let creatorRequest: Promise<Readonly<{ status: number; body: string }>> | undefined;
         try {
           await payments.registerConsumer('credit'); await payments.registerConsumer('access');
           // Exact early event arrives before the intent and checkout binding exist.
@@ -85,16 +87,29 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
           await flush(); assert.equal((await credit.decisions()).length, 0);
           let createCalls = 0;
           api.intercept({ path: /^\/transactions\??$/u, method: 'POST', headers: { 'paddle-version': '1' } }).reply(201, options => {
+            sdkEntered.resolve();
             createCalls += 1; const body = JSON.parse(String(options.body)) as { custom_data: { payments: { intentId: string } } };
-            assert.equal(body.custom_data.payments.intentId, 'host-1'); return responseFixture(transactionFixture({ intentId: 'host-1', status: 'ready', customerRef: null }));
+            assert.equal(body.custom_data.payments.intentId, 'host-1');
+            return checkoutReply.promise.then(() => responseFixture(transactionFixture({ intentId: 'host-1', status: 'ready', customerRef: null })));
           });
           assert.equal((await post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'initial' }))).status, 401);
-          const responses = await Promise.all(Array.from({ length: 8 }, () => post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'initial', buyerId: 'victim-ignored' }), { 'x-fixture-auth': 'buyer-a-token' })));
+          // Promise creation order does not determine which competing SQL admission commits first.
+          // Reserve the intent named by the early webhook, then overlap seven duplicate requests
+          // with the actual SDK call. The barrier, not elapsed time, proves dispatch is in flight.
+          creatorRequest = post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'initial', buyerId: 'victim-ignored' }), { 'x-fixture-auth': 'buyer-a-token' });
+          await sdkEntered.promise;
+          const responses = await Promise.all(Array.from({ length: 7 }, () => post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'initial', buyerId: 'victim-ignored' }), { 'x-fixture-auth': 'buyer-a-token' })));
           const values = responses.map(response => JSON.parse(response.body) as OperationResult<CheckoutReady>);
-          assert.ok(values.every(value => ['succeeded', 'pending'].includes(value.kind)), JSON.stringify(values));
+          assert.ok(values.every(value => value.kind === 'pending'), JSON.stringify(values));
+          const pendingIds = values.flatMap(value => value.kind === 'pending' ? [value.operationId] : []);
+          assert.equal(new Set(pendingIds).size, 1); assert.equal(createCalls, 1);
+          checkoutReply.resolve();
+          const created = await creatorRequest;
+          const createdCheckout = success(JSON.parse(created.body) as OperationResult<CheckoutReady>);
           await payments.repair(100);
           const repeated = await post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'initial' }), { 'x-fixture-auth': 'buyer-a-token' });
           const checkout = success(JSON.parse(repeated.body) as OperationResult<CheckoutReady>); assert.equal(createCalls, 1);
+          assert.deepEqual(checkout, createdCheckout);
           assert.equal(checkout.transactionRef, paddleIds.transaction);
           assert.equal(await payments.flushPublication({ type: 'transaction', id: paddleIds.transaction }), 'committed');
           await payments.repair(100);
@@ -206,7 +221,7 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
           // Public SDK remains the actual adapter; no production fetch seam or credentials exist.
           await assert.rejects(fetch('https://sandbox-api.paddle.com/unmatched-network-probe'), /fetch failed/u);
           agent.assertNoPendingInterceptors();
-        } finally { await host.close(); await pool.query(`DROP SCHEMA "${schema}" CASCADE; DROP SCHEMA ${credit.owner.sql} CASCADE; DROP SCHEMA ${access.owner.sql} CASCADE`); await pool.end(); }
+        } finally { checkoutReply.resolve(); await creatorRequest?.catch(() => undefined); await host.close(); await pool.query(`DROP SCHEMA "${schema}" CASCADE; DROP SCHEMA ${credit.owner.sql} CASCADE; DROP SCHEMA ${access.owner.sql} CASCADE`); await pool.end(); }
       });
     }
   } finally { await emulation.restore(); }
