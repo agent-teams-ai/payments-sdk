@@ -314,7 +314,8 @@ test('actual SDK unknown outcome and approved duplicate-risk retry retain one re
     const operation = await payments.readOperation(unknown.operationId); assert.ok(operation);
     success(await payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'authorized-risk-owner', auditRef: 'explicit-duplicate-risk', reason: 'reviewed missing first create', action: 'retry', acceptedDuplicateRisk: true }));
     api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, responseFixture(transactionFixture({ id: paddleIds.secondTransaction, intentId, status: 'ready', customerRef: null })));
-    const checkout = success(await payments.executeOperation<CheckoutReady>(operation.operationId)); assert.equal(checkout.transactionRef, paddleIds.secondTransaction);
+    const checkout = success(await payments.executeOperation(operation.operationId));
+    assert.ok(checkout !== null && typeof checkout === 'object' && 'transactionRef' in checkout); assert.equal(checkout.transactionRef, paddleIds.secondTransaction);
     release(); await payments.drain();
     let sequence = 500;
     const ingress = async (data: Record<string, unknown>) => {
