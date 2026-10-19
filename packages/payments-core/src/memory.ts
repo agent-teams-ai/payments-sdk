@@ -85,7 +85,7 @@ export class MemoryPaymentStore implements PaymentStore {
       if (commit.binding) {
         const existing = state.bindings[commit.binding.transactionRef];
         if (existing && (existing.intentId !== commit.binding.intentId || existing.buyerId !== commit.binding.buyerId || existing.purpose !== commit.binding.purpose)) return { kind: 'conflict' } as const;
-        state.bindings[commit.binding.transactionRef] = commit.binding;
+        state.bindings[commit.binding.transactionRef] = existing?.customerRef !== null && existing?.customerRef !== undefined ? { ...commit.binding, customerRef: existing.customerRef } : commit.binding;
         const aggregate = transactionAggregate(state, commit.binding.transactionRef); aggregate.revision += 1; aggregate.publicationRequired = true;
       }
       state.operations[commit.operation.operationId] = commit.operation; state.requestKeys[key] = commit.operation.operationId;
@@ -124,7 +124,7 @@ export class MemoryPaymentStore implements PaymentStore {
     const includeIntent = (intentId: string): void => {
       guard(`intent:${intentId}`); add('intents', intentId); const intent = state.intents[intentId]; if (!intent) return;
       if (intent.subscriptionBasisId) add('subscriptionBindings', intent.subscriptionBasisId);
-      for (const candidate of Object.values(state.transactions)) if (candidate.completion?.intentId === intentId && candidate.completion.classification === 'initial') add('transactions', candidate.transactionRef);
+      for (const candidate of Object.values(state.transactions)) if (candidate.completion?.intentId === intentId && ['initial', 'one_time'].includes(candidate.completion.classification)) add('transactions', candidate.transactionRef);
     };
     let transactionRef: string | undefined, subscriptionRef: string | undefined;
     if (aggregate) { if (aggregate.type === 'transaction') transactionRef = aggregate.id; else subscriptionRef = aggregate.id; }
@@ -153,7 +153,13 @@ export class MemoryPaymentStore implements PaymentStore {
     return this.atomic(scope, state => {
       if (state.recoveryFenced) return { kind: 'recovery_fenced' } as const;
       if (commit.expected.some(item => this.revision(scope, item.table, item.id) !== item.revision)) return { kind: 'conflict' } as const;
-      for (const table of mutableTables) Object.assign(state[table], commit.state[table]);
+      for (const table of mutableTables) {
+        if (!commit.heldReason || table === 'inbox') Object.assign(state[table], commit.state[table]);
+        else if (table === 'transactions' || table === 'subscriptions') for (const [id, metadata] of Object.entries(commit.state[table])) {
+          const target = state[table][id];
+          if (target) { target.revision = metadata.revision; target.evidenceRevision = metadata.evidenceRevision; target.publicationRequired = metadata.publicationRequired; }
+        }
+      }
       for (const [id, message] of Object.entries(commit.state.evidence)) {
         if (state.evidence[id] && state.evidence[id].bodyDigest !== message.bodyDigest) return { kind: 'conflict' } as const;
         state.evidence[id] = message;

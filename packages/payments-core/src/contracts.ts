@@ -59,7 +59,7 @@ export type PaymentState = { revision: number; recoveryFenced: boolean; intents:
 /** A bounded owner-local working set, never a complete scope ledger. Missing rows carry revision null. */
 export type PaymentReadVersion = Readonly<{ table: 'intents' | 'operations' | 'bindings' | 'subscriptionBindings' | 'transactions' | 'subscriptions' | 'inbox' | 'configuration' | 'guards'; id: string; revision: number | null }>;
 export type ReductionInput = Readonly<{ inputId: string; state: PaymentState; expected: readonly PaymentReadVersion[]; incompleteReason?: string }>;
-export type ReductionCommit = Readonly<{ inputId: string; expected: readonly PaymentReadVersion[]; state: PaymentState }>;
+export type ReductionCommit = Readonly<{ inputId: string; heldReason?: string; expected: readonly PaymentReadVersion[]; state: PaymentState }>;
 export type IntentAdmission = Readonly<{ intent: PurchaseIntent; operation: PaymentOperation; subscriptionBinding?: SubscriptionBinding }>;
 export type OperationInput = Readonly<{ operation: PaymentOperation; intent?: PurchaseIntent; subscriptionBinding?: SubscriptionBinding; transactionBinding?: TransactionBinding; laneRevision: number }>;
 export type OperationCommit = Readonly<{ expectedRevision: number; expectedLaneRevision: number; operation: PaymentOperation; binding?: TransactionBinding; subscriptionBinding?: SubscriptionBinding; intent?: PurchaseIntent }>;

@@ -57,7 +57,7 @@ function validLine(line: ProviderLine, offer: OfferSnapshot): boolean {
   const expected = offer.lines[0];
   if (!expected || line.providerPriceRef !== expected.providerPriceRef || line.quantity !== 1 || line.amount.currency !== offer.currency || !known(line.trial) || line.trial.value || !known(line.proration) || line.proration.value || !known(line.billingCycle)) return false;
   money(line.amount.currency, line.amount.minorUnits); assertIdentifier(line.providerLineRef);
-  if (offer.profile === 'one_time') return line.billingCycle.value === null && known(line.period) && line.period.value === null;
+  if (offer.profile === 'one_time') return line.billingCycle.value === null && (!known(line.period) || line.period.value === null);
   const cycle = line.billingCycle.value;
   if (cycle?.interval !== 'month' || cycle.frequency !== 1 || !known(line.period) || line.period.value === null) return false;
   return compareTime(line.period.value.startsAt, line.period.value.endsAt) < 0;
@@ -72,7 +72,7 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
   const intent = state.intents[binding.intentId];
   if (!intent) return { kind: 'held', reason: 'unresolved_binding' };
   const offer = intent.offer;
-  if (!known(observation.lines) || !known(observation.total) || !known(observation.currency) || !known(observation.origin) || !known(observation.customerRef) || !known(observation.subscriptionRef)) return { kind: 'held', reason: 'incomplete' };
+  if (!known(observation.lines) || !known(observation.total) || !known(observation.currency) || !known(observation.origin) || !known(observation.customerRef) || (offer.profile === 'monthly' && !known(observation.subscriptionRef))) return { kind: 'held', reason: 'incomplete' };
   if (observation.currency.value !== offer.currency || observation.total.value.currency !== offer.currency || observation.lines.value.length !== offer.lines.length || !observation.lines.value.every(line => validLine(line, offer))) return { kind: 'held', reason: 'catalog_mismatch' };
   money(observation.total.value.currency, observation.total.value.minorUnits);
   if (BigInt(observation.total.value.minorUnits) < 0n || (!offer.allowZeroTotal && observation.total.value.minorUnits === '0')) return { kind: 'held', reason: 'catalog_mismatch' };
@@ -84,7 +84,7 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
   let classification: CompletionFact['classification'] = 'one_time';
   let sub: SubscriptionBinding | undefined;
   if (offer.profile === 'monthly') {
-    const subRef = observation.subscriptionRef.value;
+    const subRef = known(observation.subscriptionRef) ? observation.subscriptionRef.value : null;
     if (!subRef || !intent.subscriptionBasisId) return { kind: 'held', reason: 'incomplete' };
     sub = state.subscriptionBindings[intent.subscriptionBasisId];
     if (!sub) return { kind: 'held', reason: 'unresolved_binding' };
@@ -98,7 +98,7 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
       if (sub.selectedSubscriptionRef !== subRef) return { kind: 'held', reason: 'duplicate_initial_purchase' };
     }
   } else {
-    if (observation.subscriptionRef.value !== null || !['web', 'api', 'automatic'].includes(origin)) return { kind: 'held', reason: 'unsupported' };
+    if ((known(observation.subscriptionRef) && observation.subscriptionRef.value !== null) || !['web', 'api', 'automatic'].includes(origin)) return { kind: 'held', reason: 'unsupported' };
   }
   binding.customerRef ??= observation.customerRef.value;
   const lines = observation.lines.value.map(line => {
@@ -107,7 +107,7 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
     const period = known(line.period) ? line.period.value : null;
     return { providerLineRef: line.providerLineRef, benefitSlotId, amount: line.amount, quantity: 1 as const, ...(period === null ? {} : { period }) };
   });
-  return { kind: 'commercial', fact: { factId: digest([scope.provider, scope.paymentAccountId, scope.environment, observation.transactionRef, 'completion']), scope, transactionRef: observation.transactionRef, intentId: intent.intentId, buyerId: intent.buyerId, ...(sub ? { subscriptionBasisId: sub.bindingId, providerSubscriptionRef: observation.subscriptionRef.value as string } : {}), classification, offer, total: observation.total.value, lines, source: observation.source } };
+  return { kind: 'commercial', fact: { factId: digest([scope.provider, scope.paymentAccountId, scope.environment, observation.transactionRef, 'completion']), scope, transactionRef: observation.transactionRef, intentId: intent.intentId, buyerId: intent.buyerId, ...(sub ? { subscriptionBasisId: sub.bindingId, providerSubscriptionRef: known(observation.subscriptionRef) ? observation.subscriptionRef.value as string : '' } : {}), classification, offer, total: observation.total.value, lines, source: observation.source } };
 }
 function bindRenewal(state: PaymentState, observation: TransactionObservation): void {
   if (state.bindings[observation.transactionRef] || !known(observation.subscriptionRef) || !observation.subscriptionRef.value || !known(observation.origin) || observation.origin.value !== 'subscription_recurring') return;
@@ -117,9 +117,9 @@ function bindRenewal(state: PaymentState, observation: TransactionObservation): 
   state.bindings[observation.transactionRef] = { transactionRef: observation.transactionRef, intentId: binding.originatingIntentId, buyerId: binding.buyerId, purpose: 'commercial', customerRef: binding.customerRef };
 }
 function markDuplicates(state: PaymentState, fact: CompletionFact): void {
-  if (fact.classification !== 'initial') return;
-  const candidates = Object.values(state.transactions).filter(aggregate => aggregate.completion?.intentId === fact.intentId && aggregate.completion.classification === 'initial');
-  if (candidates.length > 1) for (const aggregate of candidates) { flag(aggregate, 'duplicate_initial_purchase'); aggregate.publicationRequired = true; aggregate.revision += 1; }
+  if (!['initial', 'one_time'].includes(fact.classification)) return;
+  const candidates = Object.values(state.transactions).filter(aggregate => aggregate.completion?.intentId === fact.intentId && aggregate.completion.classification === fact.classification);
+  if (candidates.length > 1) for (const aggregate of candidates) { flag(aggregate, fact.classification === 'initial' ? 'duplicate_initial_purchase' : 'duplicate_payment'); aggregate.publicationRequired = true; aggregate.revision += 1; }
 }
 function reduceTransaction(state: PaymentState, scope: PaymentScope, observation: TransactionObservation): void {
   exactTime(observation.version);
@@ -273,4 +273,18 @@ export function processInput(state: PaymentState, scope: PaymentScope, inputId: 
   const adverse = record.input.adverseTransactionRef ?? (record.input.observation.kind === 'adjustment' ? record.input.observation.transactionRef : undefined);
   if (adverse) { const aggregate = transactionAggregate(state, adverse); aggregate.pendingAdverse = aggregate.pendingAdverse.filter(id => id !== inputId); aggregate.revision += 1; aggregate.publicationRequired = true; }
   record.state = 'processed'; return 'processed';
+}
+/** Quarantine/working-set overflow never serializes a partial history as a complete snapshot. */
+export function publishHeldEvidence(state: PaymentState, scope: PaymentScope, producerNamespace: string, reason: string, maxBytes: number): EvidenceMessage[] {
+  const messages: EvidenceMessage[] = [];
+  for (const aggregate of Object.values(state.transactions)) {
+    aggregate.evidenceRevision += 1; aggregate.revision += 1; aggregate.publicationRequired = false;
+    const message = storeMessage(state, scope, producerNamespace, { type: 'transaction', id: aggregate.transactionRef }, aggregate.evidenceRevision, { kind: 'held', reason, resolutionRef: aggregate.transactionRef }, maxBytes);
+    messages.push(message);
+  }
+  for (const aggregate of Object.values(state.subscriptions)) {
+    aggregate.evidenceRevision += 1; aggregate.revision += 1; aggregate.publicationRequired = false;
+    messages.push(storeMessage(state, scope, producerNamespace, { type: 'subscription', id: aggregate.subscriptionRef }, aggregate.evidenceRevision, { kind: 'held', reason, resolutionRef: aggregate.subscriptionRef }, maxBytes));
+  }
+  return messages;
 }
