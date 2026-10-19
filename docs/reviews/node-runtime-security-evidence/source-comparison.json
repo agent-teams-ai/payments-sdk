@@ -1,0 +1,30 @@
+[
+  {
+    "node": "24.21.0",
+    "undici": "7.29.1",
+    "node_version_metadata": "7.29.1",
+    "fetch_byte_identical_to_unpatched_undici_tag": true,
+    "fetch_sha256": "de99d1d1944b747c6428a73f8ad72f687c1c66a568af5aaae90c9dd22aaa2aa7"
+  },
+  {
+    "node": "24.22.0",
+    "undici": "7.29.1",
+    "node_version_metadata": "7.29.1",
+    "fetch_byte_identical_to_unpatched_undici_tag": true,
+    "fetch_sha256": "de99d1d1944b747c6428a73f8ad72f687c1c66a568af5aaae90c9dd22aaa2aa7"
+  },
+  {
+    "node": "26.11.1",
+    "undici": "8.11.2",
+    "node_version_metadata": "8.11.2",
+    "fetch_byte_identical_to_unpatched_undici_tag": true,
+    "fetch_sha256": "8269824463f434e3e15c5aad090e03f19aefe9d27b40efad9d8ef7ed308d1d27"
+  },
+  {
+    "node": "26.12.0",
+    "undici": "8.11.2",
+    "node_version_metadata": "8.11.2",
+    "fetch_byte_identical_to_unpatched_undici_tag": true,
+    "fetch_sha256": "8269824463f434e3e15c5aad090e03f19aefe9d27b40efad9d8ef7ed308d1d27"
+  }
+]

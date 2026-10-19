@@ -2,6 +2,8 @@
 
 This guide composes the supported profile from the four package boundaries. The complete, typechecked durable example is [`examples/paddle-postgres.ts`](../examples/paddle-postgres.ts); the two HTTP host examples are exercised in the [full-system suite](../tests/e2e/full-system.test.ts). Credentials and application policies are explicit inputs.
 
+**Use this prerelease for integration and fixture evaluation. Production deployment is currently blocked by the [Node runtime security gate](security-qualification.md#node-bundled-transport-scope).** Functional CI success and clean npm dependency scans do not establish a corrected built-in `fetch`. An official patched runtime needs the separate source, binary and consumer qualification documented there before real deployment.
+
 ## 1. Choose a package set
 
 A plain application can use `payments-core` with its own implementations of the core-owned `PaymentProvider`, `PaymentStore` and `Catalog` ports. For Paddle with PostgreSQL, install the matching core, Paddle and PostgreSQL tarballs from one [release candidate](releasing.md), plus `pg`. Add `payments-get-modular` and its exact qualified peers only when the host uses Get Modular. These packages emit ESM JavaScript and declarations; consume their public exports instead of importing workspace source or private SDK paths.

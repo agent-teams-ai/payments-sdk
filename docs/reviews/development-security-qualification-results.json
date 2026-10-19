@@ -1,0 +1,187 @@
+{
+  "recorded_at": "2026-10-19T21:18:00.524344+00:00",
+  "base": "01b90c7a6a902601c96856424b39f63fb5b9f9f2",
+  "undici": "7.30.1",
+  "pnpm": "11.25.0",
+  "typescript": "7.0.2",
+  "paddle": "3.10.0",
+  "postgres": "18.4",
+  "runs": {
+    "24.21.0": {
+      "node": "24.21.0",
+      "frozen_install_exit": 0,
+      "pnpm_check_exit": 0,
+      "strict_tooling_foundation": "passed",
+      "groups": {
+        "boundaries": {
+          "tests": 14,
+          "pass": 14,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "core": {
+          "tests": 48,
+          "pass": 48,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "paddle": {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "modular": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "postgres": {
+          "tests": 39,
+          "pass": 39,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "e2e": {
+          "tests": 52,
+          "pass": 52,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        }
+      },
+      "packed_profiles": 4,
+      "release_packages": 4,
+      "published": false,
+      "reconciliation_tests_in_postgres_group": 12
+    },
+    "26.11.1": {
+      "node": "26.11.1",
+      "frozen_install_exit": 0,
+      "pnpm_check_exit": 0,
+      "strict_tooling_foundation": "passed",
+      "groups": {
+        "boundaries": {
+          "tests": 14,
+          "pass": 14,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "core": {
+          "tests": 48,
+          "pass": 48,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "paddle": {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "modular": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "postgres": {
+          "tests": 39,
+          "pass": 39,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        },
+        "e2e": {
+          "tests": 52,
+          "pass": 52,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0
+        }
+      },
+      "packed_profiles": 4,
+      "release_packages": 4,
+      "published": false,
+      "reconciliation_tests_in_postgres_group": 12
+    }
+  },
+  "audits": {
+    "prod": {
+      "exit": 0,
+      "advisories": {},
+      "metadata": {
+        "vulnerabilities": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0
+        },
+        "dependencies": 27,
+        "devDependencies": 0,
+        "optionalDependencies": 1,
+        "totalDependencies": 28
+      }
+    },
+    "full": {
+      "exit": 0,
+      "advisories": {},
+      "metadata": {
+        "vulnerabilities": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0
+        },
+        "dependencies": 27,
+        "devDependencies": 110,
+        "optionalDependencies": 66,
+        "totalDependencies": 138
+      }
+    }
+  },
+  "evidence_sha256": {
+    "GHSA-2gqq-gqf2-x968.json": "2b8b068f57099cd9cafd9b5a7e28acb1c1229864d33e0245fd9a85088fd7b6c9",
+    "GHSA-2jfj-6hjv-fm6j.json": "3650ee7929a6dc68d43a93e2e6b899f977945147b1f589234d2b45eb684fb419",
+    "GHSA-2m5v-pch6-74hx.json": "82b1e2c7a19b58bd77719b1f3cc18330a86b89e2f79c05b9093b6e1765ee7216",
+    "GHSA-35p6-xmwp-9g52.json": "460143a09b15fc4abd7d9c7e379325e2a4c74b31449025169c00651d5330feab",
+    "GHSA-4cwx-7wf7-3272.json": "90fa84b839968383d074474376223d15a7093c79e9be7e1d68a24f9a04cf26c8",
+    "GHSA-8436-99hf-9mmv.json": "69374f26e6be3eff84387c8f8586076148605a24227f70cc58b8edbca21a5361",
+    "GHSA-8xcm-r25x-g524.json": "32f308746d94febef8c13c0732f7c5224fb29aec725fd3e4b6b056c41d89b9bd",
+    "GHSA-g8m3-5g58-fq7m.json": "7468dc691e5ab373082f2e254ca9010414669f9c7d315dc8ba3c9f5f974d2626",
+    "GHSA-hm92-r4w5-c3mj.json": "56e1c1ed964a956c2874683e3f41017a8c2c1f7950fa8523e52241e7e7d5ea1c",
+    "GHSA-jr45-8vmc-qm54.json": "22fc84f630831d2a741f6c45ab73ec25ddfe7eca0611cb6313030c4e4649c5f3",
+    "GHSA-m8rv-5g2x-5cg5.json": "5940a7dc38726aa5c7012e297751087b8c9713d543c965896cdba470ff0c3d0d",
+    "GHSA-p88m-4jfj-68fv.json": "c27422970b22cbc0f47ca57c6063eaf90934d62e3b21cb8b67d6f6ba75f1c05f",
+    "GHSA-pmjh-fq2x-6v4x.json": "8bd733d06eeda2e44f755d202ecd5bfbf41adc5bc529da14c2c465a4f1b33ce8",
+    "GHSA-pr7r-676h-xcf6.json": "92691679dfcd86886e99221c16a2ad594cd132844f36a3917cc6c8794f80d613",
+    "GHSA-qrxm-fqhp-jwvm.json": "94ac380393e6dc42cbbe69c7f0dde4a6bd1d1703ef32f619bf5a46f4df0a8dfc",
+    "GHSA-r53p-7pc4-xj5r.json": "8fd36ae373b1ce37f35307c9d1e3739be2a6c3df07cc70d7da913fa02d32c562",
+    "GHSA-v3r7-h72x-cjcm.json": "a5c4621e76838d3d79ea99b1e30da2d669e206f1b6b4aa1c45fd644a1b5dea4a",
+    "GHSA-vmh5-mc38-953g.json": "db4e3a3029ac9bd8ba2bc52d1eedd619791b3331d90805b93f15ef4477fc9b3e",
+    "advisory-qualification.json": "fec244b9700ef2c6e88564f76b6605c74043f0c39f6da9fb970cd1058ca2f6f1",
+    "audit-full.json": "3cef688b3ee1bbba9f5b70baec90305a6f4e6394bce17de5011ea2f4015390c1",
+    "audit-prod.json": "3987bddff5f7d6aaf82b01b3d98b67f38030b7948e31a046b31845e814fc752f",
+    "check-node24.log": "231d0c74de3dda10db19107406723ce0603af48fa8e1b5bde19b5cb4ba4e6030",
+    "check-node26.log": "f16e868ce57420001958ab9810e1681a6363d944e4565ae80f7b0bb90e4d401b",
+    "environment.json": "e796b97a2adb2f3eac38ec843e6664189c6da170ebce528572f1a11113676a69",
+    "graph-scope.json": "80c13effe618b30b2831aeb312620da0d6bd799d5f50ddb16236e89d050a290d",
+    "install-node24.log": "314d4380c6d8d10d6f01323323032df40705afcfdeebe40095c2a895b6862abc",
+    "install-node26.log": "a4e0f953e504d2072e017b3f1a8777857fa6217a2929835fcd90f59787c3003a",
+    "public-graph-evidence.json": "816522ccade6d154d2528762bd25acfb080280779b14c8a27a2341223735c8b6",
+    "public-test-api-comparison.json": "2d3dcc944d15db5ee435e269c03032532ec6f8aa1c3c6ab2f533b4e517267238",
+    "upstream-summary.json": "f1c803ba61b0fd20125b8ad57a1e847590e6762ea4a05eba33c52e661e1e73ca"
+  }
+}

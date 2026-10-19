@@ -2,6 +2,8 @@
 
 `@agent-teams/payments-paddle` implements the core payment capabilities with the public API of `@paddle/paddle-node-sdk` 3.10.0. It does not own a database, HTTP endpoint, application authentication, product access, or credit grants.
 
+**Prerelease deployment status, 2026-10-19:** production runtime security admission remains blocked. The official SDK uses the host Node global `fetch`; the tested and latest same-major Node binaries terminate on a bounded malformed-response probe. Updating this workspace's development-only Undici does not patch that production transport. See the [dated security evidence and corrected-runtime admission requirements](https://github.com/agent-teams-ai/payments-sdk/blob/main/docs/security-qualification.md#node-bundled-transport-scope) before using this package outside integration and fixture evaluation. No malicious Paddle response or live account exploit was demonstrated.
+
 ```ts
 import { createPaddleProvider } from '@agent-teams/payments-paddle';
 

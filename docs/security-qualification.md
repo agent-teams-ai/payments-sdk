@@ -1,4 +1,4 @@
-# Development dependency security qualification
+# Dependency and Node runtime security qualification
 
 Official source and local qualification read-back: **2026-10-19 UTC**. This
 change qualifies the exact development-only Undici pin from **7.24.0** to
@@ -66,17 +66,71 @@ The harness restores its saved global descriptors and dispatcher during cleanup.
 
 ## Node bundled transport scope
 
-The dated npm audit results below cover the npm dependency graph. In production,
-the official Paddle SDK uses the global `fetch` supplied by the host Node runtime;
-this development-only **7.30.1** pin does not update Node's built-in transport.
-The qualified floor binaries report bundled Undici **7.29.1** on Node **24.21.0**
-and **8.11.2** on Node **26.11.1**. Those version strings overlap the official
-[GHSA-xjj6-f33q-929c](https://github.com/nodejs/undici/security/advisories/GHSA-xjj6-f33q-929c)
-affected ranges `>=7.18.0, <7.30.1` and `>=8.0.0, <8.12.2`. Version overlap
-alone does not establish application exploitability or account for source-level
-backports. Qualification of the runtime source and any backports remains a
-separate pending review. This dependency change does not claim to remediate all
-runtime HTTP vulnerabilities.
+**Production runtime security admission is blocked at the 2026-10-19
+read-back.** GitHub prerelease delivery supports integration and fixture
+evaluation; that label does not mitigate the runtime defect. The dated npm
+audits below cover the npm dependency graph. Production Paddle SDK calls use
+the host Node global `fetch`, which the development-only **7.30.1** package
+does not update.
+
+The independent [runtime investigation](reviews/node-runtime-security-research.md)
+checked the current floors and latest official same-major releases:
+
+| Official Linux runtime | Role at the read-back | Actual bundled Undici | Bounded global-fetch probe |
+| --- | --- | --- | --- |
+| Node 24.21.0 | Functional CI floor | 7.29.1 | Process terminates after caught rejection |
+| Node 24.22.0 | Latest published Node 24 | 7.29.1 | Same failure |
+| Node 26.11.1 | Functional CI floor | 8.11.2 | Same failure |
+| Node 26.12.0 | Latest published Node 26 | 8.11.2 | Same failure |
+
+The latest archives match the official SHA-256 manifests. Exact Node-tag fetch
+sources are byte identical to the corresponding affected Undici tags; the
+relevant backport is absent. A bounded loopback-only malformed-response probe
+reproduces [GHSA-xjj6-f33q-929c](https://github.com/nodejs/undici/security/advisories/GHSA-xjj6-f33q-929c):
+the initial fetch rejection is caught, but an internal unhandled stream error
+subsequently terminates each process. The patched npm Undici **7.30.1** fetch
+comparison exits successfully on the same four binaries. This establishes
+actual runtime behavior beyond matching advisory version ranges.
+
+The trigger requires the affected malformed response to reach built-in fetch.
+The inspected adapter selects the official HTTPS Paddle production or sandbox
+origin; it exposes no caller-supplied API origin. No live Paddle compromise,
+malicious Paddle response, redirect behavior or account exploit was
+demonstrated, and this probe is not an inbound webhook attack. The SDK's public
+options offer no per-instance fetch/dispatcher/decompression control. Catching
+its rejected promise does not contain the independently emitted stream error.
+The separate [TLS 1.2 renegotiation advisory](https://github.com/nodejs/undici/security/advisories/GHSA-qrxm-fqhp-jwvm)
+also has a conditional relevant HTTPS path with the implicated assertions still
+present; that attack was not reproduced. The runtime report assesses all eight
+October 15 advisories and their distinct applicability prerequisites.
+
+The SDK, PostgreSQL reconciliation and E2E harnesses install the patched
+development fetch in isolated test processes. Their passing synthetic response
+scenarios qualify SDK/application behavior through that test transport; they
+do not qualify an unmodified production built-in fetch. No production global
+patch, private SDK seam or substitute raw API client is supplied as a repair.
+
+The [official Node announcement](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases)
+schedules security releases on or shortly after **October 21**. At this
+read-back it names no corrected version or advisory mapping. Neither that
+announcement nor the latest uncorrected binaries establish a repair. Node's
+[production guidance](https://nodejs.org/en/about/previous-releases) favors LTS;
+Node 26 is still Current at this snapshot.
+
+Before clearing production runtime admission:
+
+1. Select a published official runtime for each retained support line and
+   verify its archive checksum, exact bundled source/backports and relevant
+   advisory fixes. Prefer the supported LTS line for production.
+2. Re-run the bounded probe against its unmodified global fetch and require
+   normal process completion. Assess the other relevant transport advisories;
+   this one probe is not a complete security certification.
+3. Update exact CI versions and compatibility floors from that evidence, then
+   pass meaningful actual-SDK, real-PostgreSQL, E2E and strict packed-consumer
+   qualification on those runtimes.
+4. Record the reviewed correction and successful exact-commit CI, and update
+   the public deployment/release status. Complete the separate
+   [account and deployment gates](qualification.md#deployment-and-credential-gates).
 
 ## Actual consumer qualification
 

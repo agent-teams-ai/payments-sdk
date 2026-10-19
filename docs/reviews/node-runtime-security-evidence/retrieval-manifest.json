@@ -1,0 +1,24 @@
+[
+  {
+    "file": "node-index.json",
+    "url": "https://nodejs.org/dist/index.json",
+    "status": 200,
+    "retrieved_at": "2026-10-19T21:19:18.286882+00:00"
+  },
+  {
+    "file": "ghsa-xjj6-f33q-929c.json",
+    "url": "https://api.github.com/advisories/GHSA-xjj6-f33q-929c",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "file": "undici-v7.30.1-release.json",
+    "url": "https://api.github.com/repos/nodejs/undici/releases/tags/v7.30.1",
+    "status": 200,
+    "retrieved_at": "2026-10-19T21:19:18.530877+00:00"
+  },
+  {
+    "file": "undici-v8.12.2-release.json",
+    "url": "https://api.github.com/repos/nodejs/undici/releases/tags/v8.12.2",
+    "error": "HTTP Error 403: Forbidden"
+  }
+]
