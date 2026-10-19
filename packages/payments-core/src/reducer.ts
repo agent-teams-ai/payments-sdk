@@ -220,7 +220,7 @@ export function admitInput(state: PaymentState, input: VerifiedInput): 'admitted
 function storeMessage(state: PaymentState, scope: PaymentScope, producerNamespace: string, aggregate: Readonly<{ type: 'transaction' | 'subscription'; id: string }>, revision: number, payload: object, maxBytes: number): EvidenceMessage {
   const messageId = digest([producerNamespace, scope, aggregate, revision]);
   const base = { envelopeVersion: 1 as const, schemaVersion: 1 as const, producerNamespace, scope, aggregate, revision, messageId };
-  let body = { ...base, ...payload };
+  let body: Record<string, unknown> = { ...base, ...payload };
   if (Buffer.byteLength(canonicalJson(body)) + 80 > maxBytes) body = { ...base, kind: 'held', reason: 'evidence_size_limit', resolutionRef: messageId };
   const message = { ...body, bodyDigest: digest(body) } as EvidenceMessage;
   if (Buffer.byteLength(canonicalJson(message)) > maxBytes) throw new RangeError('Evidence control envelope exceeds configured limit');
@@ -266,7 +266,7 @@ export function processInput(state: PaymentState, scope: PaymentScope, inputId: 
     record.state = 'quarantined'; record.issue = error instanceof Error ? error.name : 'decoder_failure';
     const ref = record.input.adverseTransactionRef ?? ('transactionRef' in record.input.observation ? record.input.observation.transactionRef : undefined);
     if (ref) { const aggregate = transactionAggregate(state, ref); flag(aggregate, 'incomplete'); aggregate.publicationRequired = true; }
-    else if ('subscriptionRef' in record.input.observation && record.input.observation.subscriptionRef) { const aggregate = subscriptionAggregate(state, record.input.observation.subscriptionRef); flag(aggregate, 'incomplete'); aggregate.publicationRequired = true; }
+    else if ('subscriptionRef' in record.input.observation && typeof record.input.observation.subscriptionRef === 'string' && record.input.observation.subscriptionRef) { const aggregate = subscriptionAggregate(state, record.input.observation.subscriptionRef); flag(aggregate, 'incomplete'); aggregate.publicationRequired = true; }
     else state.issues.push(`quarantine-unresolved:${inputId}`);
     return 'quarantined';
   }

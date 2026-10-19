@@ -15,7 +15,7 @@ export type EvidenceSource = Readonly<{ kind: 'verified_webhook' | 'authenticate
 export type ProviderLine = Readonly<{ providerLineRef: string; providerPriceRef: string; quantity: number; amount: Money; billingCycle: Field<Readonly<{ interval: string; frequency: number }> | null>; trial: Field<boolean>; proration: Field<boolean>; period: Field<Period | null> }>;
 export type TransactionObservation = Readonly<{ kind: 'transaction'; transactionRef: string; version: string; status: string; origin: Field<string>; customerRef: Field<string | null>; subscriptionRef: Field<string | null>; intentCorrelation: Field<string | null>; currency: Field<string>; total: Field<Money>; lines: Field<readonly ProviderLine[]>; source: EvidenceSource }>;
 export type SubscriptionObservation = Readonly<{ kind: 'subscription'; subscriptionRef: string; version: string; status: Field<string>; customerRef: Field<string | null>; scheduledChange: Field<Readonly<{ action: string; effectiveAt: string }> | null>; currentPeriod: Field<Period | null>; priceRefs: Field<readonly string[]>; source: EvidenceSource }>;
-export type AdjustmentObservation = Readonly<{ kind: 'adjustment'; adjustmentRef: string; transactionRef: string; version: string; action: string; status: string; type?: 'full' | 'partial'; amount: Money; allocations: readonly Readonly<{ providerLineRef: string; amount: Money; providerAllocationRef?: string; type?: 'full' | 'partial'; requestedAmount?: Money | null }>[]; source: EvidenceSource }>;
+export type AdjustmentObservation = Readonly<{ kind: 'adjustment'; adjustmentRef: string; transactionRef: string; version: string; action: string; status: string; type?: string; amount: Money; allocations: readonly Readonly<{ providerLineRef: string; amount: Money; providerAllocationRef?: string; type?: string; requestedAmount?: Money | null }>[]; source: EvidenceSource }>;
 export type UnsupportedObservation = Readonly<{ kind: 'unsupported'; reason: string; transactionRef?: string; subscriptionRef?: string; source: EvidenceSource }>;
 export type Observation = TransactionObservation | SubscriptionObservation | AdjustmentObservation | UnsupportedObservation;
 /** The adapter assigns scope from trusted endpoint/connection configuration, never from event custom data. */
@@ -57,7 +57,7 @@ export type ScanCheckpoint = { scanId: string; epoch: string; queryFingerprint: 
 /** Payment-owner state. Drafts cannot escape atomic(); stores must isolate readers and rollback on exceptions. */
 export type PaymentState = { revision: number; recoveryFenced: boolean; intents: Record<string, PurchaseIntent>; operations: Record<string, PaymentOperation>; requestKeys: Record<string, string>; bindings: Record<string, TransactionBinding>; subscriptionBindings: Record<string, SubscriptionBinding>; transactions: Record<string, TransactionAggregate>; subscriptions: Record<string, SubscriptionAggregate>; inbox: Record<string, InboxRecord>; evidence: Record<string, EvidenceMessage>; deliveries: Record<string, Delivery>; consumers: string[]; scans: Record<string, ScanCheckpoint>; issues: string[] };
 /** A bounded owner-local working set, never a complete scope ledger. Missing rows carry revision null. */
-export type PaymentReadVersion = Readonly<{ table: 'intents' | 'operations' | 'bindings' | 'subscriptionBindings' | 'transactions' | 'subscriptions' | 'inbox' | 'configuration'; id: string; revision: number | null }>;
+export type PaymentReadVersion = Readonly<{ table: 'intents' | 'operations' | 'bindings' | 'subscriptionBindings' | 'transactions' | 'subscriptions' | 'inbox' | 'configuration' | 'guards'; id: string; revision: number | null }>;
 export type ReductionInput = Readonly<{ inputId: string; state: PaymentState; expected: readonly PaymentReadVersion[]; incompleteReason?: string }>;
 export type ReductionCommit = Readonly<{ inputId: string; expected: readonly PaymentReadVersion[]; state: PaymentState }>;
 export type IntentAdmission = Readonly<{ intent: PurchaseIntent; operation: PaymentOperation; subscriptionBinding?: SubscriptionBinding }>;
@@ -75,6 +75,7 @@ export type StoreCommitResult = Readonly<{ kind: 'committed' }> | Readonly<{ kin
  */
 export interface PaymentStore {
   admitIntent(scope: PaymentScope, admission: IntentAdmission): Promise<Readonly<{ kind: 'created' | 'existing'; operation: PaymentOperation }> | Readonly<{ kind: 'conflict' | 'recovery_fenced' }>>;
+  admitOperation(scope: PaymentScope, operation: PaymentOperation): Promise<Readonly<{ kind: 'created' | 'existing'; operation: PaymentOperation }> | Readonly<{ kind: 'conflict' | 'recovery_fenced' }>>;
   findRequest(scope: PaymentScope, buyerId: string, requestKey: string): Promise<PaymentOperation | undefined>;
   loadOperation(scope: PaymentScope, operationId: string): Promise<OperationInput | undefined>;
   /** Atomic CAS of operation and its mutation lane; dispatch marker must commit before SDK call. */
@@ -100,4 +101,4 @@ export interface PaymentStore {
 }
 export type StartPurchase = Readonly<{ buyerId: string; offerId: string; requestKey: string }>;
 export type ResolveUnknown = Readonly<{ operationId: string; expectedRevision: number; actorId: string; auditRef: string; reason: string; action: 'keep_unknown' | 'retry' | 'bind_outcome'; acceptedDuplicateRisk?: boolean; outcome?: ProviderResult<JsonValue> }>;
-export type PaymentRuntimeOptions = Readonly<{ scope: PaymentScope; producerNamespace: string; provider: PaymentProvider; store: PaymentStore; catalog: Catalog; now?: () => string; newId?: () => string; maxEvidenceBytes?: number }>;
+export type PaymentRuntimeOptions = Readonly<{ scope: PaymentScope; producerNamespace: string; provider: PaymentProvider; store: PaymentStore; catalog: Catalog; now?: () => string; newId?: () => string; maxEvidenceBytes?: number; operationTimeoutMs?: number }>;
