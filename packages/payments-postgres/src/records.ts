@@ -86,6 +86,6 @@ function safeRevision(value: string): number {
   return revision;
 }
 
-export function assertBatchLimit(limit: number): void {
-  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError('Payment batch limit must be between 1 and 100');
+export function assertBatchLimit(limit: number, maximum: 100 | 200 = 100): void {
+  if (!Number.isInteger(limit) || limit < 1 || limit > maximum) throw new RangeError(`Payment batch limit must be between 1 and ${maximum}`);
 }

@@ -235,9 +235,9 @@ class PostgresPaymentStore implements PaymentStore {
     });
   }
 
-  private async admitInputs(tx: PaymentSqlTransaction, scope: PaymentScope, inputs: readonly VerifiedInput[]): ReturnType<PaymentStore['admitVerifiedInputs']> {
+  private async admitInputs(tx: PaymentSqlTransaction, scope: PaymentScope, inputs: readonly VerifiedInput[], maximum: 100 | 200 = 100): ReturnType<PaymentStore['admitVerifiedInputs']> {
     if (inputs.length === 0) return [];
-    assertBatchLimit(inputs.length);
+    assertBatchLimit(inputs.length, maximum);
     if (Buffer.byteLength(JSON.stringify(inputs)) > 2_097_152) throw new RangeError('Payment receipt batch exceeds custody bound');
     for (const input of inputs) {
       if (canonicalJson(input.scope) !== canonicalJson(scope)) throw new Error('Verified input scope mismatch');
@@ -653,7 +653,7 @@ class PostgresPaymentStore implements PaymentStore {
       await this.records.lock(tx, [{ kind: 'scans', id: next.scanId }]);
       const current = (await this.records.read<ScanCheckpoint>(tx, 'scans', next.scanId))?.body;
       if (canonicalJson(current ?? null) !== canonicalJson(expected ?? null)) return conflict;
-      await this.admitInputs(tx, scope, inputs);
+      await this.admitInputs(tx, scope, inputs, 200);
       await this.records.write(tx, 'scans', next.scanId, next);
       await this.work(tx, { kind: 'scan', id: next.scanId }, next.status === 'running' ? 'pending' : next.status === 'gap' ? 'quarantined' : 'complete');
       return committed;

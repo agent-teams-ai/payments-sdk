@@ -38,6 +38,54 @@ test('durable reconciliation through actual public Paddle SDK and PostgreSQL', {
     assert.equal(url.searchParams.get('event_type'), eventType ?? null); return true;
   };
   try {
+    for (const size of [101, 200] as const) await t.test(`actual SDK ${size}-member pages retain every receipt and atomically advance the durable cursor`, async () => isolated(async ({ schema, store, reconciler }) => {
+      const events = Array.from({ length: size }, (_, index) => eventFixture('transaction.future_event', { id: `txn_${String(index + 1).padStart(26, '0')}` }, `evt_${String(index + 1).padStart(26, '0')}`));
+      if (size === 200) {
+        // A conflicting prior representation exercises 400 distinct old/new aggregate locks,
+        // alongside 200 event-identity locks and 200 receipt locks in their separate phases.
+        const originals: VerifiedInput[] = [];
+        for (const [index, event] of events.entries()) {
+          const body = JSON.stringify({ ...event, data: { id: `txn_${String(size + index + 1).padStart(26, '0')}` } });
+          const verified = await provider.verifyWebhook(body, sign(body)); assert.equal(verified.kind, 'succeeded');
+          if (verified.kind !== 'succeeded') throw new Error('Expected verified receipt');
+          originals.push(verified.value);
+        }
+        for (let index = 0; index < originals.length; index += 100) await store.admitVerifiedInputs(scope, originals.slice(index, index + 100));
+      }
+      await reconciler.beginScan({ scanId: 'large-page', epoch: 'epoch', query: { ...query, perPage: size } });
+      const initial = await store.readCheckpoint(scope, 'large-page'); assert.ok(initial);
+      const path = (candidate: string): boolean => { const accepted = eventPath()(candidate); assert.equal(new URL(candidate, 'https://sandbox-api.paddle.com').searchParams.get('per_page'), String(size)); return accepted; };
+      if (size === 200) {
+        await pool.query(`CREATE FUNCTION "${schema}".reject_large_page() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.kind='scans' AND NEW.body ? 'after' THEN RAISE EXCEPTION 'synthetic large page commit failure'; END IF; RETURN NEW; END $$`);
+        await pool.query(`CREATE TRIGGER reject_large_page BEFORE UPDATE ON "${schema}".records FOR EACH ROW EXECUTE FUNCTION "${schema}".reject_large_page()`);
+        api.intercept({ path, method: 'GET' }).reply(200, responseFixture(events));
+        await assert.rejects(reconciler.resumeScan('large-page'), /synthetic large page commit failure/u);
+        assert.deepEqual(await store.readCheckpoint(scope, 'large-page'), initial);
+        assert.equal(Number((await pool.query<{ count: string }>(`SELECT count(*) FROM "${schema}".records WHERE kind='inbox' AND body #>> '{input,source,kind}'='authenticated_api'`)).rows[0]?.count), 0);
+        await pool.query(`DROP TRIGGER reject_large_page ON "${schema}".records`);
+      }
+      const reloadedStore = await createPostgresPaymentStore({ pool, schema, scope });
+      const restarted = createPaymentReconciler({ scope, store: reloadedStore, source });
+      api.intercept({ path, method: 'GET' }).reply(200, responseFixture(events));
+      const acquired = await restarted.resumeScan('large-page'); assert.equal(acquired.kind, 'saved');
+      if (acquired.kind !== 'saved') throw new Error('Expected saved page');
+      assert.equal(acquired.admitted, size); assert.equal(acquired.checkpoint.status, 'complete'); assert.equal(acquired.checkpoint.after, events.at(-1)?.['event_id']);
+      const receipts = (await pool.query<{ input: VerifiedInput }>(`SELECT body->'input' AS input FROM "${schema}".records WHERE kind='inbox' AND body #>> '{input,source,kind}'='authenticated_api'`)).rows.map(row => row.input);
+      assert.equal(receipts.length, size); assert.deepEqual(receipts.map(input => input.source.eventId).sort(), events.map(event => event['event_id']));
+      for (const receipt of receipts) {
+        assert.equal(digest(receipt.retainedRepresentation), receipt.source.representationDigest);
+        assert.deepEqual(inputRoutes(receipt), [{ type: 'transaction', id: receipt.source.eventId?.replace('evt_', 'txn_') }]);
+      }
+      const terminal = await reloadedStore.readCheckpoint(scope, 'large-page'); assert.deepEqual(terminal, acquired.checkpoint);
+      await assert.rejects(reloadedStore.admitVerifiedInputs(scope, receipts.slice(0, 101)), /Payment batch limit must be between 1 and 100/u);
+      if (size === 200) {
+        await assert.rejects(reloadedStore.commitScanPage(scope, terminal, { ...terminal!, status: 'running' }, [...receipts, receipts[0]!]), /Payment batch limit must be between 1 and 200/u);
+        assert.deepEqual(await reloadedStore.readCheckpoint(scope, 'large-page'), terminal);
+      }
+      await assert.rejects(restarted.beginScan({ scanId: 'oversized-page', epoch: 'epoch', query: { ...query, perPage: 201 } }), /Invalid page bound/u);
+      assert.equal(await reloadedStore.readCheckpoint(scope, 'oversized-page'), undefined);
+    }));
+
     await t.test('begin creates a durable obligation; failed atomic commit retains cursor and rolls back every input', async () => isolated(async ({ schema, store, reconciler }) => {
       await reconciler.beginScan({ scanId: 'rollback', epoch: 'epoch-1', query });
       const obligation = await pool.query<{ state: string }>(`SELECT state FROM "${schema}".obligations WHERE kind='scan' AND id='rollback'`);
