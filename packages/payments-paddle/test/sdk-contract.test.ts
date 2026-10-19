@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import test from 'node:test';
-import { MockAgent, setGlobalDispatcher } from 'undici';
+import { MockAgent, getGlobalDispatcher, setGlobalDispatcher, install, fetch as undiciFetch } from 'undici';
 import { createPaddleProvider, PADDLE_API_PROFILE } from '../dist/index.js';
 import type { PaddleEventScanQuery } from '../dist/index.js';
 import type { Field, OfferSnapshot, PaymentScope, ProviderResult, VerifiedInput } from '@agent-teams/payments-core';
@@ -17,10 +17,26 @@ function value<T>(field: Field<T>): T { assert.equal(field.presence, 'known'); i
 function query(): PaddleEventScanQuery { return { from: '2026-09-30T00:00:00Z', to: '2026-10-03T00:00:00Z', epoch: 'epoch-1', queryVersion: 'events/1', perPage: 2 }; }
 
 test('official SDK contract probes with synthetic API1 fixtures and no network', async t => {
+  // Official test-only installation keeps fetch and MockAgent on the same Dispatcher
+  // API on Node24 (bundled undici7) and Node26 (bundled undici8). No production seam.
+  const globalNames = ['fetch', 'Headers', 'Response', 'Request', 'FormData', 'WebSocket', 'CloseEvent', 'ErrorEvent', 'MessageEvent', 'EventSource'] as const;
+  const savedGlobals = globalNames.map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)] as const);
+  const savedDispatcher = getGlobalDispatcher();
+  install();
   const agent = new MockAgent(); agent.disableNetConnect(); setGlobalDispatcher(agent);
   const pool = agent.get('https://sandbox-api.paddle.com');
   const provider = createPaddleProvider(options);
   try {
+    await t.test('test-only official fetch installation rejects every unmocked origin without network', { timeout: 1000 }, async () => {
+      assert.equal(globalThis.fetch, undiciFetch);
+      for (const url of ['https://sandbox-api.paddle.com/unmocked-safety-probe', 'https://unapproved.paddle.invalid/']) {
+        await assert.rejects(fetch(url, { signal: AbortSignal.timeout(500) }), error => {
+          assert.ok(error instanceof TypeError);
+          assert.equal((error.cause as { code: string }).code, 'UND_MOCK_ERR_MOCK_NOT_MATCHED');
+          return true;
+        });
+      }
+    });
     await t.test('create serializes server lines/correlation and pins API1; checkout is not payment', async () => {
       pool.intercept({ path: /^\/transactions\??$/u, method: 'POST', headers: { 'paddle-version': '1' }, body: body => {
         const parsed = JSON.parse(String(body)) as Record<string, unknown>;
@@ -183,5 +199,11 @@ test('official SDK contract probes with synthetic API1 fixtures and no network',
       assert.equal((await provider.readEventPage(query())).kind, 'gap');
     });
     agent.assertNoPendingInterceptors();
-  } finally { await agent.close(); }
+  } finally {
+    await agent.close(); setGlobalDispatcher(savedDispatcher);
+    for (const [name, descriptor] of savedGlobals) {
+      if (descriptor === undefined) Reflect.deleteProperty(globalThis, name);
+      else Object.defineProperty(globalThis, name, descriptor);
+    }
+  }
 });
