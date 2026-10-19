@@ -183,10 +183,11 @@ export function createPaymentSqlExecutor(pool: Pool, timeouts: DatabaseTimeouts 
           await sql.query(configure, ['on', `${timeouts.lockMs}ms`, `${timeouts.statementMs}ms`, `${timeouts.transactionMs}ms`]);
           const result = await sql.query(text, values);
           await sql.query(configure, [previous.sync, previous.lock, previous.statement, previous.transaction]);
-          // node-postgres returns an array for a multi-statement script. Its last result is the
-          // public executor result; ordinary pg-boss queries are a single statement with rows.
-          const last: QueryResult | undefined = Array.isArray(result) ? result.at(-1) as QueryResult | undefined : result;
-          return { rows: last?.rows ?? [] };
+          // pg-boss's maintenance and migration scripts inspect rows from multiple statements.
+          // Match its documented custom Db behavior and preserve every result row in order.
+          const rows: QueryResultRow[] = Array.isArray(result)
+            ? (result as QueryResult[]).flatMap(item => item.rows ?? []) : result.rows;
+          return { rows };
         } catch (error) {
           connection.destroy();
           throw error;
