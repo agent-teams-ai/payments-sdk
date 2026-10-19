@@ -6,6 +6,32 @@ import { join, resolve } from 'node:path';
 export const packageNames = ['core', 'paddle', 'postgres', 'get-modular'] as const;
 export const repository = resolve(import.meta.dirname, '..');
 
+export type PackedManifest = Readonly<{
+  name: string; version: string; license: string; private?: boolean; exports?: unknown;
+  dependencies?: Readonly<Record<string, string>>; peerDependencies?: Readonly<Record<string, string>>;
+}>;
+
+/** Inspect without extracting/executing an archive. Shared by CI packing and release admission. */
+export function auditPackageArchive(tarball: string, expectedName: string, expectedVersion?: string): Readonly<{ manifest: PackedManifest; entries: number }> {
+  const entries = command('tar', ['-tzf', tarball]).trim().split('\n');
+  assert.ok(entries.every(entry => entry.startsWith('package/') && !entry.split('/').includes('..')), `${expectedName}: unsafe archive path`);
+  assert.ok(entries.includes('package/dist/index.js'), `${expectedName}: missing ESM entrypoint`);
+  assert.ok(entries.includes('package/dist/index.d.ts'), `${expectedName}: missing declarations`);
+  assert.ok(entries.some(entry => /\/LICENSE(?:\.md|\.txt)?$/iu.test(entry)), `${expectedName}: missing license`);
+  assert.ok(entries.every(entry => !/\/(?:src|test|tests|node_modules)\//u.test(entry)), `${expectedName}: development files leaked into archive`);
+  const manifest = JSON.parse(command('tar', ['-xOf', tarball, 'package/package.json'])) as PackedManifest;
+  assert.equal(manifest.name, expectedName, 'Archive package name mismatch');
+  assert.equal(manifest.license, 'Apache-2.0');
+  assert.notEqual(manifest.private, true, 'Private package cannot be released');
+  assert.ok(manifest.exports, `${expectedName}: missing exports map`);
+  if (expectedVersion !== undefined) assert.equal(manifest.version, expectedVersion, 'Archive version differs from release tag');
+  for (const [dependency, version] of Object.entries({ ...manifest.dependencies, ...manifest.peerDependencies })) {
+    assert.ok(typeof version === 'string' && !version.startsWith('workspace:') && !version.startsWith('catalog:'), `${expectedName}: unresolved publish protocol ${dependency}`);
+    assert.notEqual(dependency, '@agent-teams/engineering-foundation', `${expectedName}: development tooling leaked into runtime`);
+  }
+  return { manifest, entries: entries.length };
+}
+
 export function command(executable: string, args: readonly string[], cwd = repository): string {
   const result = spawnSync(executable, [...args], { cwd, env: process.env, encoding: 'utf8', timeout: 120_000, maxBuffer: 4 * 1024 * 1024 });
   assert.equal(result.error, undefined, String(result.error));
