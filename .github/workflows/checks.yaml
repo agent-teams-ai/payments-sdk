@@ -37,6 +37,7 @@ jobs:
             packages/*/*.tsbuildinfo
           key: build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'tsconfig*.json', 'packages/**/*.ts', 'packages/**/tsconfig*.json', 'packages/**/package.json') }}
       - run: pnpm typecheck
+      - run: pnpm toolchain:check
       - uses: actions/upload-artifact@v4
         with:
           name: package-build

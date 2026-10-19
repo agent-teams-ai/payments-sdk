@@ -12,6 +12,7 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b && tsc -p tsconfig.checks.json",
+    "toolchain:check": "node tools/toolchain.ts",
     "lint": "oxlint --config .oxlintrc.json packages tests tools",
     "foundation:check": "agent-teams-foundation check",
     "foundation:assert-dev-only": "agent-teams-foundation assert-dev-only",
@@ -24,7 +25,7 @@
     "test:e2e": "node tools/run-tests.ts e2e",
     "test:packed": "node tools/packed-consumers.ts",
     "release:dry-run": "node tools/release-dry-run.ts",
-    "check:fast": "pnpm typecheck && pnpm lint && pnpm foundation:check",
+    "check:fast": "pnpm toolchain:check && pnpm typecheck && pnpm lint && pnpm foundation:check",
     "check": "pnpm check:fast && pnpm foundation:assert-dev-only && pnpm foundation:assert-registry && pnpm test:boundaries && pnpm test:core && pnpm test:paddle && pnpm test:modular && pnpm test:postgres && pnpm test:e2e && pnpm test:packed && pnpm release:dry-run"
   },
   "devDependencies": {
