@@ -29,8 +29,8 @@ in the frozen [implementation plan](../implementation-plan.md).
 | --- | --- | --- |
 | 1 | [Core](code/wave1-core.md), [Paddle](code/wave1-paddle.md), [consumers](code/wave1-consumers.md), [platform](code/wave1-platform.md) | All ten accepted findings corrected |
 | 2 | [Domain](code/wave2-domain.md), [consumers](code/wave2-consumers.md), [Paddle](code/wave2-paddle.md), [PostgreSQL and recovery](code/wave2-postgres.md) | All seven accepted findings corrected |
-| 3 | [Domain](code/wave3-domain.md), [consumers](code/wave3-consumers.md), [platform](code/wave3-platform.md), [provider](code/wave3-provider.md) | Three accepted findings corrected; two provider findings being corrected |
-| 4 | Pending final integrated candidate | Required before merge |
+| 3 | [Domain](code/wave3-domain.md), [consumers](code/wave3-consumers.md), [platform](code/wave3-platform.md), [provider](code/wave3-provider.md) | All five accepted findings corrected |
+| 4 | [PostgreSQL](code/wave4-postgres.md), [platform](code/wave4-platform.md), [consumers](code/wave4-consumers.md); domain/provider report in progress | Final review and correction cycle in progress |
 
 ### Wave 1 corrections
 
@@ -76,12 +76,26 @@ locks are covered. Ordinary storage batches remain bounded at 100.
 | Changed duplicate-initial knowledge or stream selection left old renewal evidence stale | c4f1966, 596f5d8, 1b71f8b, a29ae94, 69f595a, b4048b8 | Durable bounded reclassification, 205 acknowledged renewals, restart, cursor/selection race and deleted queue jobs |
 | An exact-version adjustment parent contradiction held only the new parent | 596f5d8, 1b71f8b, a29ae94, b4048b8 | Memory and real PostgreSQL load both parent read sets, reject stale CAS and retain immutable historical facts |
 | A matching reversal pair hid an additional unmatched reverse | 5b34582 | Actual SDK, both hosts and both arrival orders retain a whole-snapshot correlation hold |
-| Subscription normalization discarded quantity and collection mode, certifying unsupported or incomplete current profiles as clean | Correction in progress | Independent raw/API probes reproduce quantity 2, manual collection and missing quantity through the SDK, PostgreSQL and the access owner on both Node floors |
-| An unknown transaction status republished an old immutable completion without an explicit current hold | Correction in progress | Independent signed-raw and authenticated-GET probes on both Node floors; a decoder robustness scenario, not a claim about a currently emitted Paddle status |
+| Subscription normalization discarded quantity and collection mode, certifying unsupported or incomplete current profiles as clean | a4504f6, cc27a4b | Actual SDK plus PostgreSQL/access scenarios retain quantity, collection, cycle and trial presence; supported newer recovery preserves historical controls |
+| An unknown transaction status republished an old immutable completion without an explicit current hold | a4504f6, cc27a4b | Closed neutral status meaning; signed raw and authenticated GET holds, stale/newer recovery and independent historical controls on both Node floors |
+
+The original eight provider counterexamples pass unchanged on both Node floors.
+The maintained `provider-profile.test.ts` suite adds positive known statuses and
+supported lifecycle/recovery checks. An unknown future transaction status is a
+decoder robustness scenario, not a claim about a currently emitted Paddle status.
 
 The platform reviewer established no additional P0/P1/P2 at the documented
 release candidate revision. Final merged-source and live CI qualification remain
 separate gates.
+
+### Wave 4 corrections
+
+| Accepted finding | Correction commits | Maintained regression or verification |
+| --- | --- | --- |
+| Ordinary renewal processing reopened unchanged reclassification quarantine and bypassed its persisted cooldown | Correction in progress | Independent actual pg-boss fault probes compare the unchanged cursor/decision and exact persisted deadline |
+| Historical adjustment reparenting omitted the original parent's T1 fence before its already prepared publication T2 | Correction in progress | Independent inverse-order admission/publication probe on both Node floors |
+| The documented unpublished tarball installation tried to resolve internal packages from npm | 70db2ef in the documentation/release PR | Both fresh hosts install using the documented commands/configuration directly; runtime imports and strict NodeNext/Bundler pass on both Node floors |
+| Access accepted an uncorrelated reversed adjustment and rejected the later qualified restoration pair | Correction in progress | Independent actual-SDK probes on both hosts and Node floors compare access capabilities with retained credit allocation across restart and duplicate ACK |
 
 ## Qualification boundaries
 
