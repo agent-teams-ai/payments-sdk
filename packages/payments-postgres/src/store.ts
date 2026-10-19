@@ -165,8 +165,9 @@ class PostgresPaymentStore implements PaymentStore {
       if (dispatch && (current.state !== 'prepared' || op.state !== 'dispatch_started' || (lane.unresolvedOperationId && lane.unresolvedOperationId !== op.operationId))) return conflict;
       if (commit.binding) {
         const existing = (await this.records.read<TransactionBinding>(tx, 'bindings', commit.binding.transactionRef))?.body;
-        if (existing && (existing.intentId !== commit.binding.intentId || existing.buyerId !== commit.binding.buyerId || existing.purpose !== commit.binding.purpose || (existing.customerRef !== null && commit.binding.customerRef !== null && existing.customerRef !== commit.binding.customerRef))) return conflict;
-        const binding = { ...commit.binding, customerRef: existing?.customerRef ?? commit.binding.customerRef };
+        const compatiblePurpose = !existing || existing.purpose === commit.binding.purpose || (existing.purpose === 'commercial' && commit.binding.purpose === 'recovery') || (existing.purpose === 'recovery' && commit.binding.purpose === 'commercial');
+        if (existing && (existing.intentId !== commit.binding.intentId || existing.buyerId !== commit.binding.buyerId || !compatiblePurpose || (existing.customerRef !== null && commit.binding.customerRef !== null && existing.customerRef !== commit.binding.customerRef))) return conflict;
+        const binding: TransactionBinding = { ...commit.binding, purpose: existing?.purpose === 'recovery' ? 'recovery' : commit.binding.purpose, customerRef: existing?.customerRef ?? commit.binding.customerRef };
         await this.records.write(tx, 'bindings', binding.transactionRef, binding);
         const state = createEmptyPaymentState();
         const previous = (await this.records.read<TransactionAggregate>(tx, 'transactions', binding.transactionRef))?.body;

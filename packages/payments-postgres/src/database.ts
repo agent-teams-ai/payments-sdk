@@ -1,4 +1,4 @@
-import type { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import type { Pool, PoolClient, QueryConfig, QueryResult, QueryResultRow } from 'pg';
 
 /** The caller owns the Pool. This package never calls Pool.end(). */
 export type DatabaseTimeouts = Readonly<{
@@ -102,7 +102,9 @@ export async function withPaymentTransaction<T>(
   const transaction: PaymentSqlTransaction = {
     async query<R extends QueryResultRow = QueryResultRow>(text: string, values?: readonly unknown[]): Promise<QueryResult<R>> {
       if (expired || released) throw new PaymentDatabaseError(phase === 'commit' ? 'commit_unknown' : 'transaction_timeout');
-      return client.query<R>({ text, values: values === undefined ? undefined : [...values], query_timeout: remaining() });
+      // pg 8.23 supports per-query timeout; @types/pg 8.20 omits this documented runtime option.
+      const config: QueryConfig & { query_timeout: number } = { text, ...(values === undefined ? {} : { values: [...values] }), query_timeout: remaining() };
+      return client.query<R>(config);
     },
   };
   try {

@@ -5,7 +5,7 @@
   "type": "module",
   "license": "Apache-2.0",
   "engines": { "node": ">=24.21.0 <25 || >=26.11.1 <27" },
-  "files": ["dist", "README.md"],
+  "files": ["dist", "README.md", "NOTICE"],
   "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
   "sideEffects": false,
   "dependencies": {

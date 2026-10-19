@@ -6,5 +6,5 @@
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["tools/**/*.ts", "tests/**/*.ts", "packages/*/test/**/*.ts", "packages/*/tests/**/*.ts"]
+  "include": ["tools/**/*.ts", "tests/**/*.ts", "examples/**/*.ts", "packages/*/test/**/*.ts", "packages/*/tests/**/*.ts"]
 }

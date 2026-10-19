@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { Paddle, Environment, LogLevel, SDK_VERSION } from '@paddle/paddle-node-sdk';
 import type { IEventName, CurrencyCode } from '@paddle/paddle-node-sdk';
 import { assertIdentifier, assertScope, canonicalJson, compareTime, digest, exactTime, sameScope } from '@agent-teams/payments-core';
-import type { CancellationOutcome, CapabilityProfile, CheckoutReady, EvidenceSource, JsonValue, Observation, OfferSnapshot, PaymentProvider, PaymentScope, ProviderResult, SubscriptionObservation, TransactionObservation, VerifiedInput } from '@agent-teams/payments-core';
+import type { CancellationOutcome, CapabilityProfile, CheckoutReady, EvidenceSource, JsonValue, Observation, OfferSnapshot, PaymentProvider, PaymentScope, PaymentUpdateReady, ProviderResult, SubscriptionObservation, TransactionObservation, VerifiedInput } from '@agent-teams/payments-core';
 import { normalizeObservation, subscriptionObservation, transactionObservation } from './observations.js';
 import { translatePaddleError } from './errors.js';
 
@@ -123,13 +123,13 @@ export class PaddlePaymentProvider implements PaymentProvider {
     } catch (error) { return translatePaddleError(error, true); }
   }
 
-  async openPaymentUpdate(input: Readonly<{ subscriptionRef: string; attemptId: string }>): Promise<ProviderResult<CheckoutReady>> {
-    try { providerId(input.subscriptionRef, 'sub'); assertIdentifier(input.attemptId); } catch { return { kind: 'rejected', code: 'validation' }; }
+  async openPaymentUpdate(input: Readonly<{ subscriptionRef: string; intentId: string; attemptId: string }>): Promise<ProviderResult<PaymentUpdateReady>> {
+    try { providerId(input.subscriptionRef, 'sub'); assertIdentifier(input.intentId); assertIdentifier(input.attemptId); } catch { return { kind: 'rejected', code: 'validation' }; }
     try {
       // This GET can create a transaction. It deliberately shares mutation uncertainty handling.
       const result = await this.#sdk.subscriptions.getPaymentMethodChangeTransaction(input.subscriptionRef);
       if (result.subscriptionId !== input.subscriptionRef || !['subscription_payment_method_change', 'subscription_recurring'].includes(result.origin)) return { kind: 'outcome_unknown' };
-      return { kind: 'succeeded', value: { intentId: input.attemptId, transactionRef: providerId(result.id, 'txn'), checkout: result.checkout?.url ? { url: httpsUrl(result.checkout.url) } : {} } };
+      return { kind: 'succeeded', value: { intentId: input.intentId, transactionRef: providerId(result.id, 'txn'), purpose: result.origin === 'subscription_recurring' ? 'recovery' : 'payment_method', checkout: result.checkout?.url ? { url: httpsUrl(result.checkout.url) } : {} } };
     } catch (error) { return translatePaddleError(error, true); }
   }
 
