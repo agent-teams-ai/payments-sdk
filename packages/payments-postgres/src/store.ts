@@ -423,6 +423,7 @@ class PostgresPaymentStore implements PaymentStore {
         else subscriptionRefs.add(route.id);
       }
       if (receipt.body.input.adverseTransactionRef) transactionRefs.add(receipt.body.input.adverseTransactionRef);
+      if (observation.kind === 'transaction' && observation.subscriptionRef.presence === 'known' && observation.subscriptionRef.value) subscriptionRefs.add(observation.subscriptionRef.value);
     }
     for (const transactionRef of transactionRefs) {
       await add('transactions', transactionRef);
