@@ -1,0 +1,18 @@
+schemaVersion: 1
+packageManager:
+  kind: pnpm
+  workspaceManifest: pnpm-workspace.yaml
+policies:
+  externalDependencies: catalog
+  catalogVersions: exact
+  internalDependencies: workspace-protocol
+  reservedScopes:
+    - '@agent-teams/payments-'
+  developmentOnlyPackages:
+    - typescript
+    - oxlint
+    - '@types/node'
+    - '@types/pg'
+    - undici
+  exactRegistryDevelopmentOnlyPackages:
+    - '@agent-teams/engineering-foundation'

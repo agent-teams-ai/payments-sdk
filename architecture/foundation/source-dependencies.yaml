@@ -1,0 +1,48 @@
+schemaVersion: 2
+workspace:
+  kind: pnpm
+  manifest: pnpm-workspace.yaml
+packageRoots:
+  - packages
+governedRoots:
+  - packages/payments-core/src
+  - packages/payments-paddle/src
+  - packages/payments-postgres/src
+  - packages/payments-get-modular/src
+boundaries:
+  - id: payments.core
+    roots: [packages/payments-core/src]
+    entrypoints: [packages/payments-core/src/index.ts]
+    packageExports: ['.']
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: payments.paddle
+    roots: [packages/payments-paddle/src]
+    entrypoints: [packages/payments-paddle/src/index.ts]
+    packageExports: ['.']
+    allow:
+      boundaries: [payments.core]
+      packages: ['@paddle/paddle-node-sdk']
+      builtins: [node:crypto]
+      runtimeReferences: []
+  - id: payments.postgres
+    roots: [packages/payments-postgres/src]
+    entrypoints: [packages/payments-postgres/src/index.ts]
+    packageExports: ['.']
+    allow:
+      boundaries: [payments.core]
+      packages: [pg, pg-boss]
+      builtins: [node:crypto]
+      runtimeReferences: []
+  - id: payments.get-modular
+    roots: [packages/payments-get-modular/src]
+    entrypoints: [packages/payments-get-modular/src/index.ts]
+    packageExports: ['.']
+    allow:
+      boundaries: [payments.core]
+      packages: ['@get-modular/core', '@get-modular/assembly', '@get-modular/resources']
+      builtins: []
+      runtimeReferences: []
