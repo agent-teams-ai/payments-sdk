@@ -10,7 +10,7 @@ import type { CheckoutReady, EvidenceMessage, OfferSnapshot, OperationResult, Pa
 import { createNodeHttpHost } from '../../examples/node-http.ts';
 import { createFetchModularHost } from '../../examples/fetch-modular.ts';
 import type { HostedPayments } from '../../examples/node-http.ts';
-import { AccessFixture, CreditFixture } from '../fixtures/consumers/index.ts';
+import { AccessFixture, CreditFixture, sourceIdentity } from '../fixtures/consumers/index.ts';
 import type { Effect } from '../fixtures/consumers/index.ts';
 import { adjustmentFixture, eventFixture, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '../../packages/payments-paddle/test/fixtures.ts';
 import { nextPeriod, offer, producerNamespace, scope } from './consumer-support.ts';
@@ -31,11 +31,18 @@ async function postHttp(url: string, path: string, body: string, headers: Record
   });
 }
 
-test('full public payments system: real Paddle SDK, durable PostgreSQL and two independent host environments', { timeout: 60_000 }, async t => {
+function paddleEmulation() {
   const globalNames = ['fetch', 'Headers', 'Response', 'Request', 'FormData', 'WebSocket', 'CloseEvent', 'ErrorEvent', 'MessageEvent', 'EventSource'] as const;
   const saved = globalNames.map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)] as const), originalDispatcher = getGlobalDispatcher();
   install(); const agent = new MockAgent(); agent.disableNetConnect(); setGlobalDispatcher(agent);
-  const api = agent.get('https://sandbox-api.paddle.com');
+  return { agent, api: agent.get('https://sandbox-api.paddle.com'), async restore() {
+    setGlobalDispatcher(originalDispatcher); await agent.close();
+    for (const [name, descriptor] of saved) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else Reflect.deleteProperty(globalThis, name); }
+  } };
+}
+
+test('full public payments system: real Paddle SDK, durable PostgreSQL and two independent host environments', { timeout: 60_000 }, async t => {
+  const emulation = paddleEmulation(), { agent, api } = emulation;
   try {
     for (const kind of ['node-http-factory', 'fetch-static-gm'] as const) {
       await t.test(kind, async () => {
@@ -157,6 +164,7 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
           // zero commercial purchase above; the completed management checkout cannot grant T/Q.
           const methodRef = 'txn_00000000000000000000000007';
           const method = transactionFixture({ id: methodRef, intentId: checkout.intentId, origin: 'subscription_payment_method_change', total: '0' });
+          api.intercept({ path: path => path.split('?')[0] === `/subscriptions/${paddleIds.subscription}`, method: 'GET' }).reply(200, responseFixture(active));
           api.intercept({ path: `/subscriptions/${paddleIds.subscription}/update-payment-method-transaction`, method: 'GET' }).reply(200, responseFixture(method));
           assert.equal(success(await payments.openPaymentUpdate({ buyerId: 'buyer-a', bindingId: basisId, requestKey: 'method-update' })).transactionRef, methodRef);
           assert.equal((await ingress('transaction.completed', method)).status, 200); await flush();
@@ -164,6 +172,7 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
 
           const scheduled = subscriptionFixture({ scheduled: true, version: '2026-11-02T00:00:00.000001Z' });
           scheduled['scheduled_change'] = { action: 'cancel', effective_at: nextPeriod.endsAt, resume_at: null }; scheduled['current_billing_period'] = { starts_at: nextPeriod.startsAt, ends_at: nextPeriod.endsAt };
+          api.intercept({ path: path => path.split('?')[0] === `/subscriptions/${paddleIds.subscription}`, method: 'GET' }).reply(200, responseFixture(active));
           api.intercept({ path: `/subscriptions/${paddleIds.subscription}/cancel`, method: 'POST', body: JSON.stringify({ effective_from: 'next_billing_period' }) }).reply(200, responseFixture(scheduled));
           assert.deepEqual(success(await payments.requestCancellation({ buyerId: 'buyer-a', bindingId: basisId, requestKey: 'cancel-period-end', timing: 'period_end' })), { kind: 'scheduled', effectiveAt: nextPeriod.endsAt });
           assert.equal((await ingress('subscription.updated', scheduled)).status, 200); await flush();
@@ -199,9 +208,82 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
         } finally { await host.close(); await pool.query(`DROP SCHEMA "${schema}" CASCADE; DROP SCHEMA ${credit.owner.sql} CASCADE; DROP SCHEMA ${access.owner.sql} CASCADE`); await pool.end(); }
       });
     }
-  } finally {
-    setGlobalDispatcher(originalDispatcher); await agent.close();
-    for (const [name, descriptor] of saved) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else Reflect.deleteProperty(globalThis, name); }
-  }
+  } finally { await emulation.restore(); }
+});
+
+test('both public hosts hold distinct initial and renewal transactions for one exact paid period in either consumer delivery order', { timeout: 60_000 }, async t => {
+  const emulation = paddleEmulation(), { agent, api } = emulation;
+  try {
+    for (const kind of ['node-http-factory', 'fetch-static-gm'] as const) for (const initialFirst of [true, false]) {
+      await t.test(`${kind}, ${initialFirst ? 'initial first' : 'renewal first'}`, async () => {
+        const connectionString = process.env['DATABASE_URL']; if (!connectionString) throw new Error('DATABASE_URL is required');
+        const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
+        const prefix = `period_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
+        const trust = { producerNamespace, scope }, credit = new CreditFixture({ pool, schema: `${prefix}_credit`, trust });
+        await migratePaymentSchema({ pool, schema, scope }); await credit.migrate();
+        const store = await createPostgresPaymentStore({ pool, schema, scope });
+        const provider = createPaddleProvider({ scope, apiKey: 'synthetic-never-valid-key', apiVersion: 1, webhook: { endpointId: 'period-destination', secret: SECRET, apiVersion: 1 } });
+        const runtimeOptions: PaymentRuntimeOptions = { scope, producerNamespace, provider, store, catalog: { resolveOffer: async () => offer } };
+        const verify = provider.verifyWebhook.bind(provider), authenticate = async (): Promise<string> => 'buyer-a';
+        const host = kind === 'node-http-factory' ? await createNodeHttpHost(runtimeOptions, verify, authenticate) : await createFetchModularHost(runtimeOptions, verify, authenticate);
+        const payments = host.payments;
+        const post = async (path: string, body: string, headers: Record<string, string> = {}) => {
+          if ('url' in host) return postHttp(host.url, path, body, headers);
+          const response = await host.handle(new Request(`https://fixture.test${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body }));
+          return { status: response.status, body: await response.text() };
+        };
+        let sequence = 100;
+        const ingress = async (data: Record<string, unknown>) => {
+          const body = JSON.stringify(eventFixture('transaction.completed', data, `evt_${String(++sequence).padStart(26, '0')}`));
+          assert.equal((await post('/webhooks/paddle', body, { 'paddle-signature': sign(body) })).status, 200);
+          await payments.repair(100);
+        };
+        try {
+          await payments.registerConsumer('credit'); let intentId = '';
+          api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, options => {
+            const body = JSON.parse(String(options.body)) as { custom_data: { payments: { intentId: string } } }; intentId = body.custom_data.payments.intentId;
+            return responseFixture(transactionFixture({ intentId, status: 'ready', customerRef: null }));
+          });
+          const response = await post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'same-period' }));
+          const checkout = success(JSON.parse(response.body) as OperationResult<CheckoutReady>);
+          await ingress(transactionFixture({ intentId }));
+          const samePeriodRef = 'txn_00000000000000000000000008';
+          await ingress(transactionFixture({ id: samePeriodRef, intentId, origin: 'subscription_recurring', version: '2026-10-15T00:00:00.000001Z' }));
+          const snapshots = await payments.readDeliveries('credit', 100);
+          const initial = snapshots.find(body => body.kind === 'complete' && body.completion?.classification === 'initial');
+          const renewal = snapshots.find(body => body.kind === 'complete' && body.completion?.classification === 'renewal');
+          assert.ok(initial); assert.ok(renewal);
+          const history = await payments.readPurchase('buyer-a', checkout.intentId); assert.ok(history);
+          const financialFacts = history.transactions.filter(transaction => transaction.completion);
+          assert.equal(financialFacts.length, 2); assert.ok(financialFacts.every(transaction => transaction.flags.length === 0));
+          assert.deepEqual(financialFacts[0]?.completion?.lines[0]?.period, financialFacts[1]?.completion?.lines[0]?.period);
+          await credit.receive(initialFirst ? initial : renewal);
+          const restarted = new CreditFixture({ pool, schema: credit.owner.options.schema, trust });
+          await restarted.receive(initialFirst ? renewal : initial);
+          let decisions = await restarted.decisions(); assert.equal(decisions.length, 1);
+          let row = decisions[0]!; assert.equal(row.body.status, 'held'); assert.equal(row.body.eligible, '0');
+          const before = await restarted.owner.inspect<{ body: Effect }>('effects');
+          const original = before.find(effect => effect.body.kind === 'grant')?.body;
+          assert.equal(before.filter(effect => effect.body.kind === 'grant').length, initialFirst ? 1 : 0);
+          assert.ok((await restarted.owner.inspect<{ state: string }>('obligations')).some(obligation => obligation.state === 'pending'));
+          for (const input of [renewal, initial]) assert.equal((await restarted.receive(input)).outcome, 'duplicate');
+          const resolution = { basisKey: row.basis_key, expectedDecisionRevision: Number(row.revision), expectedReadSet: row.body.readSet, selectedSource: sourceIdentity(initial), actorId: 'authorized-period-owner', approvalRef: `period-review-${kind}-${initialFirst}`, policyVersion: 'fixture-credit-policy-v1' };
+          assert.equal(await restarted.resolveHeldDecision(resolution), 'resolved'); assert.equal(await restarted.resolveHeldDecision(resolution), 'duplicate');
+          row = (await restarted.decisions())[0]!; assert.equal(BigInt(row.body.eligible), Q);
+          const selectedHistory = await restarted.owner.inspect<{ body: Effect }>('effects');
+          assert.equal(selectedHistory.filter(effect => effect.body.kind === 'grant').length, 1);
+          assert.equal(row.body.originalGrant, original?.effectKey ?? selectedHistory.find(effect => effect.body.kind === 'grant')?.body.effectKey);
+          const next = transactionFixture({ id: 'txn_00000000000000000000000009', intentId, origin: 'subscription_recurring', version: '2026-11-01T00:00:00.000001Z' });
+          next['billing_period'] = { starts_at: nextPeriod.startsAt, ends_at: nextPeriod.endsAt };
+          await ingress(next); await deliver(payments, 'credit', restarted);
+          decisions = await restarted.decisions(); assert.equal(decisions.length, 2);
+          assert.equal(decisions.reduce((sum, decision) => sum + BigInt(decision.body.eligible), 0n), 2n * Q);
+          assert.equal((await restarted.owner.inspect<{ body: Effect }>('effects')).filter(effect => effect.body.kind === 'grant').length, 2);
+          assert.equal((await payments.readPurchase('buyer-a', checkout.intentId))?.transactions.filter(transaction => transaction.completion).length, 3);
+          agent.assertNoPendingInterceptors();
+        } finally { await host.close(); await pool.query(`DROP SCHEMA "${schema}" CASCADE; DROP SCHEMA ${credit.owner.sql} CASCADE`); await pool.end(); }
+      });
+    }
+  } finally { await emulation.restore(); }
 });
 
