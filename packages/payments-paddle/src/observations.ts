@@ -1,5 +1,5 @@
 import { assertIdentifier, compareTime, exactTime, money } from '@agent-teams/payments-core';
-import type { AdjustmentObservation, CollectionMethod, EvidenceSource, Field, Money, Observation, PaymentScope, Period, ProviderLine, SubscriptionObservation, TransactionObservation, TransactionStatusMeaning, UnsupportedObservation } from '@agent-teams/payments-core';
+import type { AdjustmentObservation, BillingCycle, CollectionMethod, EvidenceSource, Field, Money, Observation, PaymentScope, Period, ProviderLine, SubscriptionObservation, TransactionObservation, TransactionStatusMeaning, UnsupportedObservation } from '@agent-teams/payments-core';
 
 type RecordValue = Record<string, unknown>;
 type Mode = 'raw' | 'mapped';
@@ -46,6 +46,11 @@ function proration(value: unknown, mode: Mode): Field<boolean> {
     return true;
   });
 }
+function billingCycle(value: unknown, mode: Mode): Field<BillingCycle | null> {
+  return nullable(value, mode, true, value => {
+    const cycle = record(value); return { interval: text(cycle['interval']), frequency: positiveInteger(cycle['frequency']) };
+  });
+}
 function nonTrial(value: unknown, mode: Mode): Field<boolean> {
   if (value === null) return known(false, mode === 'mapped');
   return field(() => {
@@ -76,13 +81,13 @@ function lines(data: RecordValue, mode: Mode, code: string): readonly ProviderLi
     const price = record(item['price']), quantity = positiveInteger(line['quantity']);
     if (positiveInteger(item['quantity']) !== quantity) throw new TypeError('Quantity mismatch');
     const cycle = get(price, mode, 'billing_cycle', 'billingCycle');
-    const billingCycle = nullable(cycle, mode, true, value => { const current = record(value); return { interval: text(current['interval']), frequency: positiveInteger(current['frequency']) }; });
+    const cycleField = billingCycle(cycle, mode);
     const itemProration = proration(item['proration'], mode), lineProration = proration(line['proration'], mode);
     const combinedProration: Field<boolean> = itemProration.presence === 'known' && lineProration.presence === 'known'
       ? known(itemProration.value || lineProration.value, itemProration.provenance === 'schema_assumed_null' || lineProration.provenance === 'schema_assumed_null') : unknown();
     return {
       providerLineRef, providerPriceRef, quantity,
-      amount: exactMoney(record(line['totals'])['total'], code), billingCycle,
+      amount: exactMoney(record(line['totals'])['total'], code), billingCycle: cycleField,
       trial: nonTrial(get(price, mode, 'trial_period', 'trialPeriod'), mode), proration: combinedProration,
       period: nullable(get(data, mode, 'billing_period', 'billingPeriod'), mode, false, value => period(value, mode)),
     };
@@ -146,7 +151,7 @@ export function subscriptionObservation(value: unknown, mode: Mode, source: Evid
     items: field(() => array(data['items']).map(value => {
       const item = record(value), price = record(item['price']);
       return { providerPriceRef: id(price['id']), quantity: field(() => positiveInteger(item['quantity'])),
-        billingCycle: nullable(get(price, mode, 'billing_cycle', 'billingCycle'), mode, true, value => { const cycle = record(value); return { interval: text(cycle['interval']), frequency: positiveInteger(cycle['frequency']) }; }),
+        billingCycle: billingCycle(get(price, mode, 'billing_cycle', 'billingCycle'), mode),
         trial: nonTrial(get(price, mode, 'trial_period', 'trialPeriod'), mode) };
     })), source,
   };
