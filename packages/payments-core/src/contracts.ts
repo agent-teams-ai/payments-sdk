@@ -20,6 +20,9 @@ export type UnsupportedObservation = Readonly<{ kind: 'unsupported'; reason: str
 export type Observation = TransactionObservation | SubscriptionObservation | AdjustmentObservation | UnsupportedObservation;
 /** The adapter assigns scope from trusted endpoint/connection configuration, never from event custom data. */
 export type VerifiedInput = Readonly<{ scope: PaymentScope; inputId: string; source: EvidenceSource; observation: Observation; retainedRepresentation: JsonValue; adverseTransactionRef?: string }>;
+export type ObservationProjection = Omit<TransactionObservation, 'source'> | Omit<SubscriptionObservation, 'source'> | Omit<AdjustmentObservation, 'source'> | Omit<UnsupportedObservation, 'source'>;
+/** Certified event identity without retained body/SDK diagnostics; suitable for a bounded identity index. */
+export type EventIdentityEvidence = Readonly<{ provider: string; paymentAccountId: string; environment: PaymentScope['environment']; eventId?: string; eventType?: string; occurredAt?: string; rawStableEnvelopeDigest?: string; projection: ObservationProjection; routes: readonly AggregateIdentity[] }>;
 export type CheckoutReady = Readonly<{ intentId: string; transactionRef: string; checkout: Readonly<{ url?: string; token?: string }> }>;
 export type PaymentUpdateReady = CheckoutReady & Readonly<{ purpose: 'payment_method' | 'recovery' }>;
 export type CancellationOutcome = Readonly<{ kind: 'scheduled'; effectiveAt: string }> | Readonly<{ kind: 'applied'; observedStatus: string }>;

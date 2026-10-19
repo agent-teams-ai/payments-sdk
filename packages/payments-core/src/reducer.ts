@@ -1,4 +1,4 @@
-import type { AdjustmentObservation, CompletionFact, EvidenceFlag, EvidenceMessage, Field, Observation, OfferSnapshot, PaymentScope, PaymentState, ProviderLine, SubscriptionAggregate, SubscriptionBinding, SubscriptionObservation, TransactionAggregate, TransactionObservation, VerifiedInput } from './contracts.js';
+import type { AdjustmentObservation, AggregateIdentity, CompletionFact, EventIdentityEvidence, EvidenceFlag, EvidenceMessage, Field, Observation, OfferSnapshot, PaymentScope, PaymentState, ProviderLine, SubscriptionAggregate, SubscriptionBinding, SubscriptionObservation, TransactionAggregate, TransactionObservation, VerifiedInput } from './contracts.js';
 import { assertIdentifier, canonicalJson, compareTime, digest, exactTime, money } from './values.js';
 
 const known = <T>(field: Field<T>): field is Readonly<{ presence: 'known'; value: T; provenance?: 'observed' | 'schema_assumed_null' }> => field.presence === 'known';
@@ -16,6 +16,7 @@ function semantic(value: unknown): unknown {
   return value;
 }
 function compatible(a: unknown, b: unknown): boolean {
+  if (a === undefined || b === undefined) return true;
   if (a !== null && b !== null && typeof a === 'object' && typeof b === 'object' && 'presence' in a && 'presence' in b) {
     if (a.presence === 'unknown' || b.presence === 'unknown') return true;
     if ('value' in a && 'value' in b) return compatible(a.value, b.value);
@@ -32,6 +33,8 @@ function compatible(a: unknown, b: unknown): boolean {
   return a === b;
 }
 function mergeFields<T>(oldValue: T, newValue: T): T {
+  if (newValue === undefined) return oldValue;
+  if (oldValue === undefined) return newValue;
   if (oldValue !== null && newValue !== null && typeof oldValue === 'object' && typeof newValue === 'object') {
     if ('presence' in oldValue && 'presence' in newValue) {
       if (newValue.presence === 'unknown') return oldValue;
@@ -43,7 +46,7 @@ function mergeFields<T>(oldValue: T, newValue: T): T {
         return previous === undefined ? item : mergeFields(previous, item);
       }) as T;
     }
-    return Object.fromEntries(Object.keys(newValue).map(key => [key, key === 'source' ? (newValue as Record<string, unknown>)[key] : mergeFields((oldValue as Record<string, unknown>)[key], (newValue as Record<string, unknown>)[key])])) as T;
+    return Object.fromEntries([...new Set([...Object.keys(oldValue), ...Object.keys(newValue)])].map(key => [key, key === 'source' ? (newValue as Record<string, unknown>)[key] : mergeFields((oldValue as Record<string, unknown>)[key], (newValue as Record<string, unknown>)[key])])) as T;
   }
   return newValue;
 }
@@ -207,22 +210,75 @@ export function reduceObservation(state: PaymentState, scope: PaymentScope, obse
     }
   }
 }
+/** All payment-owner aggregate routes affected by one trusted receipt; no product authority is inferred. */
+export function inputRoutes(input: Pick<VerifiedInput, 'observation' | 'adverseTransactionRef'>): readonly AggregateIdentity[] {
+  const routes: AggregateIdentity[] = [], observation = input.observation;
+  const transactionRef = input.adverseTransactionRef ?? ('transactionRef' in observation ? observation.transactionRef : undefined);
+  if (transactionRef) routes.push({ type: 'transaction', id: transactionRef });
+  if ('transactionRef' in observation && observation.transactionRef && observation.transactionRef !== transactionRef) routes.push({ type: 'transaction', id: observation.transactionRef });
+  if ('subscriptionRef' in observation && typeof observation.subscriptionRef === 'string' && observation.subscriptionRef) routes.push({ type: 'subscription', id: observation.subscriptionRef });
+  return routes;
+}
+export function eventIdentityEvidence(input: VerifiedInput): EventIdentityEvidence {
+  const { source: ignored, ...projection } = input.observation;
+  void ignored;
+  const source = input.source;
+  return { provider: input.scope.provider, paymentAccountId: input.scope.paymentAccountId, environment: input.scope.environment,
+    ...(source.eventId === undefined ? {} : { eventId: source.eventId }), ...(source.eventType === undefined ? {} : { eventType: source.eventType }), ...(source.occurredAt === undefined ? {} : { occurredAt: source.occurredAt }),
+    ...(source.kind === 'verified_webhook' && source.stableEnvelopeDigest !== undefined ? { rawStableEnvelopeDigest: source.stableEnvelopeDigest } : {}), projection, routes: inputRoutes(input) };
+}
+function eventSubject(evidence: EventIdentityEvidence): Readonly<{ kind: string; id: string }> | undefined {
+  const projection = evidence.projection;
+  if (projection.kind === 'transaction') return { kind: projection.kind, id: projection.transactionRef };
+  if (projection.kind === 'subscription') return { kind: projection.kind, id: projection.subscriptionRef };
+  if (projection.kind === 'adjustment') return { kind: projection.kind, id: projection.adjustmentRef };
+  if (evidence.eventType?.startsWith('transaction.') && projection.transactionRef) return { kind: 'transaction', id: projection.transactionRef };
+  if (evidence.eventType?.startsWith('subscription.') && projection.subscriptionRef) return { kind: 'subscription', id: projection.subscriptionRef };
+  return undefined;
+}
+function eventParent(evidence: EventIdentityEvidence): string | undefined {
+  const projection = evidence.projection;
+  return projection.kind === 'adjustment' || (projection.kind === 'unsupported' && evidence.eventType?.startsWith('adjustment.')) ? projection.transactionRef : undefined;
+}
+/** Pairwise compatibility is not transitive: compare every receipt, or merge all compatible certified fields. */
+export function compareEventIdentity(a: EventIdentityEvidence, b: EventIdentityEvidence): 'unrelated' | 'compatible' | 'conflict' {
+  if (!a.eventId || a.eventId !== b.eventId || a.provider !== b.provider || a.paymentAccountId !== b.paymentAccountId || a.environment !== b.environment) return 'unrelated';
+  if (a.eventType !== undefined && b.eventType !== undefined && a.eventType !== b.eventType) return 'conflict';
+  if (a.occurredAt !== undefined && b.occurredAt !== undefined) { try { if (compareTime(a.occurredAt, b.occurredAt) !== 0) return 'conflict'; } catch { return 'conflict'; } }
+  if (a.rawStableEnvelopeDigest !== undefined && b.rawStableEnvelopeDigest !== undefined && a.rawStableEnvelopeDigest !== b.rawStableEnvelopeDigest) return 'conflict';
+  const aa = eventSubject(a), bb = eventSubject(b);
+  if (aa && bb && (aa.kind !== bb.kind || aa.id !== bb.id)) return 'conflict';
+  const ap = eventParent(a), bp = eventParent(b); if (ap !== undefined && bp !== undefined && ap !== bp) return 'conflict';
+  if (a.projection.kind !== 'unsupported' && b.projection.kind !== 'unsupported' && !compatible(semantic(a.projection), semantic(b.projection))) return 'conflict';
+  return 'compatible';
+}
+/** Retains every mutually certified field so partial A cannot hide a later B/C contradiction. */
+export function mergeEventIdentityEvidence(a: EventIdentityEvidence, b: EventIdentityEvidence): EventIdentityEvidence {
+  if (compareEventIdentity(a, b) !== 'compatible') throw new TypeError('Cannot merge conflicting or unrelated event identities');
+  const projection = a.projection.kind === 'unsupported' ? b.projection : b.projection.kind === 'unsupported' ? a.projection : mergeFields(a.projection, b.projection);
+  const routes = [...a.routes]; for (const route of b.routes) if (!routes.some(existing => existing.type === route.type && existing.id === route.id)) routes.push(route);
+  return { ...a, ...(a.eventType === undefined && b.eventType !== undefined ? { eventType: b.eventType } : {}), ...(a.occurredAt === undefined && b.occurredAt !== undefined ? { occurredAt: b.occurredAt } : {}), ...(a.rawStableEnvelopeDigest === undefined && b.rawStableEnvelopeDigest !== undefined ? { rawStableEnvelopeDigest: b.rawStableEnvelopeDigest } : {}), projection, routes };
+}
+function flagInputConflict(state: PaymentState, input: Pick<VerifiedInput, 'observation' | 'adverseTransactionRef'>): void {
+  for (const route of inputRoutes(input)) {
+    const aggregate = route.type === 'transaction' ? transactionAggregate(state, route.id) : subscriptionAggregate(state, route.id);
+    flag(aggregate, 'conflict'); aggregate.revision += 1; aggregate.publicationRequired = true;
+  }
+}
 export function admitInput(state: PaymentState, input: VerifiedInput): 'admitted' | 'duplicate' | 'conflict' {
   const existing = state.inbox[input.inputId];
   if (existing) {
-    if (existing.input.source.representationDigest === input.source.representationDigest) { if (existing.state !== 'processed') existing.state = 'pending'; return 'duplicate'; }
+    const identityConflict = compareEventIdentity(eventIdentityEvidence(existing.input), eventIdentityEvidence(input)) === 'conflict';
+    if (existing.input.source.representationDigest === input.source.representationDigest && !identityConflict) { if (existing.state !== 'processed') existing.state = 'pending'; return 'duplicate'; }
     existing.conflict = true; state.issues.push(`input-identity-conflict:${input.inputId}`);
-    const ref = input.adverseTransactionRef ?? ('transactionRef' in input.observation ? input.observation.transactionRef : undefined);
-    if (ref) { const aggregate = transactionAggregate(state, ref); flag(aggregate, 'conflict'); aggregate.revision += 1; aggregate.publicationRequired = true; }
+    flagInputConflict(state, existing.input); flagInputConflict(state, input);
     return 'conflict';
   }
   let conflict = false;
-  if (input.source.eventId && input.source.stableEnvelopeDigest) for (const receipt of Object.values(state.inbox)) {
-    if (receipt.input.source.eventId === input.source.eventId && receipt.input.source.stableEnvelopeDigest && receipt.input.source.stableEnvelopeDigest !== input.source.stableEnvelopeDigest) {
-      conflict = true;
-      const prior = receipt.input.observation;
-      if ('transactionRef' in prior && prior.transactionRef) { const aggregate = transactionAggregate(state, prior.transactionRef); flag(aggregate, 'conflict'); aggregate.revision += 1; aggregate.publicationRequired = true; }
-      if ('subscriptionRef' in prior && typeof prior.subscriptionRef === 'string') { const aggregate = subscriptionAggregate(state, prior.subscriptionRef); flag(aggregate, 'conflict'); aggregate.revision += 1; aggregate.publicationRequired = true; }
+  const incomingIdentity = eventIdentityEvidence(input);
+  if (input.source.eventId) for (const receipt of Object.values(state.inbox)) {
+    if (compareEventIdentity(eventIdentityEvidence(receipt.input), incomingIdentity) === 'conflict') {
+      conflict = true; flagInputConflict(state, receipt.input);
     }
   }
   state.inbox[input.inputId] = { input, state: 'pending', conflict, attempts: 0 };
@@ -232,10 +288,7 @@ export function admitInput(state: PaymentState, input: VerifiedInput): 'admitted
     if (!aggregate.pendingAdverse.includes(input.inputId)) aggregate.pendingAdverse.push(input.inputId);
     aggregate.revision += 1; aggregate.publicationRequired = true;
   }
-  if (conflict) {
-    const ref = 'transactionRef' in input.observation ? input.observation.transactionRef : undefined;
-    if (ref) { const aggregate = transactionAggregate(state, ref); flag(aggregate, 'conflict'); aggregate.revision += 1; aggregate.publicationRequired = true; }
-  }
+  if (conflict) flagInputConflict(state, input);
   return conflict ? 'conflict' : 'admitted';
 }
 function storeMessage(state: PaymentState, scope: PaymentScope, producerNamespace: string, aggregate: Readonly<{ type: 'transaction' | 'subscription'; id: string }>, revision: number, payload: object, maxBytes: number): EvidenceMessage {

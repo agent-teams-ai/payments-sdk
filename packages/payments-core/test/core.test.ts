@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addMoney, canonicalJson, compareTime, createPayments, digest, exactTime, money, type EvidenceSource, type Field, type OfferSnapshot, type PaymentProvider, type PaymentScope, type ProviderResult, type SubscriptionObservation, type TransactionObservation, type VerifiedInput } from '../dist/index.js';
+import { addMoney, canonicalJson, compareTime, compareEventIdentity, createPayments, digest, eventIdentityEvidence, mergeEventIdentityEvidence, exactTime, money, type EvidenceSource, type Field, type OfferSnapshot, type PaymentProvider, type PaymentScope, type ProviderResult, type SubscriptionObservation, type TransactionObservation, type VerifiedInput } from '../dist/index.js';
 import { MemoryPaymentStore } from '../dist/memory.js';
 
 const scope: PaymentScope = { applicationId: 'app-a', provider: 'fake', paymentAccountId: 'merchant', environment: 'sandbox' };
@@ -396,4 +396,47 @@ test('billing eligibility holds do not remove proven authority to cancel, and fa
   context.provider.readSubscriptionInput = async () => ({ kind: 'outcome_unknown' });
   assert.deepEqual(await context.payments.requestCancellation({ buyerId: 'buyer', bindingId: context.basis, requestKey: 'unavailable-preflight', timing: 'now' }), { kind: 'rejected', code: 'unavailable' });
   assert.equal(mutations, 1); const unknownOperation = await context.store.findRequest(scope, 'buyer', 'unavailable-preflight'); assert.equal(unknownOperation?.attempts.length, 0);
+});
+
+function eventSource(id: string, kind: EvidenceSource['kind'], extra: Partial<EvidenceSource> = {}): EvidenceSource {
+  return { ...source(id), kind, eventId: 'shared-event', eventType: 'transaction.completed', occurredAt: at,
+    ...(kind === 'verified_webhook' ? { stableEnvelopeDigest: 'certified-raw-stable', verification: { verifiedAt: at, endpointId: 'test-endpoint', rawBodyDigest: digest(id) } } : {}), ...extra };
+}
+
+test('same-event certified headers and entity identity conflict symmetrically across raw and API acquisitions', async () => {
+  const directions = [['verified_webhook', 'authenticated_api'], ['authenticated_api', 'verified_webhook'], ['authenticated_api', 'authenticated_api']] as const;
+  for (const [firstKind, secondKind] of directions) for (const changed of ['type', 'time', 'entity'] as const) {
+    const context = setup(), checkout = await purchase(context), secondCheckout = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'second-intent' }); assert.equal(secondCheckout.kind, 'succeeded'); if (secondCheckout.kind !== 'succeeded') throw new Error('Fixture');
+    await context.payments.registerConsumer('event-consumer');
+    const first = transaction(checkout.transactionRef, 'first-receipt', 'one_time', { source: eventSource('first-receipt', firstKind) });
+    const second = transaction(changed === 'entity' ? secondCheckout.value.transactionRef : checkout.transactionRef, 'second-receipt', 'one_time', { source: eventSource('second-receipt', secondKind, changed === 'type' ? { eventType: 'transaction.updated' } : changed === 'time' ? { occurredAt: '2026-01-01T00:00:00.000002Z' } : {}) });
+    const aa = eventIdentityEvidence(input(first)), bb = eventIdentityEvidence(input(second)); assert.equal(compareEventIdentity(aa, bb), 'conflict'); assert.equal(compareEventIdentity(bb, aa), 'conflict');
+    await observe(context, first);
+    const originalMessage = (await context.payments.readDeliveries('event-consumer'))[0]; assert.ok(originalMessage); await context.payments.acknowledgeDelivery('event-consumer', originalMessage.messageId, originalMessage.bodyDigest);
+    const admission = await context.payments.ingestVerifiedInput(input(second)); assert.equal(admission.kind, 'succeeded'); if (admission.kind === 'succeeded') assert.equal(admission.value?.kind, 'conflict');
+    assert.equal(await context.payments.processInbox(second.source.receiptId), 'quarantined');
+    const original = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(original?.completion); assert.ok(original.flags.includes('conflict'));
+    if (changed === 'entity') { const incoming = (await context.payments.readPurchase('buyer', secondCheckout.value.intentId))?.transactions[0]; assert.ok(incoming); assert.ok(incoming.flags.includes('conflict')); assert.equal(incoming.completion, undefined); }
+    await context.payments.flushPublication({ type: 'transaction', id: checkout.transactionRef });
+    assert.ok((await context.payments.readDeliveries('event-consumer')).some(message => message.kind === 'complete' && message.flags.includes('conflict')));
+  }
+});
+
+test('same-event partial raw/API evidence and equivalent instants remain compatible without invented wire equality', async () => {
+  const context = setup(), checkout = await purchase(context), raw = transaction(checkout.transactionRef, 'compatible-raw', 'one_time', { source: eventSource('compatible-raw', 'verified_webhook') });
+  const api = transaction(checkout.transactionRef, 'compatible-api', 'one_time', { subscriptionRef: unknown, version: '2026-01-01T01:00:00.000001000+01:00', source: eventSource('compatible-api', 'authenticated_api', { occurredAt: '2026-01-01T01:00:00.000001000+01:00', stableEnvelopeDigest: 'not-a-certified-raw-envelope' }) });
+  if (api.lines.presence !== 'known') throw new Error('Fixture');
+  const partial = { ...api, lines: yes(api.lines.value.map(line => ({ ...line, period: unknown, trial: { presence: 'known' as const, value: false, provenance: 'schema_assumed_null' as const }, billingCycle: { presence: 'known' as const, value: null, provenance: 'schema_assumed_null' as const } }))) };
+  const aa = eventIdentityEvidence(input(raw)), bb = eventIdentityEvidence(input(partial)); assert.equal(compareEventIdentity(aa, bb), 'compatible'); assert.equal(compareEventIdentity(bb, aa), 'compatible'); assert.equal(bb.rawStableEnvelopeDigest, undefined);
+  await observe(context, raw); await observe(context, partial);
+  const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate?.completion); assert.ok(!aggregate.flags.includes('conflict'));
+});
+
+test('merged certified identity preserves richer evidence so pairwise partial compatibility cannot hide a contradiction', () => {
+  const partial = transaction('tx', 'partial-event', 'one_time', { total: unknown, source: eventSource('partial-event', 'authenticated_api') });
+  const firstKnown = transaction('tx', 'known-event', 'one_time', { total: yes(money('USD', '1000')), source: eventSource('known-event', 'authenticated_api') });
+  const contradictory = transaction('tx', 'different-event', 'one_time', { total: yes(money('USD', '999')), source: eventSource('different-event', 'authenticated_api') });
+  const aa = eventIdentityEvidence(input(partial)), bb = eventIdentityEvidence(input(firstKnown)), cc = eventIdentityEvidence(input(contradictory));
+  assert.equal(compareEventIdentity(aa, bb), 'compatible'); assert.equal(compareEventIdentity(aa, cc), 'compatible'); assert.equal(compareEventIdentity(bb, cc), 'conflict');
+  const merged = mergeEventIdentityEvidence(aa, bb); assert.equal(compareEventIdentity(merged, cc), 'conflict'); assert.equal(compareEventIdentity(cc, merged), 'conflict'); assert.throws(() => mergeEventIdentityEvidence(merged, cc));
 });
