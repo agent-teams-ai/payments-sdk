@@ -1,0 +1,137 @@
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: 'true'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.21.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/cache@v4
+        with:
+          path: |
+            packages/*/dist
+            packages/*/*.tsbuildinfo
+          key: build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'tsconfig*.json', 'packages/**/*.ts', 'packages/**/tsconfig*.json', 'packages/**/package.json') }}
+      - run: pnpm typecheck
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-build
+          path: packages/*/dist
+          retention-days: 7
+          if-no-files-found: error
+
+  quality:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.21.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: package-build
+          path: packages
+      - run: pnpm lint
+      - run: pnpm foundation:check
+      - run: pnpm foundation:assert-dev-only
+      - run: pnpm foundation:assert-registry
+      - run: pnpm test:boundaries
+      - run: pnpm test:packed
+      - run: pnpm release:dry-run
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-dry-run
+          path: .artifacts
+          if-no-files-found: error
+          retention-days: 7
+
+  scenarios:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [24.21.0, 26.11.1]
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: payments
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd 'pg_isready -U postgres -d payments'
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://postgres:test-only@127.0.0.1:5432/payments
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: package-build
+          path: packages
+      - run: pnpm test:core
+      - run: pnpm test:paddle
+      - run: pnpm test:modular
+      - run: pnpm test:postgres
+      - run: pnpm test:e2e
+
+  required:
+    name: Required checks
+    if: always()
+    needs: [build, quality, scenarios]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Require every prerequisite
+        env:
+          BUILD: ${{ needs.build.result }}
+          QUALITY: ${{ needs.quality.result }}
+          SCENARIOS: ${{ needs.scenarios.result }}
+        run: |
+          test "$BUILD" = success
+          test "$QUALITY" = success
+          test "$SCENARIOS" = success
