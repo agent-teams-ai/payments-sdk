@@ -1,12 +1,12 @@
 import {
   admitInput, canonicalJson, compareEventIdentity, createEmptyPaymentState, digest, eventIdentityEvidence,
-  inputRoutes, mergeEventIdentityEvidence, objectVersionKey, sameOperationCommand, subscriptionAggregate, transactionAggregate,
+  inputRoutes, mergeEventIdentityEvidence, objectVersionDependentRoutes, objectVersionKey, sameOperationCommand, subscriptionAggregate, transactionAggregate,
 } from '@agent-teams/payments-core';
 import type {
   AggregateIdentity, Delivery, EventIdentityEvidence, EvidenceMessage, InboxRecord, IntentAdmission, JsonValue,
   Observation, OperationCommit, OperationInput, PaymentOperation, PaymentReadVersion, PaymentScope,
   PaymentStore, ProviderResult, PurchaseIntent, ReductionCommit, ReductionInput,
-  ScanCheckpoint, StoreCommitResult, SubscriptionAggregate, SubscriptionBinding,
+  ScanCheckpoint, StoreCommitResult, SubscriptionAggregate, SubscriptionBinding, SubscriptionReclassification,
   TransactionAggregate, TransactionBinding, VerifiedInput,
 } from '@agent-teams/payments-core';
 import type { Pool } from 'pg';
@@ -27,7 +27,7 @@ export type PostgresPaymentStoreOptions = Readonly<{
   queue?: Readonly<{ boss: PgBoss; name: string }>;
 }>;
 
-const mutableTables = ['intents', 'operations', 'bindings', 'subscriptionBindings', 'transactions', 'subscriptions', 'inbox', 'versionEvidence'] as const;
+const mutableTables = ['intents', 'operations', 'bindings', 'subscriptionBindings', 'reclassifications', 'transactions', 'subscriptions', 'inbox', 'versionEvidence'] as const;
 type MutableTable = typeof mutableTables[number];
 type Lane = { revision: number; unresolvedOperationId?: string; recoveryReviewRequired?: string };
 type StoredEventIdentity = { evidence: EventIdentityEvidence; conflict: boolean };
@@ -378,10 +378,11 @@ class PostgresPaymentStore implements PaymentStore {
         state.subscriptions[id] = { subscriptionRef: id, revision: row.metadata.revision ?? 0, evidenceRevision: row.metadata.evidenceRevision ?? 0, flags: ['incomplete'], publicationRequired: true };
       }
     };
-    const includeVersion = async (observation: Observation): Promise<void> => {
+    const includeVersion = async (observation: Observation): Promise<string | undefined> => {
       let key: string | undefined;
       try { key = objectVersionKey(observation); } catch { incomplete = true; invalidVersion = true; return; }
       if (key !== undefined) await add('versionEvidence', key);
+      return key;
     };
     const includeIntent = async (intentId: string): Promise<void> => {
       // Read the membership guard BEFORE its predicate, and validate it in the committing T2.
@@ -389,7 +390,10 @@ class PostgresPaymentStore implements PaymentStore {
       await add('intents', intentId);
       const intent = state.intents[intentId];
       if (!intent) return;
-      if (intent.subscriptionBasisId) await add('subscriptionBindings', intent.subscriptionBasisId);
+      if (intent.subscriptionBasisId) {
+        await add('subscriptionBindings', intent.subscriptionBasisId);
+        await add('reclassifications', intent.subscriptionBasisId);
+      }
       const candidates = await tx.query<{ id: string }>(
         `SELECT id FROM ${this.records.sql}.records WHERE kind = 'transactions'
          AND body #>> '{completion,intentId}' = $1
@@ -398,11 +402,11 @@ class PostgresPaymentStore implements PaymentStore {
       if (candidates.rows.length > maximumRecords) incomplete = true;
       for (const row of candidates.rows.slice(0, maximumRecords)) await add('transactions', row.id);
     };
-    let transactionRef: string | undefined;
-    let subscriptionRef: string | undefined;
+    const transactionRefs = new Set<string>();
+    const subscriptionRefs = new Set<string>();
     if (aggregate) {
-      if (aggregate.type === 'transaction') transactionRef = aggregate.id;
-      else subscriptionRef = aggregate.id;
+      if (aggregate.type === 'transaction') transactionRefs.add(aggregate.id);
+      else subscriptionRefs.add(aggregate.id);
     } else {
       // Input custody is independently capped at admission; routing survives a smaller reducer budget.
       const receipt = await this.records.read<InboxRecord>(tx, 'inbox', inputId);
@@ -413,20 +417,22 @@ class PostgresPaymentStore implements PaymentStore {
       remainingBytes -= Buffer.byteLength(JSON.stringify(receipt.body));
       if (remainingBytes < 0) incomplete = true;
       const observation = receipt.body.input.observation;
-      await includeVersion(observation);
-      transactionRef = receipt.body.input.adverseTransactionRef ?? ('transactionRef' in observation ? observation.transactionRef : undefined);
-      if (observation.kind === 'transaction' && observation.subscriptionRef.presence === 'known') subscriptionRef = observation.subscriptionRef.value ?? undefined;
-      else if ('subscriptionRef' in observation && typeof observation.subscriptionRef === 'string') subscriptionRef = observation.subscriptionRef;
+      const versionKey = await includeVersion(observation);
+      for (const route of objectVersionDependentRoutes(observation, versionKey === undefined ? undefined : state.versionEvidence[versionKey])) {
+        if (route.type === 'transaction') transactionRefs.add(route.id);
+        else subscriptionRefs.add(route.id);
+      }
+      if (receipt.body.input.adverseTransactionRef) transactionRefs.add(receipt.body.input.adverseTransactionRef);
     }
-    if (transactionRef) {
+    for (const transactionRef of transactionRefs) {
       await add('transactions', transactionRef);
       await add('bindings', transactionRef);
       const binding = state.bindings[transactionRef];
       if (binding) await includeIntent(binding.intentId);
       const current = state.transactions[transactionRef]?.current;
-      if (!subscriptionRef && current?.subscriptionRef.presence === 'known') subscriptionRef = current.subscriptionRef.value ?? undefined;
+      if (current?.subscriptionRef.presence === 'known' && current.subscriptionRef.value) subscriptionRefs.add(current.subscriptionRef.value);
     }
-    if (subscriptionRef) {
+    for (const subscriptionRef of subscriptionRefs) {
       await guard(`subscription:${subscriptionRef}`);
       await add('subscriptions', subscriptionRef);
       const matches = await tx.query<{ id: string }>(
@@ -436,6 +442,7 @@ class PostgresPaymentStore implements PaymentStore {
       if (matches.rows.length > maximumRecords) incomplete = true;
       for (const match of matches.rows.slice(0, maximumRecords)) {
         await add('subscriptionBindings', match.id);
+        await add('reclassifications', match.id);
         const binding = state.subscriptionBindings[match.id];
         if (binding) await includeIntent(binding.originatingIntentId);
       }
@@ -517,10 +524,49 @@ class PostgresPaymentStore implements PaymentStore {
         await this.work(tx, { kind: 'delivery', id }, existing?.body.acknowledged ? 'complete' : 'pending');
       }
       for (const issue of commit.state.issues) await this.records.write(tx, 'issues', digest(issue), { issue });
+      for (const item of Object.values(commit.state.reclassifications)) await this.work(tx, { kind: 'reclassification', id: item.bindingId }, item.complete ? 'complete' : 'pending');
       for (const aggregate of Object.values(commit.state.transactions)) await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'transaction', id: aggregate.transactionRef }) }, aggregate.publicationRequired ? 'pending' : 'complete');
       for (const aggregate of Object.values(commit.state.subscriptions)) await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'subscription', id: aggregate.subscriptionRef }) }, aggregate.publicationRequired ? 'pending' : 'complete');
       const receipt = commit.state.inbox[commit.inputId];
       if (receipt) await this.work(tx, { kind: 'inbox', id: commit.inputId }, receipt.state === 'pending' ? 'pending' : receipt.state === 'quarantined' ? 'quarantined' : 'complete');
+      return committed;
+    });
+  }
+
+  async processReclassification(scope: PaymentScope, bindingId: string, limit: number): Promise<StoreCommitResult> {
+    assertBatchLimit(limit);
+    return this.tx(scope, async tx => {
+      if ((await this.records.configuration(tx, scope)).body.recoveryFenced) return fenced;
+      const initial = await this.records.read<SubscriptionBinding>(tx, 'subscriptionBindings', bindingId);
+      const keys: RecordKey[] = [{ kind: 'subscriptionBindings', id: bindingId }, { kind: 'reclassifications', id: bindingId }];
+      if (initial) keys.push({ kind: 'guards', id: `intent:${initial.body.originatingIntentId}` });
+      await this.records.lock(tx, keys);
+      const binding = await this.records.read<SubscriptionBinding>(tx, 'subscriptionBindings', bindingId);
+      const record = await this.records.read<SubscriptionReclassification>(tx, 'reclassifications', bindingId);
+      if (!record || record.body.complete) return committed;
+      if (!binding || binding.revision !== initial?.revision || record.body.decisionRevision !== binding.body.classificationDecision?.revision) return conflict;
+      // Membership changes use the same originating-intent guard. A newly admitted member which
+      // sorts behind the cursor classifies against this binding decision in its ordinary T2.
+      // Selection/reselection CAS shares the binding and cursor locks, so completion cannot erase
+      // a newer decision or reset. No adapter-owned business classification is performed here.
+      const batch = Math.min(limit, (this.options.maxWorkingSetRecords ?? 128) - 3);
+      const targets = await tx.query<{ id: string }>(`SELECT t.id FROM ${this.records.sql}.records b
+        JOIN ${this.records.sql}.records t ON t.kind = 'transactions' AND t.id = b.id
+        WHERE b.kind = 'bindings' AND b.body ->> 'intentId' = $1 AND ($2::text IS NULL OR t.id > $2)
+        ORDER BY t.id LIMIT $3`, [binding.body.originatingIntentId, record.body.afterTransactionRef ?? null, batch + 1]);
+      const refs = targets.rows.slice(0, batch).map(row => row.id);
+      const bytes = Buffer.byteLength(JSON.stringify([binding.body, record.body, refs]));
+      if (bytes > (this.options.maxWorkingSetBytes ?? 2_097_152)) throw new RangeError('Payment reclassification working set exceeds its byte bound');
+      await this.records.lock(tx, refs.map(id => ({ kind: 'transactions', id })));
+      // Update only publication metadata; immutable completion facts and evidence stay intact.
+      await tx.query(`UPDATE ${this.records.sql}.records SET revision = revision + 1,
+        body = jsonb_set(jsonb_set(body, '{revision}', to_jsonb((body ->> 'revision')::bigint + 1)), '{publicationRequired}', 'true'),
+        updated_at = clock_timestamp() WHERE kind = 'transactions' AND id = ANY($1::text[])`, [refs]);
+      for (const id of refs) await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'transaction', id }) });
+      const last = refs.at(-1);
+      const next: SubscriptionReclassification = { ...record.body, ...(last === undefined ? {} : { afterTransactionRef: last }), complete: targets.rows.length <= batch };
+      await this.records.write(tx, 'reclassifications', bindingId, next);
+      await this.work(tx, { kind: 'reclassification', id: bindingId }, next.complete ? 'complete' : 'pending');
       return committed;
     });
   }
@@ -550,7 +596,7 @@ class PostgresPaymentStore implements PaymentStore {
     });
   }
 
-  async listWork(scope: PaymentScope, kind: 'inbox' | 'publication' | 'prepared' | 'unknown', limit: number): Promise<readonly string[]> {
+  async listWork(scope: PaymentScope, kind: 'inbox' | 'publication' | 'reclassification' | 'prepared' | 'unknown', limit: number): Promise<readonly string[]> {
     assertBatchLimit(limit);
     return this.tx(scope, async tx => {
       await this.records.configuration(tx, scope);

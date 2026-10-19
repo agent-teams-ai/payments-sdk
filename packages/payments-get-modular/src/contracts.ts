@@ -6,7 +6,7 @@ export const PaymentsConfiguration = defineContract<PaymentRuntimeOptions>()({ i
 export type PaymentsCheckout = Pick<Payments, 'startPurchase'>;
 export type PaymentsRead = Pick<Payments, 'readOperation' | 'readPurchase' | 'readObservedSubscription' | 'readSubscriptionSelection'>;
 export type PaymentsManagement = Pick<Payments, 'requestCancellation' | 'openPaymentUpdate' | 'createManagementLink'>;
-export type PaymentsProcessing = Pick<Payments, 'ingestVerifiedInput' | 'processInbox' | 'flushPublication' | 'executeOperation' | 'refreshPurchase' | 'refreshSubscription' | 'resolveUnknownOperation' | 'selectSubscriptionStream' | 'repair'>;
+export type PaymentsProcessing = Pick<Payments, 'ingestVerifiedInput' | 'processInbox' | 'processReclassification' | 'flushPublication' | 'executeOperation' | 'refreshPurchase' | 'refreshSubscription' | 'resolveUnknownOperation' | 'selectSubscriptionStream' | 'repair'>;
 export type PaymentsDelivery = Pick<Payments, 'registerConsumer' | 'readDeliveries' | 'acknowledgeDelivery'>;
 
 export const Checkout = defineContract<PaymentsCheckout>()({ id: 'agent-teams/payments/checkout', revision: 1 });
