@@ -31,7 +31,8 @@ export function subscription(revision: number, options: Readonly<{ status?: stri
 export async function consumers() {
   const url = process.env['DATABASE_URL'];
   if (!url) throw new Error('DATABASE_URL is mandatory: consumer E2E requires a real durable PostgreSQL18 instance');
-  const pool = new Pool({ connectionString: url, max: 12, connectionTimeoutMillis: 1000 });
+  // Deliberately weak inherited session profile: every consumer T3 must override it locally.
+  const pool = new Pool({ connectionString: url, max: 12, connectionTimeoutMillis: 1000, options: '-c synchronous_commit=off' });
   const prefix = `consumer_${randomUUID().replaceAll('-', '').slice(0, 16)}`;
   let now = '2026-10-15T00:00:00Z';
   const trust = { producerNamespace, scope };

@@ -41,6 +41,9 @@ test('independent credit owner preserves causal history across full-refund deliv
 test('T3 is atomic before ACK, duplicate deliveries/restart preserve one effect and both owners are independent', async () => {
   const fixture = await consumers();
   try {
+    assert.equal((await fixture.pool.query<{ synchronous_commit: string }>('SHOW synchronous_commit')).rows[0]?.synchronous_commit, 'off');
+    await fixture.credit.owner.atomic(async client => { assert.equal((await client.query<{ synchronous_commit: string }>('SHOW synchronous_commit')).rows[0]?.synchronous_commit, 'on'); });
+    await fixture.access.owner.atomic(async client => { assert.equal((await client.query<{ synchronous_commit: string }>('SHOW synchronous_commit')).rows[0]?.synchronous_commit, 'on'); });
     const paid = message(1);
     await assert.rejects(fixture.credit.receive(paid, { beforeCommit() { throw new Error('crash before T3 commit'); } }), /crash before/u);
     assert.equal((await fixture.credit.owner.inspect('receipts')).length, 0); assert.equal((await effects(fixture.credit)).length, 0); assert.equal((await fixture.credit.owner.inspect('outbox')).length, 0);

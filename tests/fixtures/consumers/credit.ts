@@ -31,17 +31,17 @@ function condition(contribution: Contribution): Condition {
   if (source.held || message.flags.some(flag => !['duplicate_payment', 'duplicate_initial_purchase'].includes(flag))) return 'held';
   const adjustments = message.adjustments;
   if (!adjustments.length) return 'paid';
+  if (adjustments.some(item => !['refund', 'credit', 'chargeback', 'refund_reverse', 'credit_reverse', 'chargeback_reverse'].includes(item.action))) return 'held';
   const originals = adjustments.filter(adjustment => ['refund', 'credit', 'chargeback'].includes(adjustment.action));
   if (!originals.length) return 'held';
+  if (originals.some(original => original.type !== 'full' || original.amount.currency !== fact.total.currency || BigInt(original.amount.minorUnits) !== BigInt(fact.total.minorUnits) || original.allocations.length !== 1 || original.allocations.some(allocation => allocation.type !== 'full' || allocation.providerLineRef !== fact.lines[0]?.providerLineRef || allocation.amount.currency !== fact.total.currency || allocation.amount.minorUnits !== fact.total.minorUnits))) return 'held';
+  if (originals.some(original => !['approved', 'reversed'].includes(original.status))) return 'held';
+  if (originals.some(original => original.status === 'approved')) return 'adverse';
   for (const original of originals) {
-    if (original.type !== 'full' || original.amount.currency !== fact.total.currency || BigInt(original.amount.minorUnits) !== BigInt(fact.total.minorUnits) || !original.allocations.length || original.allocations.some(allocation => allocation.type !== 'full')) return 'held';
-    if (original.status === 'approved') return 'adverse';
-    if (original.status !== 'reversed') return 'held';
     const expectedAction = `${original.action}_reverse`;
     const reversals = adjustments.filter(item => item.action === expectedAction && item.status === 'approved' && item.transactionRef === original.transactionRef && item.amount.currency === original.amount.currency && BigInt(item.amount.minorUnits) === -BigInt(original.amount.minorUnits) && canonical(item.allocations.map(allocation => [allocation.providerLineRef, allocation.amount.minorUnits]).sort()) === canonical(original.allocations.map(allocation => [allocation.providerLineRef, (-BigInt(allocation.amount.minorUnits)).toString()]).sort()));
     if (reversals.length !== 1 || originals.length !== 1) return 'held';
   }
-  if (adjustments.some(item => !['refund', 'credit', 'chargeback', 'refund_reverse', 'credit_reverse', 'chargeback_reverse'].includes(item.action))) return 'held';
   return 'paid';
 }
 
@@ -76,7 +76,8 @@ export class CreditFixture {
       const causal = items.find(item => item.source.sourceKey === (old?.supportSource ?? old?.originalSource));
       if (allocated > 0n && ((causal && condition(causal) === 'adverse' && (!chosen || causal.source.sourceKey === chosen.source.sourceKey)) || (!reason && chosenCondition === 'adverse'))) {
         const cause = (causal ?? chosen)?.message.adjustments.find(item => item.status === 'approved' && ['refund', 'credit', 'chargeback'].includes(item.action));
-        await this.owner.effect(client, { effectKey: hash(['correction', originalGrant, cause?.adjustmentRef, cause?.version]), basisKey, kind: 'correction', amount: (-allocated).toString(), ...(originalSource ? { sourceKey: originalSource } : {}), ...(originalGrant ? { causeEffectKey: originalGrant } : {}), policyVersion: old?.policyVersion ?? POLICY });
+        const causalSource = (causal ?? chosen)?.source.sourceKey;
+        await this.owner.effect(client, { effectKey: hash(['correction', originalGrant, cause?.adjustmentRef, cause?.version]), basisKey, kind: 'correction', amount: (-allocated).toString(), ...(causalSource ? { sourceKey: causalSource } : {}), ...(originalGrant ? { causeEffectKey: originalGrant } : {}), policyVersion: old?.policyVersion ?? POLICY });
         allocated = 0n; applied = 'reduced';
       }
       if (!reason && chosenCondition === 'paid' && allocated === 0n && chosen) {
