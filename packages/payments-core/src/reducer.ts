@@ -124,7 +124,7 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
     sub.customerRef ??= observation.customerRef.value;
     if (!sub.selectedSubscriptionRef) sub.selectedSubscriptionRef = subRef;
     if (classification === 'renewal' || classification === 'recovery') {
-      const duplicateInitial = Object.values(state.transactions).some(candidate => candidate.completion?.intentId === intent.intentId && candidate.flags.includes('duplicate_initial_purchase'));
+      const duplicateInitial = sub.classificationDecision?.duplicateInitialPurchase ?? Object.values(state.transactions).some(candidate => candidate.completion?.intentId === intent.intentId && candidate.flags.includes('duplicate_initial_purchase'));
       if (sub.selectedSubscriptionRef !== subRef || (duplicateInitial && !sub.streamSelection)) holdReason = 'duplicate_initial_purchase';
     }
   } else {
@@ -146,10 +146,23 @@ function bindRenewal(state: PaymentState, observation: TransactionObservation): 
   const binding = matches[0]; if (!binding) return;
   state.bindings[observation.transactionRef] = { transactionRef: observation.transactionRef, intentId: binding.originatingIntentId, buyerId: binding.buyerId, purpose: 'commercial', customerRef: binding.customerRef };
 }
+/** Atomically persist the core decision and its restartable bounded dependent traversal. */
+export function requireSubscriptionReclassification(state: PaymentState, binding: SubscriptionBinding): void {
+  const revision = (binding.classificationDecision?.revision ?? 0) + 1;
+  binding.classificationDecision = { revision, duplicateInitialPurchase: binding.classificationDecision?.duplicateInitialPurchase ?? false };
+  state.reclassifications[binding.bindingId] = { bindingId: binding.bindingId, decisionRevision: revision, complete: false };
+}
 function markDuplicates(state: PaymentState, fact: CompletionFact): void {
   if (!['initial', 'one_time'].includes(fact.classification)) return;
   const candidates = Object.values(state.transactions).filter(aggregate => aggregate.completion?.intentId === fact.intentId && aggregate.completion.classification === fact.classification);
-  if (candidates.length > 1) for (const aggregate of candidates) { flag(aggregate, fact.classification === 'initial' ? 'duplicate_initial_purchase' : 'duplicate_payment'); aggregate.publicationRequired = true; aggregate.revision += 1; }
+  if (candidates.length < 2) return;
+  const duplicateFlag = fact.classification === 'initial' ? 'duplicate_initial_purchase' : 'duplicate_payment';
+  for (const aggregate of candidates) if (!aggregate.flags.includes(duplicateFlag)) { flag(aggregate, duplicateFlag); aggregate.publicationRequired = true; aggregate.revision += 1; }
+  const binding = fact.subscriptionBasisId ? state.subscriptionBindings[fact.subscriptionBasisId] : undefined;
+  if (fact.classification === 'initial' && binding && !binding.classificationDecision?.duplicateInitialPurchase) {
+    binding.classificationDecision = { revision: binding.classificationDecision?.revision ?? 0, duplicateInitialPurchase: true };
+    requireSubscriptionReclassification(state, binding);
+  }
 }
 function reduceTransaction(state: PaymentState, scope: PaymentScope, observation: TransactionObservation): void {
   exactTime(observation.version);
@@ -226,10 +239,12 @@ export function reduceObservation(state: PaymentState, scope: PaymentScope, obse
   if (observation.kind !== 'unsupported') {
     const certified = certifyObjectVersion(state, observation);
     if (certified.kind !== 'certified') {
-      const aggregate = observation.kind === 'subscription' ? subscriptionAggregate(state, observation.subscriptionRef) : transactionAggregate(state, observation.transactionRef);
-      flag(aggregate, certified.kind === 'held' ? 'incomplete_history' : 'conflict');
-      if (observation.kind === 'subscription' && subscriptionOwnershipMismatch(state, observation)) flag(aggregate, 'ownership_mismatch');
-      aggregate.revision += 1; aggregate.publicationRequired = true;
+      for (const route of objectVersionDependentRoutes(observation, state.versionEvidence[objectVersionKey(observation) ?? ''])) {
+        const aggregate = route.type === 'subscription' ? subscriptionAggregate(state, route.id) : transactionAggregate(state, route.id);
+        flag(aggregate, certified.kind === 'held' ? 'incomplete_history' : 'conflict');
+        if (observation.kind === 'subscription' && subscriptionOwnershipMismatch(state, observation)) flag(aggregate, 'ownership_mismatch');
+        aggregate.revision += 1; aggregate.publicationRequired = true;
+      }
       return certified.kind;
     }
     observation = certified.observation;
@@ -253,6 +268,16 @@ export function inputRoutes(input: Pick<VerifiedInput, 'observation' | 'adverseT
   if (transactionRef) routes.push({ type: 'transaction', id: transactionRef });
   if ('transactionRef' in observation && observation.transactionRef && observation.transactionRef !== transactionRef) routes.push({ type: 'transaction', id: observation.transactionRef });
   if ('subscriptionRef' in observation && typeof observation.subscriptionRef === 'string' && observation.subscriptionRef) routes.push({ type: 'subscription', id: observation.subscriptionRef });
+  return routes;
+}
+/** Exact-version adjustment contradictions affect both the retained certified parent and the
+ * incoming parent. Stores load these bounded routes before core reduction; no history scan is needed. */
+export function objectVersionDependentRoutes(observation: Observation, evidence: ObjectVersionEvidence | undefined): readonly AggregateIdentity[] {
+  const routes = [...inputRoutes({ observation })];
+  if (observation.kind === 'adjustment' && evidence?.kind === 'certified' && evidence.projection.kind === 'adjustment') {
+    const parent = evidence.projection.transactionRef;
+    if (!routes.some(route => route.type === 'transaction' && route.id === parent)) routes.push({ type: 'transaction', id: parent });
+  }
   return routes;
 }
 export function eventIdentityEvidence(input: VerifiedInput): EventIdentityEvidence {

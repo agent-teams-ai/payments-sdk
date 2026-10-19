@@ -1,9 +1,9 @@
 import type { AggregateIdentity, EvidenceMessage, IntentAdmission, JsonValue, OperationCommit, OperationInput, Observation, PaymentOperation, PaymentReadVersion, PaymentScope, PaymentState, PaymentStore, ProviderResult, ReductionCommit, ReductionInput, ScanCheckpoint, StoreCommitResult, VerifiedInput } from './contracts.js';
-import { admitInput, transactionAggregate } from './reducer.js';
+import { admitInput, objectVersionDependentRoutes, transactionAggregate } from './reducer.js';
 import { canonicalJson, createEmptyPaymentState, digest, objectVersionKey, sameOperationCommand, sameScope, scopeKey } from './values.js';
 
 type VersionTable = PaymentReadVersion['table'];
-const mutableTables = ['intents', 'operations', 'bindings', 'subscriptionBindings', 'transactions', 'subscriptions', 'versionEvidence', 'inbox'] as const;
+const mutableTables = ['intents', 'operations', 'bindings', 'subscriptionBindings', 'reclassifications', 'transactions', 'subscriptions', 'versionEvidence', 'inbox'] as const;
 /** Test-only implementation of the same record/CAS protocol as the durable adapter. */
 export class MemoryPaymentStore implements PaymentStore {
   private readonly states = new Map<string, PaymentState>();
@@ -131,7 +131,7 @@ export class MemoryPaymentStore implements PaymentStore {
     const includeVersion = (observation: Observation): void => { try { const key = objectVersionKey(observation); if (key) add('versionEvidence', key); } catch { invalidVersion = true; } };
     const includeIntent = (intentId: string): void => {
       guard(`intent:${intentId}`); add('intents', intentId); const intent = state.intents[intentId]; if (!intent) return;
-      if (intent.subscriptionBasisId) add('subscriptionBindings', intent.subscriptionBasisId);
+      if (intent.subscriptionBasisId) { add('subscriptionBindings', intent.subscriptionBasisId); add('reclassifications', intent.subscriptionBasisId); }
       for (const candidate of Object.values(state.transactions)) if (candidate.completion?.intentId === intentId && ['initial', 'one_time'].includes(candidate.completion.classification)) add('transactions', candidate.transactionRef);
     };
     let transactionRef: string | undefined, subscriptionRef: string | undefined;
@@ -142,15 +142,25 @@ export class MemoryPaymentStore implements PaymentStore {
       transactionRef = record.input.adverseTransactionRef ?? ('transactionRef' in observation ? observation.transactionRef : undefined);
       subscriptionRef = 'subscriptionRef' in observation && typeof observation.subscriptionRef === 'string' ? observation.subscriptionRef : observation.kind === 'transaction' && observation.subscriptionRef.presence === 'known' ? observation.subscriptionRef.value ?? undefined : undefined;
     }
-    if (transactionRef) {
-      add('transactions', transactionRef); add('bindings', transactionRef);
-      const binding = state.bindings[transactionRef]; if (binding) includeIntent(binding.intentId);
-      const current = state.transactions[transactionRef]?.current;
-      if (!subscriptionRef && current?.subscriptionRef.presence === 'known') subscriptionRef = current.subscriptionRef.value ?? undefined;
+    const subscriptionRefs = new Set<string>(subscriptionRef ? [subscriptionRef] : []);
+    const includeTransaction = (ref: string): void => {
+      add('transactions', ref); add('bindings', ref);
+      const binding = state.bindings[ref]; if (binding) includeIntent(binding.intentId);
+      const current = state.transactions[ref]?.current;
+      if (current?.subscriptionRef.presence === 'known' && current.subscriptionRef.value) subscriptionRefs.add(current.subscriptionRef.value);
+    };
+    if (transactionRef) includeTransaction(transactionRef);
+    const incoming = aggregate ? undefined : state.inbox[inputId]?.input.observation;
+    if (incoming) {
+      let evidence: PaymentState['versionEvidence'][string] | undefined;
+      try { const key = objectVersionKey(incoming); evidence = key ? state.versionEvidence[key] : undefined; } catch { invalidVersion = true; }
+      for (const route of objectVersionDependentRoutes(incoming, evidence)) {
+        if (route.type === 'transaction') includeTransaction(route.id); else subscriptionRefs.add(route.id);
+      }
     }
-    if (subscriptionRef) {
-      guard(`subscription:${subscriptionRef}`); add('subscriptions', subscriptionRef);
-      for (const binding of Object.values(state.subscriptionBindings)) if (binding.providerSubscriptionRefs.includes(subscriptionRef)) { add('subscriptionBindings', binding.bindingId); includeIntent(binding.originatingIntentId); }
+    for (const ref of subscriptionRefs) {
+      guard(`subscription:${ref}`); add('subscriptions', ref);
+      for (const binding of Object.values(state.subscriptionBindings)) if (binding.providerSubscriptionRefs.includes(ref)) { add('subscriptionBindings', binding.bindingId); add('reclassifications', binding.bindingId); includeIntent(binding.originatingIntentId); }
     }
     if (invalidVersion) return { inputId, state: slice, expected, incompleteReason: 'invalid_object_version' };
     if (incomplete) return { inputId, state: slice, expected, incompleteReason: 'working_set_limit' };
@@ -177,16 +187,32 @@ export class MemoryPaymentStore implements PaymentStore {
       return { kind: 'committed' } as const;
     });
   }
+  async processReclassification(scope: PaymentScope, bindingId: string, limit: number): Promise<StoreCommitResult> {
+    this.limit(limit);
+    return this.atomic(scope, state => {
+      if (state.recoveryFenced) return { kind: 'recovery_fenced' } as const;
+      const obligation = state.reclassifications[bindingId], binding = state.subscriptionBindings[bindingId];
+      if (!obligation || obligation.complete) return { kind: 'committed' } as const;
+      if (!binding || obligation.decisionRevision !== binding.classificationDecision?.revision) return { kind: 'conflict' } as const;
+      const refs = Object.keys(state.bindings).filter(ref => state.bindings[ref]?.intentId === binding.originatingIntentId && state.transactions[ref] && (obligation.afterTransactionRef === undefined || ref > obligation.afterTransactionRef)).sort();
+      const batch = refs.slice(0, limit);
+      for (const ref of batch) { const target = state.transactions[ref]; if (target) { target.revision += 1; target.publicationRequired = true; } }
+      const last = batch.at(-1); if (last !== undefined) obligation.afterTransactionRef = last;
+      obligation.complete = refs.length <= limit;
+      return { kind: 'committed' } as const;
+    });
+  }
   async readPurchase(scope: PaymentScope, buyerId: string, intentId: string): ReturnType<PaymentStore['readPurchase']> {
     return this.view(scope, state => { const intent = state.intents[intentId]; if (!intent || intent.buyerId !== buyerId) return undefined; return { intent, transactions: Object.values(state.transactions).filter(item => state.bindings[item.transactionRef]?.intentId === intentId) }; });
   }
   async readSubscription(scope: PaymentScope, buyerId: string, bindingId: string): ReturnType<PaymentStore['readSubscription']> {
     return this.view(scope, state => { const binding = state.subscriptionBindings[bindingId]; if (!binding || binding.buyerId !== buyerId) return undefined; return { binding, observations: binding.providerSubscriptionRefs.flatMap(ref => state.subscriptions[ref] ? [state.subscriptions[ref]] : []) }; });
   }
-  async listWork(scope: PaymentScope, kind: 'inbox' | 'publication' | 'prepared' | 'unknown', limit: number): Promise<readonly string[]> {
+  async listWork(scope: PaymentScope, kind: 'inbox' | 'publication' | 'reclassification' | 'prepared' | 'unknown', limit: number): Promise<readonly string[]> {
     this.limit(limit);
     return this.view(scope, state => {
       if (kind === 'inbox') return Object.entries(state.inbox).filter(([, item]) => item.state === 'pending').map(([id]) => id).slice(0, limit);
+      if (kind === 'reclassification') return Object.values(state.reclassifications).filter(item => !item.complete).map(item => item.bindingId).slice(0, limit);
       if (kind === 'publication') return [...Object.values(state.transactions).filter(item => item.publicationRequired).map(item => canonicalJson({ type: 'transaction', id: item.transactionRef })), ...Object.values(state.subscriptions).filter(item => item.publicationRequired).map(item => canonicalJson({ type: 'subscription', id: item.subscriptionRef }))].slice(0, limit);
       return Object.values(state.operations).filter(item => kind === 'prepared' ? item.state === 'prepared' : ['dispatch_started', 'outcome_unknown'].includes(item.state)).map(item => item.operationId).slice(0, limit);
     });

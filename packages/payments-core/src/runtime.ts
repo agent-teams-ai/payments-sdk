@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { AggregateIdentity, CancellationOutcome, CheckoutReady, EvidenceMessage, JsonValue, OperationCommit, OperationInput, OperationResult, PaymentOperation, PaymentReadVersion, PaymentUpdateReady, PaymentRuntimeOptions, ProviderResult, ResolveUnknown, StartPurchase, SubscriptionBinding, VerifiedInput } from './contracts.js';
-import { processInput, publishEvidence, reduceObservation, publishHeldEvidence, validateOffer } from './reducer.js';
+import { processInput, publishEvidence, reduceObservation, publishHeldEvidence, requireSubscriptionReclassification, validateOffer } from './reducer.js';
 import { assertIdentifier, assertScope, canonicalJson, digest, exactTime, sameScope } from './values.js';
 
 const jsonResult = <T>(result: ProviderResult<T>): ProviderResult<JsonValue> => structuredClone(result) as ProviderResult<JsonValue>;
@@ -338,16 +338,23 @@ export function createPayments(options: PaymentRuntimeOptions) {
     if (canonicalJson([...loaded.expected].sort((a, b) => canonicalJson([a.table, a.id]).localeCompare(canonicalJson([b.table, b.id])))) !== canonicalJson([...command.expectedReadSet].sort((a, b) => canonicalJson([a.table, a.id]).localeCompare(canonicalJson([b.table, b.id]))))) return { kind: 'rejected', code: 'conflict' };
     binding.selectedSubscriptionRef = command.providerSubscriptionRef;
     binding.streamSelection = { actorId: command.actorId, auditRef: command.auditRef, reason: command.reason, at: now() };
+    requireSubscriptionReclassification(loaded.state, binding);
     const aggregate = loaded.state.subscriptions[command.providerSubscriptionRef] ??= { subscriptionRef: command.providerSubscriptionRef, revision: 0, evidenceRevision: 0, flags: [], publicationRequired: false };
     aggregate.revision += 1; aggregate.publicationRequired = true;
     publishEvidence(loaded.state, scope, producerNamespace, maxBytes);
     const committed = await store.commitReduction(scope, { inputId: loaded.inputId, expected: loaded.expected, state: loaded.state });
     return committed.kind === 'committed' ? { kind: 'succeeded', value: binding } : committed.kind === 'recovery_fenced' ? unavailable : { kind: 'rejected', code: 'conflict' };
   }
-  async function repair(limit = 25): Promise<Readonly<{ inbox: number; publications: number; prepared: number; unknown: number }>> {
-    if (!accepting) return { inbox: 0, publications: 0, prepared: 0, unknown: 0 };
-    let inbox = 0, publications = 0, prepared = 0, unknown = 0;
+  async function processReclassification(bindingId: string, limit = 25) {
+    assertIdentifier(bindingId);
+    if (!accepting) return 'recovery_fenced' as const;
+    return (await store.processReclassification(scope, bindingId, limit)).kind;
+  }
+  async function repair(limit = 25): Promise<Readonly<{ inbox: number; reclassifications: number; publications: number; prepared: number; unknown: number }>> {
+    if (!accepting) return { inbox: 0, reclassifications: 0, publications: 0, prepared: 0, unknown: 0 };
+    let inbox = 0, reclassifications = 0, publications = 0, prepared = 0, unknown = 0;
     for (const id of await store.listWork(scope, 'inbox', limit)) { await processInbox(id); inbox += 1; }
+    for (const id of await store.listWork(scope, 'reclassification', limit)) { await processReclassification(id, limit); reclassifications += 1; }
     for (const id of await store.listWork(scope, 'publication', limit)) { await flushPublication(JSON.parse(id) as AggregateIdentity); publications += 1; }
     for (const id of await store.listWork(scope, 'prepared', limit)) { await executeOperation(id); prepared += 1; }
     for (const id of await store.listWork(scope, 'unknown', limit)) {
@@ -357,12 +364,12 @@ export function createPayments(options: PaymentRuntimeOptions) {
       if (input.intent) await refreshPurchase(input.intent.buyerId, input.intent.intentId);
       unknown += 1;
     }
-    return { inbox, publications, prepared, unknown };
+    return { inbox, reclassifications, publications, prepared, unknown };
   }
   function stop(): Readonly<{ unresolvedExternalCalls: number; pendingWork: number }> { accepting = false; return { unresolvedExternalCalls: active.size, pendingWork: work.size }; }
   async function drain(): Promise<void> { while (active.size > 0 || work.size > 0) await Promise.allSettled([...active, ...work]); }
   return {
-    scope, startPurchase: tracked(startPurchase), readOperation: tracked(readOperation), executeOperation: tracked(executeOperation), ingestVerifiedInput: tracked(ingestVerifiedInput), processInbox: tracked(processInbox), flushPublication: tracked(flushPublication),
+    scope, startPurchase: tracked(startPurchase), readOperation: tracked(readOperation), executeOperation: tracked(executeOperation), ingestVerifiedInput: tracked(ingestVerifiedInput), processInbox: tracked(processInbox), processReclassification: tracked(processReclassification), flushPublication: tracked(flushPublication),
     readPurchase: tracked((buyerId: string, intentId: string) => store.readPurchase(scope, buyerId, intentId)),
     readObservedSubscription: tracked((buyerId: string, bindingId: string) => store.readSubscription(scope, buyerId, bindingId)),
     refreshPurchase: tracked(refreshPurchase), refreshSubscription: tracked(refreshSubscription), requestCancellation: tracked(requestCancellation), openPaymentUpdate: tracked(openPaymentUpdate), createManagementLink: tracked(createManagementLink), resolveUnknownOperation: tracked(resolveUnknownOperation), repair: tracked(repair),

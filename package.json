@@ -29,7 +29,6 @@
     "check": "pnpm check:fast && pnpm foundation:assert-dev-only && pnpm foundation:assert-registry && pnpm test:boundaries && pnpm test:core && pnpm test:paddle && pnpm test:modular && pnpm test:postgres && pnpm test:e2e && pnpm test:packed && pnpm release:dry-run"
   },
   "devDependencies": {
-    "@paddle/paddle-js": "catalog:",
     "@agent-teams/engineering-foundation": "1.10.0",
     "@agent-teams/payments-core": "workspace:*",
     "@agent-teams/payments-paddle": "workspace:*",

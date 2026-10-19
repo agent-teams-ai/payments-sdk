@@ -6,7 +6,7 @@ import { makePaymentBoss, paymentRepairQueue, paymentWorkQueue, qualifyPaymentJo
 import type { PaymentJobEvents, PaymentJobNamespace } from './job-transport.js';
 import { assertBatchLimit, PaymentRecords } from './records.js';
 
-export type PaymentJobWork = Readonly<{ kind: 'inbox' | 'publication' | 'prepared' | 'unknown' | 'delivery' | 'scan'; id: string }>;
+export type PaymentJobWork = Readonly<{ kind: 'inbox' | 'publication' | 'reclassification' | 'prepared' | 'unknown' | 'delivery' | 'scan'; id: string }>;
 export type PaymentDeliveryReceipt = Readonly<{ messageId: string; bodyDigest: string }>;
 export type PaymentJobHandlers = Readonly<{
   payments: Payments;
@@ -36,7 +36,7 @@ class WorkIssue extends Error {
 function isWork(value: unknown): value is PaymentJobWork {
   if (!value || typeof value !== 'object') return false;
   const item = value as Partial<PaymentJobWork>;
-  return ['inbox', 'publication', 'prepared', 'unknown', 'delivery', 'scan'].includes(item.kind ?? '') && typeof item.id === 'string' && item.id.length > 0 && item.id.length <= 4_096;
+  return ['inbox', 'publication', 'reclassification', 'prepared', 'unknown', 'delivery', 'scan'].includes(item.kind ?? '') && typeof item.id === 'string' && item.id.length > 0 && item.id.length <= 4_096;
 }
 function aggregate(id: string): AggregateIdentity {
   const value: unknown = JSON.parse(id);
@@ -158,6 +158,17 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
       const result = await installed.payments.processInbox(work.id);
       if (result === 'missing') throw new WorkIssue('missing_inbox_authority', true);
       if (result === 'conflict' || result === 'recovery_fenced') throw new WorkIssue(result);
+    } else if (work.kind === 'reclassification') {
+      const cursor = () => withPaymentTransaction(options.pool, async tx => {
+        await records.configuration(tx, options.scope);
+        return (await records.read<unknown>(tx, 'reclassifications', work.id))?.body;
+      }, options.timeouts);
+      const before = await cursor();
+      const result = await installed.payments.processReclassification(work.id, batch);
+      if (result === 'conflict' || result === 'recovery_fenced') throw new WorkIssue(result);
+      // A bounded page is successful progress, even when further pages remain. It must not
+      // consume the logical fault budget after job deletion or across worker restarts.
+      return canonicalJson(before ?? null) !== canonicalJson(await cursor() ?? null);
     } else if (work.kind === 'publication') {
       const result = await installed.payments.flushPublication(aggregate(work.id));
       if (result === 'missing') throw new WorkIssue('missing_publication_authority', true);

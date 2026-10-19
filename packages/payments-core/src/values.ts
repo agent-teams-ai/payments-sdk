@@ -51,7 +51,7 @@ export function compareTime(a: string, b: string): -1 | 0 | 1 {
   return x.fraction === y.fraction ? 0 : x.fraction < y.fraction ? -1 : 1;
 }
 export function createEmptyPaymentState(): PaymentState {
-  return { revision: 0, recoveryFenced: false, intents: {}, operations: {}, requestKeys: {}, bindings: {}, subscriptionBindings: {}, transactions: {}, subscriptions: {}, versionEvidence: {}, inbox: {}, evidence: {}, deliveries: {}, consumers: [], scans: {}, issues: [] };
+  return { revision: 0, recoveryFenced: false, intents: {}, operations: {}, requestKeys: {}, bindings: {}, subscriptionBindings: {}, reclassifications: {}, transactions: {}, subscriptions: {}, versionEvidence: {}, inbox: {}, evidence: {}, deliveries: {}, consumers: [], scans: {}, issues: [] };
 }
 
 /** Mutable lifecycle commits cannot change the immutable command or its external subject. */

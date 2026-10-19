@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addMoney, canonicalJson, compareTime, compareEventIdentity, createPayments, digest, eventIdentityEvidence, mergeEventIdentityEvidence, exactTime, money, objectVersionKey, MAX_OBJECT_VERSION_EVIDENCE_BYTES, type AdjustmentObservation, type Observation, type EvidenceSource, type Field, type OfferSnapshot, type PaymentProvider, type PaymentScope, type ProviderResult, type SubscriptionObservation, type TransactionObservation, type VerifiedInput } from '../dist/index.js';
+import { addMoney, canonicalJson, compareTime, compareEventIdentity, createPayments, digest, eventIdentityEvidence, mergeEventIdentityEvidence, exactTime, money, objectVersionKey, processInput, MAX_OBJECT_VERSION_EVIDENCE_BYTES, type AdjustmentObservation, type Observation, type EvidenceSource, type Field, type OfferSnapshot, type PaymentProvider, type PaymentScope, type ProviderResult, type SubscriptionObservation, type TransactionObservation, type VerifiedInput } from '../dist/index.js';
 import { MemoryPaymentStore } from '../dist/memory.js';
 
 const scope: PaymentScope = { applicationId: 'app-a', provider: 'fake', paymentAccountId: 'merchant', environment: 'sandbox' };
@@ -199,7 +199,7 @@ test('binding arriving after processed early completion reclassifies stored hist
   const aggregate = (await context.payments.readPurchase('buyer', intentId))?.transactions[0]; assert.ok(aggregate?.completion); assert.ok(!aggregate.flags.includes('unresolved_binding'));
 });
 
-test('duplicate initial streams preserve both payments and hold renewals until audited technical stream selection', async () => {
+async function duplicateStreams() {
   const context = setup('monthly', false, 1), first = deferred<ProviderResult<{ intentId: string; transactionRef: string; checkout: { token: string } }>>(); let intentId = '';
   context.replaceCreate(async command => { intentId = command.intentId; return first.promise; });
   const unknownResult = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'request' }); assert.equal(unknownResult.kind, 'outcome_unknown'); if (unknownResult.kind !== 'outcome_unknown') throw new Error('Fixture');
@@ -208,22 +208,67 @@ test('duplicate initial streams preserve both payments and hold renewals until a
   context.replaceCreate(async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'initial-b', checkout: { token: 'b' } } }));
   await context.payments.executeOperation(operation.operationId);
   first.resolve({ kind: 'succeeded', value: { intentId, transactionRef: 'initial-a', checkout: { token: 'a' } } }); await context.payments.drain();
+  const basis = (await context.payments.readPurchase('buyer', intentId))?.intent.subscriptionBasisId; assert.ok(basis);
+  return { context, intentId, basis };
+}
+async function selectStream(context: ReturnType<typeof setup>, bindingId: string, providerSubscriptionRef: string) {
+  const selected = await context.payments.readSubscriptionSelection('buyer', bindingId, providerSubscriptionRef); assert.ok(selected);
+  const resolution = await context.payments.selectSubscriptionStream({ buyerId: 'buyer', bindingId, providerSubscriptionRef, expectedReadSet: selected.expectedReadSet, actorId: 'operator', auditRef: `select-${providerSubscriptionRef}`, reason: 'choose duplicate support' }); assert.equal(resolution.kind, 'succeeded');
+}
+
+test('late duplicate initial durably reclassifies an acknowledged renewal without rewriting completion or replaying receipt', async () => {
+  const { context, intentId, basis } = await duplicateStreams();
   await observe(context, transaction('initial-a', 'initial-a-paid', 'monthly'));
-  const second = transaction('initial-b', 'initial-b-paid', 'monthly', { subscriptionRef: yes('sub-b') });
-  if (second.lines.presence !== 'known') throw new Error('Fixture');
-  await observe(context, { ...second, lines: yes(second.lines.value.map(line => ({ ...line, period: yes({ startsAt: '2026-01-02T00:00:00Z', endsAt: '2026-02-02T00:00:00Z' }) }))) });
-  let result = await context.payments.readPurchase('buyer', intentId); assert.equal(result?.transactions.filter(item => item.completion).length, 2); assert.ok(result?.transactions.every(item => item.flags.includes('duplicate_initial_purchase')));
-  await observe(context, transaction('renew-a', 'renew-a-paid', 'monthly', { origin: yes('subscription_recurring') }));
-  await observe(context, transaction('renew-b', 'renew-b-paid', 'monthly', { origin: yes('subscription_recurring'), subscriptionRef: yes('sub-b') }));
-  result = await context.payments.readPurchase('buyer', intentId);
-  assert.ok(result?.transactions.filter(item => item.transactionRef.startsWith('renew')).every(item => item.completion && item.flags.includes('duplicate_initial_purchase')));
-  const basis = result?.intent.subscriptionBasisId; assert.ok(basis);
-  const selected = await context.payments.readSubscriptionSelection('buyer', basis, 'sub-b'); assert.ok(selected);
-  const resolution = await context.payments.selectSubscriptionStream({ buyerId: 'buyer', bindingId: basis, providerSubscriptionRef: 'sub-b', expectedReadSet: selected.expectedReadSet, actorId: 'operator', auditRef: 'select-b', reason: 'choose duplicate support' }); assert.equal(resolution.kind, 'succeeded');
-  await context.payments.flushPublication({ type: 'transaction', id: 'renew-b' });
-  result = await context.payments.readPurchase('buyer', intentId);
-  assert.ok(!result?.transactions.find(item => item.transactionRef === 'renew-b')?.flags.includes('duplicate_initial_purchase'));
-  assert.ok(result?.transactions.find(item => item.transactionRef === 'renew-a')?.flags.includes('duplicate_initial_purchase'));
+  await context.payments.registerConsumer('stream-consumer');
+  const renewal = transaction('renew-a', 'renew-a-paid', 'monthly', { origin: yes('subscription_recurring') });
+  await observe(context, renewal);
+  const before = (await context.payments.readPurchase('buyer', intentId))?.transactions.find(item => item.transactionRef === 'renew-a'); assert.ok(before?.completion); assert.deepEqual(before.flags, []);
+  for (const message of await context.payments.readDeliveries('stream-consumer')) await context.payments.acknowledgeDelivery('stream-consumer', message.messageId, message.bodyDigest);
+  await observe(context, transaction('initial-b', 'initial-b-paid', 'monthly', { subscriptionRef: yes('sub-b') }));
+  assert.deepEqual(await context.store.listWork(scope, 'reclassification', 10), [basis]);
+  context.payments = createPayments({ scope, producerNamespace: 'payments', provider: context.provider, store: context.store, catalog: { resolveOffer: async () => offer('monthly') } });
+  await context.payments.repair();
+  const after = (await context.payments.readPurchase('buyer', intentId))?.transactions.find(item => item.transactionRef === 'renew-a'); assert.ok(after); assert.ok(after.flags.includes('duplicate_initial_purchase')); assert.ok(after.evidenceRevision > before.evidenceRevision); assert.deepEqual(after.completion, before.completion);
+  const corrected = (await context.payments.readDeliveries('stream-consumer')).find(message => message.aggregate.id === 'renew-a'); assert.ok(corrected?.kind === 'complete'); assert.ok(corrected.flags.includes('duplicate_initial_purchase'));
+  for (const message of await context.payments.readDeliveries('stream-consumer')) await context.payments.acknowledgeDelivery('stream-consumer', message.messageId, message.bodyDigest);
+  await context.payments.ingestVerifiedInput(input(renewal)); assert.equal(await context.payments.processInbox(renewal.source.receiptId), 'duplicate'); await context.payments.repair();
+  assert.equal((await context.payments.readDeliveries('stream-consumer')).length, 0);
+  assert.deepEqual(await context.store.listWork(scope, 'reclassification', 10), []);
+});
+
+test('bounded stream selection traversal restarts on reselection and new members classify against the current decision', async () => {
+  const { context, intentId, basis } = await duplicateStreams();
+  await observe(context, transaction('initial-a', 'initial-a-paid', 'monthly'));
+  await observe(context, transaction('initial-b', 'initial-b-paid', 'monthly', { subscriptionRef: yes('sub-b') }));
+  for (const ref of ['renew-a', 'renew-b', 'renew-c', 'renew-d']) await observe(context, transaction(ref, `${ref}-paid`, 'monthly', { origin: yes('subscription_recurring'), subscriptionRef: yes('sub-b') }));
+  await context.payments.repair();
+  const before = (await context.payments.readPurchase('buyer', intentId))?.transactions.find(item => item.transactionRef === 'renew-b'); assert.ok(before?.completion); assert.ok(before.flags.includes('duplicate_initial_purchase'));
+  const stale = await context.payments.readSubscriptionSelection('buyer', basis, 'sub-a'); assert.ok(stale);
+  await selectStream(context, basis, 'sub-b');
+  const rejected = await context.payments.selectSubscriptionStream({ buyerId: 'buyer', bindingId: basis, providerSubscriptionRef: 'sub-a', expectedReadSet: stale.expectedReadSet, actorId: 'operator', auditRef: 'stale', reason: 'stale decision' }); assert.deepEqual(rejected, { kind: 'rejected', code: 'conflict' });
+  const snapshot = await context.store.loadPublicationInput(scope, { type: 'subscription', id: 'sub-b' }); assert.ok(snapshot);
+  const decision = snapshot.state.subscriptionBindings[basis]?.classificationDecision?.revision; assert.ok(decision);
+  assert.equal(await context.payments.processReclassification(basis, 2), 'committed');
+  const pending = await context.store.listWork(scope, 'publication', 100); assert.equal(pending.length, 2);
+  const cursor = (await context.store.loadPublicationInput(scope, { type: 'subscription', id: 'sub-b' }))?.state.reclassifications[basis]; assert.equal(cursor?.complete, false); assert.equal(cursor?.decisionRevision, decision);
+  // A new lexically earlier member is already behind the durable cursor; current binding classification is sufficient.
+  await observe(context, transaction('00-new-renewal-b', 'new-member-paid', 'monthly', { origin: yes('subscription_recurring'), subscriptionRef: yes('sub-b') }));
+  assert.deepEqual((await context.payments.readPurchase('buyer', intentId))?.transactions.find(item => item.transactionRef === '00-new-renewal-b')?.flags, []);
+  for (let page = 0; page < 5 && (await context.store.listWork(scope, 'reclassification', 10)).length > 0; page += 1) await context.payments.repair(2);
+  for (let page = 0; page < 5 && (await context.store.listWork(scope, 'publication', 10)).length > 0; page += 1) await context.payments.repair(2);
+  const selected = (await context.payments.readPurchase('buyer', intentId))?.transactions.find(item => item.transactionRef === 'renew-b'); assert.ok(selected); assert.deepEqual(selected.flags, []); assert.deepEqual(selected.completion, before.completion);
+  const inflight = transaction('01-inflight-renewal-b', 'inflight-member', 'monthly', { origin: yes('subscription_recurring'), subscriptionRef: yes('sub-b') });
+  await context.payments.ingestVerifiedInput(input(inflight));
+  const staleReduction = await context.store.loadReductionInput(scope, inflight.source.receiptId); assert.ok(staleReduction);
+  await selectStream(context, basis, 'sub-a');
+  processInput(staleReduction.state, scope, inflight.source.receiptId);
+  assert.equal((await context.store.commitReduction(scope, { inputId: staleReduction.inputId, expected: staleReduction.expected, state: staleReduction.state })).kind, 'conflict');
+  assert.equal(await context.payments.processInbox(inflight.source.receiptId), 'processed');
+  assert.ok((await context.payments.readPurchase('buyer', intentId))?.transactions.find(item => item.transactionRef === inflight.transactionRef)?.flags.includes('duplicate_initial_purchase'));
+  const reset = (await context.store.loadPublicationInput(scope, { type: 'subscription', id: 'sub-a' }))?.state.reclassifications[basis]; assert.equal(reset?.afterTransactionRef, undefined); assert.ok((reset?.decisionRevision ?? 0) > decision);
+  await context.payments.repair();
+  const deselected = (await context.payments.readPurchase('buyer', intentId))?.transactions.find(item => item.transactionRef === 'renew-b'); assert.ok(deselected); assert.ok(deselected.flags.includes('duplicate_initial_purchase')); assert.ok(deselected.evidenceRevision > selected.evidenceRevision); assert.deepEqual(deselected.completion, before.completion);
+  const initials = (await context.payments.readPurchase('buyer', intentId))?.transactions.filter(item => item.completion?.classification === 'initial'); assert.equal(initials?.length, 2); assert.ok(initials?.every(item => item.flags.includes('duplicate_initial_purchase')));
 });
 
 test('shutdown tracks physical safe reads and cleanup, including nested producer promises', async () => {
@@ -507,6 +552,35 @@ test('adjustment exact-version contradictions cannot disappear behind an approve
     const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.flags.includes('conflict')); assert.equal(aggregate.adjustments['historical-adjustment']?.status, 'approved'); assert.equal(aggregate.adjustments['historical-adjustment']?.amount.minorUnits, '100');
     assert.ok((await context.payments.readDeliveries('adjustment-history')).some(message => message.kind === 'complete' && message.flags.includes('conflict')));
   }
+});
+
+test('an exact-version adjustment parent contradiction atomically holds both acknowledged payment routes and retains original certification', async () => {
+  const context = setup(), first = await purchase(context);
+  const second = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'second-purchase' }); assert.equal(second.kind, 'succeeded'); if (second.kind !== 'succeeded') throw new Error('Fixture');
+  await observe(context, transaction(first.transactionRef, 'parent-a-paid'));
+  await observe(context, transaction(second.value.transactionRef, 'parent-b-paid'));
+  await context.payments.registerConsumer('parent-conflicts');
+  const original: AdjustmentObservation = { kind: 'adjustment', adjustmentRef: 'cross-parent-adjustment', transactionRef: first.transactionRef, version: at, action: 'refund', status: 'approved', amount: money('USD', '100'), allocations: [], source: source('original-parent-adjustment') };
+  await observe(context, original);
+  const latest = { ...original, version: '2026-01-01T00:00:00.000002Z', source: source('latest-parent-adjustment') }; await observe(context, latest);
+  const before = (await context.payments.readPurchase('buyer', first.intentId))?.transactions[0]; assert.ok(before);
+  for (const message of await context.payments.readDeliveries('parent-conflicts')) await context.payments.acknowledgeDelivery('parent-conflicts', message.messageId, message.bodyDigest);
+  context.payments = createPayments({ scope, producerNamespace: 'payments', provider: context.provider, store: context.store, catalog: { resolveOffer: async () => offer() } });
+  const contradiction = { ...original, transactionRef: second.value.transactionRef, version: '2026-01-01T01:00:00.000001000+01:00', source: source('contradictory-parent-adjustment') };
+  await context.payments.ingestVerifiedInput(input(contradiction));
+  const loaded = await context.store.loadReductionInput(scope, contradiction.source.receiptId); assert.ok(loaded);
+  assert.ok(loaded.expected.some(item => item.table === 'transactions' && item.id === first.transactionRef)); assert.ok(loaded.expected.some(item => item.table === 'transactions' && item.id === second.value.transactionRef));
+  // A change to the original parent invalidates an already prepared two-parent reduction.
+  await observe(context, { ...latest, version: '2026-01-01T00:00:00.000003Z', source: source('concurrent-original-parent') });
+  processInput(loaded.state, scope, contradiction.source.receiptId);
+  assert.equal((await context.store.commitReduction(scope, { inputId: loaded.inputId, expected: loaded.expected, state: loaded.state })).kind, 'conflict');
+  assert.equal(await context.payments.processInbox(contradiction.source.receiptId), 'processed');
+  const after = (await context.payments.readPurchase('buyer', first.intentId))?.transactions[0], other = (await context.payments.readPurchase('buyer', second.value.intentId))?.transactions[0];
+  assert.ok(after); assert.ok(other); assert.ok(after.flags.includes('conflict')); assert.ok(other.flags.includes('conflict')); assert.ok(after.evidenceRevision > before.evidenceRevision); assert.equal(after.adjustments[original.adjustmentRef]?.version, '2026-01-01T00:00:00.000003Z'); assert.equal(other.adjustments[original.adjustmentRef], undefined); assert.deepEqual(after.completion, before.completion);
+  const version = (await context.store.loadReductionInput(scope, contradiction.source.receiptId))?.state.versionEvidence[objectVersionKey(original) ?? '']; assert.equal(version?.kind, 'certified'); if (version?.kind === 'certified') { assert.equal(version.conflict, true); assert.equal(version.projection.kind, 'adjustment'); if (version.projection.kind === 'adjustment') assert.equal(version.projection.transactionRef, first.transactionRef); }
+  const heldRoutes = (await context.payments.readDeliveries('parent-conflicts')).filter(message => message.kind === 'complete' && message.flags.includes('conflict')).map(message => message.aggregate.id).sort(); assert.deepEqual(heldRoutes, [first.transactionRef, second.value.transactionRef].sort());
+  for (const message of await context.payments.readDeliveries('parent-conflicts')) await context.payments.acknowledgeDelivery('parent-conflicts', message.messageId, message.bodyDigest);
+  await context.payments.ingestVerifiedInput(input(contradiction)); assert.equal(await context.payments.processInbox(contradiction.source.receiptId), 'duplicate'); await context.payments.repair(); assert.equal((await context.payments.readDeliveries('parent-conflicts')).length, 0);
 });
 
 test('historical exact-version partial summaries merge compatible knowledge and nanosecond-equivalent spellings', async () => {

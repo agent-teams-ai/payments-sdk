@@ -49,7 +49,7 @@ export type ResolutionAudit = Readonly<{ actorId: string; auditRef: string; reas
 export type PaymentOperation = { operationId: string; kind: OperationKind; buyerId: string; requestKey: string; fingerprint: string; intentId?: string; subscriptionBindingId?: string; providerSubscriptionRef?: string; timing?: 'now' | 'period_end'; revision: number; state: OperationState; attempts: Attempt[]; result?: ProviderResult<JsonValue>; audits: ResolutionAudit[] };
 export type PurchaseIntent = { intentId: string; buyerId: string; requestKey: string; fingerprint: string; offer: OfferSnapshot; operationId: string; subscriptionBasisId?: string; transactionRefs: string[]; createdAt: string };
 export type TransactionBinding = { transactionRef: string; intentId: string; buyerId: string; purpose: 'commercial' | 'payment_method' | 'recovery'; customerRef: string | null };
-export type SubscriptionBinding = { bindingId: string; buyerId: string; originatingIntentId: string; offer: OfferSnapshot; providerSubscriptionRefs: string[]; selectedSubscriptionRef?: string; streamSelection?: Readonly<{ actorId: string; auditRef: string; reason: string; at: string }>; customerRef: string | null };
+export type SubscriptionBinding = { bindingId: string; buyerId: string; originatingIntentId: string; offer: OfferSnapshot; providerSubscriptionRefs: string[]; selectedSubscriptionRef?: string; classificationDecision?: Readonly<{ revision: number; duplicateInitialPurchase: boolean }>; streamSelection?: Readonly<{ actorId: string; auditRef: string; reason: string; at: string }>; customerRef: string | null };
 export type CommercialClassification = 'one_time' | 'initial' | 'renewal' | 'recovery' | 'management' | 'held';
 export type CompletionFact = Readonly<{ factId: string; scope: PaymentScope; transactionRef: string; intentId: string; buyerId: string; subscriptionBasisId?: string; providerSubscriptionRef?: string; classification: CommercialClassification; offer: OfferSnapshot; total: Money; lines: readonly Readonly<{ providerLineRef: string; benefitSlotId: string; amount: Money; quantity: 1; period?: Period }>[]; source: EvidenceSource }>;
 export type EvidenceFlag = 'pending_adverse' | 'conflict' | 'unsupported' | 'incomplete' | 'unresolved_binding' | 'duplicate_initial_purchase' | 'duplicate_payment' | 'catalog_mismatch' | 'ownership_mismatch' | 'incomplete_history';
@@ -67,10 +67,13 @@ export type ReconciliationQuery = Readonly<{ kind: 'events'; from: string; to: s
 export type ScanReadFailure = Readonly<{ at: string; reason: string; after?: string; sdkVersion?: string; code?: string }>;
 /** query is optional only for legacy checkpoints, which cannot be resumed without explicit migration. */
 export type ScanCheckpoint = { scanId: string; epoch: string; queryFingerprint: string; query?: ReconciliationQuery; after?: string; status: 'running' | 'complete' | 'gap'; issue?: string; failureCount?: number; lastFailure?: ScanReadFailure };
+/** A core decision changes independently of provider evidence. Cursor processing only wakes bounded
+ * structural dependents; their ordinary publication reduction applies the current decision. */
+export type SubscriptionReclassification = { bindingId: string; decisionRevision: number; afterTransactionRef?: string; complete: boolean };
 /** Bounded payment-owner working set. Adapters isolate readers and persist only its exact read-set records. */
-export type PaymentState = { revision: number; recoveryFenced: boolean; intents: Record<string, PurchaseIntent>; operations: Record<string, PaymentOperation>; requestKeys: Record<string, string>; bindings: Record<string, TransactionBinding>; subscriptionBindings: Record<string, SubscriptionBinding>; transactions: Record<string, TransactionAggregate>; subscriptions: Record<string, SubscriptionAggregate>; versionEvidence: Record<string, ObjectVersionEvidence>; inbox: Record<string, InboxRecord>; evidence: Record<string, EvidenceMessage>; deliveries: Record<string, Delivery>; consumers: string[]; scans: Record<string, ScanCheckpoint>; issues: string[] };
+export type PaymentState = { revision: number; recoveryFenced: boolean; intents: Record<string, PurchaseIntent>; operations: Record<string, PaymentOperation>; requestKeys: Record<string, string>; bindings: Record<string, TransactionBinding>; subscriptionBindings: Record<string, SubscriptionBinding>; reclassifications: Record<string, SubscriptionReclassification>; transactions: Record<string, TransactionAggregate>; subscriptions: Record<string, SubscriptionAggregate>; versionEvidence: Record<string, ObjectVersionEvidence>; inbox: Record<string, InboxRecord>; evidence: Record<string, EvidenceMessage>; deliveries: Record<string, Delivery>; consumers: string[]; scans: Record<string, ScanCheckpoint>; issues: string[] };
 /** A bounded owner-local working set, never a complete scope ledger. Missing rows carry revision null. */
-export type PaymentReadVersion = Readonly<{ table: 'intents' | 'operations' | 'bindings' | 'subscriptionBindings' | 'transactions' | 'subscriptions' | 'inbox' | 'configuration' | 'guards' | 'versionEvidence'; id: string; revision: number | null }>;
+export type PaymentReadVersion = Readonly<{ table: 'intents' | 'operations' | 'bindings' | 'subscriptionBindings' | 'reclassifications' | 'transactions' | 'subscriptions' | 'inbox' | 'configuration' | 'guards' | 'versionEvidence'; id: string; revision: number | null }>;
 export type ReductionInput = Readonly<{ inputId: string; state: PaymentState; expected: readonly PaymentReadVersion[]; incompleteReason?: string }>;
 export type ReductionCommit = Readonly<{ inputId: string; heldReason?: string; expected: readonly PaymentReadVersion[]; state: PaymentState }>;
 export type IntentAdmission = Readonly<{ intent: PurchaseIntent; operation: PaymentOperation; subscriptionBinding?: SubscriptionBinding }>;
@@ -103,9 +106,15 @@ export interface PaymentStore {
   loadReductionInput(scope: PaymentScope, inputId: string): Promise<ReductionInput | undefined>;
   commitReduction(scope: PaymentScope, commit: ReductionCommit): Promise<StoreCommitResult>;
   loadPublicationInput(scope: PaymentScope, aggregate: AggregateIdentity): Promise<ReductionInput | undefined>;
+  /** Atomically mark at most limit transaction aggregates structurally bound to the obligation's
+   * originating intent for publication, then advance its transactionRef cursor. Compare the durable
+   * obligation decisionRevision with the current binding; concurrent decision/membership changes
+   * cannot be lost. New/changed dependents always classify using a current binding read set.
+   * This performs storage traversal only: all commercial classification stays in core reduction. */
+  processReclassification(scope: PaymentScope, bindingId: string, limit: number): Promise<StoreCommitResult>;
   readPurchase(scope: PaymentScope, buyerId: string, intentId: string): Promise<Readonly<{ intent: PurchaseIntent; transactions: readonly TransactionAggregate[] }> | undefined>;
   readSubscription(scope: PaymentScope, buyerId: string, bindingId: string): Promise<Readonly<{ binding: SubscriptionBinding; observations: readonly SubscriptionAggregate[] }> | undefined>;
-  listWork(scope: PaymentScope, kind: 'inbox' | 'publication' | 'prepared' | 'unknown', limit: number): Promise<readonly string[]>;
+  listWork(scope: PaymentScope, kind: 'inbox' | 'publication' | 'reclassification' | 'prepared' | 'unknown', limit: number): Promise<readonly string[]>;
   registerConsumer(scope: PaymentScope, consumerId: string, backfill: boolean): Promise<void>;
   listDeliveries(scope: PaymentScope, consumerId: string, limit: number): Promise<readonly EvidenceMessage[]>;
   acknowledgeDelivery(scope: PaymentScope, consumerId: string, messageId: string, bodyDigest: string): Promise<'acknowledged' | 'duplicate' | 'conflict'>;
