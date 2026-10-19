@@ -15,7 +15,10 @@ export type RecoveryManifest = Readonly<{
   /** Consumer owns effects which survived its restore, including external publication. */
   externalEffectsReviewRef: string;
 }>;
-export type PaymentRecoveryAuditRecord = Readonly<{ sessionId: string; revision: number; action: string; audit: RecoveryAudit; at: string }>;
+export type PaymentRecoveryAuditRecord = Readonly<{
+  sessionId: string; revision: number; action: string; audit: RecoveryAudit; at: string; sessionDigest: string;
+  cursorState: Pick<PaymentRecoverySession, 'producerScan' | 'uncertaintyScan' | 'consumers' | 'backfills'>;
+}>;
 type Cursor = { after: string | null; status: 'pending' | 'complete' | 'blocked'; processed: number; issue?: string };
 type ConsumerVerification = Cursor & { manifest: RecoveryManifest; digest: string };
 export type PaymentRecoverySession = {
@@ -319,6 +322,9 @@ export class PostgresPaymentRecovery {
   }
   private async save(tx: PaymentSqlTransaction, session: PaymentRecoverySession, audit: RecoveryAudit, action: string): Promise<void> {
     await this.records.write(tx, 'recoverySessions', session.sessionId, session);
-    await this.records.write(tx, 'recoveryAudits', `${session.sessionId}:${String(session.revision).padStart(16, '0')}`, { sessionId: session.sessionId, revision: session.revision, action, audit, at: new Date().toISOString() });
+    await this.records.write(tx, 'recoveryAudits', `${session.sessionId}:${String(session.revision).padStart(16, '0')}`, {
+      sessionId: session.sessionId, revision: session.revision, action, audit, at: new Date().toISOString(), sessionDigest: digest(session),
+      cursorState: { producerScan: session.producerScan, uncertaintyScan: session.uncertaintyScan, consumers: session.consumers, backfills: session.backfills },
+    });
   }
 }

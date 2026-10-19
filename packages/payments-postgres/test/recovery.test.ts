@@ -203,6 +203,9 @@ test('administrative CAS, immutable audit records and 100-record recovery pages 
     }
     const audits = await admin.readAudits(session.sessionId, 0, 100);
     assert.equal(audits.length, session.revision); assert.deepEqual(audits.map(value => value.revision), Array.from({ length: session.revision }, (_, index) => index + 1));
+    assert.equal(audits.at(-1)?.sessionDigest, digest(session));
+    assert.deepEqual(audits.at(-1)?.cursorState.backfills['credit'], session.backfills['credit']);
+    assert.equal(audits.find(value => value.action === 'scan_uncertain_operations')?.cursorState.uncertaintyScan.processed, 100);
     assert.equal(audits.filter(value => value.action === 'scan_producer_history').length, 3, 'stale CAS did not append an audit or advance a cursor');
     await admin.resume(session.sessionId, session.revision, audit);
     assert.equal((await f.store.listDeliveries(scope, 'credit', 100)).length, 100);
