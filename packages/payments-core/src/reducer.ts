@@ -1,5 +1,5 @@
-import type { AdjustmentObservation, AggregateIdentity, CompletionFact, EventIdentityEvidence, EvidenceFlag, EvidenceMessage, Field, Observation, OfferSnapshot, PaymentScope, PaymentState, ProviderLine, SubscriptionAggregate, SubscriptionBinding, SubscriptionObservation, TransactionAggregate, TransactionObservation, VerifiedInput } from './contracts.js';
-import { assertIdentifier, canonicalJson, compareTime, digest, exactTime, money } from './values.js';
+import type { AdjustmentObservation, AggregateIdentity, CompletionFact, EventIdentityEvidence, EvidenceFlag, EvidenceMessage, Field, ObjectVersionEvidence, Observation, OfferSnapshot, PaymentScope, PaymentState, ProviderLine, SubscriptionAggregate, SubscriptionBinding, SubscriptionObservation, TransactionAggregate, TransactionObservation, VerifiedInput } from './contracts.js';
+import { assertIdentifier, canonicalJson, compareTime, digest, exactTime, money, MAX_OBJECT_VERSION_EVIDENCE_BYTES, objectVersionKey } from './values.js';
 
 const known = <T>(field: Field<T>): field is Readonly<{ presence: 'known'; value: T; provenance?: 'observed' | 'schema_assumed_null' }> => field.presence === 'known';
 function flag(target: { flags: EvidenceFlag[] }, value: EvidenceFlag): void { if (!target.flags.includes(value)) target.flags.push(value); }
@@ -49,6 +49,29 @@ function mergeFields<T>(oldValue: T, newValue: T): T {
     return Object.fromEntries([...new Set([...Object.keys(oldValue), ...Object.keys(newValue)])].map(key => [key, key === 'source' ? (newValue as Record<string, unknown>)[key] : mergeFields((oldValue as Record<string, unknown>)[key], (newValue as Record<string, unknown>)[key])])) as T;
   }
   return newValue;
+}
+type VersionedObservation = Exclude<Observation, { kind: 'unsupported' }>;
+function certifyObjectVersion(state: PaymentState, observation: VersionedObservation): Readonly<{ kind: 'certified'; observation: VersionedObservation }> | Readonly<{ kind: 'conflict' | 'held' }> {
+  const key = objectVersionKey(observation); if (!key) throw new Error('Versioned observation has no identity');
+  const time = exactTime(observation.version), entityRef = observation.kind === 'transaction' ? observation.transactionRef : observation.kind === 'subscription' ? observation.subscriptionRef : observation.adjustmentRef;
+  const original = state.versionEvidence[key];
+  if (original?.kind === 'held') return { kind: 'held' };
+  const { source, ...incoming } = observation;
+  if (original && (!compatible(semantic(original.projection), semantic(incoming)) || original.conflict)) {
+    state.versionEvidence[key] = { ...original, conflict: true }; return { kind: 'conflict' };
+  }
+  const projection = original ? mergeFields(original.projection, incoming) : incoming;
+  const evidence: ObjectVersionEvidence = { kind: 'certified', entityKind: observation.kind, entityRef, seconds: time.seconds, fraction: time.fraction, projection, conflict: false };
+  if (Buffer.byteLength(canonicalJson(evidence)) > MAX_OBJECT_VERSION_EVIDENCE_BYTES) {
+    state.versionEvidence[key] = { kind: 'held', entityKind: observation.kind, entityRef, seconds: time.seconds, fraction: time.fraction, reason: 'version_evidence_size_limit' };
+    return { kind: 'held' };
+  }
+  state.versionEvidence[key] = evidence;
+  return { kind: 'certified', observation: { ...projection, source } };
+}
+function subscriptionOwnershipMismatch(state: PaymentState, observation: SubscriptionObservation): boolean {
+  const customer = observation.customerRef;
+  return known(customer) && Object.values(state.subscriptionBindings).some(binding => binding.providerSubscriptionRefs.includes(observation.subscriptionRef) && binding.customerRef !== null && binding.customerRef !== customer.value);
 }
 export function validateOffer(offer: OfferSnapshot, scope: PaymentScope): void {
   for (const id of [offer.offerId, offer.version, offer.policyVersion, offer.applicationId]) assertIdentifier(id);
@@ -160,9 +183,7 @@ function reduceSubscription(state: PaymentState, observation: SubscriptionObserv
   const aggregate = subscriptionAggregate(state, observation.subscriptionRef);
   if (known(observation.currentPeriod) && observation.currentPeriod.value && compareTime(observation.currentPeriod.value.startsAt, observation.currentPeriod.value.endsAt) >= 0) throw new TypeError('Invalid subscription period');
   if (known(observation.scheduledChange) && observation.scheduledChange.value) exactTime(observation.scheduledChange.value.effectiveAt);
-  const relationshipBindings = Object.values(state.subscriptionBindings).filter(binding => binding.providerSubscriptionRefs.includes(observation.subscriptionRef));
-  const observedCustomer = observation.customerRef;
-  const newOwnershipHold = known(observedCustomer) && relationshipBindings.some(binding => binding.customerRef !== null && binding.customerRef !== observedCustomer.value) && !aggregate.flags.includes('ownership_mismatch');
+  const newOwnershipHold = subscriptionOwnershipMismatch(state, observation) && !aggregate.flags.includes('ownership_mismatch');
   if (newOwnershipHold) flag(aggregate, 'ownership_mismatch');
   const current = aggregate.current;
   if (current) {
@@ -199,7 +220,18 @@ function reduceAdjustment(state: PaymentState, observation: AdjustmentObservatio
   if (!['refund', 'credit', 'chargeback', 'chargeback_reverse', 'chargeback_warning', 'chargeback_warning_reverse', 'credit_reverse'].includes(observation.action) || !['pending_approval', 'approved', 'rejected', 'reversed'].includes(observation.status)) flag(aggregate, 'unsupported');
   aggregate.revision += 1; aggregate.publicationRequired = true;
 }
-export function reduceObservation(state: PaymentState, scope: PaymentScope, observation: Observation): void {
+export function reduceObservation(state: PaymentState, scope: PaymentScope, observation: Observation): 'applied' | 'conflict' | 'held' {
+  if (observation.kind !== 'unsupported') {
+    const certified = certifyObjectVersion(state, observation);
+    if (certified.kind !== 'certified') {
+      const aggregate = observation.kind === 'subscription' ? subscriptionAggregate(state, observation.subscriptionRef) : transactionAggregate(state, observation.transactionRef);
+      flag(aggregate, certified.kind === 'held' ? 'incomplete_history' : 'conflict');
+      if (observation.kind === 'subscription' && subscriptionOwnershipMismatch(state, observation)) flag(aggregate, 'ownership_mismatch');
+      aggregate.revision += 1; aggregate.publicationRequired = true;
+      return certified.kind;
+    }
+    observation = certified.observation;
+  }
   switch (observation.kind) {
     case 'transaction': reduceTransaction(state, scope, observation); break;
     case 'subscription': reduceSubscription(state, observation); break;
@@ -210,6 +242,7 @@ export function reduceObservation(state: PaymentState, scope: PaymentScope, obse
       else state.issues.push(`unresolved-routing:${observation.source.receiptId}`);
     }
   }
+  return 'applied';
 }
 /** All payment-owner aggregate routes affected by one trusted receipt; no product authority is inferred. */
 export function inputRoutes(input: Pick<VerifiedInput, 'observation' | 'adverseTransactionRef'>): readonly AggregateIdentity[] {
@@ -311,7 +344,7 @@ export function publishEvidence(state: PaymentState, scope: PaymentScope, produc
   for (const aggregate of Object.values(state.transactions)) if (aggregate.publicationRequired) {
     const flags = [...aggregate.flags]; if (aggregate.pendingAdverse.length > 0 && !flags.includes('pending_adverse')) flags.push('pending_adverse');
     aggregate.evidenceRevision += 1;
-    const payload = { kind: 'complete', ...(aggregate.completion ? { completion: aggregate.completion } : {}), adjustments: Object.values(aggregate.adjustments).sort((a, b) => a.adjustmentRef.localeCompare(b.adjustmentRef)), flags };
+    const payload = flags.includes('incomplete_history') ? { kind: 'held', reason: 'object_version_history_incomplete', resolutionRef: aggregate.transactionRef } : { kind: 'complete', ...(aggregate.completion ? { completion: aggregate.completion } : {}), adjustments: Object.values(aggregate.adjustments).sort((a, b) => a.adjustmentRef.localeCompare(b.adjustmentRef)), flags };
     messages.push(storeMessage(state, scope, producerNamespace, { type: 'transaction', id: aggregate.transactionRef }, aggregate.evidenceRevision, payload, maxBytes));
     aggregate.publicationRequired = false;
   }
@@ -319,7 +352,7 @@ export function publishEvidence(state: PaymentState, scope: PaymentScope, produc
     aggregate.evidenceRevision += 1;
     const bindings = Object.values(state.subscriptionBindings).filter(binding => binding.providerSubscriptionRefs.includes(aggregate.subscriptionRef));
     const binding = bindings[0];
-    const payload = bindings.length === 1 && binding && aggregate.current ? { kind: 'subscription_complete', binding, observation: aggregate.current, flags: aggregate.flags } : { kind: 'held', reason: 'unresolved_binding', resolutionRef: aggregate.subscriptionRef };
+    const payload = !aggregate.flags.includes('incomplete_history') && bindings.length === 1 && binding && aggregate.current ? { kind: 'subscription_complete', binding, observation: aggregate.current, flags: aggregate.flags } : { kind: 'held', reason: aggregate.flags.includes('incomplete_history') ? 'object_version_history_incomplete' : 'unresolved_binding', resolutionRef: aggregate.subscriptionRef };
     messages.push(storeMessage(state, scope, producerNamespace, { type: 'subscription', id: aggregate.subscriptionRef }, aggregate.evidenceRevision, payload, maxBytes));
     aggregate.publicationRequired = false;
   }
@@ -332,11 +365,12 @@ export function processInput(state: PaymentState, scope: PaymentScope, inputId: 
   if (record.conflict) { record.state = 'quarantined'; record.issue = 'conflicting_input'; return 'quarantined'; }
   try {
     const staged = structuredClone(state);
-    reduceObservation(staged, scope, record.input.observation);
+    const reduction = reduceObservation(staged, scope, record.input.observation);
     Object.assign(state, staged);
     const updatedRecord = state.inbox[inputId];
     if (!updatedRecord) throw new Error('Inbox disappeared during reduction');
     record = updatedRecord;
+    if (reduction === 'held') { record.state = 'quarantined'; record.issue = 'version_evidence_size_limit'; return 'quarantined'; }
   }
   catch (error) {
     record.state = 'quarantined'; record.issue = error instanceof Error ? error.name : 'decoder_failure';

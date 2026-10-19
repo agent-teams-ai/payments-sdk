@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addMoney, canonicalJson, compareTime, compareEventIdentity, createPayments, digest, eventIdentityEvidence, mergeEventIdentityEvidence, exactTime, money, type EvidenceSource, type Field, type OfferSnapshot, type PaymentProvider, type PaymentScope, type ProviderResult, type SubscriptionObservation, type TransactionObservation, type VerifiedInput } from '../dist/index.js';
+import { addMoney, canonicalJson, compareTime, compareEventIdentity, createPayments, digest, eventIdentityEvidence, mergeEventIdentityEvidence, exactTime, money, objectVersionKey, MAX_OBJECT_VERSION_EVIDENCE_BYTES, type AdjustmentObservation, type Observation, type EvidenceSource, type Field, type OfferSnapshot, type PaymentProvider, type PaymentScope, type ProviderResult, type SubscriptionObservation, type TransactionObservation, type VerifiedInput } from '../dist/index.js';
 import { MemoryPaymentStore } from '../dist/memory.js';
 
 const scope: PaymentScope = { applicationId: 'app-a', provider: 'fake', paymentAccountId: 'merchant', environment: 'sandbox' };
@@ -13,7 +13,7 @@ function offer(profile: 'one_time' | 'monthly' = 'one_time', allowZeroTotal = fa
 function transaction(ref: string, receiptId: string, profile: 'one_time' | 'monthly' = 'one_time', extra: Partial<TransactionObservation> = {}): TransactionObservation {
   return { kind: 'transaction', transactionRef: ref, version: at, status: 'completed', origin: yes('api'), customerRef: yes('payer'), subscriptionRef: profile === 'monthly' ? yes('sub-a') : yes(null), intentCorrelation: unknown, currency: yes('USD'), total: yes(money('USD', '1000')), lines: yes([{ providerLineRef: `line-${ref}`, providerPriceRef: 'price', quantity: 1, amount: money('USD', '1000'), billingCycle: profile === 'monthly' ? yes({ interval: 'month', frequency: 1 }) : yes(null), trial: yes(false), proration: yes(false), period: profile === 'monthly' ? yes(period) : yes(null) }]), source: source(receiptId), ...extra };
 }
-function input(observation: TransactionObservation | SubscriptionObservation, adverseTransactionRef?: string): VerifiedInput {
+function input(observation: Observation, adverseTransactionRef?: string): VerifiedInput {
   return { scope, inputId: observation.source.receiptId, source: observation.source, observation, retainedRepresentation: JSON.parse(canonicalJson(observation)) as VerifiedInput['retainedRepresentation'], ...(adverseTransactionRef ? { adverseTransactionRef } : {}) };
 }
 function acquired(observation: TransactionObservation | SubscriptionObservation): VerifiedInput {
@@ -36,7 +36,7 @@ async function purchase(context: ReturnType<typeof setup>) {
   const result = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'request' }); assert.equal(result.kind, 'succeeded');
   if (result.kind !== 'succeeded') throw new Error('Expected checkout'); return result.value;
 }
-async function observe(context: ReturnType<typeof setup>, observation: TransactionObservation | SubscriptionObservation) {
+async function observe(context: ReturnType<typeof setup>, observation: Observation) {
   assert.equal((await context.payments.ingestVerifiedInput(input(observation))).kind, 'succeeded');
   assert.equal(await context.payments.processInbox(observation.source.receiptId), 'processed');
 }
@@ -477,4 +477,54 @@ test('an acknowledged subscription feed receives a higher revision for a newly r
   await context.payments.acknowledgeDelivery('stale-hold-consumer', delivery.messageId, delivery.bodyDigest);
   await context.payments.ingestVerifiedInput(input(stale)); assert.equal(await context.payments.processInbox(stale.source.receiptId), 'duplicate'); await context.payments.repair();
   assert.equal((await context.payments.readDeliveries('stale-hold-consumer')).length, 0);
+});
+
+test('subscription exact-version contradictions remain held across watermark advancement, acknowledgement and restart', async () => {
+  for (const late of [false, true]) {
+    const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, `history-initial-${late}`, 'monthly'));
+    const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis); await context.payments.registerConsumer('history-consumer');
+    const first: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: yes(null), currentPeriod: yes(period), priceRefs: yes(['price']), source: source(`subscription-v1-${late}`) };
+    const latest = { ...first, version: '2026-01-01T00:00:00.000002Z', source: source(`subscription-v2-${late}`) }, contradiction = { ...first, version: '2026-01-01T01:00:00.000001000+01:00', status: yes('canceled'), source: source(`subscription-v1-conflict-${late}`) };
+    await observe(context, first); if (late) await observe(context, latest);
+    for (const message of await context.payments.readDeliveries('history-consumer')) await context.payments.acknowledgeDelivery('history-consumer', message.messageId, message.bodyDigest);
+    context.payments = createPayments({ scope, producerNamespace: 'payments', provider: context.provider, store: context.store, catalog: { resolveOffer: async () => offer('monthly') } });
+    await observe(context, contradiction); if (!late) await observe(context, latest);
+    const aggregate = (await context.payments.readObservedSubscription('buyer', basis))?.observations[0]; assert.ok(aggregate); assert.ok(aggregate.flags.includes('conflict')); assert.equal(aggregate.current?.version, latest.version);
+    const loaded = await context.store.loadReductionInput(scope, contradiction.source.receiptId), key = objectVersionKey(contradiction); assert.ok(key); const version = loaded?.state.versionEvidence[key]; assert.equal(version?.kind, 'certified'); if (version?.kind === 'certified') { assert.equal(version.conflict, true); assert.equal(version.projection.kind, 'subscription'); if (version.projection.kind === 'subscription') assert.deepEqual(version.projection.status, yes('active')); }
+    assert.ok((await context.payments.readDeliveries('history-consumer')).some(message => message.kind === 'subscription_complete' && message.flags.includes('conflict')));
+  }
+});
+
+test('adjustment exact-version contradictions cannot disappear behind an approved newer watermark', async () => {
+  for (const late of [false, true]) {
+    const context = setup(), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, `adjustment-history-initial-${late}`)); await context.payments.registerConsumer('adjustment-history');
+    const first: AdjustmentObservation = { kind: 'adjustment', adjustmentRef: 'historical-adjustment', transactionRef: checkout.transactionRef, version: at, action: 'refund', status: 'pending_approval', type: 'full', amount: money('USD', '100'), allocations: [], source: source(`adjustment-v1-${late}`) };
+    const latest = { ...first, version: '2026-01-01T00:00:00.000002Z', status: 'approved', source: source(`adjustment-v2-${late}`) }, contradiction = { ...first, version: '2026-01-01T01:00:00.000001000+01:00', amount: money('USD', '90'), source: source(`adjustment-v1-conflict-${late}`) };
+    await observe(context, first); if (late) await observe(context, latest);
+    for (const message of await context.payments.readDeliveries('adjustment-history')) await context.payments.acknowledgeDelivery('adjustment-history', message.messageId, message.bodyDigest);
+    context.payments = createPayments({ scope, producerNamespace: 'payments', provider: context.provider, store: context.store, catalog: { resolveOffer: async () => offer() } });
+    await observe(context, contradiction); if (!late) await observe(context, latest);
+    const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.flags.includes('conflict')); assert.equal(aggregate.adjustments['historical-adjustment']?.status, 'approved'); assert.equal(aggregate.adjustments['historical-adjustment']?.amount.minorUnits, '100');
+    assert.ok((await context.payments.readDeliveries('adjustment-history')).some(message => message.kind === 'complete' && message.flags.includes('conflict')));
+  }
+});
+
+test('historical exact-version partial summaries merge compatible knowledge and nanosecond-equivalent spellings', async () => {
+  const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, 'compatible-history-initial', 'monthly'));
+  const first: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: unknown, currentPeriod: yes(period), priceRefs: yes(['price']), source: source('historical-partial') };
+  await observe(context, first); await observe(context, { ...first, version: '2026-01-01T00:00:00.000002Z', scheduledChange: yes(null), source: source('historical-latest') });
+  const richer = { ...first, version: '2026-01-01T01:00:00.000001000+01:00', scheduledChange: yes(null), source: source('historical-richer') }; await observe(context, richer);
+  const key = objectVersionKey(first); assert.ok(key); assert.equal(objectVersionKey(richer), key);
+  const version = (await context.store.loadReductionInput(scope, richer.source.receiptId))?.state.versionEvidence[key]; assert.equal(version?.kind, 'certified'); if (version?.kind === 'certified') { assert.equal(version.conflict, false); assert.equal(version.projection.kind, 'subscription'); if (version.projection.kind === 'subscription') assert.deepEqual(version.projection.scheduledChange, yes(null)); }
+  const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis); assert.ok(!(await context.payments.readObservedSubscription('buyer', basis))?.observations[0]?.flags.includes('conflict'));
+});
+
+test('oversized version certification retains custody and a bounded persistent hold tombstone', async () => {
+  const context = setup(), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, 'version-budget-initial')); await context.payments.registerConsumer('version-budget');
+  const adjustment: AdjustmentObservation = { kind: 'adjustment', adjustmentRef: 'large-adjustment', transactionRef: checkout.transactionRef, version: at, action: 'refund', status: 'approved', amount: money('USD', '100'), allocations: Array.from({ length: 1500 }, (_, index) => ({ providerLineRef: `line-${index}-${'x'.repeat(200)}`, amount: money('USD', '1') })), source: source('large-version-evidence') };
+  await context.payments.ingestVerifiedInput(input(adjustment)); assert.equal(await context.payments.processInbox(adjustment.source.receiptId), 'quarantined');
+  const loaded = await context.store.loadReductionInput(scope, adjustment.source.receiptId), key = objectVersionKey(adjustment); assert.ok(key); const tombstone = loaded?.state.versionEvidence[key]; assert.equal(tombstone?.kind, 'held'); assert.ok(Buffer.byteLength(canonicalJson(tombstone)) < MAX_OBJECT_VERSION_EVIDENCE_BYTES); assert.ok(loaded?.state.inbox[adjustment.source.receiptId]?.input.observation.kind === 'adjustment');
+  assert.equal((await context.payments.readDeliveries('version-budget')).at(-1)?.kind, 'held');
+  await observe(context, transaction(checkout.transactionRef, 'after-version-budget'));
+  const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.flags.includes('incomplete_history')); assert.ok(aggregate.pendingAdverse.includes(adjustment.source.receiptId)); assert.equal((await context.payments.readDeliveries('version-budget')).at(-1)?.kind, 'held');
 });

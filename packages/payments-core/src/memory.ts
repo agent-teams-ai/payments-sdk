@@ -1,9 +1,9 @@
-import type { AggregateIdentity, EvidenceMessage, IntentAdmission, JsonValue, OperationCommit, OperationInput, PaymentOperation, PaymentReadVersion, PaymentScope, PaymentState, PaymentStore, ProviderResult, ReductionCommit, ReductionInput, ScanCheckpoint, StoreCommitResult, VerifiedInput } from './contracts.js';
+import type { AggregateIdentity, EvidenceMessage, IntentAdmission, JsonValue, OperationCommit, OperationInput, Observation, PaymentOperation, PaymentReadVersion, PaymentScope, PaymentState, PaymentStore, ProviderResult, ReductionCommit, ReductionInput, ScanCheckpoint, StoreCommitResult, VerifiedInput } from './contracts.js';
 import { admitInput, transactionAggregate } from './reducer.js';
-import { canonicalJson, createEmptyPaymentState, digest, sameOperationCommand, sameScope, scopeKey } from './values.js';
+import { canonicalJson, createEmptyPaymentState, digest, objectVersionKey, sameOperationCommand, sameScope, scopeKey } from './values.js';
 
 type VersionTable = PaymentReadVersion['table'];
-const mutableTables = ['intents', 'operations', 'bindings', 'subscriptionBindings', 'transactions', 'subscriptions', 'inbox'] as const;
+const mutableTables = ['intents', 'operations', 'bindings', 'subscriptionBindings', 'transactions', 'subscriptions', 'versionEvidence', 'inbox'] as const;
 /** Test-only implementation of the same record/CAS protocol as the durable adapter. */
 export class MemoryPaymentStore implements PaymentStore {
   private readonly states = new Map<string, PaymentState>();
@@ -116,7 +116,7 @@ export class MemoryPaymentStore implements PaymentStore {
     const slice = createEmptyPaymentState(), expected: PaymentReadVersion[] = [];
     slice.recoveryFenced = state.recoveryFenced; slice.consumers = [...state.consumers];
     expected.push({ table: 'configuration', id: 'scope', revision: this.revision(scope, 'configuration', 'scope') });
-    let incomplete = false;
+    let incomplete = false, invalidVersion = false;
     const guard = (id: string): void => { if (!expected.some(item => item.table === 'guards' && item.id === id)) expected.push({ table: 'guards', id, revision: this.revision(scope, 'guards', id) }); };
     const add = (table: typeof mutableTables[number], id: string): void => {
       if (expected.some(item => item.table === table && item.id === id)) return;
@@ -124,7 +124,11 @@ export class MemoryPaymentStore implements PaymentStore {
       expected.push({ table, id, revision: this.revision(scope, table, id) });
       const record: unknown = state[table][id];
       if (record !== undefined) (slice[table] as Record<string, unknown>)[id] = structuredClone(record);
+      if (table === 'inbox') { const observation = state.inbox[id]?.input.observation; if (observation) includeVersion(observation); }
+      if (table === 'subscriptions') { const observation = state.subscriptions[id]?.current; if (observation) includeVersion(observation); }
+      if (table === 'transactions') { for (const observation of state.transactions[id]?.observations ?? []) includeVersion(observation); for (const adjustment of Object.values(state.transactions[id]?.adjustments ?? {})) includeVersion(adjustment); }
     };
+    const includeVersion = (observation: Observation): void => { try { const key = objectVersionKey(observation); if (key) add('versionEvidence', key); } catch { invalidVersion = true; } };
     const includeIntent = (intentId: string): void => {
       guard(`intent:${intentId}`); add('intents', intentId); const intent = state.intents[intentId]; if (!intent) return;
       if (intent.subscriptionBasisId) add('subscriptionBindings', intent.subscriptionBasisId);
@@ -148,6 +152,7 @@ export class MemoryPaymentStore implements PaymentStore {
       guard(`subscription:${subscriptionRef}`); add('subscriptions', subscriptionRef);
       for (const binding of Object.values(state.subscriptionBindings)) if (binding.providerSubscriptionRefs.includes(subscriptionRef)) { add('subscriptionBindings', binding.bindingId); includeIntent(binding.originatingIntentId); }
     }
+    if (invalidVersion) return { inputId, state: slice, expected, incompleteReason: 'invalid_object_version' };
     if (incomplete) return { inputId, state: slice, expected, incompleteReason: 'working_set_limit' };
     return { inputId, state: slice, expected };
   }
