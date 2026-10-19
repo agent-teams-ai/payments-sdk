@@ -21,6 +21,7 @@ The four packages currently declare version `0.1.0`. A version in a manifest doe
 - [Architecture and guarantees](docs/architecture.md): ownership, T1/T2/T3, uncertainty, identities and extension boundaries.
 - [Operations and recovery runbook](docs/operations.md): migrations, concurrency, shutdown, reconciliation and independent restore.
 - [Qualification and deployment gates](docs/qualification.md): what the automated suites prove and what needs a real deployment or Paddle sandbox.
+- [Current upstream qualification](docs/upstream-qualification.md): exact dependency pins, merged Get Modular observation source and its unpublished train, and the official browser declaration blocker.
 - [Release process](docs/releasing.md): audited tarballs, checksums, exact-commit CI and GitHub prereleases.
 
 Adapter-specific details stay in the [Paddle](packages/payments-paddle/README.md), [PostgreSQL](packages/payments-postgres/README.md) and [Get Modular](packages/payments-get-modular/README.md) package guides. The [accepted implementation plan](docs/implementation-plan.md) records design decisions and source provenance; current public signatures live in package exports and the compiled examples.
@@ -33,7 +34,7 @@ The maintained `.ts` examples use the actual public APIs:
 - [`examples/paddle-postgres.ts`](examples/paddle-postgres.ts): Paddle + durable PostgreSQL + explicit worker lifecycle, with host-supplied authentication and consumers.
 - [`examples/fetch-modular.ts`](examples/fetch-modular.ts): Fetch handler using the real published static Assembly/Resources runtime.
 
-Qualification targets Linux Node `24.21.0` and `26.11.1`, TypeScript `7.0.2`, pnpm `11.25.0` and PostgreSQL `18`. All maintained runtime, test and tool sources are `.ts`. Engineering Foundation `1.10.0` is a development dependency and must not enter a package's runtime closure.
+Qualification targets Linux Node `24.21.0` and `26.11.1`, TypeScript `7.0.2`, pnpm `11.25.0` and PostgreSQL `18`. All maintained runtime, test and tool sources are `.ts`. Engineering Foundation `1.10.1` is a development dependency and must not enter a package's runtime closure.
 
 ```sh
 pnpm install --frozen-lockfile

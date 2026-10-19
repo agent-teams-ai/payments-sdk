@@ -49,7 +49,7 @@ An isolated consumer of the exact published **1.6.5** package was checked with T
 
 ## Local qualification of Foundation 1.10.1
 
-The isolated dependency graph was installed with `pnpm install --frozen-lockfile --ignore-scripts`. The following actual repository commands ran against the installed **1.10.1** public package on both supported Linux Node versions; commands were not replaced by script-name or metadata checks.
+The isolated dependency graph at `b4048b8` plus the exact Foundation/doc changes above was installed with `pnpm install --frozen-lockfile --ignore-scripts`. These results qualify that patch subject; later source integrations require their own normal gates. The following actual repository commands ran against the installed **1.10.1** public package on both supported Linux Node versions; commands were not replaced by script-name or metadata checks.
 
 | Gate | Node 24.21.0 | Node 26.11.1 |
 | --- | --- | --- |

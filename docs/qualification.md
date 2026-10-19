@@ -12,10 +12,10 @@ This page describes reproducible evidence and its limits. A test file is not a r
 | Provider | Official `@paddle/paddle-node-sdk` `3.10.0`, API version 1 and separately versioned notification destination |
 | Background transport | `pg-boss` `12.38.0`; one borrowed host pool, explicit bootstrap, qualified runtime role |
 | Get Modular | Core/Assembly `0.5.0`, Resources `0.1.0`, Conformance `0.3.0` in tests; one coherent physical peer set |
-| Engineering Foundation | `1.10.0`, development-only |
+| Engineering Foundation | `1.10.1`, development-only |
 | Package consumers | ESM NodeNext and Bundler resolution, packed tarballs, strict declarations |
 
-Manifest ranges describe admitted runtimes; the two exact Node versions above are the CI matrix. Other operating systems, PostgreSQL majors, versions within a manifest range and deployment topologies require their own evidence. The [lockfile](../pnpm-lock.yaml) pins the actual dependency closure.
+Manifest ranges describe admitted runtimes; the two exact Node versions above are the CI matrix. Other operating systems, PostgreSQL majors, versions within a manifest range and deployment topologies require their own evidence. The [lockfile](../pnpm-lock.yaml) pins the actual dependency closure. The [current upstream record](upstream-qualification.md) identifies the Foundation patch scope, exact local qualification subject, current Get Modular publication gate and official browser blocker.
 
 ## What the automated gates establish
 
@@ -50,12 +50,12 @@ No npm publication, real Paddle payment, physical backup restoration, production
 
 ## Browser wrapper admission
 
-The accepted plan selected official `@paddle/paddle-js` `1.6.5` for a future browser example. Importing its exact published artifact under TypeScript `7.0.2` and required `skipLibCheck:false` currently raises `TS2430` in `types/checkout/checkout.d.ts`: `PaddleEventData` extends `Partial<CheckoutEventError>`, but its broad event-name union is incompatible with that error type's two-name union. This is a declaration compatibility blocker. The SDK does not weaken declaration checking, import private wrapper files or ship an unchecked substitute to claim qualification.
+The accepted plan selected official `@paddle/paddle-js` `1.6.5` for a future browser example. Importing its exact published artifact under TypeScript `7.0.2` and required `skipLibCheck:false` currently raises `TS2430` in `types/checkout/checkout.d.ts`: `PaddleEventData` extends `Partial<CheckoutEventError>`, but its broad event-name union is incompatible with that error type's two-name union. Official [issue #127](https://github.com/PaddleHQ/paddle-js-wrapper/issues/127) remains open with this same failure. Both isolated strict NodeNext and Bundler consumers reproduced it; see the [exact source and current artifact record](upstream-qualification.md#paddlejs-browser-example-blocked-strict-declarations). This is a declaration compatibility blocker. The SDK does not weaken declaration checking, import private wrapper files or ship an unchecked substitute to claim qualification.
 
-The core/Paddle server adapter remain independent of Paddle.js. Hosts can navigate to the saved provider checkout URL. A browser overlay example can be admitted after an official compatible artifact or an explicitly reviewed, identified declaration correction passes strict consumers. Then verify public client-token/environment handling, `Initialized` state, visible CDN/loader failures, server-created `transactionId` checkout, and UI-only browser event handling in a real sandbox/browser. The wrapper pins loader/types; provider-hosted Paddle.js CDN code is not pinned by the npm version.
+The core/Paddle server adapter remain independent of Paddle.js. Hosts can navigate to the saved provider checkout URL. A browser overlay example can be admitted after an official compatible published artifact passes strict consumers. Then verify public client-token/environment handling, `Initialized` state, visible CDN/loader failures, server-created `transactionId` checkout, and UI-only browser event handling in a real sandbox/browser. The wrapper pins loader/types; provider-hosted Paddle.js CDN code is not pinned by the npm version.
 
-## Future Observation admission
+## Observation release and consumer admission
 
-The pending source-pinned upstream PR #195 proposes Core/Assembly `0.6.0`, Resources `0.2.0`, Conformance `0.4.0` and Observation `0.1.0`. Those candidate versions are not this package's published static support profile. Publication, peer compatibility and hook behavior require a separate coherent-train qualification. The [integration guide](../packages/payments-get-modular/README.md#observation-hooks-explicit-release-gate) records the exact pending source and hook tests; no speculative local replacement is admitted.
+The upstream observation ADR #154, plan #185 and implementation #195 are merged. Their coordinated Core/Assembly `0.6.0`, Resources `0.2.0`, Conformance `0.4.0` and Observation `0.1.0` train remained unpublished at **2026-10-19 20:25:36 UTC**. These versions are not this SDK's installed static support profile. The [upstream record](upstream-qualification.md#get-modular-merged-implementation-unpublished-release-train) distinguishes admitted source from registry artifacts. Publication, exact peer compatibility and hook behavior still require a separate coherent-train consumer qualification; the [integration guide](../packages/payments-get-modular/README.md#observation-hooks-explicit-release-gate) owns those tests.
 
 The [accepted plan's review journal](implementation-plan.md#16-журнал-независимого-ревью) concerns the design snapshot. It does not establish a completed implementation review, a successful current CI run or completion of a new four-wave implementation review.

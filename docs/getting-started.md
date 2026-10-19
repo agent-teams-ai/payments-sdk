@@ -6,7 +6,7 @@ This guide composes the supported profile from the four package boundaries. The 
 
 A plain application can use `payments-core` with its own implementations of the core-owned `PaymentProvider`, `PaymentStore` and `Catalog` ports. For Paddle with PostgreSQL, install the matching core, Paddle and PostgreSQL tarballs from one [release candidate](releasing.md), plus `pg`. Add `payments-get-modular` and its exact qualified peers only when the host uses Get Modular. These packages emit ESM JavaScript and declarations; consume their public exports instead of importing workspace source or private SDK paths.
 
-The qualified static Get Modular set is Core/Assembly `0.5.0`, Resources `0.1.0` and development-only Conformance `0.3.0`. Preserve one physical Resources identity. The [package guide](../packages/payments-get-modular/README.md) owns composition, cleanup and the separate future Observation release gate.
+The qualified static Get Modular set is Core/Assembly `0.5.0`, Resources `0.1.0` and development-only Conformance `0.3.0`. Preserve one physical Resources identity. The [package guide](../packages/payments-get-modular/README.md) owns composition, cleanup and the separate release/consumer gate for the merged, still unpublished Observation implementation. The [current upstream record](upstream-qualification.md) gives the exact source and registry snapshot.
 
 ## 2. Establish trusted identities and catalog
 

@@ -62,7 +62,7 @@ pnpm add ./payments-candidate/agent-teams-payments-core-0.1.0.tgz \
   ./payments-candidate/agent-teams-payments-postgres-0.1.0.tgz pg@8.23.1
 ```
 
-For Get Modular, also install its matching SDK tarball and the qualified exact peers Core/Assembly `0.5.0` and Resources `0.1.0`. Conformance is development-only. Supply matching local tarballs for SDK dependencies together so the package manager can resolve the same version across the entire set; do not mix an unpublished local package with an assumed public registry dependency. The repository's `test:packed` gate demonstrates strict isolated consumers of the complete packed set.
+For Get Modular, also install its matching SDK tarball and the qualified exact peers Core/Assembly `0.5.0` and Resources `0.1.0`. Conformance is development-only. Supply matching local tarballs for SDK dependencies together so the package manager can resolve the same version across the entire set; do not mix an unpublished local package with an assumed public registry dependency. The repository's `test:packed` gate demonstrates strict isolated consumers of the complete packed set. Upstream observation implementation has merged, but its coordinated new train was still unpublished at the [current official read-back](upstream-qualification.md#get-modular-merged-implementation-unpublished-release-train); it does not widen this candidate's qualified peer set.
 
 The [getting-started guide](getting-started.md) and [adapter guides](../README.md#start-here) explain runtime configuration. Preserve installed versions and the source/CI manifest in deployment evidence. Complete the separate [deployment gates](qualification.md#deployment-and-credential-gates) before real financial/product effects.
 
