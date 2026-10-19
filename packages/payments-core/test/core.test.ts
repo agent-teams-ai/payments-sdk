@@ -26,7 +26,7 @@ function deferred<T>() { let resolve!: (value: T) => void; const promise = new P
 function setup(profile: 'one_time' | 'monthly' = 'one_time', allowZeroTotal = false, timeoutMs = 1000) {
   const store = new MemoryPaymentStore(); let counter = 0, calls = 0, currentOffer = offer(profile, allowZeroTotal);
   let create: PaymentProvider['createCheckout'] = async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: `tx-${calls}`, checkout: { token: `token-${calls}` } } });
-  const provider: PaymentProvider = { scope, capabilities: { checkout: true, transactionRead: true, subscriptionRead: true, cancellation: [], paymentUpdate: false, customerManagement: false }, createCheckout: command => { calls += 1; return create(command); }, readTransaction: async () => ({ kind: 'unsupported', capability: 'test-read' }), readSubscription: async () => ({ kind: 'unsupported', capability: 'test-read' }) };
+  const provider: PaymentProvider = { scope, capabilities: { checkout: true, transactionRead: true, subscriptionRead: true, cancellation: [], paymentUpdate: false, customerManagement: false }, createCheckout: command => { calls += 1; return create(command); }, readTransaction: async () => ({ kind: 'unsupported', capability: 'test-read' }), readSubscription: async ref => ({ kind: 'succeeded', value: { kind: 'subscription', subscriptionRef: ref, version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: yes(null), currentPeriod: yes(period), priceRefs: yes(['price']), source: source(`authority-${ref}`) } }) };
   provider.readTransactionInput = async ref => { const result = await provider.readTransaction(ref); return result.kind === 'succeeded' ? { kind: 'succeeded', value: acquired(result.value) } : result; };
   provider.readSubscriptionInput = async ref => { const result = await provider.readSubscription(ref); return result.kind === 'succeeded' ? { kind: 'succeeded', value: acquired(result.value) } : result; };
   const payments = createPayments({ scope, producerNamespace: 'payments', provider, store, catalog: { resolveOffer: async () => currentOffer }, now: () => at, newId: () => `id-${++counter}`, operationTimeoutMs: timeoutMs });
@@ -353,4 +353,47 @@ test('refresh rejects a substituted body under an otherwise valid receipt digest
   context.provider.readTransactionInput = async () => ({ kind: 'succeeded', value: { ...receipt, retainedRepresentation: {} } });
   assert.deepEqual(await context.payments.refreshPurchase('buyer', checkout.intentId), { kind: 'rejected', code: 'validation' });
   assert.equal(await context.store.loadReductionInput(scope, receipt.inputId), undefined);
+});
+
+test('known subscription customer mismatch blocks both mutations without reusing historical ownership', async () => {
+  const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, 'ownership-initial', 'monthly'));
+  const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis);
+  await observe(context, { kind: 'subscription', subscriptionRef: 'sub-a', version: '2026-01-02T00:00:00Z', status: yes('active'), customerRef: yes('other-payer'), scheduledChange: yes(null), currentPeriod: yes(period), priceRefs: yes(['price']), source: source('ownership-changed') });
+  let cancellations = 0, updates = 0;
+  Object.assign(context.provider.capabilities, { cancellation: ['now'], paymentUpdate: true });
+  context.provider.cancelSubscription = async () => { cancellations += 1; return { kind: 'succeeded', value: { kind: 'applied', observedStatus: 'canceled' } }; };
+  context.provider.openPaymentUpdate = async command => { updates += 1; return { kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'must-not-create', purpose: 'payment_method', checkout: {} } }; };
+  assert.deepEqual(await context.payments.requestCancellation({ buyerId: 'buyer', bindingId: basis, requestKey: 'wrong-owner-cancel', timing: 'now' }), { kind: 'rejected', code: 'ownership_mismatch' });
+  assert.deepEqual(await context.payments.openPaymentUpdate({ buyerId: 'buyer', bindingId: basis, requestKey: 'wrong-owner-update' }), { kind: 'rejected', code: 'ownership_mismatch' });
+  assert.equal(cancellations, 0); assert.equal(updates, 0);
+  const projection = await context.payments.readObservedSubscription('buyer', basis); assert.equal(projection?.binding.customerRef, 'payer'); assert.ok(projection?.observations[0]?.flags.includes('ownership_mismatch'));
+});
+
+test('authority read set fences a customer mismatch committed between preflight and dispatch marker', async () => {
+  const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, 'interleave-initial', 'monthly'));
+  const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis);
+  Object.assign(context.provider.capabilities, { cancellation: ['now'] }); let mutations = 0;
+  context.provider.cancelSubscription = async () => { mutations += 1; return { kind: 'succeeded', value: { kind: 'applied', observedStatus: 'canceled' } }; };
+  const original = context.store.beginExternalDispatch.bind(context.store); let inject = true;
+  context.store.beginExternalDispatch = async (paymentScope, commit) => {
+    if (inject && commit.operation.kind === 'cancellation') {
+      inject = false; assert.ok(commit.expectedReadSet?.some(row => row.table === 'subscriptions' && row.id === 'sub-a'));
+      await observe(context, { kind: 'subscription', subscriptionRef: 'sub-a', version: '2026-01-02T00:00:00Z', status: yes('active'), customerRef: yes('changed-after-preflight'), scheduledChange: yes(null), currentPeriod: yes(period), priceRefs: yes(['price']), source: source('interleaved-mismatch') });
+    }
+    return original(paymentScope, commit);
+  };
+  const result = await context.payments.requestCancellation({ buyerId: 'buyer', bindingId: basis, requestKey: 'interleaved-cancel', timing: 'now' }); assert.equal(result.kind, 'pending'); assert.equal(mutations, 0);
+  const operation = await context.store.findRequest(scope, 'buyer', 'interleaved-cancel'); assert.equal(operation?.state, 'prepared'); assert.equal(operation.attempts.length, 0);
+  assert.deepEqual(await context.payments.executeOperation(operation.operationId), { kind: 'rejected', code: 'ownership_mismatch' }); assert.equal(mutations, 0);
+});
+
+test('billing eligibility holds do not remove proven authority to cancel, and failed preflight never dispatches', async () => {
+  const context = await duplicateMonthly(); Object.assign(context.provider.capabilities, { cancellation: ['now'] }); let mutations = 0;
+  context.provider.cancelSubscription = async () => { mutations += 1; return { kind: 'succeeded', value: { kind: 'applied', observedStatus: 'canceled' } }; };
+  context.provider.readSubscription = async ref => ({ kind: 'succeeded', value: { kind: 'subscription', subscriptionRef: ref, version: at, status: yes('paused'), customerRef: yes('payer'), scheduledChange: unknown, currentPeriod: unknown, priceRefs: yes(['different-price']), source: source('held-but-owned') } });
+  assert.equal((await context.payments.requestCancellation({ buyerId: 'buyer', bindingId: context.basis, requestKey: 'owned-held-cancel', timing: 'now' })).kind, 'succeeded'); assert.equal(mutations, 1);
+  const current = await context.payments.readObservedSubscription('buyer', context.basis); assert.ok(current?.observations.find(row => row.subscriptionRef === 'sub-a')?.flags.includes('unsupported'));
+  context.provider.readSubscriptionInput = async () => ({ kind: 'outcome_unknown' });
+  assert.deepEqual(await context.payments.requestCancellation({ buyerId: 'buyer', bindingId: context.basis, requestKey: 'unavailable-preflight', timing: 'now' }), { kind: 'rejected', code: 'unavailable' });
+  assert.equal(mutations, 1); const unknownOperation = await context.store.findRequest(scope, 'buyer', 'unavailable-preflight'); assert.equal(unknownOperation?.attempts.length, 0);
 });

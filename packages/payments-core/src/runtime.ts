@@ -81,15 +81,42 @@ export function createPayments(options: PaymentRuntimeOptions) {
       if (result.kind !== 'conflict') return;
     }
   }
+  async function subscriptionAuthority(operation: PaymentOperation): Promise<OperationResult<readonly PaymentReadVersion[]>> {
+    const ref = operation.providerSubscriptionRef;
+    if (!ref || !operation.subscriptionBindingId) return { kind: 'rejected', code: 'unclassified_external_state' };
+    const local = await store.loadPublicationInput(scope, { type: 'subscription', id: ref });
+    const localBinding = local?.state.subscriptionBindings[operation.subscriptionBindingId];
+    if (!localBinding || localBinding.buyerId !== operation.buyerId || !localBinding.providerSubscriptionRefs.includes(ref)) return { kind: 'rejected', code: 'ownership_mismatch' };
+    if (local.state.subscriptions[ref]?.flags.includes('ownership_mismatch')) return { kind: 'rejected', code: 'ownership_mismatch' };
+    if (!provider.readSubscriptionInput) return { kind: 'unsupported', capability: 'subscription_authority_acquisition' };
+    let receipt: ProviderResult<VerifiedInput>;
+    try { receipt = await provider.readSubscriptionInput(ref); } catch { return unavailable; }
+    if (receipt.kind !== 'succeeded') {
+      if (receipt.kind === 'outcome_unknown') return unavailable;
+      return receipt.kind === 'rejected' ? { kind: 'rejected', code: receipt.code } : receipt;
+    }
+    const acquired = await acquireAndProcess(receipt.value, { type: 'subscription', id: ref });
+    if (acquired.kind !== 'succeeded') return acquired;
+    const authority = await store.loadPublicationInput(scope, { type: 'subscription', id: ref });
+    if (!authority || authority.incompleteReason) return { kind: 'rejected', code: 'unclassified_external_state' };
+    const binding = authority.state.subscriptionBindings[operation.subscriptionBindingId], aggregate = authority.state.subscriptions[ref];
+    if (!binding || binding.buyerId !== operation.buyerId || !binding.providerSubscriptionRefs.includes(ref) || aggregate?.flags.includes('ownership_mismatch')) return { kind: 'rejected', code: 'ownership_mismatch' };
+    const customer = aggregate?.current?.customerRef;
+    if (!binding.customerRef || customer?.presence !== 'known') return { kind: 'rejected', code: 'unclassified_external_state' };
+    if (customer.value !== binding.customerRef) return { kind: 'rejected', code: 'ownership_mismatch' };
+    return { kind: 'succeeded', value: authority.expected };
+  }
   async function executeOperation(operationId: string): Promise<OperationResult<JsonValue>> {
     if (!accepting) return unavailable;
     const input = await store.loadOperation(scope, operationId);
     if (!input) return { kind: 'rejected', code: 'ownership_mismatch' };
     if (input.operation.state !== 'prepared') return toResult(input.operation);
+    const authority = input.operation.kind === 'purchase' ? undefined : await subscriptionAuthority(input.operation);
+    if (authority && authority.kind !== 'succeeded') return authority;
     const operation = structuredClone(input.operation), attemptId = newId();
     operation.state = 'dispatch_started'; operation.revision += 1;
     operation.attempts.push({ attemptId, fingerprint: operation.fingerprint, dispatchedAt: now(), ...(operation.providerSubscriptionRef ? { providerSubscriptionRef: operation.providerSubscriptionRef } : {}), observations: [] });
-    const marked = await store.beginExternalDispatch(scope, operationCommit(input, operation));
+    const marked = await store.beginExternalDispatch(scope, { ...operationCommit(input, operation), ...(authority?.kind === 'succeeded' ? { expectedReadSet: authority.value } : {}) });
     if (marked.kind !== 'committed') return marked.kind === 'recovery_fenced' ? unavailable : { kind: 'pending', operationId };
     // This is the only mutation dispatch site. No retry catches surround provider calls.
     const invoke = async (): Promise<ProviderResult<JsonValue>> => {

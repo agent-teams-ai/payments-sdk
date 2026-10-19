@@ -75,6 +75,8 @@ export class MemoryPaymentStore implements PaymentStore {
     return this.atomic(scope, state => {
       if (state.recoveryFenced) return { kind: 'recovery_fenced' } as const;
       const current = state.operations[commit.operation.operationId];
+      if (commit.expectedReadSet?.some(item => this.revision(scope, item.table, item.id) !== item.revision)) return { kind: 'conflict' } as const;
+      if (dispatch && commit.operation.kind !== 'purchase' && (!commit.operation.providerSubscriptionRef || !commit.expectedReadSet?.some(item => item.table === 'subscriptionBindings' && item.id === commit.operation.subscriptionBindingId) || !commit.expectedReadSet.some(item => item.table === 'subscriptions' && item.id === commit.operation.providerSubscriptionRef))) return { kind: 'conflict' } as const;
       if (current && !sameOperationCommand(current, commit.operation)) return { kind: 'conflict' } as const;
       if (current && current.revision !== commit.expectedRevision) return { kind: 'conflict' } as const;
       if (!current && commit.expectedRevision !== 0) return { kind: 'conflict' } as const;

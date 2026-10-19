@@ -157,6 +157,9 @@ function reduceSubscription(state: PaymentState, observation: SubscriptionObserv
   const aggregate = subscriptionAggregate(state, observation.subscriptionRef);
   if (known(observation.currentPeriod) && observation.currentPeriod.value && compareTime(observation.currentPeriod.value.startsAt, observation.currentPeriod.value.endsAt) >= 0) throw new TypeError('Invalid subscription period');
   if (known(observation.scheduledChange) && observation.scheduledChange.value) exactTime(observation.scheduledChange.value.effectiveAt);
+  const relationshipBindings = Object.values(state.subscriptionBindings).filter(binding => binding.providerSubscriptionRefs.includes(observation.subscriptionRef));
+  const observedCustomer = observation.customerRef;
+  if (known(observedCustomer) && relationshipBindings.some(binding => binding.customerRef !== null && binding.customerRef !== observedCustomer.value)) flag(aggregate, 'ownership_mismatch');
   const current = aggregate.current;
   if (current) {
     const order = compareTime(observation.version, current.version);

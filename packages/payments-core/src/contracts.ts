@@ -66,7 +66,7 @@ export type ReductionInput = Readonly<{ inputId: string; state: PaymentState; ex
 export type ReductionCommit = Readonly<{ inputId: string; heldReason?: string; expected: readonly PaymentReadVersion[]; state: PaymentState }>;
 export type IntentAdmission = Readonly<{ intent: PurchaseIntent; operation: PaymentOperation; subscriptionBinding?: SubscriptionBinding }>;
 export type OperationInput = Readonly<{ operation: PaymentOperation; intent?: PurchaseIntent; subscriptionBinding?: SubscriptionBinding; transactionBinding?: TransactionBinding; laneRevision: number }>;
-export type OperationCommit = Readonly<{ expectedRevision: number; expectedLaneRevision: number; operation: PaymentOperation; binding?: TransactionBinding; subscriptionBinding?: SubscriptionBinding; intent?: PurchaseIntent }>;
+export type OperationCommit = Readonly<{ expectedReadSet?: readonly PaymentReadVersion[]; expectedRevision: number; expectedLaneRevision: number; operation: PaymentOperation; binding?: TransactionBinding; subscriptionBinding?: SubscriptionBinding; intent?: PurchaseIntent }>;
 export type StoreCommitResult = Readonly<{ kind: 'committed' }> | Readonly<{ kind: 'conflict' }> | Readonly<{ kind: 'recovery_fenced' }>;
 /**
  * Consumer-shaped storage protocol. Every successful mutation is a confirmed durable commit.
@@ -82,7 +82,8 @@ export interface PaymentStore {
   admitOperation(scope: PaymentScope, operation: PaymentOperation): Promise<Readonly<{ kind: 'created' | 'existing'; operation: PaymentOperation }> | Readonly<{ kind: 'conflict' | 'recovery_fenced' }>>;
   findRequest(scope: PaymentScope, buyerId: string, requestKey: string): Promise<PaymentOperation | undefined>;
   loadOperation(scope: PaymentScope, operationId: string): Promise<OperationInput | undefined>;
-  /** Atomic CAS of operation and its mutation lane; dispatch marker must commit before SDK call. */
+  /** Atomic CAS of operation, immutable command, mutation lane and expectedReadSet. Subscription
+   * dispatch requires binding + pinned subscription authority revisions; marker precedes SDK call. */
   beginExternalDispatch(scope: PaymentScope, commit: OperationCommit): Promise<StoreCommitResult>;
   /** Append immutable late evidence even when the original attempt no longer owns the lane. */
   recordAttemptObservation(scope: PaymentScope, operationId: string, attemptId: string, result: ProviderResult<JsonValue>): Promise<void>;
