@@ -1,0 +1,547 @@
+{
+  "version": 1,
+  "started_at": "2026-10-19T20:59:42.520933+00:00",
+  "finished_at": "2026-10-19T20:59:43.958254+00:00",
+  "results": [
+    {
+      "key": "gm-main",
+      "url": "https://api.github.com/repos/agent-teams-ai/get-modular/commits/main",
+      "read_at": "2026-10-19T20:59:42.524279+00:00",
+      "sha": "eef13520a0c7908ba6c764f8aac8a13862df671a",
+      "committed_at": "2026-10-19T20:30:09Z",
+      "html_url": "https://github.com/agent-teams-ai/get-modular/commit/eef13520a0c7908ba6c764f8aac8a13862df671a"
+    },
+    {
+      "key": "gm-pr-195",
+      "url": "https://api.github.com/repos/agent-teams-ai/get-modular/pulls/195",
+      "read_at": "2026-10-19T20:59:42.524606+00:00",
+      "html_url": "https://github.com/agent-teams-ai/get-modular/pull/195",
+      "state": "closed",
+      "merged": true,
+      "merged_at": "2026-10-19T19:49:10Z",
+      "updated_at": "2026-10-19T19:49:10Z",
+      "head": "aeeb71fe1c89e0ac390ddcb768cbaffc5d39d74a",
+      "base": "16ad9ca5503d81a0527e8f0a3f5934db6950ceb9"
+    },
+    {
+      "key": "gm-pr-199",
+      "url": "https://api.github.com/repos/agent-teams-ai/get-modular/pulls/199",
+      "read_at": "2026-10-19T20:59:42.525000+00:00",
+      "html_url": "https://github.com/agent-teams-ai/get-modular/pull/199",
+      "state": "open",
+      "merged": false,
+      "merged_at": null,
+      "updated_at": "2026-10-19T20:07:45Z",
+      "head": "9cabbd3892d2015056e8a83e6886674edb4ac298",
+      "base": "3e595957424ebc8b0211da7ec5926688f0dd41de"
+    },
+    {
+      "key": "gm-pr-200",
+      "url": "https://api.github.com/repos/agent-teams-ai/get-modular/pulls/200",
+      "read_at": "2026-10-19T20:59:42.525421+00:00",
+      "html_url": "https://github.com/agent-teams-ai/get-modular/pull/200",
+      "state": "open",
+      "merged": false,
+      "merged_at": null,
+      "updated_at": "2026-10-19T20:58:57Z",
+      "head": "9f96b3edcd34bd310e01ff3c420e5f1c14665440",
+      "base": "eef13520a0c7908ba6c764f8aac8a13862df671a"
+    },
+    {
+      "key": "gm-core",
+      "url": "https://registry.npmjs.org/%40get-modular%2Fcore",
+      "read_at": "2026-10-19T20:59:42.526506+00:00",
+      "http_status": 200,
+      "dist-tags": {
+        "candidate-0-1-0": "0.1.0",
+        "candidate-0-2-0": "0.2.0",
+        "candidate-0-3-0": "0.3.0",
+        "latest": "0.4.0",
+        "next": "0.5.0"
+      },
+      "target": "0.6.0",
+      "target_published": false,
+      "published_at": null,
+      "target_peerDependencies": null,
+      "target_integrity": null,
+      "newest_published_versions": [
+        [
+          "0.5.0",
+          "2026-10-17T05:38:38.029Z"
+        ],
+        [
+          "0.4.0",
+          "2026-10-11T12:15:02.515Z"
+        ],
+        [
+          "0.3.0",
+          "2026-10-09T20:32:23.670Z"
+        ],
+        [
+          "0.2.0",
+          "2026-09-29T11:10:22.716Z"
+        ],
+        [
+          "0.1.0",
+          "2026-09-07T18:22:35.862Z"
+        ]
+      ]
+    },
+    {
+      "key": "gm-assembly",
+      "url": "https://registry.npmjs.org/%40get-modular%2Fassembly",
+      "read_at": "2026-10-19T20:59:42.531130+00:00",
+      "http_status": 200,
+      "dist-tags": {
+        "candidate-0-1-0": "0.1.0",
+        "candidate-0-2-0": "0.2.0",
+        "candidate-0-3-0": "0.3.0",
+        "latest": "0.4.0",
+        "next": "0.5.0"
+      },
+      "target": "0.6.0",
+      "target_published": false,
+      "published_at": null,
+      "target_peerDependencies": null,
+      "target_integrity": null,
+      "newest_published_versions": [
+        [
+          "0.5.0",
+          "2026-10-17T05:40:32.276Z"
+        ],
+        [
+          "0.4.0",
+          "2026-10-11T12:15:57.099Z"
+        ],
+        [
+          "0.3.0",
+          "2026-10-09T20:32:47.375Z"
+        ],
+        [
+          "0.2.0",
+          "2026-09-29T11:16:49.888Z"
+        ],
+        [
+          "0.1.0",
+          "2026-09-08T00:05:03.721Z"
+        ]
+      ]
+    },
+    {
+      "key": "gm-resources",
+      "url": "https://registry.npmjs.org/%40get-modular%2Fresources",
+      "read_at": "2026-10-19T20:59:42.531753+00:00",
+      "http_status": 200,
+      "dist-tags": {
+        "latest": "0.1.0",
+        "candidate-0-3-0": "0.1.0"
+      },
+      "target": "0.2.0",
+      "target_published": false,
+      "published_at": null,
+      "target_peerDependencies": null,
+      "target_integrity": null,
+      "newest_published_versions": [
+        [
+          "0.1.0",
+          "2026-10-09T20:33:30.127Z"
+        ],
+        [
+          "0.0.0-stage",
+          "2026-10-09T20:32:55.744Z"
+        ]
+      ]
+    },
+    {
+      "key": "gm-conformance",
+      "url": "https://registry.npmjs.org/%40get-modular%2Fconformance",
+      "read_at": "2026-10-19T20:59:42.532851+00:00",
+      "http_status": 200,
+      "dist-tags": {
+        "candidate-0-3-0": "0.1.0",
+        "latest": "0.2.0",
+        "next": "0.3.0"
+      },
+      "target": "0.4.0",
+      "target_published": false,
+      "published_at": null,
+      "target_peerDependencies": null,
+      "target_integrity": null,
+      "newest_published_versions": [
+        [
+          "0.3.0",
+          "2026-10-17T05:42:52.475Z"
+        ],
+        [
+          "0.2.0",
+          "2026-10-11T12:17:32.311Z"
+        ],
+        [
+          "0.1.0",
+          "2026-10-09T20:35:08.958Z"
+        ],
+        [
+          "0.0.0-stage",
+          "2026-10-09T20:33:53.067Z"
+        ]
+      ]
+    },
+    {
+      "key": "gm-observation",
+      "url": "https://registry.npmjs.org/%40get-modular%2Fobservation",
+      "read_at": "2026-10-19T20:59:42.534251+00:00",
+      "http_status": 404,
+      "target": "0.1.0",
+      "target_published": false
+    },
+    {
+      "key": "foundation",
+      "url": "https://registry.npmjs.org/%40agent-teams%2Fengineering-foundation",
+      "read_at": "2026-10-19T20:59:42.536142+00:00",
+      "http_status": 200,
+      "dist-tags": {
+        "rc": "0.17.0-rc.8",
+        "latest": "1.10.1"
+      },
+      "target": "1.10.1",
+      "target_published": true,
+      "published_at": "2026-10-19T19:36:48.427Z",
+      "target_peerDependencies": null,
+      "target_integrity": "sha512-XX9JRIkeV/eGHcIYvUTHjdQ5O9U2vphhLRUp52JNSIbG89nYply8yQPbPpPQdhsS8ijBGVQIUD2LArnvW8Jo5w==",
+      "newest_published_versions": [
+        [
+          "1.10.1",
+          "2026-10-19T19:36:48.427Z"
+        ],
+        [
+          "1.10.0",
+          "2026-10-19T15:14:59.500Z"
+        ],
+        [
+          "1.9.0",
+          "2026-10-18T22:42:11.736Z"
+        ],
+        [
+          "1.8.0",
+          "2026-10-18T14:13:48.270Z"
+        ],
+        [
+          "1.7.4",
+          "2026-10-11T04:12:54.613Z"
+        ]
+      ]
+    },
+    {
+      "key": "fms",
+      "url": "https://registry.npmjs.org/%40agent-teams%2Ffeature-module-standard",
+      "read_at": "2026-10-19T20:59:42.745655+00:00",
+      "http_status": 200,
+      "dist-tags": {
+        "bootstrap": "0.0.0",
+        "latest": "0.1.2"
+      },
+      "target": "0.1.2",
+      "target_published": true,
+      "published_at": "2026-10-19T19:38:26.987Z",
+      "target_peerDependencies": {
+        "@agent-teams/engineering-foundation": "^1.8.0"
+      },
+      "target_integrity": "sha512-laCeig2JQUXDMSgDOKeCLUcpcS2RDqHzvgcVBhbMpaV2aI/LmXF3BYjogj1yLv9+YCrHU3wcUfplumVGvk4t1w==",
+      "newest_published_versions": [
+        [
+          "0.1.2",
+          "2026-10-19T19:38:26.987Z"
+        ],
+        [
+          "0.1.1",
+          "2026-10-19T15:42:49.163Z"
+        ],
+        [
+          "0.0.0",
+          "2026-10-17T14:15:58.522Z"
+        ]
+      ]
+    },
+    {
+      "key": "paddle-node",
+      "url": "https://registry.npmjs.org/%40paddle%2Fpaddle-node-sdk",
+      "read_at": "2026-10-19T20:59:42.817189+00:00",
+      "http_status": 200,
+      "dist-tags": {
+        "beta": "1.4.0-beta.0",
+        "rc": "2.0.0-rc.2",
+        "latest": "3.10.0"
+      },
+      "target": "3.10.0",
+      "target_published": true,
+      "published_at": "2026-08-07T09:58:18.764Z",
+      "target_peerDependencies": null,
+      "target_integrity": "sha512-njqp+L6e/2aR99EYh/Ulyu6B9sIyVERTFclGOznKmLZcy11pAwHoHyIgq1BUH1ybQH+YmJQmrrUQC/Rfg8JAAw==",
+      "newest_published_versions": [
+        [
+          "3.10.0",
+          "2026-08-07T09:58:18.764Z"
+        ],
+        [
+          "3.9.0",
+          "2026-08-06T09:15:55.353Z"
+        ],
+        [
+          "3.8.0",
+          "2026-04-21T09:24:26.164Z"
+        ],
+        [
+          "3.7.0",
+          "2026-04-09T12:58:35.837Z"
+        ],
+        [
+          "3.6.1",
+          "2026-03-27T09:17:33.075Z"
+        ]
+      ]
+    },
+    {
+      "key": "paddle-js",
+      "url": "https://registry.npmjs.org/%40paddle%2Fpaddle-js",
+      "read_at": "2026-10-19T20:59:42.881083+00:00",
+      "http_status": 200,
+      "dist-tags": {
+        "beta": "0.0.5",
+        "next": "1.6.3-next.0",
+        "latest": "1.6.5"
+      },
+      "target": "1.6.5",
+      "target_published": true,
+      "published_at": "2026-08-25T14:45:55.936Z",
+      "target_peerDependencies": null,
+      "target_integrity": "sha512-uFRvptUzYRqRlqTU5XmfcZWC9BGVYpZNdANd3giJjZbJlHesnE4gn8PyjtYpesU1ar2ZGPuJxHvrrSIV9jjdVw==",
+      "newest_published_versions": [
+        [
+          "1.6.5",
+          "2026-08-25T14:45:55.936Z"
+        ],
+        [
+          "1.6.4",
+          "2026-04-21T14:17:59.822Z"
+        ],
+        [
+          "1.6.3-next.0",
+          "2026-03-27T14:18:14.721Z"
+        ],
+        [
+          "1.6.2",
+          "2026-02-02T16:47:04.949Z"
+        ],
+        [
+          "1.6.2-next.0",
+          "2026-02-02T11:36:29.789Z"
+        ]
+      ]
+    },
+    {
+      "key": "paddle-issue-127",
+      "url": "https://api.github.com/repos/PaddleHQ/paddle-js-wrapper/issues/127",
+      "read_at": "2026-10-19T20:59:42.919044+00:00",
+      "html_url": "https://github.com/PaddleHQ/paddle-js-wrapper/issues/127",
+      "title": "[Bug]: Interface 'PaddleEventData' incorrectly extends interface 'Partial<CheckoutEventError>'",
+      "state": "open",
+      "updated_at": "2026-06-06T01:19:43Z",
+      "closed_at": null,
+      "state_reason": null
+    },
+    {
+      "key": "paddle-js-main",
+      "url": "https://api.github.com/repos/PaddleHQ/paddle-js-wrapper/commits/main",
+      "read_at": "2026-10-19T20:59:42.930023+00:00",
+      "sha": "3217c8e0ee6f075a62440050ea8bbc9cba74a3ce",
+      "committed_at": "2026-08-25T20:35:57Z",
+      "html_url": "https://github.com/PaddleHQ/paddle-js-wrapper/commit/3217c8e0ee6f075a62440050ea8bbc9cba74a3ce"
+    },
+    {
+      "key": "paddle-js-open-prs",
+      "url": "https://api.github.com/repos/PaddleHQ/paddle-js-wrapper/pulls?state=open&per_page=100",
+      "read_at": "2026-10-19T20:59:42.987020+00:00",
+      "prs": [
+        {
+          "number": 131,
+          "title": "DX-1167: Add in express settings to checkout settings",
+          "html_url": "https://github.com/PaddleHQ/paddle-js-wrapper/pull/131",
+          "head": "34ba7392beb17d6f9a10271de8c76841ac11d5cd",
+          "updated_at": "2026-09-17T08:45:43Z"
+        }
+      ]
+    }
+  ],
+  "source_files": [
+    {
+      "key": "gm-watch",
+      "commit": "eef13520a0c7908ba6c764f8aac8a13862df671a",
+      "path": "packages/observation/src/features/store/watch.ts",
+      "html_url": "https://github.com/agent-teams-ai/get-modular/blob/eef13520a0c7908ba6c764f8aac8a13862df671a/packages/observation/src/features/store/watch.ts",
+      "blob": "7653f0e588cf1acdbc294ab18b56cfb42e1d8474",
+      "sha256": "b066ceccff52f89ea0785d541624e8b44d7008f68a6be20f7e9cc2883f665d45",
+      "bytes": 2002,
+      "contains_paddle_inheritance": null
+    },
+    {
+      "key": "gm-load",
+      "commit": "eef13520a0c7908ba6c764f8aac8a13862df671a",
+      "path": "packages/observation/src/features/store/load.ts",
+      "html_url": "https://github.com/agent-teams-ai/get-modular/blob/eef13520a0c7908ba6c764f8aac8a13862df671a/packages/observation/src/features/store/load.ts",
+      "blob": "0dea3c8cb3c7d017dddd77626c9a01c593685a88",
+      "sha256": "8f18a6566e642fef854dcdacc49f8013b5049da0a4475f32c523755e0d73f79b",
+      "bytes": 7192,
+      "contains_paddle_inheritance": null
+    },
+    {
+      "key": "gm-types",
+      "commit": "eef13520a0c7908ba6c764f8aac8a13862df671a",
+      "path": "packages/observation/src/features/store/types.ts",
+      "html_url": "https://github.com/agent-teams-ai/get-modular/blob/eef13520a0c7908ba6c764f8aac8a13862df671a/packages/observation/src/features/store/types.ts",
+      "blob": "14b4fbebbb37047842e82448a0ced694906be01b",
+      "sha256": "1cf342e0610c605e5d64c88e1aec9e7fcf33d75f7a8da7ccb47d4d86ef25950a",
+      "bytes": 14330,
+      "contains_paddle_inheritance": null
+    },
+    {
+      "key": "gm-values",
+      "commit": "eef13520a0c7908ba6c764f8aac8a13862df671a",
+      "path": "packages/observation/src/features/store/values.ts",
+      "html_url": "https://github.com/agent-teams-ai/get-modular/blob/eef13520a0c7908ba6c764f8aac8a13862df671a/packages/observation/src/features/store/values.ts",
+      "blob": "7eb5fcf934c992ee49c30404af920cdcfa4cbb92",
+      "sha256": "caf72c6f0d40c02448f245c4ee45c3bd3f92155e8579865d8d97a79d83415dd8",
+      "bytes": 3464,
+      "contains_paddle_inheritance": null
+    },
+    {
+      "key": "gm-cms",
+      "commit": "eef13520a0c7908ba6c764f8aac8a13862df671a",
+      "path": "docs/architecture/common-assembly.md",
+      "html_url": "https://github.com/agent-teams-ai/get-modular/blob/eef13520a0c7908ba6c764f8aac8a13862df671a/docs/architecture/common-assembly.md",
+      "blob": "ae6792543bd19acc948e177e8d55632c9d51134e",
+      "sha256": "c2fe582a14ff6e79620b232ca7ffc914afb0474ec21fd43f208251dd7252f4a3",
+      "bytes": 81436,
+      "contains_paddle_inheritance": null
+    },
+    {
+      "key": "paddle-js-checkout",
+      "commit": "3217c8e0ee6f075a62440050ea8bbc9cba74a3ce",
+      "path": "types/checkout/checkout.d.ts",
+      "html_url": "https://github.com/PaddleHQ/paddle-js-wrapper/blob/3217c8e0ee6f075a62440050ea8bbc9cba74a3ce/types/checkout/checkout.d.ts",
+      "blob": "86d75cf1f7c3d4f287b44d64e7c5073df73270da",
+      "sha256": "64d6a5940a77d8bc67eeae31da62874e70e60fd22afa0cb881aa769098418129",
+      "bytes": 3284,
+      "contains_paddle_inheritance": true
+    }
+  ],
+  "main_delta": {
+    "checked_at": "2026-10-19T21:00:05.324188+00:00",
+    "url": "https://api.github.com/repos/agent-teams-ai/get-modular/compare/3e595957424ebc8b0211da7ec5926688f0dd41de...eef13520a0c7908ba6c764f8aac8a13862df671a",
+    "html_url": "https://github.com/agent-teams-ai/get-modular/compare/3e595957424ebc8b0211da7ec5926688f0dd41de...eef13520a0c7908ba6c764f8aac8a13862df671a",
+    "status": "ahead",
+    "commits": [
+      {
+        "sha": "eef13520a0c7908ba6c764f8aac8a13862df671a",
+        "subject": "test(consumer-fixtures): finish installed source and shutdown qualification"
+      }
+    ],
+    "files": [
+      {
+        "path": ".github/workflows/fixture-growth-upstream-diagnostic.yml",
+        "status": "added"
+      },
+      {
+        "path": "architecture/checks/feature-module-standard-profile.mjs",
+        "status": "modified"
+      },
+      {
+        "path": "architecture/foundation/dependency-declarations.yaml",
+        "status": "modified"
+      },
+      {
+        "path": "architecture/foundation/repository-agent-workflow.yaml",
+        "status": "modified"
+      },
+      {
+        "path": "architecture/foundation/source-dependencies.yaml",
+        "status": "modified"
+      },
+      {
+        "path": "package.json",
+        "status": "modified"
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "status": "modified"
+      },
+      {
+        "path": "tests/assembly/consumer-fixtures.test.mjs",
+        "status": "modified"
+      },
+      {
+        "path": "tests/assembly/consumer-growth.test.mjs",
+        "status": "modified"
+      },
+      {
+        "path": "tests/qualification/consumer-fixtures/README.md",
+        "status": "modified"
+      },
+      {
+        "path": "tests/qualification/consumer-fixtures/authoring/transport.ts",
+        "status": "added"
+      },
+      {
+        "path": "tests/qualification/consumer-fixtures/growth/README.md",
+        "status": "modified"
+      },
+      {
+        "path": "tests/qualification/consumer-fixtures/growth/run.mjs",
+        "status": "modified"
+      },
+      {
+        "path": "tests/qualification/consumer-fixtures/growth/upstream-compiler.ts",
+        "status": "added"
+      },
+      {
+        "path": "tests/qualification/consumer-fixtures/growth/worker.mjs",
+        "status": "modified"
+      },
+      {
+        "path": "tests/qualification/consumer-fixtures/semantic/tests/support/held-startup-controller.ts",
+        "status": "added"
+      },
+      {
+        "path": "tests/qualification/consumer-fixtures/source/README.md",
+        "status": "modified"
+      },
+      {
+        "path": "tests/qualification/consumer-fixtures/source/installed.ts",
+        "status": "added"
+      },
+      {
+        "path": "tests/qualification/consumer-fixtures/source/policy.ts",
+        "status": "added"
+      },
+      {
+        "path": "tests/qualification/consumer-fixtures/source/run-research.mjs",
+        "status": "modified"
+      },
+      {
+        "path": "tests/qualification/consumer-fixtures/source/scenarios.mjs",
+        "status": "modified"
+      },
+      {
+        "path": "tests/qualification/consumer-fixtures/source/source-dependencies.yaml",
+        "status": "added"
+      },
+      {
+        "path": "tests/repository-agent-workflow.test.ts",
+        "status": "modified"
+      },
+      {
+        "path": "tests/tsconfig.consumer-fixtures.json",
+        "status": "added"
+      }
+    ]
+  }
+}

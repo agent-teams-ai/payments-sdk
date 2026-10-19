@@ -1,0 +1,17 @@
+{
+  "name": "@agent-teams/payments-postgres",
+  "version": "0.1.0",
+  "description": "Durable PostgreSQL payment custody and job transport for the Agent Teams payments SDK",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=24.21.0 <25 || >=26.11.1 <27" },
+  "files": ["dist", "README.md", "NOTICE"],
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "sideEffects": false,
+  "dependencies": {
+    "@agent-teams/payments-core": "workspace:^",
+    "@types/pg": "catalog:",
+    "pg": "catalog:",
+    "pg-boss": "catalog:"
+  }
+}

@@ -1,8 +1,12 @@
 node_modules/
 dist/
+*.tsbuildinfo
 coverage/
 .tmp/
 artifacts/
 .env
 .env.*
 !.env.example
+.artifacts/
+.postgres/
+

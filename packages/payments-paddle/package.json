@@ -1,0 +1,12 @@
+{
+  "name": "@agent-teams/payments-paddle",
+  "version": "0.1.0",
+  "description": "Official Paddle SDK adapter for provider-neutral payment evidence",
+  "license": "Apache-2.0",
+  "type": "module",
+  "files": ["dist"],
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "engines": { "node": ">=24.21.0 <25 || >=26.11.1 <27" },
+  "dependencies": { "@agent-teams/payments-core": "workspace:*", "@paddle/paddle-node-sdk": "catalog:" },
+  "devDependencies": { "undici": "catalog:" }
+}

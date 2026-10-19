@@ -1,0 +1,65 @@
+# Third-wave review — integration, implementation readiness, and minimalism
+
+**Reviewer:** fourth independent critic. **Subject:** immutable `research/reviews/wave3-plan.md`, SHA-256 `55a2828dadae96c92e23a3d137ee5b3c52b9b7210c5c1d0211c8cdb9d430bcd7`. This review read the complete handoff, complete Q 1.1.2, the plan, `get-modular.md`, `platform-foundation-q.md`, and the later `source-audit.md`. It did not read another critic's report or the separate review journal. No implementation, account operation, upstream change, or runtime qualification was performed.
+
+## Assessment
+
+The proposed integration is substantially implementable and appropriately separated. There is **no P0 finding**, **one P1 delivery-contract gap**, and **one narrow P2 public-API correction** below. The P1 should be closed before freezing the first public evidence schema; it does not justify redesigning the core, introducing a broker, or waiting for observation publication. The P2 is a terminology error with an exact correction, not evidence that resource ownership is generally wrong.
+
+The plan now distinguishes payment facts, commercial decisions, credit decisions, and mutable views well enough to implement them independently. It also avoids the principal integration traps: fabricated lifecycle hooks, financial effects in latest-only loaders, an implicit connection pool, incompatible observation peers, and typechecking only through workspace aliases. I found no defensible reason to demand another provider, another database, a larger runtime matrix, or a production Platform integration during this research.
+
+## P1 — Oversized evidence needs a deliverable, bounded hold state
+
+**Trace:** plan lines 163, 167, 180–190. Line 167 requires each `PaymentEvidenceChanged` to be a full snapshot containing all known adjustment identities/states, imposes a message-size bound, prohibits truncation, and leaves immutable versioned references until later. Overflow becomes durable review/recovery, but the public contract does not specify a bounded representation that can actually communicate that review state. Line 163 requires failures to reach consumers through another snapshot of trusted history plus flags; that path also serializes history and does not state a reserved bound or a different payload form.
+
+**Concrete execution:** a consumer has accepted revision N and permits its previously paid benefit. Additional adverse observations make the next complete snapshot exceed the configured transport limit. The producer has durable custody and an overflow/review obligation, yet cannot emit the prescribed full N+1 body. Repeating repair cannot reduce that body. If quarantine rebuilds the same growing history, it has the same problem. If an implementer silently omits adjustment history to fit, the message violates the advertised full-snapshot contract. The consumer can therefore retain its older complete evidence without learning that the producer can no longer supply a complete current view. Durable producer review alone is not the T3 notification required by the plan.
+
+This is a contract hole rather than a request to handle arbitrary scale. The plan itself introduces the size limit and requires downstream holds to survive decoder/job failure. The same property must remain representable when the limit is reached. Subscription payloads should use the same bounded control rule if they share the delivery protocol.
+
+**Minimal correction:** define a small control representation in the existing evidence-message union, or explicitly extend the existing quarantine form. It must carry the stable producer/aggregate identity, increasing local evidence revision, message identity/digest, and an unambiguous `incomplete/held` reason without requiring the oversized historical body. It must explicitly say that it is not a complete replacement evidence snapshot. Existing consumer contributions may remain as last-known history, but cannot be treated as complete current permission merely because the control body omits them. Consumer policy owns the precise restriction/correction; payment core still does not revoke credits itself.
+
+Persist this control revision and its delivery targets atomically with the overflow publication decision. Reserve its bounded size independently of ordinary evidence growth. Keep the full financial history locally. Recovery may later publish a complete higher revision after an authorized resolution or a supported protocol upgrade. No v1 download service, generic chunking engine, mutable-reference shortcut, or cross-context SQL is needed. The schema should also state how an understood control envelope handles an unsupported payload schema, rather than leaving rolling-upgrade behavior to transport callbacks.
+
+**Acceptance:** start with a delivered, usable paid revision; cross the configured size limit with an adverse observation; prove that the consumer receives a higher held/incomplete revision within the same configured bound. Remove the queue job and restart both sides: the hold obligation and delivery must still recover. Deliver the prior complete revision afterward: it cannot restore completeness or issue another grant. Resolve the case and deliver a complete higher revision: normal consumer decision recovery occurs once, retaining original financial/effect identities. An assertion only that the producer logged overflow is insufficient.
+
+## P2 — `resources.control` is not the published Resources API
+
+**Trace:** plan line 273 says that `resources.control` remains with Host. In exact Resources 0.1.0, `createScope()` returns a `Scope` with two sibling fields, `resources` and `control`. `Resources` itself exposes `signal`, `setup`, `use`, and `child`; it has no `control`. Evidence is `research/registry/get-modular/resources-unpacked/package/dist/features/scope/types.d.ts`, corroborated by its `scope.js` facade construction.
+
+**Minimal correction:** say `attemptScope.control` or `Scope.control` remains with Host; `prepared.run` receives `scope: attemptScope.resources`. Preserve the existing instruction that modules receive only the resource facade. No lifecycle abstraction or API wrapper is necessary.
+
+**Acceptance:** the packed static-composition example compiles against Resources 0.1.0, keeps the control object at Host, and exercises failed-run cleanup through that separate control. It never reaches for `attemptScope.resources.control` or supplies control through a borrowed capability.
+
+## Keep: published composition and future observation are different profiles
+
+The inspected Assembly 0.5.0 manifest depends on **exact Core 0.5.0**. Resources 0.1.0 has package-local `WeakMap` identity, so two physical resources copies are operationally different even when TypeScript declarations look identical. Conformance 0.3.0 has Core/Assembly/Resources peers `^0.5.0`/`^0.5.0`/`^0.1.0`. Plan lines 264–267 correctly respond with Host-owned narrow peers, exact qualification pins, one physical Resources copy, and tooling-only Conformance. Relaxing this into broad peer unions would increase integration ambiguity.
+
+The static API shape is also real: the archive exposes descriptor-owned contracts, `declareModule`, `implement`, `input`, static groups, and preparation followed by runs. Its run context treats scope as opaque and its outcome includes construction records. It does not own resource disposal, readiness, or compensation. Keep ordinary factories below the composition boundary and keep the Host responsible for cleanup of failed/cancelled attempts. Do not add a payment-specific DI system to hide these explicit responsibilities.
+
+The separate observation train remains a gate, not a package available to install today. The effective upstream state comes from the later audit: main `4609c2a…`; #197 merged; #154 still open at `fc276a9…` with unchanged ADR bytes; #195 still open. The merge changes tooling, not published APIs or CMS bytes. The plan correctly records that distinction. Earlier timestamps/statuses in retained research are historical inputs, not a reason to revert the plan's corrected current state.
+
+For P6, interpret “observation read projection when released” as an optional later qualification of B. The required B consumer can demonstrate published static GM composition immediately. Keep that separation in its eventual implementation checklist so unavailable observation does not suspend otherwise valid packed consumption. This is a clarification of the existing dependency gate, not an additional finding.
+
+## Keep: lifecycle debt and SQL ownership remain explicit
+
+The borrowed-pool deployment is a useful concrete v1 profile. Per-scope payment/queue namespaces, replicas deliberately sharing a namespace, trusted scope registration, and Host-controlled pool shutdown make a multi-application example testable without inventing a router service. The scoped Db wrapper is not presented as job filtering, and adapter cleanup does not call `pool.end()`.
+
+The pg-boss seam is appropriately limited to ordinary `work` and same-client enqueue. The inspected exact distribution separates injected Db handling from its default pool and exposes transaction support separately. There is no reason to demand `transactional:true` merely because admission uses a SQL transaction. Short domain commits around external I/O, replay after domain commit, and repair based on payment-owned obligations avoid turning queue retention into financial retention.
+
+Similarly, Host tracks actual handler/SDK settlement after a bounded boss stop; a timeout is not called physical drain. This is consistent with Resources' cooperative close contract. Keep one owned stop/drain/cleanup sequence where ordering matters. Splitting it into multiple generic lifecycle hooks would obscure the dependency that makes the borrowed pool safe to release.
+
+## Keep: Foundation and packed contract checks, without a second governance platform
+
+The exact Foundation 1.10.0 tarball declares TypeScript 7.0.2 and its base preset enables `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, and related checks. The plan requires strict ownership for maintained tests/tools as well as runtime source, checks NodeNext and Bundler against tarballs, and forbids hidden old compiler closures. These are substantive distribution checks. A successful source build or native type-stripping execution would not substitute for them.
+
+The selected source-dependency and declaration capabilities are proportionate. Keeping FMS opt-in and qualifying v3 only when root authority actually needs it follows Q: boundary tooling should enforce declared ownership rather than prescribe architecture by folder count. Required CI must execute the declared checks; the plan explicitly refuses to equate script connectivity with execution. Keep the negative import fixtures because they exercise installed policy rather than matching forbidden text.
+
+The public compatibility gate after the first real released baseline is also reasonable. Foundation's active v1 gate covers breaking surface changes and export-map closure; its separate trusted SDK-growth machinery is dormant. Do not activate that machinery merely because this library is an SDK. At first release, inventory every public typed subpath, including testing utilities, and create the actual release-owned baseline. Later additions still require ordinary review: compatibility with an old signature does not prove that a new capability or evidence-schema meaning is sound. This uses existing release work, not another approval framework.
+
+## Keep and simplify: consumer demonstrations are qualification, not new products
+
+The two Hosts should continue calling the same public factory and delivery contracts. Their HTTP differences establish framework independence; their independent receipt/decision transactions establish ownership. The nonproduction credit and commercial-access-style fixtures are necessary oracles for T3, not authority to create a Platform context, production ledger, or sample SaaS application.
+
+Keep their policy deliberately small and explicit. Do not implement consumption, pricing, invoicing, an admin UI, or a generalized policy engine to make the examples look complete. The present fixture table already gives meaningful balances, withheld states, corrections, and restoration outcomes. Those assertions and the held-resolution concurrency cases provide more integration evidence than additional framework combinations.
+
+The four delivery packages protect real dependency boundaries, while one cohesive internal storage protocol avoids repository-per-table indirection. Retain both decisions. The runtime line estimate remains an estimate: the report correctly excludes production ledger and a second provider and does not make the estimate an acceptance gate. Closing the bounded hold representation and the exact resource-control wording is sufficient for this lens; broader restructuring would currently add cost without fixing another demonstrated invariant.
