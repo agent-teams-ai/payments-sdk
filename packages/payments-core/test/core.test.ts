@@ -462,3 +462,19 @@ test('quarantined preflight custody cannot authorize dispatch using an older mat
   assert.deepEqual(await context.payments.requestCancellation({ buyerId: 'buyer', bindingId: basis, requestKey: 'quarantined-authority-command', timing: 'now' }), { kind: 'rejected', code: 'unclassified_external_state' }); assert.equal(mutations, 0);
   assert.equal((await context.store.loadReductionInput(scope, conflicting.inputId))?.state.inbox[conflicting.inputId]?.state, 'quarantined');
 });
+
+test('an acknowledged subscription feed receives a higher revision for a newly retained stale ownership hold', async () => {
+  const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, 'stale-hold-initial', 'monthly'));
+  const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis);
+  await context.payments.registerConsumer('stale-hold-consumer');
+  const current: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: '2026-01-02T00:00:00Z', status: yes('active'), customerRef: yes('payer'), scheduledChange: yes(null), currentPeriod: yes(period), priceRefs: yes(['price']), source: source('latest-owned-subscription') };
+  await observe(context, current);
+  const first = (await context.payments.readDeliveries('stale-hold-consumer'))[0]; assert.ok(first); await context.payments.acknowledgeDelivery('stale-hold-consumer', first.messageId, first.bodyDigest);
+  const stale = { ...current, version: '2026-01-01T00:00:00Z', customerRef: yes('old-contradictory-payer'), source: source('stale-customer-contradiction') };
+  await observe(context, stale); await context.payments.repair();
+  const projection = (await context.payments.readObservedSubscription('buyer', basis))?.observations[0]; assert.ok(projection); assert.equal(projection.current?.version, current.version); assert.ok(projection.flags.includes('ownership_mismatch'));
+  const delivery = (await context.payments.readDeliveries('stale-hold-consumer'))[0]; assert.ok(delivery); assert.ok(delivery.revision > first.revision); assert.equal(delivery.kind, 'subscription_complete'); if (delivery.kind === 'subscription_complete') assert.ok(delivery.flags.includes('ownership_mismatch'));
+  await context.payments.acknowledgeDelivery('stale-hold-consumer', delivery.messageId, delivery.bodyDigest);
+  await context.payments.ingestVerifiedInput(input(stale)); assert.equal(await context.payments.processInbox(stale.source.receiptId), 'duplicate'); await context.payments.repair();
+  assert.equal((await context.payments.readDeliveries('stale-hold-consumer')).length, 0);
+});

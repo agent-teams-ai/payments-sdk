@@ -162,11 +162,12 @@ function reduceSubscription(state: PaymentState, observation: SubscriptionObserv
   if (known(observation.scheduledChange) && observation.scheduledChange.value) exactTime(observation.scheduledChange.value.effectiveAt);
   const relationshipBindings = Object.values(state.subscriptionBindings).filter(binding => binding.providerSubscriptionRefs.includes(observation.subscriptionRef));
   const observedCustomer = observation.customerRef;
-  if (known(observedCustomer) && relationshipBindings.some(binding => binding.customerRef !== null && binding.customerRef !== observedCustomer.value)) flag(aggregate, 'ownership_mismatch');
+  const newOwnershipHold = known(observedCustomer) && relationshipBindings.some(binding => binding.customerRef !== null && binding.customerRef !== observedCustomer.value) && !aggregate.flags.includes('ownership_mismatch');
+  if (newOwnershipHold) flag(aggregate, 'ownership_mismatch');
   const current = aggregate.current;
   if (current) {
     const order = compareTime(observation.version, current.version);
-    if (order < 0) return;
+    if (order < 0) { if (newOwnershipHold) { aggregate.revision += 1; aggregate.publicationRequired = true; } return; }
     if (order === 0 && !compatible(semantic(current), semantic(observation))) { flag(aggregate, 'conflict'); aggregate.revision += 1; aggregate.publicationRequired = true; return; }
     if (order === 0) observation = mergeFields(current, observation);
     else aggregate.lastKnown = current;
