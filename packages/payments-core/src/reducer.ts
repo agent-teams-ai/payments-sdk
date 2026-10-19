@@ -1,4 +1,4 @@
-import type { AdjustmentObservation, CompletionFact, EvidenceFlag, EvidenceMessage, Field, Observation, OfferSnapshot, PaymentScope, PaymentState, ProviderLine, SubscriptionAggregate, SubscriptionBinding, SubscriptionObservation, TransactionAggregate, TransactionBinding, TransactionObservation, VerifiedInput } from './contracts.js';
+import type { AdjustmentObservation, CompletionFact, EvidenceFlag, EvidenceMessage, Field, Observation, OfferSnapshot, PaymentScope, PaymentState, ProviderLine, SubscriptionAggregate, SubscriptionBinding, SubscriptionObservation, TransactionAggregate, TransactionObservation, VerifiedInput } from './contracts.js';
 import { assertIdentifier, canonicalJson, compareTime, digest, exactTime, money } from './values.js';
 
 const known = <T>(field: Field<T>): field is Readonly<{ presence: 'known'; value: T; provenance?: 'observed' | 'schema_assumed_null' }> => field.presence === 'known';

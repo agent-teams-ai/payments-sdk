@@ -18,7 +18,7 @@ export function assertScope(scope: PaymentScope): void {
   for (const field of [scope.applicationId, scope.provider, scope.paymentAccountId]) assertIdentifier(field);
   if (scope.environment !== 'sandbox' && scope.environment !== 'production') throw new TypeError('Invalid environment');
 }
-export function assertIdentifier(value: string): void { if (typeof value !== 'string' || value.length === 0 || value.length > 256 || /[\u0000-\u001f]/u.test(value)) throw new TypeError('Invalid bounded identifier'); }
+export function assertIdentifier(value: string): void { if (typeof value !== 'string' || value.length === 0 || value.length > 256 || [...value].some(character => character.charCodeAt(0) < 32)) throw new TypeError('Invalid bounded identifier'); }
 export function money(currency: string, minorUnits: string): Money {
   if (!/^[A-Z]{3}$/u.test(currency) || !/^-?(0|[1-9][0-9]{0,77})$/u.test(minorUnits) || minorUnits === '-0') throw new TypeError('Invalid exact money');
   return Object.freeze({ currency, minorUnits });

@@ -166,7 +166,7 @@ export function createPayments(options: PaymentRuntimeOptions) {
       else {
         // A trusted binding may arrive after a completed webhook was already processed unresolved.
         // The durable publication obligation reclassifies saved observations without a new provider event.
-        if (aggregate.type === 'transaction') for (const observation of [...(loaded.state.transactions[aggregate.id]?.observations ?? [])]) reduceObservation(loaded.state, scope, observation);
+        if (aggregate.type === 'transaction') for (const observation of loaded.state.transactions[aggregate.id]?.observations ?? []) reduceObservation(loaded.state, scope, observation);
         else { const observation = loaded.state.subscriptions[aggregate.id]?.current; if (observation) reduceObservation(loaded.state, scope, observation); }
         publishEvidence(loaded.state, scope, producerNamespace, maxBytes);
       }
