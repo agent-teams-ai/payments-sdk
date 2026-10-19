@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { AggregateIdentity, CancellationOutcome, CheckoutReady, EvidenceMessage, JsonValue, OperationCommit, OperationInput, OperationResult, PaymentOperation, PaymentRuntimeOptions, ProviderResult, ResolveUnknown, StartPurchase, SubscriptionBinding, TransactionBinding, VerifiedInput } from './contracts.js';
-import { processInput, publishEvidence, publishHeldEvidence, validateOffer } from './reducer.js';
+import type { AggregateIdentity, CancellationOutcome, CheckoutReady, EvidenceMessage, JsonValue, OperationCommit, OperationInput, OperationResult, PaymentOperation, PaymentReadVersion, PaymentRuntimeOptions, ProviderResult, ResolveUnknown, StartPurchase, SubscriptionBinding, TransactionBinding, VerifiedInput } from './contracts.js';
+import { processInput, publishEvidence, reduceObservation, publishHeldEvidence, validateOffer } from './reducer.js';
 import { assertIdentifier, assertScope, canonicalJson, digest, sameScope } from './values.js';
 
 const jsonResult = <T>(result: ProviderResult<T>): ProviderResult<JsonValue> => structuredClone(result) as ProviderResult<JsonValue>;
@@ -28,6 +28,14 @@ export function createPayments(options: PaymentRuntimeOptions) {
   if (!Number.isInteger(maxBytes) || maxBytes < 4096 || maxBytes > 16_777_216) throw new RangeError('Invalid evidence limit');
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300_000) throw new RangeError('Invalid operation deadline');
   const active = new Set<Promise<unknown>>();
+  const work = new Set<Promise<unknown>>();
+  function tracked<A extends unknown[], R>(run: (...args: A) => Promise<R>): (...args: A) => Promise<R> {
+    return (...args) => {
+      const promise = run(...args); work.add(promise);
+      void promise.finally(() => work.delete(promise)).catch(() => undefined);
+      return promise;
+    };
+  }
   let accepting = true;
   const unavailable = { kind: 'rejected', code: 'unavailable' } as const;
 
@@ -153,7 +161,13 @@ export function createPayments(options: PaymentRuntimeOptions) {
     for (let attempt = 0; attempt < 4; attempt += 1) {
       const loaded = await store.loadPublicationInput(scope, aggregate); if (!loaded) return 'missing';
       if (loaded.incompleteReason) publishHeldEvidence(loaded.state, scope, producerNamespace, loaded.incompleteReason, maxBytes);
-      else publishEvidence(loaded.state, scope, producerNamespace, maxBytes);
+      else {
+        // A trusted binding may arrive after a completed webhook was already processed unresolved.
+        // The durable publication obligation reclassifies saved observations without a new provider event.
+        if (aggregate.type === 'transaction') for (const observation of [...(loaded.state.transactions[aggregate.id]?.observations ?? [])]) reduceObservation(loaded.state, scope, observation);
+        else { const observation = loaded.state.subscriptions[aggregate.id]?.current; if (observation) reduceObservation(loaded.state, scope, observation); }
+        publishEvidence(loaded.state, scope, producerNamespace, maxBytes);
+      }
       const committed = await store.commitReduction(scope, { inputId: loaded.inputId, expected: loaded.expected, state: loaded.state, ...(loaded.incompleteReason ? { heldReason: loaded.incompleteReason } : {}) });
       if (committed.kind !== 'conflict') return committed.kind;
     }
@@ -167,8 +181,9 @@ export function createPayments(options: PaymentRuntimeOptions) {
       const observation = await provider.readTransaction(ref);
       if (observation.kind !== 'succeeded') continue;
       const value = observation.value;
-      await ingestVerifiedInput({ scope, inputId: value.source.receiptId, source: value.source, observation: value, retainedRepresentation: JSON.parse(canonicalJson(value)) as JsonValue });
-      await processInbox(value.source.receiptId); refreshed += 1;
+      if (value.transactionRef !== ref) return { kind: 'rejected', code: 'ownership_mismatch' };
+      await store.admitVerifiedInputs(scope, [{ scope, inputId: value.source.receiptId, source: value.source, observation: value, retainedRepresentation: JSON.parse(canonicalJson(value)) as JsonValue }]);
+      const processed = await processInbox(value.source.receiptId); if (processed === 'processed' || processed === 'duplicate') refreshed += 1;
     }
     return { kind: 'succeeded', value: refreshed };
   }
@@ -179,8 +194,9 @@ export function createPayments(options: PaymentRuntimeOptions) {
     for (const ref of subscription.binding.providerSubscriptionRefs) {
       const observation = await provider.readSubscription(ref); if (observation.kind !== 'succeeded') continue;
       const value = observation.value;
-      await ingestVerifiedInput({ scope, inputId: value.source.receiptId, source: value.source, observation: value, retainedRepresentation: JSON.parse(canonicalJson(value)) as JsonValue });
-      await processInbox(value.source.receiptId); refreshed += 1;
+      if (value.subscriptionRef !== ref) return { kind: 'rejected', code: 'ownership_mismatch' };
+      await store.admitVerifiedInputs(scope, [{ scope, inputId: value.source.receiptId, source: value.source, observation: value, retainedRepresentation: JSON.parse(canonicalJson(value)) as JsonValue }]);
+      const processed = await processInbox(value.source.receiptId); if (processed === 'processed' || processed === 'duplicate') refreshed += 1;
     }
     return { kind: 'succeeded', value: refreshed };
   }
@@ -218,6 +234,7 @@ export function createPayments(options: PaymentRuntimeOptions) {
     return result.kind === 'rejected' ? { kind: 'rejected', code: result.code } : result;
   }
   async function resolveUnknownOperation(command: ResolveUnknown): Promise<OperationResult<PaymentOperation>> {
+    if (!accepting) return unavailable;
     for (const value of [command.actorId, command.auditRef, command.reason]) assertIdentifier(value);
     const input = await store.loadOperation(scope, command.operationId);
     if (!input) return { kind: 'rejected', code: 'ownership_mismatch' };
@@ -243,6 +260,31 @@ export function createPayments(options: PaymentRuntimeOptions) {
     const committed = await store.commitOperation(scope, { ...operationCommit(input, operation), ...(binding ? { binding } : {}), ...(intent ? { intent } : {}) });
     return committed.kind === 'committed' ? { kind: 'succeeded', value: operation } : committed.kind === 'recovery_fenced' ? unavailable : { kind: 'rejected', code: 'conflict' };
   }
+  async function readSubscriptionSelection(buyerId: string, bindingId: string, providerSubscriptionRef?: string): Promise<Readonly<{ binding: SubscriptionBinding; expectedReadSet: readonly PaymentReadVersion[] }> | undefined> {
+    const subscription = await store.readSubscription(scope, buyerId, bindingId);
+    const ref = providerSubscriptionRef ?? subscription?.binding.selectedSubscriptionRef ?? subscription?.binding.providerSubscriptionRefs[0];
+    if (!subscription || !ref || !subscription.binding.providerSubscriptionRefs.includes(ref)) return undefined;
+    const loaded = await store.loadPublicationInput(scope, { type: 'subscription', id: ref });
+    if (!loaded || loaded.incompleteReason) return undefined;
+    const binding = loaded.state.subscriptionBindings[bindingId];
+    return binding && binding.buyerId === buyerId ? { binding, expectedReadSet: loaded.expected } : undefined;
+  }
+  async function selectSubscriptionStream(command: Readonly<{ buyerId: string; bindingId: string; providerSubscriptionRef: string; expectedReadSet: readonly PaymentReadVersion[]; actorId: string; auditRef: string; reason: string }>): Promise<OperationResult<SubscriptionBinding>> {
+    if (!accepting) return unavailable;
+    for (const value of [command.buyerId, command.bindingId, command.providerSubscriptionRef, command.actorId, command.auditRef, command.reason]) assertIdentifier(value);
+    const loaded = await store.loadPublicationInput(scope, { type: 'subscription', id: command.providerSubscriptionRef });
+    if (!loaded || loaded.incompleteReason) return { kind: 'rejected', code: 'conflict' };
+    const binding = loaded.state.subscriptionBindings[command.bindingId];
+    if (!binding || binding.buyerId !== command.buyerId || !binding.providerSubscriptionRefs.includes(command.providerSubscriptionRef)) return { kind: 'rejected', code: 'ownership_mismatch' };
+    if (canonicalJson([...loaded.expected].sort((a, b) => canonicalJson([a.table, a.id]).localeCompare(canonicalJson([b.table, b.id])))) !== canonicalJson([...command.expectedReadSet].sort((a, b) => canonicalJson([a.table, a.id]).localeCompare(canonicalJson([b.table, b.id]))))) return { kind: 'rejected', code: 'conflict' };
+    binding.selectedSubscriptionRef = command.providerSubscriptionRef;
+    binding.streamSelection = { actorId: command.actorId, auditRef: command.auditRef, reason: command.reason, at: now() };
+    const aggregate = loaded.state.subscriptions[command.providerSubscriptionRef] ??= { subscriptionRef: command.providerSubscriptionRef, revision: 0, evidenceRevision: 0, flags: [], publicationRequired: false };
+    aggregate.revision += 1; aggregate.publicationRequired = true;
+    publishEvidence(loaded.state, scope, producerNamespace, maxBytes);
+    const committed = await store.commitReduction(scope, { inputId: loaded.inputId, expected: loaded.expected, state: loaded.state });
+    return committed.kind === 'committed' ? { kind: 'succeeded', value: binding } : committed.kind === 'recovery_fenced' ? unavailable : { kind: 'rejected', code: 'conflict' };
+  }
   async function repair(limit = 25): Promise<Readonly<{ inbox: number; publications: number; prepared: number; unknown: number }>> {
     if (!accepting) return { inbox: 0, publications: 0, prepared: 0, unknown: 0 };
     let inbox = 0, publications = 0, prepared = 0, unknown = 0;
@@ -258,17 +300,18 @@ export function createPayments(options: PaymentRuntimeOptions) {
     }
     return { inbox, publications, prepared, unknown };
   }
-  function stop(): Readonly<{ unresolvedExternalCalls: number }> { accepting = false; return { unresolvedExternalCalls: active.size }; }
-  async function drain(): Promise<void> { await Promise.allSettled([...active]); }
+  function stop(): Readonly<{ unresolvedExternalCalls: number; pendingWork: number }> { accepting = false; return { unresolvedExternalCalls: active.size, pendingWork: work.size }; }
+  async function drain(): Promise<void> { while (active.size > 0 || work.size > 0) await Promise.allSettled([...active, ...work]); }
   return {
-    scope, startPurchase, readOperation, executeOperation, ingestVerifiedInput, processInbox, flushPublication,
-    readPurchase: (buyerId: string, intentId: string) => store.readPurchase(scope, buyerId, intentId),
-    readObservedSubscription: (buyerId: string, bindingId: string) => store.readSubscription(scope, buyerId, bindingId),
-    refreshPurchase, refreshSubscription, requestCancellation, openPaymentUpdate, createManagementLink, resolveUnknownOperation, repair,
-    registerConsumer: (consumerId: string, backfill = false) => { assertIdentifier(consumerId); return store.registerConsumer(scope, consumerId, backfill); },
-    readDeliveries: (consumerId: string, limit = 25): Promise<readonly EvidenceMessage[]> => store.listDeliveries(scope, consumerId, limit),
-    acknowledgeDelivery: (consumerId: string, messageId: string, bodyDigest: string) => store.acknowledgeDelivery(scope, consumerId, messageId, bodyDigest),
-    stop, drain, lifecycle: () => ({ accepting, unresolvedExternalCalls: active.size }),
+    scope, startPurchase: tracked(startPurchase), readOperation: tracked(readOperation), executeOperation: tracked(executeOperation), ingestVerifiedInput: tracked(ingestVerifiedInput), processInbox: tracked(processInbox), flushPublication: tracked(flushPublication),
+    readPurchase: tracked((buyerId: string, intentId: string) => store.readPurchase(scope, buyerId, intentId)),
+    readObservedSubscription: tracked((buyerId: string, bindingId: string) => store.readSubscription(scope, buyerId, bindingId)),
+    refreshPurchase: tracked(refreshPurchase), refreshSubscription: tracked(refreshSubscription), requestCancellation: tracked(requestCancellation), openPaymentUpdate: tracked(openPaymentUpdate), createManagementLink: tracked(createManagementLink), resolveUnknownOperation: tracked(resolveUnknownOperation), repair: tracked(repair),
+    registerConsumer: tracked((consumerId: string, backfill: boolean = false) => { assertIdentifier(consumerId); return store.registerConsumer(scope, consumerId, backfill); }),
+    readDeliveries: tracked((consumerId: string, limit: number = 25): Promise<readonly EvidenceMessage[]> => store.listDeliveries(scope, consumerId, limit)),
+    acknowledgeDelivery: tracked((consumerId: string, messageId: string, bodyDigest: string) => store.acknowledgeDelivery(scope, consumerId, messageId, bodyDigest)),
+    readSubscriptionSelection: tracked(readSubscriptionSelection), selectSubscriptionStream: tracked(selectSubscriptionStream),
+    stop, drain, lifecycle: () => ({ accepting, unresolvedExternalCalls: active.size, pendingWork: work.size }),
   };
 }
 export type Payments = ReturnType<typeof createPayments>;

@@ -62,7 +62,7 @@ function validLine(line: ProviderLine, offer: OfferSnapshot): boolean {
   if (cycle?.interval !== 'month' || cycle.frequency !== 1 || !known(line.period) || line.period.value === null) return false;
   return compareTime(line.period.value.startsAt, line.period.value.endsAt) < 0;
 }
-export type Classification = Readonly<{ kind: 'commercial'; fact: CompletionFact }> | Readonly<{ kind: 'management' }> | Readonly<{ kind: 'held'; reason: EvidenceFlag }> | Readonly<{ kind: 'not_completed' }>;
+export type Classification = Readonly<{ kind: 'commercial'; fact: CompletionFact; holdReason?: EvidenceFlag }> | Readonly<{ kind: 'management' }> | Readonly<{ kind: 'held'; reason: EvidenceFlag }> | Readonly<{ kind: 'not_completed' }>;
 /** Final server completed classifier. Neither amount, customer nor correlation alone proves ownership. */
 export function classifyCompletion(state: PaymentState, scope: PaymentScope, observation: TransactionObservation): Classification {
   if (observation.status !== 'completed') return { kind: 'not_completed' };
@@ -83,19 +83,21 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
   if (['subscription_update', 'subscription_charge', 'subscription_recurring_manual', 'subscription_trial'].includes(origin)) return { kind: 'held', reason: 'unsupported' };
   let classification: CompletionFact['classification'] = 'one_time';
   let sub: SubscriptionBinding | undefined;
+  let holdReason: EvidenceFlag | undefined;
   if (offer.profile === 'monthly') {
     const subRef = known(observation.subscriptionRef) ? observation.subscriptionRef.value : null;
     if (!subRef || !intent.subscriptionBasisId) return { kind: 'held', reason: 'incomplete' };
     sub = state.subscriptionBindings[intent.subscriptionBasisId];
     if (!sub) return { kind: 'held', reason: 'unresolved_binding' };
+    classification = origin === 'subscription_recurring' ? (binding.purpose === 'recovery' ? 'recovery' : 'renewal') : 'initial';
+    if (classification === 'initial' && !['web', 'api', 'subscription_create', 'automatic'].includes(origin)) return { kind: 'held', reason: 'unsupported' };
     if (!sub.providerSubscriptionRefs.includes(subRef)) sub.providerSubscriptionRefs.push(subRef);
     if (sub.customerRef !== null && sub.customerRef !== observation.customerRef.value) return { kind: 'held', reason: 'ownership_mismatch' };
     sub.customerRef ??= observation.customerRef.value;
     if (!sub.selectedSubscriptionRef) sub.selectedSubscriptionRef = subRef;
-    classification = origin === 'subscription_recurring' ? (binding.purpose === 'recovery' ? 'recovery' : 'renewal') : 'initial';
-    if (classification === 'initial' && !['web', 'api', 'subscription_create', 'automatic'].includes(origin)) return { kind: 'held', reason: 'unsupported' };
     if (classification === 'renewal' || classification === 'recovery') {
-      if (sub.selectedSubscriptionRef !== subRef) return { kind: 'held', reason: 'duplicate_initial_purchase' };
+      const duplicateInitial = Object.values(state.transactions).some(candidate => candidate.completion?.intentId === intent.intentId && candidate.flags.includes('duplicate_initial_purchase'));
+      if (sub.selectedSubscriptionRef !== subRef || (duplicateInitial && !sub.streamSelection)) holdReason = 'duplicate_initial_purchase';
     }
   } else {
     if ((known(observation.subscriptionRef) && observation.subscriptionRef.value !== null) || !['web', 'api', 'automatic'].includes(origin)) return { kind: 'held', reason: 'unsupported' };
@@ -107,7 +109,7 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
     const period = known(line.period) ? line.period.value : null;
     return { providerLineRef: line.providerLineRef, benefitSlotId, amount: line.amount, quantity: 1 as const, ...(period === null ? {} : { period }) };
   });
-  return { kind: 'commercial', fact: { factId: digest([scope.provider, scope.paymentAccountId, scope.environment, observation.transactionRef, 'completion']), scope, transactionRef: observation.transactionRef, intentId: intent.intentId, buyerId: intent.buyerId, ...(sub ? { subscriptionBasisId: sub.bindingId, providerSubscriptionRef: known(observation.subscriptionRef) ? observation.subscriptionRef.value as string : '' } : {}), classification, offer, total: observation.total.value, lines, source: observation.source } };
+  return { kind: 'commercial', ...(holdReason ? { holdReason } : {}), fact: { factId: digest([scope.provider, scope.paymentAccountId, scope.environment, observation.transactionRef, 'completion']), scope, transactionRef: observation.transactionRef, intentId: intent.intentId, buyerId: intent.buyerId, ...(sub ? { subscriptionBasisId: sub.bindingId, providerSubscriptionRef: known(observation.subscriptionRef) ? observation.subscriptionRef.value as string : '' } : {}), classification, offer, total: observation.total.value, lines, source: observation.source } };
 }
 function bindRenewal(state: PaymentState, observation: TransactionObservation): void {
   if (state.bindings[observation.transactionRef] || !known(observation.subscriptionRef) || !observation.subscriptionRef.value || !known(observation.origin) || observation.origin.value !== 'subscription_recurring') return;
@@ -139,7 +141,12 @@ function reduceTransaction(state: PaymentState, scope: PaymentScope, observation
       if (!compatible(semantic({ ...aggregate.completion, source: undefined }), semantic({ ...classification.fact, source: undefined }))) flag(aggregate, 'conflict');
     } else aggregate.completion = classification.fact;
     removeFlag(aggregate, 'incomplete'); removeFlag(aggregate, 'unresolved_binding');
+    if (classification.holdReason) flag(aggregate, classification.holdReason);
+    else if (['renewal', 'recovery'].includes(classification.fact.classification)) removeFlag(aggregate, 'duplicate_initial_purchase');
     markDuplicates(state, classification.fact);
+    const subRef = classification.fact.providerSubscriptionRef;
+    const subscription = subRef ? state.subscriptions[subRef]?.current : undefined;
+    if (subscription) reduceSubscription(state, subscription);
   } else if (classification.kind === 'held') flag(aggregate, classification.reason);
   aggregate.revision += 1; aggregate.publicationRequired = true;
 }

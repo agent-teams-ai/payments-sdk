@@ -179,3 +179,51 @@ test('scope, ownership, unsupported capability and recovery fence fail closed', 
   await context.store.setRecoveryFence(scope, true, 'restore');
   assert.deepEqual(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'new' }), { kind: 'rejected', code: 'unavailable' }); assert.equal(context.calls(), 1);
 });
+
+test('binding arriving after processed early completion reclassifies stored history through durable publication repair', async () => {
+  const context = setup('one_time', false, 1), reply = deferred<ProviderResult<{ intentId: string; transactionRef: string; checkout: { token: string } }>>(); let intentId = '';
+  context.replaceCreate(async command => { intentId = command.intentId; return reply.promise; });
+  assert.equal((await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'request' })).kind, 'outcome_unknown');
+  await observe(context, transaction('early-tx', 'early-completed'));
+  reply.resolve({ kind: 'succeeded', value: { intentId, transactionRef: 'early-tx', checkout: { token: 'ready' } } }); await context.payments.drain();
+  assert.equal((await context.payments.readPurchase('buyer', intentId))?.transactions[0]?.completion, undefined);
+  await context.payments.repair();
+  const aggregate = (await context.payments.readPurchase('buyer', intentId))?.transactions[0]; assert.ok(aggregate?.completion); assert.ok(!aggregate.flags.includes('unresolved_binding'));
+});
+
+test('duplicate initial streams preserve both payments and hold renewals until audited technical stream selection', async () => {
+  const context = setup('monthly', false, 1), first = deferred<ProviderResult<{ intentId: string; transactionRef: string; checkout: { token: string } }>>(); let intentId = '';
+  context.replaceCreate(async command => { intentId = command.intentId; return first.promise; });
+  const unknownResult = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'request' }); assert.equal(unknownResult.kind, 'outcome_unknown'); if (unknownResult.kind !== 'outcome_unknown') throw new Error('Fixture');
+  const operation = await context.payments.readOperation(unknownResult.operationId); assert.ok(operation);
+  await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'duplicate-risk', reason: 'recover', action: 'retry', acceptedDuplicateRisk: true });
+  context.replaceCreate(async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'initial-b', checkout: { token: 'b' } } }));
+  await context.payments.executeOperation(operation.operationId);
+  first.resolve({ kind: 'succeeded', value: { intentId, transactionRef: 'initial-a', checkout: { token: 'a' } } }); await context.payments.drain();
+  await observe(context, transaction('initial-a', 'initial-a-paid', 'monthly'));
+  const second = transaction('initial-b', 'initial-b-paid', 'monthly', { subscriptionRef: yes('sub-b') });
+  if (second.lines.presence !== 'known') throw new Error('Fixture');
+  await observe(context, { ...second, lines: yes(second.lines.value.map(line => ({ ...line, period: yes({ startsAt: '2026-01-02T00:00:00Z', endsAt: '2026-02-02T00:00:00Z' }) }))) });
+  let result = await context.payments.readPurchase('buyer', intentId); assert.equal(result?.transactions.filter(item => item.completion).length, 2); assert.ok(result?.transactions.every(item => item.flags.includes('duplicate_initial_purchase')));
+  await observe(context, transaction('renew-a', 'renew-a-paid', 'monthly', { origin: yes('subscription_recurring') }));
+  await observe(context, transaction('renew-b', 'renew-b-paid', 'monthly', { origin: yes('subscription_recurring'), subscriptionRef: yes('sub-b') }));
+  result = await context.payments.readPurchase('buyer', intentId);
+  assert.ok(result?.transactions.filter(item => item.transactionRef.startsWith('renew')).every(item => item.completion && item.flags.includes('duplicate_initial_purchase')));
+  const basis = result?.intent.subscriptionBasisId; assert.ok(basis);
+  const selected = await context.payments.readSubscriptionSelection('buyer', basis, 'sub-b'); assert.ok(selected);
+  const resolution = await context.payments.selectSubscriptionStream({ buyerId: 'buyer', bindingId: basis, providerSubscriptionRef: 'sub-b', expectedReadSet: selected.expectedReadSet, actorId: 'operator', auditRef: 'select-b', reason: 'choose duplicate support' }); assert.equal(resolution.kind, 'succeeded');
+  await context.payments.flushPublication({ type: 'transaction', id: 'renew-b' });
+  result = await context.payments.readPurchase('buyer', intentId);
+  assert.ok(!result?.transactions.find(item => item.transactionRef === 'renew-b')?.flags.includes('duplicate_initial_purchase'));
+  assert.ok(result?.transactions.find(item => item.transactionRef === 'renew-a')?.flags.includes('duplicate_initial_purchase'));
+});
+
+test('shutdown tracks physical safe reads and cleanup, including nested producer promises', async () => {
+  const context = setup(), checkout = await purchase(context), read = deferred<ProviderResult<TransactionObservation>>();
+  context.provider.readTransaction = async () => read.promise;
+  const refreshing = context.payments.refreshPurchase('buyer', checkout.intentId);
+  assert.equal(context.payments.stop().pendingWork, 1);
+  let drained = false; const drain = context.payments.drain().then(() => { drained = true; });
+  await Promise.resolve(); assert.equal(drained, false);
+  read.resolve({ kind: 'succeeded', value: transaction(checkout.transactionRef, 'drained-read') }); await refreshing; await drain; assert.equal(drained, true);
+});
