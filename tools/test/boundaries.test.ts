@@ -12,7 +12,7 @@ const cli = join(repository, 'node_modules/@agent-teams/engineering-foundation/d
 const packages = ['core', 'paddle', 'postgres', 'get-modular'];
 
 type Finding = Readonly<{ ruleId: string; message?: string }>;
-type Report = Readonly<{ findings: readonly Finding[] }>;
+type Report = Readonly<{ capabilities: readonly Readonly<{ diagnostics: readonly Finding[] }>[] }>;
 type DependencyPolicy = {
   boundaries: { id: string; allow: { packages: string[] } }[];
 };
@@ -58,7 +58,7 @@ async function mutation(name: string, change: (root: string) => Promise<void>, e
     await change(root);
     const result = check(root);
     assert.equal(result.status, 1, `${name} must be rejected: ${result.output}`);
-    assert.ok(result.report.findings.some((finding) => expectedRule.test(finding.ruleId)), result.output);
+    assert.ok(result.report.capabilities.flatMap((capability) => capability.diagnostics).some((finding) => expectedRule.test(finding.ruleId)), result.output);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
