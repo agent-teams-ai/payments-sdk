@@ -1,10 +1,10 @@
 import {
   admitInput, canonicalJson, compareEventIdentity, createEmptyPaymentState, digest, eventIdentityEvidence,
-  inputRoutes, mergeEventIdentityEvidence, sameOperationCommand, subscriptionAggregate, transactionAggregate,
+  inputRoutes, mergeEventIdentityEvidence, objectVersionKey, sameOperationCommand, subscriptionAggregate, transactionAggregate,
 } from '@agent-teams/payments-core';
 import type {
   AggregateIdentity, Delivery, EventIdentityEvidence, EvidenceMessage, InboxRecord, IntentAdmission, JsonValue,
-  OperationCommit, OperationInput, PaymentOperation, PaymentReadVersion, PaymentScope,
+  Observation, OperationCommit, OperationInput, PaymentOperation, PaymentReadVersion, PaymentScope,
   PaymentStore, ProviderResult, PurchaseIntent, ReductionCommit, ReductionInput,
   ScanCheckpoint, StoreCommitResult, SubscriptionAggregate, SubscriptionBinding,
   TransactionAggregate, TransactionBinding, VerifiedInput,
@@ -27,7 +27,7 @@ export type PostgresPaymentStoreOptions = Readonly<{
   queue?: Readonly<{ boss: PgBoss; name: string }>;
 }>;
 
-const mutableTables = ['intents', 'operations', 'bindings', 'subscriptionBindings', 'transactions', 'subscriptions', 'inbox'] as const;
+const mutableTables = ['intents', 'operations', 'bindings', 'subscriptionBindings', 'transactions', 'subscriptions', 'inbox', 'versionEvidence'] as const;
 type MutableTable = typeof mutableTables[number];
 type Lane = { revision: number; unresolvedOperationId?: string };
 type StoredEventIdentity = { evidence: EventIdentityEvidence; conflict: boolean };
@@ -375,6 +375,11 @@ class PostgresPaymentStore implements PaymentStore {
         state.subscriptions[id] = { subscriptionRef: id, revision: row.metadata.revision ?? 0, evidenceRevision: row.metadata.evidenceRevision ?? 0, flags: ['incomplete'], publicationRequired: true };
       }
     };
+    const includeVersion = async (observation: Observation): Promise<void> => {
+      let key: string | undefined;
+      try { key = objectVersionKey(observation); } catch { incomplete = true; return; }
+      if (key !== undefined) await add('versionEvidence', key);
+    };
     const includeIntent = async (intentId: string): Promise<void> => {
       // Read the membership guard BEFORE its predicate, and validate it in the committing T2.
       await guard(`intent:${intentId}`);
@@ -405,6 +410,7 @@ class PostgresPaymentStore implements PaymentStore {
       remainingBytes -= Buffer.byteLength(JSON.stringify(receipt.body));
       if (remainingBytes < 0) incomplete = true;
       const observation = receipt.body.input.observation;
+      await includeVersion(observation);
       transactionRef = receipt.body.input.adverseTransactionRef ?? ('transactionRef' in observation ? observation.transactionRef : undefined);
       if (observation.kind === 'transaction' && observation.subscriptionRef.presence === 'known') subscriptionRef = observation.subscriptionRef.value ?? undefined;
       else if ('subscriptionRef' in observation && typeof observation.subscriptionRef === 'string') subscriptionRef = observation.subscriptionRef;
@@ -431,6 +437,12 @@ class PostgresPaymentStore implements PaymentStore {
         if (binding) await includeIntent(binding.originatingIntentId);
       }
     }
+    // Publication can replay observations after late binding. It uses the same exact-version
+    // evidence and null-creation CAS as inbox reduction, within the existing record/byte bounds.
+    for (const value of Object.values(state.transactions)) {
+      for (const observation of value.observations) await includeVersion(observation);
+    }
+    for (const value of Object.values(state.subscriptions)) if (value.current) await includeVersion(value.current);
     return { inputId, state, expected, ...(incomplete ? { incompleteReason: 'working_set_limit' } : {}) };
   }
 
