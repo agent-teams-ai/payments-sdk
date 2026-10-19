@@ -1,0 +1,226 @@
+[
+  {
+    "file": "node-v24.21.0-package.json",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v24.21.0/deps/undici/src/package.json",
+    "status": 200,
+    "bytes": 6333,
+    "retrieved_at": "2026-10-19T21:20:07.014559+00:00"
+  },
+  {
+    "file": "node-v24.21.0-lib__web__fetch__index.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v24.21.0/deps/undici/src/lib/web/fetch/index.js",
+    "status": 200,
+    "bytes": 89634,
+    "retrieved_at": "2026-10-19T21:20:07.055113+00:00"
+  },
+  {
+    "file": "node-v24.21.0-lib__dispatcher__client-h1.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v24.21.0/deps/undici/src/lib/dispatcher/client-h1.js",
+    "status": 200,
+    "bytes": 45065,
+    "retrieved_at": "2026-10-19T21:20:07.040952+00:00"
+  },
+  {
+    "file": "node-v24.21.0-lib__dispatcher__client-h2.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v24.21.0/deps/undici/src/lib/dispatcher/client-h2.js",
+    "status": 200,
+    "bytes": 29939,
+    "retrieved_at": "2026-10-19T21:20:07.035846+00:00"
+  },
+  {
+    "file": "node-v24.21.0-lib__dispatcher__agent.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v24.21.0/deps/undici/src/lib/dispatcher/agent.js",
+    "status": 200,
+    "bytes": 4735,
+    "retrieved_at": "2026-10-19T21:20:07.039520+00:00"
+  },
+  {
+    "file": "node-v24.22.0-package.json",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v24.22.0/deps/undici/src/package.json",
+    "status": 200,
+    "bytes": 6333,
+    "retrieved_at": "2026-10-19T21:20:07.042980+00:00"
+  },
+  {
+    "file": "node-v24.22.0-lib__web__fetch__index.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v24.22.0/deps/undici/src/lib/web/fetch/index.js",
+    "status": 200,
+    "bytes": 89634,
+    "retrieved_at": "2026-10-19T21:20:07.036910+00:00"
+  },
+  {
+    "file": "node-v24.22.0-lib__dispatcher__client-h1.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v24.22.0/deps/undici/src/lib/dispatcher/client-h1.js",
+    "status": 200,
+    "bytes": 45065,
+    "retrieved_at": "2026-10-19T21:20:07.073964+00:00"
+  },
+  {
+    "file": "node-v24.22.0-lib__dispatcher__client-h2.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v24.22.0/deps/undici/src/lib/dispatcher/client-h2.js",
+    "status": 200,
+    "bytes": 29939,
+    "retrieved_at": "2026-10-19T21:20:07.141719+00:00"
+  },
+  {
+    "file": "node-v24.22.0-lib__dispatcher__agent.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v24.22.0/deps/undici/src/lib/dispatcher/agent.js",
+    "status": 200,
+    "bytes": 4735,
+    "retrieved_at": "2026-10-19T21:20:07.150030+00:00"
+  },
+  {
+    "file": "node-v26.11.1-package.json",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v26.11.1/deps/undici/src/package.json",
+    "status": 200,
+    "bytes": 6314,
+    "retrieved_at": "2026-10-19T21:20:07.149135+00:00"
+  },
+  {
+    "file": "node-v26.11.1-lib__web__fetch__index.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v26.11.1/deps/undici/src/lib/web/fetch/index.js",
+    "status": 200,
+    "bytes": 92254,
+    "retrieved_at": "2026-10-19T21:20:07.216206+00:00"
+  },
+  {
+    "file": "node-v26.11.1-lib__dispatcher__client-h1.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v26.11.1/deps/undici/src/lib/dispatcher/client-h1.js",
+    "status": 200,
+    "bytes": 47475,
+    "retrieved_at": "2026-10-19T21:20:07.185855+00:00"
+  },
+  {
+    "file": "node-v26.11.1-lib__dispatcher__client-h2.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v26.11.1/deps/undici/src/lib/dispatcher/client-h2.js",
+    "status": 200,
+    "bytes": 51708,
+    "retrieved_at": "2026-10-19T21:20:07.165853+00:00"
+  },
+  {
+    "file": "node-v26.11.1-lib__dispatcher__agent.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v26.11.1/deps/undici/src/lib/dispatcher/agent.js",
+    "status": 200,
+    "bytes": 5370,
+    "retrieved_at": "2026-10-19T21:20:07.171019+00:00"
+  },
+  {
+    "file": "node-v26.12.0-package.json",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v26.12.0/deps/undici/src/package.json",
+    "status": 200,
+    "bytes": 6314,
+    "retrieved_at": "2026-10-19T21:20:07.192363+00:00"
+  },
+  {
+    "file": "node-v26.12.0-lib__web__fetch__index.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v26.12.0/deps/undici/src/lib/web/fetch/index.js",
+    "status": 200,
+    "bytes": 92254,
+    "retrieved_at": "2026-10-19T21:20:07.294742+00:00"
+  },
+  {
+    "file": "node-v26.12.0-lib__dispatcher__client-h1.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v26.12.0/deps/undici/src/lib/dispatcher/client-h1.js",
+    "status": 200,
+    "bytes": 47475,
+    "retrieved_at": "2026-10-19T21:20:07.292449+00:00"
+  },
+  {
+    "file": "node-v26.12.0-lib__dispatcher__client-h2.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v26.12.0/deps/undici/src/lib/dispatcher/client-h2.js",
+    "status": 200,
+    "bytes": 51708,
+    "retrieved_at": "2026-10-19T21:20:07.258373+00:00"
+  },
+  {
+    "file": "node-v26.12.0-lib__dispatcher__agent.js",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v26.12.0/deps/undici/src/lib/dispatcher/agent.js",
+    "status": 200,
+    "bytes": 5370,
+    "retrieved_at": "2026-10-19T21:20:07.278738+00:00"
+  },
+  {
+    "file": "undici-v7.29.1-fetch.js",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/v7.29.1/lib/web/fetch/index.js",
+    "status": 200,
+    "bytes": 89634,
+    "retrieved_at": "2026-10-19T21:20:07.322983+00:00"
+  },
+  {
+    "file": "undici-v7.30.1-fetch.js",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/v7.30.1/lib/web/fetch/index.js",
+    "status": 200,
+    "bytes": 89638,
+    "retrieved_at": "2026-10-19T21:20:07.305144+00:00"
+  },
+  {
+    "file": "undici-v8.11.2-fetch.js",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/v8.11.2/lib/web/fetch/index.js",
+    "status": 200,
+    "bytes": 92254,
+    "retrieved_at": "2026-10-19T21:20:07.329815+00:00"
+  },
+  {
+    "file": "undici-v8.12.2-fetch.js",
+    "url": "https://raw.githubusercontent.com/nodejs/undici/v8.12.2/lib/web/fetch/index.js",
+    "status": 200,
+    "bytes": 92459,
+    "retrieved_at": "2026-10-19T21:20:07.320770+00:00"
+  },
+  {
+    "file": "undici-security-qrxm-fqhp-jwvm.html",
+    "url": "https://github.com/nodejs/undici/security/advisories/GHSA-qrxm-fqhp-jwvm",
+    "status": 200,
+    "bytes": 195154,
+    "retrieved_at": "2026-10-19T21:20:07.786380+00:00"
+  },
+  {
+    "file": "undici-security-2m5v-pch6-74hx.html",
+    "url": "https://github.com/nodejs/undici/security/advisories/GHSA-2m5v-pch6-74hx",
+    "status": 200,
+    "bytes": 195536,
+    "retrieved_at": "2026-10-19T21:20:07.766068+00:00"
+  },
+  {
+    "file": "undici-security-4w7w-5xrc-9h26.html",
+    "url": "https://github.com/nodejs/undici/security/advisories/GHSA-4w7w-5xrc-9h26",
+    "status": 200,
+    "bytes": 198793,
+    "retrieved_at": "2026-10-19T21:20:07.784892+00:00"
+  },
+  {
+    "file": "undici-security-55wc-3pg8-jfw6.html",
+    "url": "https://github.com/nodejs/undici/security/advisories/GHSA-55wc-3pg8-jfw6",
+    "status": 200,
+    "bytes": 193048,
+    "retrieved_at": "2026-10-19T21:20:07.771722+00:00"
+  },
+  {
+    "file": "undici-security-f72v-6w45-q472.html",
+    "url": "https://github.com/nodejs/undici/security/advisories/GHSA-f72v-6w45-q472",
+    "status": 200,
+    "bytes": 195380,
+    "retrieved_at": "2026-10-19T21:20:07.776312+00:00"
+  },
+  {
+    "file": "undici-security-4qv8-2p9j-2685.html",
+    "url": "https://github.com/nodejs/undici/security/advisories/GHSA-4qv8-2p9j-2685",
+    "status": 200,
+    "bytes": 192874,
+    "retrieved_at": "2026-10-19T21:20:07.744790+00:00"
+  },
+  {
+    "file": "undici-security-9fm3-97px-rjf6.html",
+    "url": "https://github.com/nodejs/undici/security/advisories/GHSA-9fm3-97px-rjf6",
+    "status": 200,
+    "bytes": 196699,
+    "retrieved_at": "2026-10-19T21:20:07.746721+00:00"
+  },
+  {
+    "file": "node-release-v24.22.0.html",
+    "url": "https://nodejs.org/en/blog/release/v24.22.0",
+    "status": 200,
+    "bytes": 525775,
+    "retrieved_at": "2026-10-19T21:20:07.410320+00:00"
+  }
+]

@@ -30,6 +30,8 @@ feature-branch check cannot authorize the release.
 
 ## Explicit admission boundaries
 
+The post-integration [dependency correction and Node runtime investigation](security-qualification.md) are separate from the completed four implementation review waves. The development HTTP harness is qualified on Undici **7.30.1**. Production runtime admission remains blocked by an independently reproduced built-in `fetch` defect in the current Node floors and latest same-major official releases. Functional GitHub prerelease delivery is available; a corrected official runtime and its consumer qualification are required before production deployment.
+
 The required P6 Get Modular host uses the qualified published static peer set.
 The upstream observation implementation has merged, but the coordinated new
 registry train was unpublished at the [recorded read-back](upstream-qualification.md).

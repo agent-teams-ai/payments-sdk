@@ -1,0 +1,26 @@
+[
+  {
+    "node_path": "/workspace/scratch/9e36ca3bbd13/implementation/node-v24.21.0-linux-x64/bin/node",
+    "exit_code": 0,
+    "stdout": "{\"node\":\"v24.21.0\",\"undici\":\"7.29.1\",\"openssl\":\"3.5.8\"}\n",
+    "stderr": ""
+  },
+  {
+    "node_path": "/workspace/scratch/9e36ca3bbd13/research/implementation-reviews/node-runtime-security-evidence/node-v24.22.0-linux-x64/bin/node",
+    "exit_code": 0,
+    "stdout": "{\"node\":\"v24.22.0\",\"undici\":\"7.29.1\",\"openssl\":\"3.5.8\"}\n",
+    "stderr": ""
+  },
+  {
+    "node_path": "/workspace/scratch/9e36ca3bbd13/implementation/node-v26.11.1-linux-x64/bin/node",
+    "exit_code": 0,
+    "stdout": "{\"node\":\"v26.11.1\",\"undici\":\"8.11.2\",\"openssl\":\"3.5.9\"}\n",
+    "stderr": ""
+  },
+  {
+    "node_path": "/workspace/scratch/9e36ca3bbd13/research/implementation-reviews/node-runtime-security-evidence/node-v26.12.0-linux-x64/bin/node",
+    "exit_code": 0,
+    "stdout": "{\"node\":\"v26.12.0\",\"undici\":\"8.11.2\",\"openssl\":\"3.5.9\"}\n",
+    "stderr": ""
+  }
+]

@@ -114,9 +114,31 @@ the bounded follow-ups established no new actionable P0/P1/P2.
 | [Platform](code/wave4-platform-remediation.md) | Fresh current archives installed using the guide verbatim, public runtime imports, eight strict consumer combinations and one physical Resources identity |
 | [Domain/provider](code/wave4-domain-provider-remediation.md) | Independent pending/processed admission, exact custody/cardinality and retained-control probes plus existing SDK/profile/late-outcome compatibility on both Node floors |
 
-The later report and status commits update documentation only. CI still qualifies
+The subsequent report and status commits before the supplemental dependency correction update documentation only. CI still qualifies
 each exact release candidate independently. The [final upstream read-back](upstream-delivery-status.md)
 records official publication/source status through 2026-10-19 21:00:05 UTC.
+
+## Supplemental dependency and runtime security qualification
+
+The post-merge dependency analysis identified development-scoped Undici alerts.
+The [independent security dependency review](security-dependency-review.md)
+accepts correction `7762830fe904f95e3b6126aaad81be8366ba755a` to **7.30.1**
+after actual SDK checks on both Node floors, strict installed consumers and an
+unchanged production dependency closure. It supplements the completed four waves.
+
+The separately retained [Node runtime investigation](node-runtime-security-research.md)
+establishes that the development package correction does not patch the built-in
+production transport. Production runtime admission remains blocked; the
+[current security record](../security-qualification.md) owns the dated evidence,
+functional prerelease boundary and requirements for admitting an official fix.
+
+An additional [independent release-admission review](prerelease-security-admission-review.md)
+accepts exact disclosure/generator revision
+`ad3f8bcf5125904beb3cf416e2ff266fb2b558db` for merging and functional GitHub
+prerelease delivery through the required exact-commit CI gates. It explicitly
+rejects production runtime/security admission until the upstream correction is
+published and qualified. This report/index-only successor preserves that
+decision and still needs its own final main-push CI.
 
 ## Qualification boundaries
 

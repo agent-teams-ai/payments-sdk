@@ -1,0 +1,42 @@
+[
+  {
+    "file": "node-october-2026-security-releases.html",
+    "url": "https://nodejs.org/en/blog/vulnerability/october-2026-security-releases",
+    "status": 200,
+    "bytes": 265464,
+    "sha256": "8a2865c51d054a5868f5c89e93e1ef109dc734f4a216a4fb5e0ac7eac568864c",
+    "retrieved_at": "2026-10-19T21:20:28.254747+00:00"
+  },
+  {
+    "file": "node-v24.22.0-SHASUMS256.txt",
+    "url": "https://nodejs.org/dist/v24.22.0/SHASUMS256.txt",
+    "status": 200,
+    "bytes": 3171,
+    "sha256": "8912ada1431af8390bb3e30328d30bca701b59c7a6d5396b491293515c092c46",
+    "retrieved_at": "2026-10-19T21:20:28.214357+00:00"
+  },
+  {
+    "file": "node-v24.22.0-linux-x64.tar.xz",
+    "url": "https://nodejs.org/dist/v24.22.0/node-v24.22.0-linux-x64.tar.xz",
+    "status": 200,
+    "bytes": 32015600,
+    "sha256": "cc2f601cee82d9a5a233302fe307abc600727035fd7d2c3a3571755989e95008",
+    "retrieved_at": "2026-10-19T21:20:29.476739+00:00"
+  },
+  {
+    "file": "node-v26.12.0-SHASUMS256.txt",
+    "url": "https://nodejs.org/dist/v26.12.0/SHASUMS256.txt",
+    "status": 200,
+    "bytes": 3171,
+    "sha256": "8aacbf6731285e25677ecabd9257716429caba03952279d452ece388b47260cc",
+    "retrieved_at": "2026-10-19T21:20:28.211706+00:00"
+  },
+  {
+    "file": "node-v26.12.0-linux-x64.tar.xz",
+    "url": "https://nodejs.org/dist/v26.12.0/node-v26.12.0-linux-x64.tar.xz",
+    "status": 200,
+    "bytes": 34060244,
+    "sha256": "fd47865ecd6391ebb431fc815e01b9135bf83ded5cf373247e9331e196b7aded",
+    "retrieved_at": "2026-10-19T21:20:29.668631+00:00"
+  }
+]

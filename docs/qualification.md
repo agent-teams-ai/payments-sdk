@@ -2,7 +2,7 @@
 
 This page describes reproducible evidence and its limits. A test file is not a recorded passing run. Use the exact commit's successful **Checks → Required checks** run and its logs/artifacts as the release evidence. Counts and dates are intentionally not copied here: the workflow result is authoritative, and a later commit needs its own qualification.
 
-## Supported qualification profile
+## Functional CI profile
 
 | Component | Exact qualification inputs |
 | --- | --- |
@@ -15,7 +15,13 @@ This page describes reproducible evidence and its limits. A test file is not a r
 | Engineering Foundation | `1.10.1`, development-only |
 | Package consumers | ESM NodeNext and Bundler resolution, packed tarballs, strict declarations |
 
-Manifest ranges describe admitted runtimes; the two exact Node versions above are the CI matrix. Other operating systems, PostgreSQL majors, versions within a manifest range and deployment topologies require their own evidence. The [lockfile](../pnpm-lock.yaml) pins the actual dependency closure. The [current upstream record](upstream-qualification.md) identifies the Foundation patch scope, exact local qualification subject, current Get Modular publication gate and official browser blocker.
+Manifest engine ranges describe runtime compatibility, and the two exact Node versions above are the functional CI matrix. They do not establish production security admission. Other operating systems, PostgreSQL majors, versions within a manifest range and deployment topologies require their own evidence. The [lockfile](../pnpm-lock.yaml) pins the actual dependency closure. The [current upstream record](upstream-qualification.md) identifies the Foundation patch scope, exact local qualification subject, current Get Modular publication gate and official browser blocker.
+
+## Production runtime security admission: blocked
+
+As of **2026-10-19**, the qualified Node floors and latest published same-major releases retain a built-in `fetch` defect covered by [GHSA-xjj6-f33q-929c](https://github.com/nodejs/undici/security/advisories/GHSA-xjj6-f33q-929c). Independent source comparison and a bounded local malformed-response probe establish that catching the fetch rejection does not prevent the tested Node process from terminating. No malicious Paddle response or live account exploit was demonstrated.
+
+The development-only Undici **7.30.1** correction and clean npm scans do not patch Node's bundled implementation. GitHub prerelease artifacts remain available for integration and fixture evaluation. **Production deployment remains blocked** until an official corrected runtime passes the explicit [runtime security admission requirements](security-qualification.md#node-bundled-transport-scope), together with the deployment gates below. The announced future Node security release is not evidence that a fix is already published or qualified.
 
 ## What the automated gates establish
 

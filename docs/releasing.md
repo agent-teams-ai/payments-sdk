@@ -2,6 +2,8 @@
 
 The repository's [Release candidate workflow](../.github/workflows/release.yaml) produces four audited versioned package tarballs, `SHA256SUMS`, a source/CI manifest and a GitHub **prerelease**. It never invokes `npm publish`. Package version `0.1.0` in source does not imply an existing npm release, live Paddle qualification or production readiness.
 
+**Current admission, 2026-10-19:** these artifacts support integration and fixture evaluation. Production deployment is blocked by the independently confirmed [Node built-in fetch security issue](security-qualification.md#node-bundled-transport-scope). Successful CI, archive audits and clean npm scans do not clear that runtime gate. Generated GitHub release notes expose this status before the artifact description; the workflow always creates a prerelease.
+
 ## Exact-commit release admission
 
 Release starts from an explicit `v<version>` tag push, or a manual workflow dispatch from `main` with an explicit version tag and full lowercase 40-character commit SHA. All four package versions must match that tag. A manual run can create its requested missing tag only after the target passes the same admission checks.

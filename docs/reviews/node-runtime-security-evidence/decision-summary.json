@@ -1,0 +1,17 @@
+{
+  "snapshot_date": "2026-10-19",
+  "scope": "Official Node24/26 runtime security for Payments SDK Paddle3.10.0 global fetch path",
+  "latest_published": {"24": "24.22.0", "26": "26.12.0"},
+  "current_floors": {"24": "24.21.0", "26": "26.11.1"},
+  "bundled_undici": {"24.21.0": "7.29.1", "24.22.0": "7.29.1", "26.11.1": "8.11.2", "26.12.0": "8.11.2"},
+  "ghsa_xjj6_backport_in_inspected_runtimes": false,
+  "ghsa_xjj6_global_fetch_crash_reproduced_on_all_four": true,
+  "patched_npm_undici_7_30_1_fetch_comparison_passes_on_all_four": true,
+  "published_corrected_same_major_runtime_found": false,
+  "dev_dependency_upgrade_repairs_production_global_fetch": false,
+  "paddle_supported_per_instance_fetch_or_dispatcher_option": false,
+  "upcoming_node_security_release": "on or shortly after 2026-10-21",
+  "future_security_release_fix_mapping_known": false,
+  "recommendation": "Keep functional qualification separate; production security admission remains blocked pending corrected runtime and verification. Any evaluation prerelease must disclose the limitation.",
+  "report": "../node-runtime-security-research.md"
+}
