@@ -275,3 +275,47 @@ test('conflicting raw event identity holds its original route even when the conf
   assert.equal(await context.payments.processInbox('raw-b'), 'quarantined');
   assert.ok((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.flags.includes('conflict'));
 });
+
+async function duplicateMonthly() {
+  const context = setup('monthly', false, 1), first = deferred<ProviderResult<{ intentId: string; transactionRef: string; checkout: { token: string } }>>(); let intentId = '';
+  context.replaceCreate(async command => { intentId = command.intentId; return first.promise; });
+  const pending = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'request' }); assert.equal(pending.kind, 'outcome_unknown'); if (pending.kind !== 'outcome_unknown') throw new Error('Fixture');
+  const operation = await context.payments.readOperation(pending.operationId); assert.ok(operation);
+  assert.equal((await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'duplicate-risk', reason: 'reviewed retry', action: 'retry', acceptedDuplicateRisk: true })).kind, 'succeeded');
+  context.replaceCreate(async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'initial-b', checkout: { token: 'b' } } }));
+  assert.equal((await context.payments.executeOperation(operation.operationId)).kind, 'succeeded');
+  first.resolve({ kind: 'succeeded', value: { intentId, transactionRef: 'initial-a', checkout: { token: 'a' } } }); await context.payments.drain();
+  await observe(context, transaction('initial-a', 'duplicate-initial-a', 'monthly'));
+  await observe(context, transaction('initial-b', 'duplicate-initial-b', 'monthly', { subscriptionRef: yes('sub-b') }));
+  const basis = (await context.payments.readPurchase('buyer', intentId))?.intent.subscriptionBasisId; assert.ok(basis);
+  return { ...context, basis, intentId };
+}
+
+test('audited cancellation retry preserves its pinned provider subject across independent stream selection', async () => {
+  const context = await duplicateMonthly(), old = deferred<ProviderResult<{ kind: 'applied'; observedStatus: string }>>(), targets: string[] = [];
+  Object.assign(context.provider.capabilities, { cancellation: ['now'] });
+  context.provider.cancelSubscription = async command => { targets.push(command.subscriptionRef); return targets.length === 1 ? old.promise : { kind: 'succeeded', value: { kind: 'applied', observedStatus: 'canceled' } }; };
+  const result = await context.payments.requestCancellation({ buyerId: 'buyer', bindingId: context.basis, requestKey: 'pinned-cancel', timing: 'now' }); assert.equal(result.kind, 'outcome_unknown'); if (result.kind !== 'outcome_unknown') throw new Error('Fixture');
+  const selection = await context.payments.readSubscriptionSelection('buyer', context.basis, 'sub-b'); assert.ok(selection);
+  assert.equal((await context.payments.selectSubscriptionStream({ buyerId: 'buyer', bindingId: context.basis, providerSubscriptionRef: 'sub-b', expectedReadSet: selection.expectedReadSet, actorId: 'operator', auditRef: 'select-b', reason: 'choose stream' })).kind, 'succeeded');
+  const operation = await context.payments.readOperation(result.operationId); assert.ok(operation);
+  assert.equal((await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'retry-a', reason: 'retry same command', action: 'retry', acceptedDuplicateRisk: true })).kind, 'succeeded');
+  assert.equal((await context.payments.executeOperation(operation.operationId)).kind, 'succeeded');
+  assert.deepEqual(targets, ['sub-a', 'sub-a']);
+  const saved = await context.payments.readOperation(operation.operationId); assert.equal(saved?.providerSubscriptionRef, 'sub-a'); assert.deepEqual(saved?.attempts.map(attempt => attempt.providerSubscriptionRef), ['sub-a', 'sub-a']); assert.equal(new Set(saved?.attempts.map(attempt => attempt.fingerprint)).size, 1);
+  old.resolve({ kind: 'outcome_unknown' }); await context.payments.drain();
+});
+
+test('audited payment update retry preserves its pinned provider subject across independent stream selection', async () => {
+  const context = await duplicateMonthly(), old = deferred<ProviderResult<{ intentId: string; transactionRef: string; purpose: 'payment_method'; checkout: { token: string } }>>(), targets: string[] = [];
+  Object.assign(context.provider.capabilities, { paymentUpdate: true });
+  context.provider.openPaymentUpdate = async command => { targets.push(command.subscriptionRef); return targets.length === 1 ? old.promise : { kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'update-a', purpose: 'payment_method', checkout: { token: 'method' } } }; };
+  const result = await context.payments.openPaymentUpdate({ buyerId: 'buyer', bindingId: context.basis, requestKey: 'pinned-update' }); assert.equal(result.kind, 'outcome_unknown'); if (result.kind !== 'outcome_unknown') throw new Error('Fixture');
+  const selection = await context.payments.readSubscriptionSelection('buyer', context.basis, 'sub-b'); assert.ok(selection);
+  assert.equal((await context.payments.selectSubscriptionStream({ buyerId: 'buyer', bindingId: context.basis, providerSubscriptionRef: 'sub-b', expectedReadSet: selection.expectedReadSet, actorId: 'operator', auditRef: 'select-b', reason: 'choose stream' })).kind, 'succeeded');
+  const operation = await context.payments.readOperation(result.operationId); assert.ok(operation);
+  assert.equal((await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'retry-a', reason: 'retry same command', action: 'retry', acceptedDuplicateRisk: true })).kind, 'succeeded');
+  assert.equal((await context.payments.executeOperation(operation.operationId)).kind, 'succeeded');
+  assert.deepEqual(targets, ['sub-a', 'sub-a']); assert.equal((await context.payments.readOperation(operation.operationId))?.providerSubscriptionRef, 'sub-a');
+  old.resolve({ kind: 'outcome_unknown' }); await context.payments.drain();
+});

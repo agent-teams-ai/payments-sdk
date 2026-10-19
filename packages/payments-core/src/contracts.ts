@@ -36,9 +36,9 @@ export interface PaymentProvider {
 }
 export type OperationKind = 'purchase' | 'cancellation' | 'payment_update';
 export type OperationState = 'prepared' | 'dispatch_started' | 'succeeded' | 'rejected' | 'outcome_unknown';
-export type Attempt = { attemptId: string; fingerprint: string; dispatchedAt: string; observations: ProviderResult<JsonValue>[] };
+export type Attempt = { attemptId: string; fingerprint: string; dispatchedAt: string; providerSubscriptionRef?: string; observations: ProviderResult<JsonValue>[] };
 export type ResolutionAudit = Readonly<{ actorId: string; auditRef: string; reason: string; acceptedDuplicateRisk: boolean; at: string; action: 'keep_unknown' | 'retry' | 'bind_outcome' }>;
-export type PaymentOperation = { operationId: string; kind: OperationKind; buyerId: string; requestKey: string; fingerprint: string; intentId?: string; subscriptionBindingId?: string; timing?: 'now' | 'period_end'; revision: number; state: OperationState; attempts: Attempt[]; result?: ProviderResult<JsonValue>; audits: ResolutionAudit[] };
+export type PaymentOperation = { operationId: string; kind: OperationKind; buyerId: string; requestKey: string; fingerprint: string; intentId?: string; subscriptionBindingId?: string; providerSubscriptionRef?: string; timing?: 'now' | 'period_end'; revision: number; state: OperationState; attempts: Attempt[]; result?: ProviderResult<JsonValue>; audits: ResolutionAudit[] };
 export type PurchaseIntent = { intentId: string; buyerId: string; requestKey: string; fingerprint: string; offer: OfferSnapshot; operationId: string; subscriptionBasisId?: string; transactionRefs: string[]; createdAt: string };
 export type TransactionBinding = { transactionRef: string; intentId: string; buyerId: string; purpose: 'commercial' | 'payment_method' | 'recovery'; customerRef: string | null };
 export type SubscriptionBinding = { bindingId: string; buyerId: string; originatingIntentId: string; offer: OfferSnapshot; providerSubscriptionRefs: string[]; selectedSubscriptionRef?: string; streamSelection?: Readonly<{ actorId: string; auditRef: string; reason: string; at: string }>; customerRef: string | null };

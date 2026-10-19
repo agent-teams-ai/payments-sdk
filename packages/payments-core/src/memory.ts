@@ -1,6 +1,6 @@
 import type { AggregateIdentity, EvidenceMessage, IntentAdmission, JsonValue, OperationCommit, OperationInput, PaymentOperation, PaymentReadVersion, PaymentScope, PaymentState, PaymentStore, ProviderResult, ReductionCommit, ReductionInput, ScanCheckpoint, StoreCommitResult, VerifiedInput } from './contracts.js';
 import { admitInput, transactionAggregate } from './reducer.js';
-import { canonicalJson, createEmptyPaymentState, digest, sameScope, scopeKey } from './values.js';
+import { canonicalJson, createEmptyPaymentState, digest, sameOperationCommand, sameScope, scopeKey } from './values.js';
 
 type VersionTable = PaymentReadVersion['table'];
 const mutableTables = ['intents', 'operations', 'bindings', 'subscriptionBindings', 'transactions', 'subscriptions', 'inbox'] as const;
@@ -75,6 +75,7 @@ export class MemoryPaymentStore implements PaymentStore {
     return this.atomic(scope, state => {
       if (state.recoveryFenced) return { kind: 'recovery_fenced' } as const;
       const current = state.operations[commit.operation.operationId];
+      if (current && !sameOperationCommand(current, commit.operation)) return { kind: 'conflict' } as const;
       if (current && current.revision !== commit.expectedRevision) return { kind: 'conflict' } as const;
       if (!current && commit.expectedRevision !== 0) return { kind: 'conflict' } as const;
       if (this.laneRevision(state, current ?? commit.operation) !== commit.expectedLaneRevision) return { kind: 'conflict' } as const;

@@ -88,14 +88,14 @@ export function createPayments(options: PaymentRuntimeOptions) {
     if (input.operation.state !== 'prepared') return toResult(input.operation);
     const operation = structuredClone(input.operation), attemptId = newId();
     operation.state = 'dispatch_started'; operation.revision += 1;
-    operation.attempts.push({ attemptId, fingerprint: operation.fingerprint, dispatchedAt: now(), observations: [] });
+    operation.attempts.push({ attemptId, fingerprint: operation.fingerprint, dispatchedAt: now(), ...(operation.providerSubscriptionRef ? { providerSubscriptionRef: operation.providerSubscriptionRef } : {}), observations: [] });
     const marked = await store.beginExternalDispatch(scope, operationCommit(input, operation));
     if (marked.kind !== 'committed') return marked.kind === 'recovery_fenced' ? unavailable : { kind: 'pending', operationId };
     // This is the only mutation dispatch site. No retry catches surround provider calls.
     const invoke = async (): Promise<ProviderResult<JsonValue>> => {
       try {
         if (operation.kind === 'purchase' && input.intent) return jsonResult(await provider.createCheckout({ intentId: input.intent.intentId, attemptId, buyerId: operation.buyerId, offer: input.intent.offer }));
-        const subscriptionRef = input.subscriptionBinding?.selectedSubscriptionRef;
+        const subscriptionRef = operation.providerSubscriptionRef;
         if (!subscriptionRef) return { kind: 'rejected', code: 'ownership_mismatch' };
         if (operation.kind === 'cancellation' && operation.timing && provider.cancelSubscription) return jsonResult(await provider.cancelSubscription({ subscriptionRef, timing: operation.timing, attemptId }));
         if (operation.kind === 'payment_update' && provider.openPaymentUpdate) return jsonResult(await provider.openPaymentUpdate({ subscriptionRef, intentId: input.subscriptionBinding?.originatingIntentId ?? '', attemptId }));
@@ -207,12 +207,13 @@ export function createPayments(options: PaymentRuntimeOptions) {
     for (const id of [command.buyerId, command.bindingId, command.requestKey]) assertIdentifier(id);
     if (command.kind === 'cancellation' && (!command.timing || !provider.capabilities.cancellation.includes(command.timing) || !provider.cancelSubscription)) return { kind: 'unsupported', capability: `cancellation:${command.timing ?? 'missing'}` };
     if (command.kind === 'payment_update' && (!provider.capabilities.paymentUpdate || !provider.openPaymentUpdate)) return { kind: 'unsupported', capability: 'payment_update' };
-    const fingerprint = digest([command.kind, command.buyerId, command.bindingId, command.timing ?? null]);
     const existing = await store.findRequest(scope, command.buyerId, command.requestKey);
-    if (existing) return existing.fingerprint === fingerprint ? toResult(existing) : { kind: 'rejected', code: 'conflict' };
+    if (existing) return existing.kind === command.kind && existing.subscriptionBindingId === command.bindingId && existing.timing === command.timing ? toResult(existing) : { kind: 'rejected', code: 'conflict' };
     const subscription = await store.readSubscription(scope, command.buyerId, command.bindingId);
-    if (!subscription?.binding.selectedSubscriptionRef) return { kind: 'rejected', code: 'ownership_mismatch' };
-    const operation: PaymentOperation = { operationId: newId(), kind: command.kind, buyerId: command.buyerId, requestKey: command.requestKey, fingerprint, subscriptionBindingId: command.bindingId, intentId: subscription.binding.originatingIntentId, ...(command.timing ? { timing: command.timing } : {}), revision: 1, state: 'prepared', attempts: [], audits: [] };
+    const providerSubscriptionRef = subscription?.binding.selectedSubscriptionRef;
+    if (!subscription || !providerSubscriptionRef) return { kind: 'rejected', code: 'ownership_mismatch' };
+    const fingerprint = digest([command.kind, command.buyerId, command.bindingId, providerSubscriptionRef, command.timing ?? null]);
+    const operation: PaymentOperation = { operationId: newId(), kind: command.kind, buyerId: command.buyerId, requestKey: command.requestKey, fingerprint, subscriptionBindingId: command.bindingId, providerSubscriptionRef, intentId: subscription.binding.originatingIntentId, ...(command.timing ? { timing: command.timing } : {}), revision: 1, state: 'prepared', attempts: [], audits: [] };
     const admitted = await store.admitOperation(scope, operation);
     if (admitted.kind === 'conflict') return { kind: 'rejected', code: 'conflict' };
     if (admitted.kind === 'recovery_fenced') return unavailable;
