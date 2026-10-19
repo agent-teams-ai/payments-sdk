@@ -1,5 +1,6 @@
 /** Nonproduction independent-owner transport. Never reads payment-owner or another consumer SQL. */
 import { createHash, randomUUID } from 'node:crypto';
+import { compareTime, exactTime } from '@agent-teams/payments-core';
 import type { Pool, PoolClient } from 'pg';
 import type { EvidenceMessage, PaymentScope } from '@agent-teams/payments-core';
 
@@ -31,8 +32,8 @@ type Envelope = EvidenceMessage & { schemaVersion: number; envelopeVersion: numb
 function isObject(value: unknown): value is Record<string, unknown> { return value !== null && typeof value === 'object' && !Array.isArray(value); }
 function bounded(value: unknown): value is string { return typeof value === 'string' && value.length > 0 && value.length <= 512 && ![...value].some(character => character.charCodeAt(0) < 32); }
 function exactAmount(value: unknown): boolean { return isObject(value) && typeof value['currency'] === 'string' && /^[A-Z]{3}$/u.test(value['currency']) && typeof value['minorUnits'] === 'string' && /^-?(0|[1-9][0-9]{0,77})$/u.test(value['minorUnits']) && value['minorUnits'] !== '-0'; }
-function timestamp(value: unknown): boolean { return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/u.test(value) && Number.isFinite(Date.parse(value)); }
-function period(value: unknown): boolean { return isObject(value) && timestamp(value['startsAt']) && timestamp(value['endsAt']) && Date.parse(String(value['startsAt'])) < Date.parse(String(value['endsAt'])); }
+function timestamp(value: unknown): value is string { try { if (typeof value !== 'string') return false; exactTime(value); return true; } catch { return false; } }
+function period(value: unknown): boolean { return isObject(value) && timestamp(value['startsAt']) && timestamp(value['endsAt']) && compareTime(value['startsAt'], value['endsAt']) < 0; }
 function field(value: unknown, check: (value: unknown) => boolean): boolean { return isObject(value) && (value['presence'] === 'unknown' || (value['presence'] === 'known' && check(value['value']))); }
 function offer(value: unknown, applicationId: string): boolean { return isObject(value) && value['applicationId'] === applicationId && bounded(value['offerId']) && bounded(value['version']) && bounded(value['policyVersion']) && ['monthly', 'one_time'].includes(String(value['profile'])) && Array.isArray(value['lines']) && value['lines'].length === 1 && value['lines'].every(line => isObject(line) && bounded(line['benefitSlotId']) && bounded(line['providerPriceRef']) && line['quantity'] === 1); }
 function payloadValid(message: Envelope): boolean {

@@ -211,7 +211,7 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
   } finally { await emulation.restore(); }
 });
 
-test('both public hosts hold distinct initial and renewal transactions for one exact paid period in either consumer delivery order', { timeout: 60_000 }, async t => {
+test('both public hosts hold distinct initial and renewal transactions for equivalent RFC3339 paid periods in either delivery order', { timeout: 60_000 }, async t => {
   const emulation = paddleEmulation(), { agent, api } = emulation;
   try {
     for (const kind of ['node-http-factory', 'fetch-static-gm'] as const) for (const initialFirst of [true, false]) {
@@ -248,7 +248,9 @@ test('both public hosts hold distinct initial and renewal transactions for one e
           const checkout = success(JSON.parse(response.body) as OperationResult<CheckoutReady>);
           await ingress(transactionFixture({ intentId }));
           const samePeriodRef = 'txn_00000000000000000000000008';
-          await ingress(transactionFixture({ id: samePeriodRef, intentId, origin: 'subscription_recurring', version: '2026-10-15T00:00:00.000001Z' }));
+          const aliasedPeriod = transactionFixture({ id: samePeriodRef, intentId, origin: 'subscription_recurring', version: '2026-10-15T00:00:00.000001Z' });
+          aliasedPeriod['billing_period'] = { starts_at: '2026-10-01T00:00:00.123456000+00:00', ends_at: '2026-11-01T00:00:00.123456000+00:00' };
+          await ingress(aliasedPeriod);
           const snapshots = await payments.readDeliveries('credit', 100);
           const initial = snapshots.find(body => body.kind === 'complete' && body.completion?.classification === 'initial');
           const renewal = snapshots.find(body => body.kind === 'complete' && body.completion?.classification === 'renewal');
@@ -256,7 +258,8 @@ test('both public hosts hold distinct initial and renewal transactions for one e
           const history = await payments.readPurchase('buyer-a', checkout.intentId); assert.ok(history);
           const financialFacts = history.transactions.filter(transaction => transaction.completion);
           assert.equal(financialFacts.length, 2); assert.ok(financialFacts.every(transaction => transaction.flags.length === 0));
-          assert.deepEqual(financialFacts[0]?.completion?.lines[0]?.period, financialFacts[1]?.completion?.lines[0]?.period);
+          assert.ok(financialFacts.some(transaction => transaction.completion?.lines[0]?.period?.startsAt === '2026-10-01T00:00:00.123456Z'));
+          assert.ok(financialFacts.some(transaction => transaction.completion?.lines[0]?.period?.startsAt === '2026-10-01T00:00:00.123456000+00:00'), 'equivalent spelling is retained in the distinct immutable fact');
           await credit.receive(initialFirst ? initial : renewal);
           const restarted = new CreditFixture({ pool, schema: credit.owner.options.schema, trust });
           await restarted.receive(initialFirst ? renewal : initial);

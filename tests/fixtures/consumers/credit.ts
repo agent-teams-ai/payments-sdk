@@ -1,4 +1,5 @@
 /** Symbolic Q/T policy for integration qualification only. This is not an AI usage ledger. */
+import { exactTime } from '@agent-teams/payments-core';
 import type { CompletionFact, PaymentEvidenceChanged } from '@agent-teams/payments-core';
 import type { PoolClient } from 'pg';
 import { ConsumerOwner, canonical, evidenceReadSet, hash } from './owner.ts';
@@ -14,7 +15,11 @@ type InitialGuard = { guardKey: string; status: 'selected' | 'held'; selectedSou
 function basis(contribution: Contribution): string {
   const { fact, slot, period } = contribution;
   if (fact.classification === 'one_time') return canonical(['purchase', fact.scope.applicationId, fact.buyerId, fact.intentId, slot]);
-  return canonical(['period', fact.scope.applicationId, fact.buyerId, fact.subscriptionBasisId, slot, period]);
+  if (!period) throw new Error('Recurring contribution requires an exact paid period');
+  const instant = (value: string) => { const { seconds, fraction } = exactTime(value); return { seconds, fraction }; };
+  // Identity follows instants, not provider spelling. All guard/allocation/effect references use
+  // this same basis; the original timestamp strings remain in the immutable source and decision.
+  return canonical(['period', fact.scope.applicationId, fact.buyerId, fact.subscriptionBasisId, slot, { startsAt: instant(period.startsAt), endsAt: instant(period.endsAt) }]);
 }
 function initialGuardKey(contribution: Contribution): string { return canonical(['initial', contribution.fact.scope.applicationId, contribution.fact.buyerId, contribution.fact.intentId, contribution.slot]); }
 function contributions(sources: readonly Source[]): Contribution[] {

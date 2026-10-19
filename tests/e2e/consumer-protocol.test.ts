@@ -192,12 +192,13 @@ test('initial stream guard, distinct renewal periods and intentional top-ups pre
 });
 
 test('initial, renewal and recovery share one exact paid-period decision in either order across restart', async t => {
-  for (const classification of ['renewal', 'recovery'] as const) for (const initialFirst of [true, false]) {
-    await t.test(`${classification}, ${initialFirst ? 'initial first' : 'recurring first'}`, async () => {
+  for (const classification of ['renewal', 'recovery'] as const) for (const initialFirst of [true, false]) for (const alias of [false, true]) {
+    await t.test(`${classification}, ${initialFirst ? 'initial first' : 'recurring first'}, ${alias ? 'equivalent RFC3339 spellings' : 'identical spellings'}`, async () => {
       const fixture = await consumers();
       try {
         const initial = message(1);
-        const recurringFact = fact({ transactionRef: 'same-period-recurring', factId: 'same-period-completion', classification, lines: [{ ...fact().lines[0]!, providerLineRef: 'same-period-line' }] });
+        const recurringPeriod = alias ? { startsAt: '2026-10-01T01:00:00.123456000+01:00', endsAt: '2026-11-01T00:00:00.123456000+00:00' } : period;
+        const recurringFact = fact({ transactionRef: 'same-period-recurring', factId: 'same-period-completion', classification, lines: [{ ...fact().lines[0]!, providerLineRef: 'same-period-line', period: recurringPeriod }] });
         const recurring = message(1, recurringFact);
         await fixture.credit.receive(initialFirst ? initial : recurring);
         const credit = new CreditFixture({ pool: fixture.pool, schema: fixture.credit.owner.options.schema, trust: fixture.trust });
@@ -220,6 +221,14 @@ test('initial, renewal and recovery share one exact paid-period decision in eith
         assert.equal((await credit.decisions()).length, 2);
         assert.equal((await credit.decisions()).reduce((sum, decision) => sum + BigInt(decision.body.eligible), 0n), 2n * Q);
         assert.equal((await effects(credit)).filter(effect => effect.kind === 'grant').length, 2, 'one original issuance per genuine paid period');
+        if (alias) {
+          const neighbor = fact({ transactionRef: 'neighboring-nanosecond', factId: 'neighboring-nanosecond', classification: 'renewal', lines: [{ ...fact().lines[0]!, providerLineRef: 'neighboring-line', period: { startsAt: '2026-10-01T00:00:00.123456001Z', endsAt: '2026-11-01T00:00:00.123456001Z' } }] });
+          await credit.receive(message(1, neighbor));
+          assert.equal((await credit.decisions()).length, 3, 'a genuine neighboring nanosecond stays distinct');
+          assert.equal((await credit.decisions()).reduce((sum, decision) => sum + BigInt(decision.body.eligible), 0n), 3n * Q);
+          const retained = await credit.owner.inspect<{ body: typeof recurring }>('evidence_projection');
+          assert.ok(retained.some(source => source.body.kind === 'complete' && source.body.completion?.lines[0]?.period?.startsAt === recurringPeriod.startsAt), 'custody retains the exact original spelling');
+        }
       } finally { await fixture.close(); }
     });
   }
