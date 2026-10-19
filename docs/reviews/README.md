@@ -132,6 +132,14 @@ production transport. Production runtime admission remains blocked; the
 [current security record](../security-qualification.md) owns the dated evidence,
 functional prerelease boundary and requirements for admitting an official fix.
 
+An additional [independent release-admission review](prerelease-security-admission-review.md)
+accepts exact disclosure/generator revision
+`ad3f8bcf5125904beb3cf416e2ff266fb2b558db` for merging and functional GitHub
+prerelease delivery through the required exact-commit CI gates. It explicitly
+rejects production runtime/security admission until the upstream correction is
+published and qualified. This report/index-only successor preserves that
+decision and still needs its own final main-push CI.
+
 ## Qualification boundaries
 
 Tests use the real pinned SDK's public HTTP mapping with synthetic responses and

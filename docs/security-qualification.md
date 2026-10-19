@@ -157,6 +157,10 @@ and the complete `pnpm check` ran under each exact Linux Node version:
 There were zero failures, cancellations or skips. Packed consumers exercised
 NodeNext and Bundler resolution with `strict:true` and `skipLibCheck:false`,
 runtime imports and the single physical Get Modular Resources identity.
+The [retained execution summary](reviews/development-security-qualification-results.json)
+records the exact counts, audit results and source log hashes. The
+[independent dependency review](reviews/security-dependency-review.md) records
+its own bounded reruns separately.
 The SDK, reconciliation and end-to-end scenarios use synthetic provider
 responses through the actual SDK's serializers, public resources, entity
 constructors and signature verifier. They do not qualify live Paddle account
@@ -175,3 +179,8 @@ archive checks above. They do not assert absence of undisclosed vulnerabilities.
 No network-dependent audit gate was added to CI; GitHub's existing Dependabot
 monitoring remains active, and its post-merge alert state requires its own
 read-back.
+
+The [independent release-admission review](reviews/prerelease-security-admission-review.md)
+accepts functional GitHub prerelease delivery with this visible runtime blocker;
+it does not clear production admission. The exact selected main commit still
+requires its own successful Checks run and audited artifact read-back.
