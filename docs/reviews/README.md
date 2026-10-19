@@ -30,7 +30,7 @@ in the frozen [implementation plan](../implementation-plan.md).
 | 1 | [Core](code/wave1-core.md), [Paddle](code/wave1-paddle.md), [consumers](code/wave1-consumers.md), [platform](code/wave1-platform.md) | All ten accepted findings corrected |
 | 2 | [Domain](code/wave2-domain.md), [consumers](code/wave2-consumers.md), [Paddle](code/wave2-paddle.md), [PostgreSQL and recovery](code/wave2-postgres.md) | All seven accepted findings corrected |
 | 3 | [Domain](code/wave3-domain.md), [consumers](code/wave3-consumers.md), [platform](code/wave3-platform.md), [provider](code/wave3-provider.md) | All five accepted findings corrected |
-| 4 | [PostgreSQL](code/wave4-postgres.md), [platform](code/wave4-platform.md), [consumers](code/wave4-consumers.md); domain/provider report in progress | Final review and correction cycle in progress |
+| 4 | [PostgreSQL](code/wave4-postgres.md), [platform](code/wave4-platform.md), [consumers](code/wave4-consumers.md), [domain/provider](code/wave4-domain-provider.md) | All four reviews complete; correction qualification in progress |
 
 ### Wave 1 corrections
 
@@ -95,7 +95,11 @@ separate gates.
 | Ordinary renewal processing reopened unchanged reclassification quarantine and bypassed its persisted cooldown | Correction in progress | Independent actual pg-boss fault probes compare the unchanged cursor/decision and exact persisted deadline |
 | Historical adjustment reparenting omitted the original parent's T1 fence before its already prepared publication T2 | Correction in progress | Independent inverse-order admission/publication probe on both Node floors |
 | The documented unpublished tarball installation tried to resolve internal packages from npm | 70db2ef in the documentation/release PR | Both fresh hosts install using the documented commands/configuration directly; runtime imports and strict NodeNext/Bundler pass on both Node floors |
-| Access accepted an uncorrelated reversed adjustment and rejected the later qualified restoration pair | Correction in progress | Independent actual-SDK probes on both hosts and Node floors compare access capabilities with retained credit allocation across restart and duplicate ACK |
+| Access accepted an uncorrelated reversed adjustment and rejected the later qualified restoration pair | f560818, 560c75b | Pure fixture-owned whole-snapshot qualifier shared by independent owners; actual SDK in both hosts, restart/replay, positive restoration and independent security restriction |
+
+The domain/provider reviewer established no additional P0/P1/P2 at its frozen
+revision. Final correction deltas receive independent follow-up qualification;
+the original reports retain their own exact subjects and boundaries.
 
 ## Qualification boundaries
 
