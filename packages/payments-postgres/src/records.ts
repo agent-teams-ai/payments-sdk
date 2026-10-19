@@ -10,6 +10,7 @@ export type OwnerConfiguration = {
   recoveryFenced: boolean;
   fenceAudits: { fenced: boolean; auditRef: string; at: string }[];
   jobTransport?: { jobSchema: string; queueName: string };
+  activeRecoverySessionId?: string;
 };
 export type StoredRecord<T> = Readonly<{ revision: number; body: T }>;
 export type RecordKey = Readonly<{ kind: string; id: string }>;

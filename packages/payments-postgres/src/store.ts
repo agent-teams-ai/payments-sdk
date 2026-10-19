@@ -29,7 +29,7 @@ export type PostgresPaymentStoreOptions = Readonly<{
 
 const mutableTables = ['intents', 'operations', 'bindings', 'subscriptionBindings', 'transactions', 'subscriptions', 'inbox', 'versionEvidence'] as const;
 type MutableTable = typeof mutableTables[number];
-type Lane = { revision: number; unresolvedOperationId?: string };
+type Lane = { revision: number; unresolvedOperationId?: string; recoveryReviewRequired?: string };
 type StoredEventIdentity = { evidence: EventIdentityEvidence; conflict: boolean };
 const committed = { kind: 'committed' } as const;
 const conflict = { kind: 'conflict' } as const;
@@ -98,7 +98,7 @@ class PostgresPaymentStore implements PaymentStore {
       const requestKey = this.requestKey(operation);
       const keys: RecordKey[] = [{ kind: 'requestKeys', id: requestKey }, { kind: 'operations', id: operation.operationId }];
       if (admission) keys.push({ kind: 'intents', id: admission.intent.intentId });
-      if (operation.subscriptionBindingId) keys.push({ kind: 'subscriptionBindings', id: operation.subscriptionBindingId });
+      if (operation.subscriptionBindingId) keys.push({ kind: 'subscriptionBindings', id: operation.subscriptionBindingId }, { kind: 'lanes', id: this.laneKey(operation) });
       if (admission?.subscriptionBinding) keys.push({ kind: 'subscriptionBindings', id: admission.subscriptionBinding.bindingId });
       await this.records.lock(tx, keys);
       const existingId = (await this.records.read<string>(tx, 'requestKeys', requestKey))?.body;
@@ -112,6 +112,7 @@ class PostgresPaymentStore implements PaymentStore {
         const binding = operation.subscriptionBindingId ? (await this.records.read<SubscriptionBinding>(tx, 'subscriptionBindings', operation.subscriptionBindingId))?.body : undefined;
         if (!binding || binding.buyerId !== operation.buyerId) return conflict;
       }
+      if ((await this.records.read<Lane>(tx, 'lanes', this.laneKey(operation)))?.body.recoveryReviewRequired) return fenced;
       await this.records.write(tx, 'requestKeys', requestKey, operation.operationId);
       await this.records.write(tx, 'operations', operation.operationId, operation);
       if (admission) {
@@ -176,6 +177,7 @@ class PostgresPaymentStore implements PaymentStore {
             !reads.some(read => read.table === 'subscriptionBindings' && read.id === current.subscriptionBindingId && read.revision !== null) ||
             !reads.some(read => read.table === 'subscriptions' && read.id === current.providerSubscriptionRef && read.revision !== null)) return conflict;
       }
+      if (dispatch && lane.recoveryReviewRequired) return fenced;
       if (dispatch && (current.state !== 'prepared' || op.state !== 'dispatch_started' || (lane.unresolvedOperationId && lane.unresolvedOperationId !== op.operationId))) return conflict;
       const unresolved = op.state === 'dispatch_started' || op.state === 'outcome_unknown';
       // A late terminal observation belongs to this operation. It cannot release a different
@@ -200,7 +202,7 @@ class PostgresPaymentStore implements PaymentStore {
         await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'transaction', id: binding.transactionRef }) });
       }
       await this.records.write(tx, 'operations', op.operationId, op);
-      await this.records.write(tx, 'lanes', laneId, { revision: lane.revision + 1, ...(owner ? { unresolvedOperationId: owner } : {}) });
+      await this.records.write(tx, 'lanes', laneId, { revision: lane.revision + 1, ...(owner ? { unresolvedOperationId: owner } : {}), ...(lane.recoveryReviewRequired ? { recoveryReviewRequired: lane.recoveryReviewRequired } : {}) });
       if (commit.intent) await this.records.write(tx, 'intents', commit.intent.intentId, commit.intent);
       if (commit.subscriptionBinding) {
         await this.records.write(tx, 'subscriptionBindings', commit.subscriptionBinding.bindingId, commit.subscriptionBinding);
@@ -338,6 +340,7 @@ class PostgresPaymentStore implements PaymentStore {
     const maximumRecords = this.options.maxWorkingSetRecords ?? 128;
     let remainingBytes = this.options.maxWorkingSetBytes ?? 2_097_152;
     let incomplete = false;
+    let invalidVersion = false;
     const seen = new Set<string>();
     const guard = async (id: string): Promise<void> => {
       if (expected.some(item => item.table === 'guards' && item.id === id)) return;
@@ -377,7 +380,7 @@ class PostgresPaymentStore implements PaymentStore {
     };
     const includeVersion = async (observation: Observation): Promise<void> => {
       let key: string | undefined;
-      try { key = objectVersionKey(observation); } catch { incomplete = true; return; }
+      try { key = objectVersionKey(observation); } catch { incomplete = true; invalidVersion = true; return; }
       if (key !== undefined) await add('versionEvidence', key);
     };
     const includeIntent = async (intentId: string): Promise<void> => {
@@ -441,9 +444,10 @@ class PostgresPaymentStore implements PaymentStore {
     // evidence and null-creation CAS as inbox reduction, within the existing record/byte bounds.
     for (const value of Object.values(state.transactions)) {
       for (const observation of value.observations) await includeVersion(observation);
+      for (const observation of Object.values(value.adjustments)) await includeVersion(observation);
     }
     for (const value of Object.values(state.subscriptions)) if (value.current) await includeVersion(value.current);
-    return { inputId, state, expected, ...(incomplete ? { incompleteReason: 'working_set_limit' } : {}) };
+    return { inputId, state, expected, ...(incomplete ? { incompleteReason: invalidVersion ? 'invalid_object_version' : 'working_set_limit' } : {}) };
   }
 
   async commitReduction(scope: PaymentScope, commit: ReductionCommit): Promise<StoreCommitResult> {
@@ -597,7 +601,7 @@ class PostgresPaymentStore implements PaymentStore {
 
   async acknowledgeDelivery(scope: PaymentScope, consumerId: string, messageId: string, bodyDigest: string): Promise<'acknowledged' | 'duplicate' | 'conflict'> {
     return this.tx(scope, async tx => {
-      await this.records.configuration(tx, scope);
+      if ((await this.records.configuration(tx, scope)).body.recoveryFenced) return 'conflict';
       const id = canonicalJson([messageId, consumerId]);
       await this.records.lock(tx, [{ kind: 'deliveries', id }]);
       const delivery = (await this.records.read<Delivery>(tx, 'deliveries', id))?.body;
@@ -615,6 +619,7 @@ class PostgresPaymentStore implements PaymentStore {
     if (!auditRef || auditRef.length > 512) throw new TypeError('A recovery fence requires an audit reference');
     await this.tx(scope, async tx => {
       const config = await this.records.configuration(tx, scope, true);
+      if (!recoveryFenced && config.body.activeRecoverySessionId) throw new Error('An active recovery session must pass its resume gate');
       config.body.recoveryFenced = recoveryFenced;
       config.body.fenceAudits.push({ fenced: recoveryFenced, auditRef, at: new Date().toISOString() });
       await tx.query(`UPDATE ${this.records.sql}.configuration SET revision = revision + 1, body = $1 WHERE id = 'owner'`, [JSON.stringify(config.body)]);
