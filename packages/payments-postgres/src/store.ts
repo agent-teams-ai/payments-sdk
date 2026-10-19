@@ -1,10 +1,10 @@
 import {
-  admitInput, canonicalJson, createEmptyPaymentState, digest, transactionAggregate,
+  admitInput, canonicalJson, createEmptyPaymentState, digest, sameOperationCommand, transactionAggregate,
 } from '@agent-teams/payments-core';
 import type {
   AggregateIdentity, Delivery, EvidenceMessage, InboxRecord, IntentAdmission, JsonValue,
   OperationCommit, OperationInput, PaymentOperation, PaymentReadVersion, PaymentScope,
-  PaymentState, PaymentStore, ProviderResult, PurchaseIntent, ReductionCommit, ReductionInput,
+  PaymentStore, ProviderResult, PurchaseIntent, ReductionCommit, ReductionInput,
   ScanCheckpoint, StoreCommitResult, SubscriptionAggregate, SubscriptionBinding,
   TransactionAggregate, TransactionBinding, VerifiedInput,
 } from '@agent-teams/payments-core';
@@ -152,6 +152,9 @@ class PostgresPaymentStore implements PaymentStore {
       const op = commit.operation;
       const laneId = this.laneKey(op);
       const keys: RecordKey[] = [{ kind: 'operations', id: op.operationId }, { kind: 'lanes', id: laneId }];
+      for (const read of commit.expectedReadSet ?? []) {
+        if (read.table !== 'configuration') keys.push({ kind: read.table, id: read.id });
+      }
       if (commit.intent) keys.push({ kind: 'intents', id: commit.intent.intentId });
       if (commit.binding) keys.push({ kind: 'bindings', id: commit.binding.transactionRef }, { kind: 'transactions', id: commit.binding.transactionRef }, { kind: 'guards', id: `intent:${commit.binding.intentId}` });
       if (commit.subscriptionBinding) {
@@ -161,8 +164,23 @@ class PostgresPaymentStore implements PaymentStore {
       await this.records.lock(tx, keys);
       const current = (await this.records.read<PaymentOperation>(tx, 'operations', op.operationId))?.body;
       const lane = (await this.records.read<Lane>(tx, 'lanes', laneId))?.body ?? { revision: 0 };
-      if (!current || current.revision !== commit.expectedRevision || lane.revision !== commit.expectedLaneRevision) return conflict;
+      if (!current || current.revision !== commit.expectedRevision || lane.revision !== commit.expectedLaneRevision || !sameOperationCommand(current, op)) return conflict;
+      for (const read of commit.expectedReadSet ?? []) {
+        if (await this.records.version(tx, read) !== read.revision) return conflict;
+      }
+      if (dispatch && current.kind !== 'purchase') {
+        const reads = commit.expectedReadSet ?? [];
+        if (!current.providerSubscriptionRef || !current.subscriptionBindingId ||
+            !reads.some(read => read.table === 'subscriptionBindings' && read.id === current.subscriptionBindingId && read.revision !== null) ||
+            !reads.some(read => read.table === 'subscriptions' && read.id === current.providerSubscriptionRef && read.revision !== null)) return conflict;
+      }
       if (dispatch && (current.state !== 'prepared' || op.state !== 'dispatch_started' || (lane.unresolvedOperationId && lane.unresolvedOperationId !== op.operationId))) return conflict;
+      const unresolved = op.state === 'dispatch_started' || op.state === 'outcome_unknown';
+      // A late terminal observation belongs to this operation. It cannot release a different
+      // command's unresolved lane, even when it loaded the latest lane revision before settling.
+      const owner = lane.unresolvedOperationId && lane.unresolvedOperationId !== op.operationId
+        ? lane.unresolvedOperationId : unresolved ? op.operationId : undefined;
+      if (unresolved && owner !== op.operationId) return conflict;
       if (commit.binding) {
         const existing = (await this.records.read<TransactionBinding>(tx, 'bindings', commit.binding.transactionRef))?.body;
         const compatiblePurpose = !existing || existing.purpose === commit.binding.purpose || (existing.purpose === 'commercial' && commit.binding.purpose === 'recovery') || (existing.purpose === 'recovery' && commit.binding.purpose === 'commercial');
@@ -180,8 +198,7 @@ class PostgresPaymentStore implements PaymentStore {
         await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'transaction', id: binding.transactionRef }) });
       }
       await this.records.write(tx, 'operations', op.operationId, op);
-      const unresolved = op.state === 'dispatch_started' || op.state === 'outcome_unknown';
-      await this.records.write(tx, 'lanes', laneId, { revision: lane.revision + 1, ...(unresolved ? { unresolvedOperationId: op.operationId } : {}) });
+      await this.records.write(tx, 'lanes', laneId, { revision: lane.revision + 1, ...(owner ? { unresolvedOperationId: owner } : {}) });
       if (commit.intent) await this.records.write(tx, 'intents', commit.intent.intentId, commit.intent);
       if (commit.subscriptionBinding) {
         await this.records.write(tx, 'subscriptionBindings', commit.subscriptionBinding.bindingId, commit.subscriptionBinding);
