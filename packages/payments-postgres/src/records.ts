@@ -39,10 +39,17 @@ export class PaymentRecords {
 
   /** Missing records also have a lock, so unique creation and membership reads have no phantom gap. */
   async lock(tx: PaymentSqlTransaction, keys: readonly RecordKey[]): Promise<void> {
-    const names = [...new Set(keys.map(key => canonicalJson([this.schema, key.kind, key.id])))].sort();
+    const rank = (kind: string): number => kind === 'inbox' ? 0 : kind === 'versionEvidence' ? 1 : 2;
+    const compareKeys = (a: RecordKey, b: RecordKey): number => {
+      const left = canonicalJson([a.kind, a.id]), right = canonicalJson([b.kind, b.id]);
+      return left < right ? -1 : left > right ? 1 : 0;
+    };
+    const ordered = [...keys].sort((a, b) => rank(a.kind) - rank(b.kind) || compareKeys(a, b));
+    const names = [...new Set(ordered.map(key => canonicalJson([this.schema, key.kind, key.id])))];
     if (names.length > 512) throw new RangeError('Payment transaction lock set exceeds its bound');
-    // One statement avoids a round trip per key. The sorted subquery defines a common lock order.
-    await tx.query('SELECT pg_advisory_xact_lock(hashtextextended(key, 0)) FROM (SELECT unnest($1::text[]) AS key ORDER BY key) ordered', [names]);
+    // Exact-version certification must be stable before T1 discovers its retained parent.
+    // T2 uses this same inbox/version/aggregate order, avoiding an inverse parent/version wait.
+    await tx.query('SELECT pg_advisory_xact_lock(hashtextextended(key, 0)) FROM (SELECT key FROM unnest($1::text[]) WITH ORDINALITY AS keys(key, position) ORDER BY position) ordered', [names]);
   }
 
   async read<T>(tx: PaymentSqlTransaction, kind: string, id: string): Promise<StoredRecord<T> | undefined> {
@@ -72,11 +79,13 @@ export class PaymentRecords {
     return (await this.read(tx, item.table, item.id))?.revision ?? null;
   }
 
-  async obligation(tx: PaymentSqlTransaction, work: DurableWork, state: 'pending' | 'quarantined' | 'complete' = 'pending'): Promise<void> {
+  async obligation(tx: PaymentSqlTransaction, work: DurableWork, state: 'pending' | 'quarantined' | 'complete' = 'pending', reset = false): Promise<void> {
     await tx.query(`INSERT INTO ${this.sql}.obligations (kind, id, state) VALUES ($1, $2, $3)
-      ON CONFLICT (kind, id) DO UPDATE SET state = EXCLUDED.state,
-      next_attempt_at = CASE WHEN EXCLUDED.state = 'pending' THEN LEAST(${this.sql}.obligations.next_attempt_at, clock_timestamp()) ELSE ${this.sql}.obligations.next_attempt_at END`,
-    [work.kind, work.id, state]);
+      ON CONFLICT (kind, id) DO UPDATE SET state = EXCLUDED.state, revision = ${this.sql}.obligations.revision + CASE WHEN $4 OR ${this.sql}.obligations.state <> EXCLUDED.state THEN 1 ELSE 0 END,
+      attempts = CASE WHEN $4 THEN 0 ELSE ${this.sql}.obligations.attempts END,
+      issue = CASE WHEN $4 THEN NULL ELSE ${this.sql}.obligations.issue END,
+      next_attempt_at = CASE WHEN $4 THEN clock_timestamp() WHEN EXCLUDED.state = 'pending' THEN LEAST(${this.sql}.obligations.next_attempt_at, clock_timestamp()) ELSE ${this.sql}.obligations.next_attempt_at END`,
+    [work.kind, work.id, state, reset]);
   }
 }
 

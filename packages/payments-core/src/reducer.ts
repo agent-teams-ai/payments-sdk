@@ -353,6 +353,18 @@ export function mergeEventIdentityEvidence(a: EventIdentityEvidence, b: EventIde
   const routes = [...a.routes]; for (const route of b.routes) if (!routes.some(existing => existing.type === route.type && existing.id === route.id)) routes.push(route);
   return { ...a, ...(a.eventType === undefined && b.eventType !== undefined ? { eventType: b.eventType } : {}), ...(a.occurredAt === undefined && b.occurredAt !== undefined ? { occurredAt: b.occurredAt } : {}), ...(a.rawStableEnvelopeDigest === undefined && b.rawStableEnvelopeDigest !== undefined ? { rawStableEnvelopeDigest: b.rawStableEnvelopeDigest } : {}), projection, routes };
 }
+/** Admission and completion use the same bounded certified routes, including an adjustment's
+ * retained exact-version parent. Invalid versions still retain custody on their incoming route. */
+function adverseTransactionRefs(state: PaymentState, input: VerifiedInput): readonly string[] {
+  const direct = input.adverseTransactionRef ?? (input.observation.kind === 'adjustment' ? input.observation.transactionRef : undefined);
+  const refs = new Set<string>(direct ? [direct] : []);
+  if (input.observation.kind === 'adjustment') {
+    let key: string | undefined;
+    try { key = objectVersionKey(input.observation); } catch { return [...refs]; }
+    for (const route of objectVersionDependentRoutes(input.observation, key === undefined ? undefined : state.versionEvidence[key])) if (route.type === 'transaction') refs.add(route.id);
+  }
+  return [...refs];
+}
 function flagInputConflict(state: PaymentState, input: Pick<VerifiedInput, 'observation' | 'adverseTransactionRef'>): void {
   for (const route of inputRoutes(input)) {
     const aggregate = route.type === 'transaction' ? transactionAggregate(state, route.id) : subscriptionAggregate(state, route.id);
@@ -376,8 +388,7 @@ export function admitInput(state: PaymentState, input: VerifiedInput): 'admitted
     }
   }
   state.inbox[input.inputId] = { input, state: 'pending', conflict, attempts: 0 };
-  const adverse = input.adverseTransactionRef ?? (input.observation.kind === 'adjustment' ? input.observation.transactionRef : undefined);
-  if (adverse) {
+  for (const adverse of adverseTransactionRefs(state, input)) {
     const aggregate = transactionAggregate(state, adverse);
     if (!aggregate.pendingAdverse.includes(input.inputId)) aggregate.pendingAdverse.push(input.inputId);
     aggregate.revision += 1; aggregate.publicationRequired = true;
@@ -440,9 +451,9 @@ export function processInput(state: PaymentState, scope: PaymentScope, inputId: 
     else state.issues.push(`quarantine-unresolved:${inputId}`);
     return 'quarantined';
   }
-  const adverse = record.input.adverseTransactionRef ?? (record.input.observation.kind === 'adjustment' ? record.input.observation.transactionRef : undefined);
-  if (adverse && record.input.observation.kind === 'unsupported') { record.state = 'quarantined'; record.issue = record.input.observation.reason; return 'quarantined'; }
-  if (adverse) { const aggregate = transactionAggregate(state, adverse); aggregate.pendingAdverse = aggregate.pendingAdverse.filter(id => id !== inputId); aggregate.revision += 1; aggregate.publicationRequired = true; }
+  const adverse = adverseTransactionRefs(state, record.input);
+  if (adverse.length > 0 && record.input.observation.kind === 'unsupported') { record.state = 'quarantined'; record.issue = record.input.observation.reason; return 'quarantined'; }
+  for (const ref of adverse) { const aggregate = transactionAggregate(state, ref); aggregate.pendingAdverse = aggregate.pendingAdverse.filter(id => id !== inputId); aggregate.revision += 1; aggregate.publicationRequired = true; }
   record.state = 'processed'; return 'processed';
 }
 /** Quarantine/working-set overflow never serializes a partial history as a complete snapshot. */
