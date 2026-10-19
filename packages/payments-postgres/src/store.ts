@@ -460,11 +460,25 @@ class PostgresPaymentStore implements PaymentStore {
       for (const [id] of Object.entries(commit.state.evidence)) keys.push({ kind: 'evidence', id });
       await this.records.lock(tx, keys);
       for (const item of commit.expected) if (await this.records.version(tx, item) !== item.revision) return conflict;
+      const namespaces = [...new Set(Object.values(commit.state.evidence).map(message => message.producerNamespace))];
+      if (namespaces.length > 1) return conflict;
+      const namespace = namespaces[0];
+      let savedNamespace = (await this.records.read<string>(tx, 'ownerIdentity', 'producerNamespace'))?.body;
+      if (namespace !== undefined && savedNamespace === undefined) {
+        // Namespace is immutable after first publication. Only its first creation needs a lock;
+        // ordinary unrelated aggregate commits keep their existing concurrency.
+        await this.records.lock(tx, [{ kind: 'ownerIdentity', id: 'producerNamespace' }]);
+        savedNamespace = (await this.records.read<string>(tx, 'ownerIdentity', 'producerNamespace'))?.body;
+      }
+      if (namespace !== undefined && savedNamespace !== undefined && savedNamespace !== namespace) return conflict;
       // Validate all immutable outputs before changing any row. Conflict is a rejected commit.
       for (const [id, message] of Object.entries(commit.state.evidence)) {
+        const { bodyDigest, ...body } = message;
+        if (message.messageId !== id || bodyDigest !== digest(body) || canonicalJson(message.scope) !== canonicalJson(scope)) return conflict;
         const existing = await this.records.read<EvidenceMessage>(tx, 'evidence', id);
         if (existing && existing.body.bodyDigest !== message.bodyDigest) return conflict;
       }
+      if (namespace !== undefined && savedNamespace === undefined) await this.records.write(tx, 'ownerIdentity', 'producerNamespace', namespace);
       for (const table of mutableTables) {
         for (const [id, value] of Object.entries(commit.state[table])) {
           const previous = await this.records.read<unknown>(tx, table, id);

@@ -5,7 +5,7 @@ import { canonicalJson, digest, money, processInput, publishEvidence } from '@ag
 import type { AdjustmentObservation, CheckoutReady, EvidenceSource, PaymentOperation, ProviderResult, TransactionAggregate, VerifiedInput } from '@agent-teams/payments-core';
 import { assertPostgresDurability, createPostgresPaymentStore, migratePaymentSchema, PaymentDatabaseError } from '../dist/index.js';
 import { createPaymentSqlExecutor, withPaymentTransaction } from '../dist/database.js';
-import { at, databaseFixture, deferred, observe, receipt, runtime, scope, success, transaction } from './helpers.ts';
+import { at, databaseFixture, deferred, known, observe, receipt, runtime, scope, subscription, success, transaction } from './helpers.ts';
 import { postgresFaultProxy } from './fault-proxy.ts';
 
 test('PostgreSQL ownership and durability are qualified without changing a borrowed host session', async () => {
@@ -164,5 +164,41 @@ test('bounded overflow publishes an immutable held revision and preserves existi
     assert.equal(await context.payments.acknowledgeDelivery('credit', held.messageId, 'wrong-digest'), 'conflict');
     assert.equal(await context.payments.acknowledgeDelivery('credit', held.messageId, held.bodyDigest), 'acknowledged');
     assert.equal(await context.payments.acknowledgeDelivery('credit', held.messageId, held.bodyDigest), 'duplicate');
+  } finally { await context.payments.drain(); await f.close(); }
+});
+
+test('historical exact-version contradictions survive restart, acknowledgement and newer watermarks', async () => {
+  const f = await databaseFixture(), context = runtime(f.store);
+  try {
+    const checkout = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'history' }));
+    await context.payments.registerConsumer('audit');
+    await observe(context.payments, receipt(transaction(checkout.transactionRef, 'history-paid')));
+    await observe(context.payments, receipt(subscription('sub-a', 'sub-v1')));
+    const v2 = '2026-01-02T00:00:00Z';
+    await observe(context.payments, receipt({ ...subscription('sub-a', 'sub-v2'), version: v2 }));
+    const adjustment: AdjustmentObservation = { kind: 'adjustment', adjustmentRef: 'history-refund', transactionRef: checkout.transactionRef, version: at, action: 'refund', status: 'pending_approval', amount: money('USD', '100'), allocations: [{ providerLineRef: `line-${checkout.transactionRef}`, amount: money('USD', '100') }], source: { ...subscription('sub-a', 'adjustment-v1').source } };
+    await observe(context.payments, receipt(adjustment, { adverseTransactionRef: checkout.transactionRef }));
+    await observe(context.payments, receipt({ ...adjustment, version: v2, status: 'approved', source: { ...adjustment.source, receiptId: 'adjustment-v2' } }, { adverseTransactionRef: checkout.transactionRef }));
+    for (const message of await context.payments.readDeliveries('audit', 100)) await context.payments.acknowledgeDelivery('audit', message.messageId, message.bodyDigest);
+    const restarted = runtime(await createPostgresPaymentStore({ pool: f.pool, schema: f.schema, scope }));
+    await observe(restarted.payments, receipt({ ...subscription('sub-a', 'conflicting-old-sub'), version: '2026-01-01T00:00:00.000001000+00:00', status: known('canceled') }));
+    await observe(restarted.payments, receipt({ ...adjustment, amount: money('USD', '90'), allocations: [{ providerLineRef: `line-${checkout.transactionRef}`, amount: money('USD', '90') }], source: { ...adjustment.source, receiptId: 'conflicting-old-adjustment' } }, { adverseTransactionRef: checkout.transactionRef }));
+    const purchase = await restarted.payments.readPurchase('buyer', checkout.intentId); assert.ok(purchase?.intent.subscriptionBasisId);
+    const sub = await restarted.payments.readObservedSubscription('buyer', purchase.intent.subscriptionBasisId);
+    assert.equal(sub?.observations[0]?.current?.version, v2);
+    assert.ok(sub?.observations[0]?.flags.includes('conflict'));
+    assert.equal(purchase.transactions[0]?.adjustments['history-refund']?.version, v2);
+    assert.ok(purchase.transactions[0]?.flags.includes('conflict'));
+    const messages = await restarted.payments.readDeliveries('audit', 100);
+    assert.ok(messages.some(message => message.kind === 'subscription_complete' && message.flags.includes('conflict')));
+    assert.ok(messages.some(message => message.kind === 'complete' && message.flags.includes('conflict')));
+    const versions = await f.pool.query(`SELECT body FROM "${f.schema}".records WHERE kind = 'versionEvidence'`);
+    assert.equal(versions.rows.length, 5, 'equivalent timestamp spelling uses the original exact-version identity');
+    // Producer namespace is a durable identity, not a way to erase acknowledged history.
+    const loaded = await f.store.loadPublicationInput(scope, { type: 'transaction', id: checkout.transactionRef }); assert.ok(loaded);
+    const aggregate = loaded.state.transactions[checkout.transactionRef]; assert.ok(aggregate); aggregate.publicationRequired = true;
+    publishEvidence(loaded.state, scope, 'different-namespace', 65536);
+    assert.deepEqual(await f.store.commitReduction(scope, { inputId: loaded.inputId, expected: loaded.expected, state: loaded.state }), { kind: 'conflict' });
+    assert.equal((await f.pool.query(`SELECT body FROM "${f.schema}".records WHERE kind = 'ownerIdentity' AND id = 'producerNamespace'`)).rows[0]?.body, 'database-fixture');
   } finally { await context.payments.drain(); await f.close(); }
 });
