@@ -1,6 +1,6 @@
 import type { AggregateIdentity, EvidenceMessage, IntentAdmission, JsonValue, OperationCommit, OperationInput, PaymentOperation, PaymentReadVersion, PaymentScope, PaymentState, PaymentStore, ProviderResult, ReductionCommit, ReductionInput, ScanCheckpoint, StoreCommitResult, VerifiedInput } from './contracts.js';
 import { admitInput, transactionAggregate } from './reducer.js';
-import { canonicalJson, createEmptyPaymentState, digest, scopeKey } from './values.js';
+import { canonicalJson, createEmptyPaymentState, digest, sameScope, scopeKey } from './values.js';
 
 type VersionTable = PaymentReadVersion['table'];
 const mutableTables = ['intents', 'operations', 'bindings', 'subscriptionBindings', 'transactions', 'subscriptions', 'inbox'] as const;
@@ -105,6 +105,7 @@ export class MemoryPaymentStore implements PaymentStore {
     });
   }
   async admitVerifiedInputs(scope: PaymentScope, inputs: readonly VerifiedInput[]): ReturnType<PaymentStore['admitVerifiedInputs']> {
+    if (inputs.some(input => !sameScope(input.scope, scope))) throw new TypeError('Input scope mismatch');
     if (inputs.length > 100) throw new RangeError('Admission batch too large');
     return this.atomic(scope, state => inputs.map(input => ({ inputId: input.inputId, kind: admitInput(state, input) })));
   }
@@ -190,7 +191,7 @@ export class MemoryPaymentStore implements PaymentStore {
     });
   }
   async listDeliveries(scope: PaymentScope, consumerId: string, limit: number): Promise<readonly EvidenceMessage[]> {
-    this.limit(limit); return this.view(scope, state => Object.values(state.deliveries).filter(item => item.consumerId === consumerId && !item.acknowledged).slice(0, limit).flatMap(item => state.evidence[item.messageId] ? [state.evidence[item.messageId]] : []));
+    this.limit(limit); return this.view(scope, state => Object.values(state.deliveries).filter(item => item.consumerId === consumerId && !item.acknowledged).slice(0, limit).flatMap(item => { const message = state.evidence[item.messageId]; return message ? [message] : []; }));
   }
   async acknowledgeDelivery(scope: PaymentScope, consumerId: string, messageId: string, bodyDigest: string): Promise<'acknowledged' | 'duplicate' | 'conflict'> {
     return this.atomic(scope, state => { const delivery = state.deliveries[canonicalJson([messageId, consumerId])], message = state.evidence[messageId]; if (!delivery || !message || message.bodyDigest !== bodyDigest) return 'conflict'; if (delivery.acknowledged) return 'duplicate'; delivery.acknowledged = true; return 'acknowledged'; });

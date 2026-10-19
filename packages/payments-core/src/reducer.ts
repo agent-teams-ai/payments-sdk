@@ -12,7 +12,7 @@ function subscriptionAggregate(state: PaymentState, ref: string): SubscriptionAg
 }
 function semantic(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(semantic);
-  if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'provenance' && key !== 'source').map(([key, item]) => [key, semantic(item)]));
+  if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'provenance' && key !== 'source').map(([key, item]) => [key, key === 'version' && 'kind' in value && typeof item === 'string' ? { seconds: exactTime(item).seconds, fraction: exactTime(item).fraction } : semantic(item)]));
   return value;
 }
 function compatible(a: unknown, b: unknown): boolean {
@@ -259,8 +259,9 @@ export function processInput(state: PaymentState, scope: PaymentScope, inputId: 
     const staged = structuredClone(state);
     reduceObservation(staged, scope, record.input.observation);
     Object.assign(state, staged);
-    record = state.inbox[inputId];
-    if (!record) throw new Error('Inbox disappeared during reduction');
+    const updatedRecord = state.inbox[inputId];
+    if (!updatedRecord) throw new Error('Inbox disappeared during reduction');
+    record = updatedRecord;
   }
   catch (error) {
     record.state = 'quarantined'; record.issue = error instanceof Error ? error.name : 'decoder_failure';
@@ -271,6 +272,7 @@ export function processInput(state: PaymentState, scope: PaymentScope, inputId: 
     return 'quarantined';
   }
   const adverse = record.input.adverseTransactionRef ?? (record.input.observation.kind === 'adjustment' ? record.input.observation.transactionRef : undefined);
+  if (adverse && record.input.observation.kind === 'unsupported') { record.state = 'quarantined'; record.issue = record.input.observation.reason; return 'quarantined'; }
   if (adverse) { const aggregate = transactionAggregate(state, adverse); aggregate.pendingAdverse = aggregate.pendingAdverse.filter(id => id !== inputId); aggregate.revision += 1; aggregate.publicationRequired = true; }
   record.state = 'processed'; return 'processed';
 }
