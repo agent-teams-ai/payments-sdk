@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
-import { canonicalJson, createPayments, money, objectVersionKey, processInput, publishEvidence } from '@agent-teams/payments-core';
-import type { AdjustmentObservation, CheckoutReady, EvidenceMessage, PaymentReadVersion, PaymentStore, ProviderResult, SubscriptionReclassification, TransactionAggregate } from '@agent-teams/payments-core';
+import { canonicalJson, createPayments, money, objectVersionKey, processInput, publishEvidence, reduceObservation } from '@agent-teams/payments-core';
+import type { AdjustmentObservation, CheckoutReady, EvidenceMessage, PaymentReadVersion, PaymentStore, ProviderResult, SubscriptionReclassification, TransactionAggregate, VerifiedInput } from '@agent-teams/payments-core';
 import { bootstrapPostgresPaymentJobs, createPostgresPaymentJobs, createPostgresPaymentStore } from '../dist/index.js';
 import { at, databaseFixture, deferred, known, observe, offer, receipt, runtime, scope, success, transaction } from './helpers.ts';
 
@@ -202,4 +202,200 @@ test('real pg-boss rebuilds deleted reclassification jobs and successful pages d
     await jobs?.stop(); await jobs?.drain(); await context.payments.drain();
     await f.pool.query(`DROP SCHEMA IF EXISTS "${jobSchema}" CASCADE`); await f.close();
   }
+});
+
+
+async function untilPersisted(check: () => Promise<boolean>, label: string): Promise<void> {
+  const deadline = performance.now() + 12_000;
+  while (!await check()) { assert.ok(performance.now() < deadline, label); await delay(15); }
+}
+async function workDisposition(f: Fixture, bindingId: string) {
+  return (await f.pool.query<{ state: string; attempts: number; issue: string | null; nextAttemptAt: string; revision: string }>(`SELECT state, attempts, issue, next_attempt_at::text AS "nextAttemptAt", revision::text FROM "${f.schema}".obligations WHERE kind = 'reclassification' AND id = $1`, [bindingId])).rows[0];
+}
+async function selectedInitial(context: Context): Promise<string> {
+  const checkout = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'retry-policy' }));
+  await observe(context.payments, receipt(transaction(checkout.transactionRef, 'initial-paid')));
+  const purchase = await context.payments.readPurchase('buyer', checkout.intentId); assert.ok(purchase?.intent.subscriptionBasisId);
+  await select(context, purchase.intent.subscriptionBasisId, 'sub-a');
+  return purchase.intent.subscriptionBasisId;
+}
+
+for (const maxAttempts of [1, 2]) test(`ordinary renewal preserves exact reclassification ${maxAttempts === 1 ? 'quarantine' : 'cooldown'}; audited redrive and a new decision reset work`, { timeout: 25_000 }, async () => {
+  const f = await databaseFixture(), context = runtime(f.store), jobSchema = `q_${f.schema}`;
+  const errors: Error[] = [], namespace = { pool: f.pool, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
+  let jobs: ReturnType<typeof createPostgresPaymentJobs> | undefined;
+  try {
+    const bindingId = await selectedInitial(context), decision = await cursor(f, bindingId);
+    await bootstrapPostgresPaymentJobs(namespace);
+    let attempts = 0;
+    f.store.processReclassification = async () => { attempts += 1; throw new Error('persistent fault'); };
+    jobs = createPostgresPaymentJobs({ ...namespace, maxAttempts, cooldownSeconds: 30, maxCooldownSeconds: 30, pollingIntervalSeconds: 0.5 });
+    await jobs.start({ payments: context.payments, store: f.store });
+    await untilPersisted(async () => (await workDisposition(f, bindingId))?.issue === 'handler_failed', 'worker must persist its fault');
+    await jobs.stop(); await jobs.drain();
+    const before = await workDisposition(f, bindingId); assert.ok(before); assert.equal(before.attempts, 1); assert.equal(attempts, 1);
+    assert.equal(before.state, maxAttempts === 1 ? 'quarantined' : 'pending');
+    await observe(context.payments, receipt(transaction('ordinary-new-renewal', 'ordinary-renewal', { origin: known('subscription_recurring') })));
+    assert.deepEqual(await cursor(f, bindingId), decision);
+    assert.deepEqual(await workDisposition(f, bindingId), before, 'unchanged generation retains state, attempt, issue, exact deadline and claim revision');
+    await jobs.queue.boss.deleteAllJobs(); await jobs.repair(100);
+    assert.equal((await f.pool.query(`SELECT id FROM "${jobSchema}".job WHERE data ->> 'kind' = 'reclassification'`)).rows.length, 0, 'queue deletion cannot bypass quarantine/cooldown');
+    await jobs.redrive({ kind: 'reclassification', id: bindingId }, 'operator-reviewed-fault');
+    const redriven = await workDisposition(f, bindingId); assert.ok(redriven); assert.equal(redriven.state, 'pending'); assert.equal(redriven.attempts, 0); assert.equal(redriven.issue, 'redrive:operator-reviewed-fault');
+    assert.equal((await f.pool.query(`SELECT id FROM "${f.schema}".records WHERE kind = 'jobRedrives'`)).rows.length, 1);
+    await select(context, bindingId, 'sub-a');
+    const replacement = await workDisposition(f, bindingId); assert.ok(replacement); assert.equal(replacement.state, 'pending'); assert.equal(replacement.attempts, 0); assert.equal(replacement.issue, null);
+    assert.equal((await cursor(f, bindingId))?.decisionRevision, (decision?.decisionRevision ?? 0) + 1);
+    assert.ok(BigInt(replacement.revision) > BigInt(redriven.revision)); assert.deepEqual(errors, []);
+  } finally { await jobs?.stop(); await jobs?.drain(); await context.payments.drain(); await f.pool.query(`DROP SCHEMA IF EXISTS "${jobSchema}" CASCADE`); await f.close(); }
+});
+
+test('an old failed claimant cannot quarantine replacement work claimed again at attempt one', { timeout: 25_000 }, async () => {
+  const f = await databaseFixture(), context = runtime(f.store), jobSchema = `q_${f.schema}`;
+  const errors: Error[] = [], namespace = { pool: f.pool, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
+  const enteredOld = deferred<void>(), releaseOld = deferred<void>(), enteredNew = deferred<void>(), releaseNew = deferred<void>();
+  let jobs: ReturnType<typeof createPostgresPaymentJobs> | undefined;
+  try {
+    const bindingId = await selectedInitial(context);
+    await bootstrapPostgresPaymentJobs(namespace);
+    let calls = 0;
+    f.store.processReclassification = async () => { calls += 1; if (calls === 1) { enteredOld.resolve(); await releaseOld.promise; } else { enteredNew.resolve(); await releaseNew.promise; } throw new Error('generation fault'); };
+    jobs = createPostgresPaymentJobs({ ...namespace, concurrency: 2, maxAttempts: 1, cooldownSeconds: 30, maxCooldownSeconds: 30, pollingIntervalSeconds: 0.5 });
+    await jobs.repair(100);
+    const oldId = (await f.pool.query<{ id: string }>(`SELECT id FROM "${jobSchema}".job WHERE data ->> 'kind' = 'reclassification'`)).rows[0]?.id; assert.ok(oldId);
+    await jobs.start({ payments: context.payments, store: f.store }); await enteredOld.promise;
+    await select(context, bindingId, 'sub-a');
+    await jobs.queue.boss.send('payments_work', { kind: 'reclassification', id: bindingId }, { singletonKey: 'new-generation-race' });
+    await enteredNew.promise;
+    const current = await workDisposition(f, bindingId); assert.ok(current); assert.equal(current.attempts, 1); assert.equal(current.state, 'pending');
+    releaseOld.resolve();
+    await untilPersisted(async () => (await f.pool.query<{ state: string }>(`SELECT state FROM "${jobSchema}".job WHERE id = $1`, [oldId])).rows[0]?.state === 'completed', 'old claimant must physically finish settlement');
+    assert.deepEqual(await workDisposition(f, bindingId), current, 'old attempt one cannot overwrite the current generation attempt one');
+    releaseNew.resolve();
+    await untilPersisted(async () => (await workDisposition(f, bindingId))?.state === 'quarantined', 'the current claimant retains its own fault policy');
+    assert.equal((await workDisposition(f, bindingId))?.attempts, 1); assert.equal(calls, 2);
+    await jobs.stop(); await jobs.drain();
+    await select(context, bindingId, 'sub-a');
+    const replacedFault = await workDisposition(f, bindingId); assert.ok(replacedFault);
+    assert.equal(replacedFault.state, 'pending'); assert.equal(replacedFault.attempts, 0); assert.equal(replacedFault.issue, null);
+    assert.equal((await cursor(f, bindingId))?.decisionRevision, 3, 'a genuine new decision directly replaces the prior quarantined generation');
+    assert.deepEqual(errors, []);
+  } finally { releaseOld.resolve(); releaseNew.resolve(); await jobs?.stop(); await jobs?.drain(); await context.payments.drain(); await f.pool.query(`DROP SCHEMA IF EXISTS "${jobSchema}" CASCADE`); await f.close(); }
+});
+
+for (const channel of ['authenticated', 'webhook', 'reconciliation'] as const) test(`${channel} T1 fences both historical adjustment parents before stale publication T2; cleanup and page rollback stay atomic`, { timeout: 25_000 }, async () => {
+  const f = await databaseFixture(), context = runtime(f.store);
+  try {
+    const a = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'a' })), b = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'b' }));
+    await observe(context.payments, receipt(transaction(a.transactionRef, 'paid-a')));
+    await observe(context.payments, receipt(transaction(b.transactionRef, 'paid-b', { subscriptionRef: known('sub-b') })));
+    const adjustment: AdjustmentObservation = { kind: 'adjustment', adjustmentRef: 'historical-admission', transactionRef: a.transactionRef, version: at, action: 'refund', status: 'rejected', amount: money('USD', '1000'), allocations: [{ providerLineRef: `line-${a.transactionRef}`, amount: money('USD', '1000') }], source: transaction(a.transactionRef, 'adjustment-v1').source };
+    await observe(context.payments, receipt(adjustment));
+    await observe(context.payments, receipt({ ...adjustment, version: '2026-01-02T00:00:00Z', source: { ...adjustment.source, receiptId: 'adjustment-v2' } }));
+    const staged = [];
+    for (const checkout of [a, b]) {
+      const loaded = await f.store.loadPublicationInput(scope, { type: 'transaction', id: checkout.transactionRef }); assert.ok(loaded); assert.equal(loaded.incompleteReason, undefined);
+      for (const observation of loaded.state.transactions[checkout.transactionRef]?.observations ?? []) reduceObservation(loaded.state, scope, observation);
+      publishEvidence(loaded.state, scope, 'database-fixture', 65536); staged.push(loaded);
+    }
+    const plain = receipt({ ...adjustment, transactionRef: b.transactionRef, source: { ...adjustment.source, receiptId: `contradiction-${channel}` } });
+    const incoming: VerifiedInput = channel === 'webhook' ? { ...plain, source: { ...plain.source, kind: 'verified_webhook', eventId: 'contradictory-event', stableEnvelopeDigest: 'fixture-envelope', verification: { endpointId: 'fixture', verifiedAt: at, rawBodyDigest: 'fixture-body' } } } : plain;
+    const submitted = { ...incoming, observation: { ...incoming.observation, source: incoming.source } };
+    if (channel === 'reconciliation') {
+      const page = [submitted, ...Array.from({ length: 199 }, (_, index) => receipt(transaction(`page-${index}`, index === 198 ? 'fail-after-custody' : `page-input-${index}`)))];
+      const next = { scanId: 'historical-page', epoch: 'test', queryFingerprint: 'fixture', status: 'complete' as const };
+      // All route locks precede writes. The migration-role fixture both bounds the real lock set
+      // and injects a failure after the prior receipts and both affected routes were written.
+      await f.pool.query(`CREATE FUNCTION "${f.schema}".admission_probe() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+        IF (SELECT count(*) FROM pg_locks WHERE pid = pg_backend_pid() AND locktype = 'advisory') > 512 THEN RAISE EXCEPTION 'admission lock bound'; END IF;
+        IF NEW.id = 'fail-after-custody' THEN RAISE EXCEPTION 'injected custody rollback'; END IF;
+        RETURN NEW; END $$`);
+      await f.pool.query(`CREATE TRIGGER admission_probe BEFORE INSERT OR UPDATE ON "${f.schema}".records FOR EACH ROW EXECUTE FUNCTION "${f.schema}".admission_probe()`);
+      const before = await Promise.all([a, b].map(checkout => context.payments.readPurchase('buyer', checkout.intentId)));
+      await assert.rejects(f.store.commitScanPage(scope, undefined, next, page), /injected custody rollback/);
+      assert.deepEqual(await Promise.all([a, b].map(checkout => context.payments.readPurchase('buyer', checkout.intentId))), before);
+      assert.equal(await f.store.readCheckpoint(scope, next.scanId), undefined);
+      assert.equal((await f.pool.query(`SELECT id FROM "${f.schema}".records WHERE kind = 'inbox' AND (id = $1 OR id LIKE 'page-input-%')`, [submitted.inputId])).rows.length, 0);
+      await f.pool.query(`CREATE OR REPLACE FUNCTION "${f.schema}".admission_probe() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+        IF (SELECT count(*) FROM pg_locks WHERE pid = pg_backend_pid() AND locktype = 'advisory') > 512 THEN RAISE EXCEPTION 'admission lock bound'; END IF; RETURN NEW; END $$`);
+      assert.deepEqual(await f.store.commitScanPage(scope, undefined, next, page), { kind: 'committed' });
+      assert.equal((await f.pool.query(`SELECT id FROM "${f.schema}".records WHERE kind = 'inbox' AND (id IN ($1, 'fail-after-custody') OR id LIKE 'page-input-%')`, [submitted.inputId])).rows.length, 200);
+    } else success(await context.payments.ingestVerifiedInput(submitted));
+    for (const loaded of staged) assert.deepEqual(await f.store.commitReduction(scope, { inputId: loaded.inputId, expected: loaded.expected, state: loaded.state }), { kind: 'conflict' }, 'successful adverse T1 invalidates every already-known parent T2');
+    for (const checkout of [a, b]) {
+      const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.pendingAdverse.includes(submitted.inputId)); assert.equal(aggregate.flags.includes('conflict'), false);
+      assert.ok((await f.store.listWork(scope, 'publication', 100)).some(id => id === canonicalJson({ type: 'transaction', id: checkout.transactionRef })));
+    }
+    assert.equal(await context.payments.processInbox(submitted.inputId), 'processed');
+    for (const checkout of [a, b]) {
+      const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.flags.includes('conflict')); assert.ok(!aggregate.pendingAdverse.includes(submitted.inputId));
+    }
+    const original = (await f.pool.query<{ body: { projection: { transactionRef: string } } }>(`SELECT body FROM "${f.schema}".records WHERE kind = 'versionEvidence' AND id = $1`, [objectVersionKey(adjustment)])).rows[0]?.body;
+    assert.equal(original?.projection.transactionRef, a.transactionRef);
+  } finally { await context.payments.drain(); await f.close(); }
+});
+
+test('T1 parent discovery waits for a concurrent first exact-version certification and then fences its retained parent', { timeout: 15_000 }, async () => {
+  const f = await databaseFixture(), context = runtime(f.store), blocker = await f.pool.connect();
+  let gateHeld = false;
+  try {
+    const a = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'a' })), b = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'b' }));
+    await observe(context.payments, receipt(transaction(a.transactionRef, 'paid-a'))); await observe(context.payments, receipt(transaction(b.transactionRef, 'paid-b', { subscriptionRef: known('sub-b') })));
+    const adjustment: AdjustmentObservation = { kind: 'adjustment', adjustmentRef: 'first-certification', transactionRef: a.transactionRef, version: at, action: 'refund', status: 'rejected', amount: money('USD', '100'), allocations: [], source: transaction(a.transactionRef, 'original-certification').source };
+    const original = receipt(adjustment); success(await context.payments.ingestVerifiedInput(original));
+    const prepared = await f.store.loadReductionInput(scope, original.inputId); assert.ok(prepared);
+    processInput(prepared.state, scope, prepared.inputId); publishEvidence(prepared.state, scope, 'database-fixture', 65536);
+    await f.pool.query(`CREATE FUNCTION "${f.schema}".certification_gate() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+      IF NEW.kind = 'versionEvidence' AND NEW.body ->> 'entityRef' = 'first-certification' THEN PERFORM pg_advisory_xact_lock(hashtextextended('${f.schema}:certification-gate', 0)); END IF; RETURN NEW; END $$`);
+    await f.pool.query(`CREATE TRIGGER certification_gate BEFORE INSERT OR UPDATE ON "${f.schema}".records FOR EACH ROW EXECUTE FUNCTION "${f.schema}".certification_gate()`);
+    await blocker.query('BEGIN'); gateHeld = true;
+    const blockerPid = (await blocker.query<{ pid: number }>('SELECT pg_backend_pid() AS pid')).rows[0]!.pid;
+    await blocker.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`${f.schema}:certification-gate`]);
+    const certification = f.store.commitReduction(scope, { inputId: prepared.inputId, expected: prepared.expected, state: prepared.state });
+    let writerPid = 0;
+    await untilPersisted(async () => {
+      const writer = (await f.pool.query<{ pid: number }>('SELECT pid FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))', [blockerPid])).rows[0];
+      writerPid = writer?.pid ?? 0; return writerPid !== 0;
+    }, 'certification writer must reach its database barrier');
+    const incoming = receipt({ ...adjustment, transactionRef: b.transactionRef, source: { ...adjustment.source, receiptId: 'concurrent-contradiction' } });
+    const admission = context.payments.ingestVerifiedInput(incoming);
+    await untilPersisted(async () => (await f.pool.query('SELECT pid FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))', [writerPid])).rows.length > 0, 'admission must wait for the in-flight certification lock');
+    await blocker.query('ROLLBACK'); gateHeld = false;
+    assert.deepEqual(await certification, { kind: 'committed' }); success(await admission);
+    for (const checkout of [a, b]) assert.ok((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.pendingAdverse.includes(incoming.inputId));
+    assert.equal(await context.payments.processInbox(incoming.inputId), 'processed');
+    for (const checkout of [a, b]) {
+      const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.flags.includes('conflict')); assert.ok(!aggregate.pendingAdverse.includes(incoming.inputId));
+    }
+  } finally { if (gateHeld) await blocker.query('ROLLBACK'); blocker.release(); await context.payments.drain(); await f.close(); }
+});
+
+
+test('a duplicate pending receipt fences a historical parent certified since its first admission', async () => {
+  const f = await databaseFixture(), context = runtime(f.store);
+  try {
+    const a = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'a' })), b = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'b' }));
+    await observe(context.payments, receipt(transaction(a.transactionRef, 'paid-a'))); await observe(context.payments, receipt(transaction(b.transactionRef, 'paid-b', { subscriptionRef: known('sub-b') })));
+    const original: AdjustmentObservation = { kind: 'adjustment', adjustmentRef: 'late-certification', transactionRef: a.transactionRef, version: at, action: 'refund', status: 'rejected', amount: money('USD', '100'), allocations: [], source: transaction(a.transactionRef, 'original').source };
+    const early = receipt({ ...original, transactionRef: b.transactionRef, source: { ...original.source, receiptId: 'early-other-parent' } });
+    success(await context.payments.ingestVerifiedInput(early));
+    await observe(context.payments, receipt(original));
+    const stale = await f.store.loadPublicationInput(scope, { type: 'transaction', id: a.transactionRef }); assert.ok(stale);
+    for (const observation of stale.state.transactions[a.transactionRef]?.observations ?? []) reduceObservation(stale.state, scope, observation);
+    publishEvidence(stale.state, scope, 'database-fixture', 65536);
+    success(await context.payments.ingestVerifiedInput(early));
+    assert.deepEqual(await f.store.commitReduction(scope, { inputId: stale.inputId, expected: stale.expected, state: stale.state }), { kind: 'conflict' });
+    for (const checkout of [a, b]) assert.ok((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.pendingAdverse.includes(early.inputId));
+    assert.equal(await context.payments.processInbox(early.inputId), 'processed');
+    for (const checkout of [a, b]) {
+      const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.flags.includes('conflict')); assert.ok(!aggregate.pendingAdverse.includes(early.inputId));
+    }
+    const beforeReplay = await Promise.all([a, b].map(checkout => context.payments.readPurchase('buyer', checkout.intentId)));
+    const evidence = async () => (await f.pool.query(`SELECT id, body FROM "${f.schema}".records WHERE kind = 'evidence' ORDER BY id`)).rows;
+    const immutableEvidence = await evidence();
+    success(await context.payments.ingestVerifiedInput(early));
+    assert.equal(await context.payments.processInbox(early.inputId), 'duplicate');
+    assert.deepEqual(await Promise.all([a, b].map(checkout => context.payments.readPurchase('buyer', checkout.intentId))), beforeReplay, 'processed duplicates cannot recreate pending markers or rewrite completion');
+    assert.deepEqual(await evidence(), immutableEvidence, 'processed replay creates no new evidence and preserves immutable messages');
+  } finally { await context.payments.drain(); await f.close(); }
 });

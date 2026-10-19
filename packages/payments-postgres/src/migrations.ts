@@ -45,6 +45,7 @@ export async function migratePaymentSchema(options: Readonly<{ pool: Pool; schem
       issue text,
       PRIMARY KEY (kind, id)
     )`);
+    await tx.query(`ALTER TABLE ${schema}.obligations ADD COLUMN IF NOT EXISTS revision bigint NOT NULL DEFAULT 1 CHECK (revision > 0)`);
     await tx.query(`CREATE INDEX IF NOT EXISTS obligations_repair_idx ON ${schema}.obligations (next_attempt_at, kind, id) WHERE state = 'pending'`);
   }, { acquireMs: 1_000, lockMs: 1_000, statementMs: 10_000, transactionMs: 25_000, deadlineMs: 30_000 });
 }

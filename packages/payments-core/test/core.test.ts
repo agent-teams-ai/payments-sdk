@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addMoney, canonicalJson, compareTime, compareEventIdentity, createPayments, digest, eventIdentityEvidence, mergeEventIdentityEvidence, exactTime, money, objectVersionKey, processInput, MAX_OBJECT_VERSION_EVIDENCE_BYTES, type AdjustmentObservation, type Observation, type EvidenceSource, type Field, type OfferSnapshot, type PaymentProvider, type PaymentScope, type ProviderResult, type SubscriptionObservation, type TransactionObservation, type VerifiedInput } from '../dist/index.js';
+import { addMoney, canonicalJson, compareTime, compareEventIdentity, createPayments, digest, eventIdentityEvidence, mergeEventIdentityEvidence, exactTime, money, objectVersionKey, processInput, publishEvidence, reduceObservation, MAX_OBJECT_VERSION_EVIDENCE_BYTES, type AdjustmentObservation, type Observation, type EvidenceSource, type Field, type OfferSnapshot, type PaymentProvider, type PaymentScope, type ProviderResult, type SubscriptionObservation, type TransactionObservation, type VerifiedInput } from '../dist/index.js';
 import { MemoryPaymentStore } from '../dist/memory.js';
 
 const scope: PaymentScope = { applicationId: 'app-a', provider: 'fake', paymentAccountId: 'merchant', environment: 'sandbox' };
@@ -640,4 +640,29 @@ test('invalid audited successful outcomes preserve the unknown operation and can
   }
   assert.deepEqual(await context.payments.openPaymentUpdate({ buyerId: 'buyer', bindingId: basis, requestKey: 'invalid-operator' }), { kind: 'outcome_unknown', operationId: operation.operationId });
   assert.equal((await context.store.loadPublicationInput(scope, { type: 'transaction', id: 'invalid-proof' }))?.state.bindings['invalid-proof'], undefined);
+});
+
+
+test('memory admission fences a certified historical adjustment parent before stale T2 and cleans both receipt markers', async () => {
+  const context = setup('monthly');
+  const first = await purchase(context);
+  const second = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'another' });
+  assert.equal(second.kind, 'succeeded'); if (second.kind !== 'succeeded') throw new Error('Fixture');
+  await observe(context, transaction(first.transactionRef, 'initial-a', 'monthly'));
+  await observe(context, transaction(second.value.transactionRef, 'initial-b', 'monthly', { subscriptionRef: yes('sub-b') }));
+  const original: AdjustmentObservation = { kind: 'adjustment', adjustmentRef: 'historical-parent', transactionRef: first.transactionRef, version: at, action: 'refund', status: 'rejected', amount: money('USD', '100'), allocations: [], source: source('adjustment-old') };
+  await observe(context, original);
+  await observe(context, { ...original, version: '2026-01-02T00:00:00Z', source: source('adjustment-newer') });
+  const old = await context.store.loadPublicationInput(scope, { type: 'transaction', id: first.transactionRef }); assert.ok(old);
+  for (const observation of old.state.transactions[first.transactionRef]?.observations ?? []) reduceObservation(old.state, scope, observation);
+  publishEvidence(old.state, scope, 'payments', 65536);
+  const incoming = input({ ...original, transactionRef: second.value.transactionRef, source: source('changed-old-parent') });
+  assert.equal((await context.payments.ingestVerifiedInput(incoming)).kind, 'succeeded');
+  assert.deepEqual(await context.store.commitReduction(scope, { inputId: old.inputId, expected: old.expected, state: old.state }), { kind: 'conflict' });
+  for (const checkout of [first, second.value]) assert.ok((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.pendingAdverse.includes(incoming.inputId));
+  assert.equal(await context.payments.processInbox(incoming.inputId), 'processed');
+  for (const checkout of [first, second.value]) {
+    const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate);
+    assert.ok(aggregate.flags.includes('conflict')); assert.ok(!aggregate.pendingAdverse.includes(incoming.inputId));
+  }
 });

@@ -4,7 +4,7 @@ import {
 } from '@agent-teams/payments-core';
 import type {
   AggregateIdentity, Delivery, EventIdentityEvidence, EvidenceMessage, InboxRecord, IntentAdmission, JsonValue,
-  Observation, OperationCommit, OperationInput, PaymentOperation, PaymentReadVersion, PaymentScope,
+  ObjectVersionEvidence, Observation, OperationCommit, OperationInput, PaymentOperation, PaymentReadVersion, PaymentScope,
   PaymentStore, ProviderResult, PurchaseIntent, ReductionCommit, ReductionInput,
   ScanCheckpoint, StoreCommitResult, SubscriptionAggregate, SubscriptionBinding, SubscriptionReclassification,
   TransactionAggregate, TransactionBinding, VerifiedInput,
@@ -66,8 +66,8 @@ class PostgresPaymentStore implements PaymentStore {
     return withPaymentTransaction(this.options.pool, action, this.options.timeouts);
   }
 
-  private async work(tx: PaymentSqlTransaction, work: DurableWork, state: 'pending' | 'quarantined' | 'complete' = 'pending'): Promise<void> {
-    await this.records.obligation(tx, work, state);
+  private async work(tx: PaymentSqlTransaction, work: DurableWork, state: 'pending' | 'quarantined' | 'complete' = 'pending', reset = false): Promise<void> {
+    await this.records.obligation(tx, work, state, reset);
     if (state === 'pending' && this.options.queue) {
       await this.options.queue.boss.send(this.options.queue.name, work, {
         db: { executeSql: (text, values) => tx.query(text, values) },
@@ -257,22 +257,42 @@ class PostgresPaymentStore implements PaymentStore {
       const prior = (await this.records.read<InboxRecord>(tx, 'inbox', input.inputId))?.body;
       if (prior) existingReceipts.set(input.inputId, prior);
     }
+    // The shared lock order places certification before aggregates in T1 and T2. Read it only
+    // after locking, so a concurrent first certification cannot introduce an unfenced old parent.
+    const versions = new Map<string, ObjectVersionEvidence>();
+    const versionKey = (input: VerifiedInput): string | undefined => {
+      if (input.observation.kind !== 'adjustment') return undefined;
+      try { return objectVersionKey(input.observation); } catch { return undefined; }
+    };
+    const versionKeys = [...new Set([...inputs, ...[...existingReceipts.values()].map(receipt => receipt.input)].flatMap(input => {
+      const key = versionKey(input); return key === undefined ? [] : [key];
+    }))];
+    await this.records.lock(tx, versionKeys.map(id => ({ kind: 'versionEvidence', id })));
+    for (const id of versionKeys) {
+      const record = await this.records.read<ObjectVersionEvidence>(tx, 'versionEvidence', id);
+      if (record) versions.set(id, record.body);
+    }
+    const knownRoutes = (input: VerifiedInput): readonly AggregateIdentity[] => [
+      ...inputRoutes(input), ...objectVersionDependentRoutes(input.observation, versions.get(versionKey(input) ?? '')),
+    ];
     const routes = inputs.flatMap(input => [
-      ...inputRoutes(input),
-      ...(existingReceipts.has(input.inputId) ? inputRoutes(existingReceipts.get(input.inputId)!.input) : []),
+      ...knownRoutes(input),
+      ...(existingReceipts.has(input.inputId) ? knownRoutes(existingReceipts.get(input.inputId)!.input) : []),
       ...(input.source.eventId ? events.get(input.source.eventId)?.evidence.routes ?? [] : []),
     ]);
     await this.records.lock(tx, routes.map(route => ({ kind: route.type === 'transaction' ? 'transactions' : 'subscriptions', id: route.id })));
     const result: { inputId: string; kind: 'admitted' | 'duplicate' | 'conflict' }[] = [];
     for (const input of inputs) {
       const state = createEmptyPaymentState();
+      const key = versionKey(input), evidence = key === undefined ? undefined : versions.get(key);
+      if (key !== undefined && evidence) state.versionEvidence[key] = evidence;
       const existing = (await this.records.read<InboxRecord>(tx, 'inbox', input.inputId))?.body;
       if (existing) state.inbox[input.inputId] = existing;
       const eventId = input.source.eventId;
       const incomingIdentity = eventIdentityEvidence(input);
       const identity = eventId ? events.get(eventId) : undefined;
       const eventConflict = identity !== undefined && (identity.conflict || compareEventIdentity(identity.evidence, incomingIdentity) === 'conflict');
-      const affected = [...inputRoutes(input), ...(existing ? inputRoutes(existing.input) : []), ...(identity?.evidence.routes ?? [])];
+      const affected = [...knownRoutes(input), ...(existing ? knownRoutes(existing.input) : []), ...(identity?.evidence.routes ?? [])];
       for (const route of affected) {
         if (route.type === 'transaction') {
           const aggregate = (await this.records.read<TransactionAggregate>(tx, 'transactions', route.id))?.body;
@@ -507,7 +527,12 @@ class PostgresPaymentStore implements PaymentStore {
           }
           if (canonicalJson(previous?.body ?? null) === canonicalJson(value)) continue;
           await this.records.write(tx, table, id, value);
-          if (table === 'transactions') {
+          if (table === 'reclassifications') {
+            const item = value as SubscriptionReclassification;
+            const prior = previous?.body as SubscriptionReclassification | undefined;
+            if (prior?.decisionRevision !== item.decisionRevision) await this.work(tx, { kind: 'reclassification', id }, item.complete ? 'complete' : 'pending', true);
+            else if (item.complete) await this.work(tx, { kind: 'reclassification', id }, 'complete');
+          } else if (table === 'transactions') {
             const transaction = value as TransactionAggregate;
             const intentId = transaction.completion?.intentId ?? commit.state.bindings[id]?.intentId;
             if (intentId) await this.records.guard(tx, `intent:${intentId}`);
@@ -525,7 +550,6 @@ class PostgresPaymentStore implements PaymentStore {
         await this.work(tx, { kind: 'delivery', id }, existing?.body.acknowledged ? 'complete' : 'pending');
       }
       for (const issue of commit.state.issues) await this.records.write(tx, 'issues', digest(issue), { issue });
-      for (const item of Object.values(commit.state.reclassifications)) await this.work(tx, { kind: 'reclassification', id: item.bindingId }, item.complete ? 'complete' : 'pending');
       for (const aggregate of Object.values(commit.state.transactions)) await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'transaction', id: aggregate.transactionRef }) }, aggregate.publicationRequired ? 'pending' : 'complete');
       for (const aggregate of Object.values(commit.state.subscriptions)) await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'subscription', id: aggregate.subscriptionRef }) }, aggregate.publicationRequired ? 'pending' : 'complete');
       const receipt = commit.state.inbox[commit.inputId];
@@ -567,7 +591,8 @@ class PostgresPaymentStore implements PaymentStore {
       const last = refs.at(-1);
       const next: SubscriptionReclassification = { ...record.body, ...(last === undefined ? {} : { afterTransactionRef: last }), complete: targets.rows.length <= batch };
       await this.records.write(tx, 'reclassifications', bindingId, next);
-      await this.work(tx, { kind: 'reclassification', id: bindingId }, next.complete ? 'complete' : 'pending');
+      // Pending pages preserve the claimant's deadline/revision until genuine progress settles.
+      if (next.complete) await this.work(tx, { kind: 'reclassification', id: bindingId }, 'complete');
       return committed;
     });
   }

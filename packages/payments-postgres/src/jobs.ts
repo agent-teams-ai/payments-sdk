@@ -96,29 +96,30 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
     }, options.timeouts);
   }
 
-  async function claim(work: PaymentJobWork): Promise<number | undefined> {
+  async function claim(work: PaymentJobWork): Promise<Readonly<{ attempt: number; revision: string }> | undefined> {
     return withPaymentTransaction(options.pool, async tx => {
       if ((await records.configuration(tx, options.scope)).body.recoveryFenced) return undefined;
-      const row = await tx.query<{ attempts: number }>(`UPDATE ${records.sql}.obligations SET attempts = attempts + 1,
+      const row = await tx.query<{ attempts: number; revision: string }>(`UPDATE ${records.sql}.obligations SET attempts = attempts + 1, revision = revision + 1,
         next_attempt_at = clock_timestamp() + $3 * interval '1 second'
         WHERE kind = $1 AND id = $2 AND state = 'pending' AND next_attempt_at <= clock_timestamp()
-        RETURNING attempts`, [work.kind, work.id, maxCooldown]);
-      return row.rows[0]?.attempts;
+        RETURNING attempts, revision::text`, [work.kind, work.id, maxCooldown]);
+      const claimed = row.rows[0];
+      return claimed ? { attempt: claimed.attempts, revision: claimed.revision } : undefined;
     }, options.timeouts);
   }
 
-  async function settle(work: PaymentJobWork, attempt: number, issue: WorkIssue | undefined, progress: boolean): Promise<void> {
+  async function settle(work: PaymentJobWork, claim: Readonly<{ attempt: number; revision: string }>, issue: WorkIssue | undefined, progress: boolean): Promise<void> {
     await withPaymentTransaction(options.pool, async tx => {
       await records.configuration(tx, options.scope);
-      const seconds = Math.min(maxCooldown, cooldown * 2 ** Math.min(attempt - 1, 20));
+      const seconds = Math.min(maxCooldown, cooldown * 2 ** Math.min(claim.attempt - 1, 20));
       // T2/ACK may already have completed the obligation. Never reopen it or overwrite a later
       // claimant's outcome. The logical retry counter survives deletion of every queue job.
       await tx.query(`UPDATE ${records.sql}.obligations SET
-        state = CASE WHEN $8 THEN 'pending' WHEN $4 OR attempts >= $5 THEN 'quarantined' ELSE 'pending' END,
+        revision = revision + 1, state = CASE WHEN $8 THEN 'pending' WHEN $4 OR attempts >= $5 THEN 'quarantined' ELSE 'pending' END,
         attempts = CASE WHEN $8 THEN 0 ELSE attempts END,
         next_attempt_at = clock_timestamp() + $6 * interval '1 second', issue = $7
-        WHERE kind = $1 AND id = $2 AND state = 'pending' AND attempts = $3`,
-      [work.kind, work.id, attempt, issue?.quarantine ?? false, maxAttempts, progress ? cooldown : seconds, progress ? null : issue?.issue ?? 'work_remains_pending', progress]);
+        WHERE kind = $1 AND id = $2 AND state = 'pending' AND attempts = $3 AND revision = $9`,
+      [work.kind, work.id, claim.attempt, issue?.quarantine ?? false, maxAttempts, progress ? cooldown : seconds, progress ? null : issue?.issue ?? 'work_remains_pending', progress, claim.revision]);
     }, options.timeouts);
   }
 
@@ -292,7 +293,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
     await qualify();
     await withPaymentTransaction(options.pool, async tx => {
       if ((await records.configuration(tx, options.scope)).body.recoveryFenced) throw new Error('Payment recovery is fenced');
-      await tx.query(`UPDATE ${records.sql}.obligations SET state = 'pending', attempts = 0, next_attempt_at = clock_timestamp(), issue = $3
+      await tx.query(`UPDATE ${records.sql}.obligations SET state = 'pending', attempts = 0, revision = revision + 1, next_attempt_at = clock_timestamp(), issue = $3
         WHERE kind = $1 AND id = $2 AND state <> 'complete'`, [work.kind, work.id, `redrive:${auditRef}`]);
       await tx.query(`INSERT INTO ${records.sql}.records (kind, id, revision, body) VALUES ('jobRedrives', $1, 1, $2)
         ON CONFLICT DO NOTHING`, [digest([work, auditRef]), JSON.stringify({ work, auditRef, at: new Date().toISOString() })]);
