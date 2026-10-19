@@ -93,7 +93,7 @@ export class ConsumerOwner {
   }
   async effect(client: PoolClient, effect: Effect): Promise<void> { await client.query(`INSERT INTO ${this.sql}.effects VALUES($1,$2,$3) ON CONFLICT(effect_key) DO NOTHING`, [effect.effectKey, effect.basisKey, effect]); }
   async obligation(client: PoolClient, key: string, basis: string | null, blocker: string, sources: readonly Source[], state: 'pending' | 'resolved' = 'pending'): Promise<void> {
-    await client.query(`INSERT INTO ${this.sql}.obligations VALUES($1,$2,$3,$4,$5) ON CONFLICT(obligation_key) DO UPDATE SET blocker=EXCLUDED.blocker,read_set=EXCLUDED.read_set,state=EXCLUDED.state`, [key, basis, blocker, evidenceReadSet(sources), state]);
+    await client.query(`INSERT INTO ${this.sql}.obligations VALUES($1,$2,$3,$4,$5) ON CONFLICT(obligation_key) DO UPDATE SET blocker=EXCLUDED.blocker,read_set=EXCLUDED.read_set,state=EXCLUDED.state`, [key, basis, blocker, JSON.stringify(evidenceReadSet(sources)), state]);
   }
   async receive(value: unknown, recompute: (client: PoolClient, sources: readonly Source[]) => Promise<void>, faults: Readonly<{ beforeCommit?: () => void }> = {}): Promise<DeliveryResult> {
     const decoded = validate(value, this.options.trust);

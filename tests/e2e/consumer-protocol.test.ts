@@ -1,0 +1,175 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { AccessFixture, CreditFixture, canonical, hash, signFixtureMessage, sourceIdentity } from '../fixtures/consumers/index.ts';
+import type { CreditDecision, Effect, HeldResolution } from '../fixtures/consumers/index.ts';
+import { adjustment, consumers, fact, held, message, nextPeriod, period, producerNamespace, scope, subscription } from './consumer-support.ts';
+
+// Expected financial results are deliberately independent constants, never production reducers.
+const Q = 100n, T = 25n;
+async function onlyCredit(credit: CreditFixture): Promise<CreditDecision> { const rows = await credit.decisions(); assert.equal(rows.length, 1); return rows[0]!.body; }
+async function effects(credit: CreditFixture): Promise<Effect[]> { return (await credit.owner.inspect<{ body: Effect }>('effects')).map(row => row.body); }
+
+test('independent credit owner preserves causal history across full-refund delivery permutations', async t => {
+  for (const order of [[4, 3, 4], [3, 4, 4]]) {
+    await t.test(`producer revisions ${order.join('→')}`, async () => {
+      const fixture = await consumers();
+      try {
+        const paid = message(3), refunded = message(4, fact(), [adjustment()]);
+        for (const revision of order) await fixture.credit.receive(revision === 3 ? paid : refunded);
+        let decision = await onlyCredit(fixture.credit);
+        assert.equal(BigInt(decision.eligible), 0n); assert.equal(BigInt(decision.allocated), 0n); assert.equal(decision.status, 'withheld');
+        const history = await effects(fixture.credit);
+        assert.equal(history.filter(effect => effect.kind === 'grant').length, order[0] === 3 ? 1 : 0);
+        assert.equal(history.filter(effect => effect.kind === 'correction').length, order[0] === 3 ? 1 : 0, 'never reverse an unissued grant');
+        const reversed = adjustment({ status: 'reversed', version: '2026-10-03T00:00:00Z' });
+        const reverse = adjustment({ adjustmentRef: 'refund-reverse-A', action: 'refund_reverse', amount: { currency: 'USD', minorUnits: '-1000' }, allocations: [{ providerLineRef: 'line-A', type: 'full', amount: { currency: 'USD', minorUnits: '-1000' } }] });
+        await fixture.credit.receive(message(5, fact(), [reversed, reverse]));
+        await fixture.credit.receive(message(6, fact(), [reversed, reverse]));
+        decision = await onlyCredit(fixture.credit);
+        assert.equal(BigInt(decision.eligible), Q); assert.equal(decision.applied, order[0] === 3 ? 'restored' : 'issued');
+        const final = await effects(fixture.credit);
+        assert.equal(final.filter(effect => effect.kind === 'grant').length, 1);
+        assert.equal(final.filter(effect => effect.kind === 'restoration').length, order[0] === 3 ? 1 : 0);
+        assert.equal(final.filter(effect => effect.kind === 'correction').reduce((sum, effect) => sum + BigInt(effect.amount), 0n), order[0] === 3 ? -Q : 0n);
+        const original = final.find(effect => effect.kind === 'grant')!;
+        assert.equal(decision.originalGrant, original.effectKey); assert.equal(original.sourceKey, sourceIdentity(paid));
+      } finally { await fixture.close(); }
+    });
+  }
+});
+
+test('T3 is atomic before ACK, duplicate deliveries/restart preserve one effect and both owners are independent', async () => {
+  const fixture = await consumers();
+  try {
+    const paid = message(1);
+    await assert.rejects(fixture.credit.receive(paid, { beforeCommit() { throw new Error('crash before T3 commit'); } }), /crash before/u);
+    assert.equal((await fixture.credit.owner.inspect('receipts')).length, 0); assert.equal((await effects(fixture.credit)).length, 0); assert.equal((await fixture.credit.owner.inspect('outbox')).length, 0);
+    const results = await Promise.all(Array.from({ length: 12 }, () => fixture.credit.receive(paid)));
+    assert.equal(results.filter(result => result.outcome === 'accepted').length, 1);
+    const restarted = new CreditFixture({ pool: fixture.pool, schema: fixture.credit.owner.options.schema, trust: fixture.trust });
+    assert.deepEqual(await restarted.receive(paid), { acknowledge: true, outcome: 'duplicate' }, 'crash after commit before sender ACK replays custody only');
+    assert.equal(BigInt((await onlyCredit(restarted)).eligible), Q);
+    assert.equal((await fixture.access.owner.inspect('receipts')).length, 0, 'credit custody cannot ACK another independent owner');
+    await fixture.access.receive(paid); await fixture.access.receive(subscription(1));
+    assert.equal((await fixture.access.decisions())[0]?.body.newAction, true);
+    assert.equal((await effects(restarted)).filter(effect => effect.kind === 'grant').length, 1);
+    assert.ok((await fixture.credit.owner.inspect('outbox')).length >= 2);
+    const ownerTables = await fixture.pool.query<{ schemaname: string; tablename: string; persistence: string }>(`SELECT n.nspname AS schemaname,c.relname AS tablename,c.relpersistence AS persistence FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=ANY($1) AND c.relkind='r'`, [[fixture.credit.owner.options.schema, fixture.access.owner.options.schema]]);
+    assert.ok(ownerTables.rows.length >= 16); assert.ok(ownerTables.rows.every(row => row.persistence === 'p'), 'all correctness tables are WAL logged');
+  } finally { await fixture.close(); }
+});
+
+test('duplicate paid support is held in either order, resolved locally with whole-readset CAS and immutable issuance', async t => {
+  for (const order of ['refunded-A-first', 'paid-B-first'] as const) {
+    await t.test(order, async () => {
+      const fixture = await consumers();
+      try {
+        const a = message(4, fact(), [adjustment()]);
+        const bFact = fact({ factId: 'completion-B', transactionRef: 'transaction-B', providerSubscriptionRef: 'subscription-B', lines: [{ ...fact().lines[0]!, providerLineRef: 'line-B', period: nextPeriod }] });
+        const b = message(1, bFact);
+        for (const input of order === 'refunded-A-first' ? [a, b] : [b, a]) await fixture.credit.receive(input);
+        let row = (await fixture.credit.decisions())[0]!;
+        assert.equal(row.body.status, 'held'); assert.equal(BigInt(row.body.eligible), 0n);
+        assert.equal(BigInt(row.body.held), order === 'paid-B-first' ? Q : 0n);
+        assert.equal((await fixture.credit.owner.inspect('evidence_projection')).length, 2, 'both financial contributions survive');
+        const initialGrant = (await effects(fixture.credit)).find(effect => effect.kind === 'grant');
+        const resolution: HeldResolution = { basisKey: row.basis_key, expectedDecisionRevision: Number(row.revision), expectedReadSet: row.body.readSet, selectedSource: sourceIdentity(b), actorId: 'authorized-test-operator', approvalRef: `select-B-${order}`, policyVersion: 'fixture-credit-policy-v1' };
+        assert.equal(await fixture.credit.resolveHeldDecision({ ...resolution, expectedReadSet: [] }), 'conflict');
+        assert.equal(await fixture.credit.resolveHeldDecision(resolution), 'resolved');
+        assert.equal(await fixture.credit.resolveHeldDecision(resolution), 'duplicate');
+        row = (await fixture.credit.decisions())[0]!;
+        assert.equal(BigInt(row.body.eligible), Q); assert.equal(row.body.supportSource, sourceIdentity(b));
+        assert.equal((await effects(fixture.credit)).filter(effect => effect.kind === 'grant').length, 1);
+        assert.equal(row.body.originalGrant, initialGrant?.effectKey ?? (await effects(fixture.credit)).find(effect => effect.kind === 'grant')?.effectKey);
+        const stale = { ...resolution, approvalRef: 'stale-approval' };
+        await fixture.credit.receive(message(2, bFact, [adjustment({ adjustmentRef: 'refund-B', transactionRef: 'transaction-B', allocations: [{ providerLineRef: 'line-B', type: 'full', amount: { currency: 'USD', minorUnits: '1000' } }] })]));
+        assert.equal(await fixture.credit.resolveHeldDecision(stale), 'conflict');
+        assert.equal(BigInt((await onlyCredit(fixture.credit)).eligible), 0n);
+        assert.equal((await effects(fixture.credit)).filter(effect => effect.kind === 'correction').length, 1);
+        assert.equal((await fixture.credit.owner.inspect('receipts')).length, 3, 'resolution creates neither fake producer revision nor receipt reset');
+      } finally { await fixture.close(); }
+    });
+  }
+});
+
+test('control overflow, unknown schema and conflicts hold monotonically; unknown/untrusted envelopes remain unacked', async () => {
+  const fixture = await consumers();
+  try {
+    const paid = message(3); await fixture.credit.receive(paid);
+    assert.equal((await fixture.credit.receive(held(4, paid))).outcome, 'held');
+    assert.equal((await fixture.credit.receive(paid)).outcome, 'duplicate');
+    assert.equal(BigInt((await onlyCredit(fixture.credit)).eligible), 0n);
+    assert.equal(BigInt((await onlyCredit(fixture.credit)).held), Q);
+    const { bodyDigest: _digest, ...body } = message(5);
+    const future = signFixtureMessage({ ...body, schemaVersion: 9, futureBody: { opaque: true } });
+    assert.equal((await fixture.credit.receive(future)).outcome, 'held');
+    assert.equal((await fixture.credit.receive(message(6))).outcome, 'accepted');
+    assert.equal(BigInt((await onlyCredit(fixture.credit)).eligible), Q);
+    const { bodyDigest: _old, ...conflictBody } = message(6);
+    assert.equal((await fixture.credit.receive(signFixtureMessage({ ...conflictBody, flags: ['unsupported'] }))).outcome, 'conflict');
+    assert.equal(BigInt((await onlyCredit(fixture.credit)).eligible), 0n);
+    assert.equal((await fixture.credit.receive({ ...paid, envelopeVersion: 8 })).acknowledge, false);
+    assert.equal((await fixture.credit.receive({ ...paid, bodyDigest: '0'.repeat(64) })).acknowledge, false);
+    for (const changedScope of [{ ...scope, applicationId: 'app-b' }, { ...scope, environment: 'production' as const }, { ...scope, paymentAccountId: 'other-account' }]) {
+      const aggregate = paid.aggregate, messageId = hash([producerNamespace, changedScope, aggregate, 7]);
+      assert.equal((await fixture.credit.receive(signFixtureMessage({ ...body, scope: changedScope, aggregate, messageId, revision: 7 }))).acknowledge, false);
+    }
+    assert.equal((await fixture.credit.owner.inspect('quarantine')).length, 5);
+    assert.ok((await fixture.credit.owner.inspect<{ state: string }>('obligations')).some(row => row.state === 'pending'));
+  } finally { await fixture.close(); }
+});
+
+test('initial stream guard, distinct renewal periods and intentional top-ups preserve separate stable benefit identities', async () => {
+  const fixture = await consumers();
+  try {
+    const initial = message(1); await fixture.credit.receive(initial);
+    const renewalFact = fact({ factId: 'renewal-completion', transactionRef: 'renewal-A', classification: 'renewal', lines: [{ ...fact().lines[0]!, providerLineRef: 'renewal-line', period: nextPeriod }] });
+    await fixture.credit.receive(message(1, renewalFact));
+    const { subscriptionBasisId: _basis, providerSubscriptionRef: _stream, ...oneTime } = fact({ factId: 'topup-completion', transactionRef: 'topup-A', intentId: 'intent-topup-A', classification: 'one_time', offer: { ...fact().offer, profile: 'one_time' }, lines: [{ providerLineRef: 'topup-line', benefitSlotId: 'purchased', amount: { currency: 'USD', minorUnits: '1000' }, quantity: 1 }] });
+    const topup = oneTime;
+    await fixture.credit.receive(message(1, topup));
+    const secondTopup = { ...topup, factId: 'topup-completion-B', transactionRef: 'topup-B', intentId: 'intent-topup-B' };
+    await fixture.credit.receive(message(1, secondTopup));
+    let decisions = await fixture.credit.decisions();
+    assert.equal(decisions.filter(row => row.body.bucket === 'included').reduce((sum, row) => sum + BigInt(row.body.eligible), 0n), 2n * Q);
+    assert.equal(decisions.filter(row => row.body.bucket === 'purchased').reduce((sum, row) => sum + BigInt(row.body.eligible), 0n), 2n * T);
+    const rival = fact({ factId: 'rival-initial', transactionRef: 'initial-B', providerSubscriptionRef: 'subscription-B', lines: [{ ...fact().lines[0]!, providerLineRef: 'rival-line', period: nextPeriod }] });
+    await Promise.all([fixture.credit.receive(message(1, rival)), fixture.credit.receive(message(2, renewalFact))]);
+    decisions = await fixture.credit.decisions();
+    assert.equal(decisions.find(row => row.body.basisKey.startsWith('["initial"'))?.body.eligible, '0');
+    assert.equal(decisions.find(row => row.body.basisKey.startsWith('["period"'))?.body.eligible, '0', 'unselected stream renewals are held with the initial conflict');
+    assert.equal((await effects(fixture.credit)).filter(effect => effect.kind === 'grant' && effect.basisKey.startsWith('["initial"')).length, 1);
+    const legitimate = fact({ factId: 'legitimate-initial', transactionRef: 'initial-C', intentId: 'intent-legitimate', subscriptionBasisId: 'binding-c', providerSubscriptionRef: 'subscription-C' });
+    await fixture.credit.receive(message(1, legitimate));
+    assert.equal((await fixture.credit.decisions()).find(row => row.body.basisKey.includes('intent-legitimate'))?.body.eligible, Q.toString());
+  } finally { await fixture.close(); }
+});
+
+test('access lifecycle serializes with paid evidence, preserves known periods and never paywalls read/export/cancel', async () => {
+  const fixture = await consumers();
+  try {
+    await fixture.access.receive(message(1)); await fixture.access.receive(subscription(1));
+    let decision = (await fixture.access.decisions())[0]!.body;
+    assert.equal(decision.newAction, true); assert.equal(decision.paidUntil, period.endsAt);
+    await fixture.access.restrict({ buyerId: 'buyer-a', restricted: true, actorId: 'security-owner', approvalRef: 'restrict-1' });
+    assert.equal((await fixture.access.decisions())[0]!.body.newAction, false);
+    await fixture.access.restrict({ buyerId: 'buyer-a', restricted: false, actorId: 'security-owner', approvalRef: 'restrict-2' });
+    await fixture.access.receive(subscription(2, { scheduled: true }));
+    assert.equal((await fixture.access.decisions())[0]!.body.newAction, true);
+    fixture.setNow('2026-11-01T00:00:01Z'); await fixture.access.refresh('buyer-a');
+    assert.equal((await fixture.access.decisions())[0]!.body.newAction, false);
+    fixture.setNow('2026-10-15T00:00:00Z');
+    await Promise.all([fixture.access.receive(subscription(4, { status: 'canceled' })), fixture.access.receive(message(2))]);
+    await fixture.access.receive(subscription(1));
+    decision = (await fixture.access.decisions())[0]!.body;
+    assert.equal(decision.status, 'canceled'); assert.equal(decision.newAction, false); assert.equal(decision.expand, false);
+    assert.deepEqual([decision.read, decision.export, decision.cancel], [true, true, true]); assert.deepEqual(decision.knownLastPeriod, period);
+    await fixture.access.receive(subscription(5, { unknown: true }));
+    decision = (await fixture.access.decisions())[0]!.body;
+    assert.equal(decision.status, 'unknown'); assert.equal(decision.newAction, false); assert.ok(decision.restrictions.includes('incomplete_lifecycle'));
+    const restarted = new AccessFixture({ pool: fixture.pool, schema: fixture.access.owner.options.schema, trust: fixture.trust, now: () => '2026-10-15T00:00:00Z' });
+    assert.equal((await restarted.receive(subscription(2, { scheduled: true }))).outcome, 'duplicate');
+    assert.equal((await restarted.decisions())[0]!.body.status, 'unknown');
+    assert.equal(canonical((await fixture.access.owner.inspect('receipts')).length), '6');
+  } finally { await fixture.close(); }
+});
