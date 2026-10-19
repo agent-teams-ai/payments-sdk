@@ -51,8 +51,8 @@ importers:
   .:
     devDependencies:
       '@agent-teams/engineering-foundation':
-        specifier: 1.10.0
-        version: 1.10.0(@types/node@24.13.3)
+        specifier: 1.10.1
+        version: 1.10.1(@types/node@24.13.3)
       '@agent-teams/payments-core':
         specifier: workspace:*
         version: link:packages/payments-core
@@ -151,8 +151,8 @@ packages:
     resolution: {integrity: sha512-GzdetjP25KJfThxNk7UhtAZ28rOb6T/rTRrjYSrp2rYaEt0do5XF4pGjIVdeSzh+zXH0ULu58TZsuhOJi0Q0Mw==}
     engines: {node: ^24.18.0 || ^26.0.0, pnpm: '>=11.17.0 <12'}
 
-  '@agent-teams/engineering-foundation@1.10.0':
-    resolution: {integrity: sha512-k1mI8y/bm6GQtge+QCkANrufyLKi0f6YZlHXCMKr4QpGb97/86j9WdYVhgG2//C2cAtSRmmHmhOtnrpdaksRpw==}
+  '@agent-teams/engineering-foundation@1.10.1':
+    resolution: {integrity: sha512-XX9JRIkeV/eGHcIYvUTHjdQ5O9U2vphhLRUp52JNSIbG89nYply8yQPbPpPQdhsS8ijBGVQIUD2LArnvW8Jo5w==}
     engines: {node: ^24.18.0 || ^26.0.0, pnpm: '>=11.17.0 <12'}
     hasBin: true
 
@@ -850,7 +850,7 @@ snapshots:
       ajv: 8.20.0
       yaml: 2.9.0
 
-  '@agent-teams/engineering-foundation@1.10.0(@types/node@24.13.3)':
+  '@agent-teams/engineering-foundation@1.10.1(@types/node@24.13.3)':
     dependencies:
       '@agent-teams/document-authoring': 0.3.2
       '@agent-teams/repository-mutation': 0.2.2
