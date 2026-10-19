@@ -12,6 +12,7 @@ governedRoots:
   - packages/payments-core/test
   - packages/payments-paddle/test
   - packages/payments-get-modular/test
+  - packages/payments-postgres/test
 boundaries:
   - id: payments.core
     roots: [packages/payments-core/src]
@@ -75,4 +76,13 @@ boundaries:
       boundaries: [payments.core, payments.get-modular]
       packages: ['@agent-teams/payments-core', '@get-modular/core', '@get-modular/assembly', '@get-modular/resources', '@get-modular/conformance']
       builtins: [node:assert/strict, node:test]
+      runtimeReferences: []
+  - id: payments.postgres-tests
+    dependencyMode: development
+    roots: [packages/payments-postgres/test]
+    entrypoints: []
+    allow:
+      boundaries: [payments.core, payments.postgres]
+      packages: ['@agent-teams/payments-core', pg, pg-boss]
+      builtins: [node:assert/strict, node:test, node:crypto, node:net]
       runtimeReferences: []
