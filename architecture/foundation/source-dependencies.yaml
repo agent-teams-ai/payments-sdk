@@ -84,5 +84,5 @@ boundaries:
     allow:
       boundaries: [payments.core, payments.postgres]
       packages: ['@agent-teams/payments-core', pg, pg-boss]
-      builtins: [node:assert/strict, node:test, node:crypto, node:net]
+      builtins: [node:assert/strict, node:test, node:crypto, node:net, node:timers/promises]
       runtimeReferences: []
