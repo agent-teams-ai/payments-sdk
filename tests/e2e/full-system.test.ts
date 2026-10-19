@@ -367,7 +367,7 @@ test('actual SDK unknown outcome and approved duplicate-risk retry retain one re
   } finally { release(); payments.stop(); await payments.drain(); await pool.query(`DROP SCHEMA "${schema}" CASCADE; DROP SCHEMA ${credit.owner.sql} CASCADE`); await pool.end(); await emulation.restore(); }
 });
 
-test('both public hosts hold an unmatched supported reverse before or after a qualified restoration across restart', { timeout: 60_000 }, async t => {
+test('both public hosts qualify the whole reversal snapshot for independent credit and access owners across restart', { timeout: 60_000 }, async t => {
   const emulation = paddleEmulation(), { agent, api } = emulation;
   try {
     for (const kind of ['node-http-factory', 'fetch-static-gm'] as const) for (const orphanFirst of [true, false]) {
@@ -376,10 +376,11 @@ test('both public hosts hold an unmatched supported reverse before or after a qu
         const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
         const prefix = `reverse_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
         const trust = { producerNamespace, scope }, credit = new CreditFixture({ pool, schema: `${prefix}_credit`, trust });
-        await migratePaymentSchema({ pool, schema, scope }); await credit.migrate();
+        const now = '2026-10-15T00:00:00Z', access = new AccessFixture({ pool, schema: `${prefix}_access`, trust, now: () => now });
+        await migratePaymentSchema({ pool, schema, scope }); await credit.migrate(); await access.migrate();
         const store = await createPostgresPaymentStore({ pool, schema, scope });
         const provider = createPaddleProvider({ scope, apiKey: 'synthetic-never-valid-key', apiVersion: 1, webhook: { endpointId: 'reverse-destination', secret: SECRET, apiVersion: 1 } });
-        const options: PaymentRuntimeOptions = { scope, producerNamespace, provider, store, catalog: { resolveOffer: async () => offer } };
+        const options: PaymentRuntimeOptions = { scope, producerNamespace, provider, store, catalog: { resolveOffer: async () => offer }, now: () => now };
         const verify = provider.verifyWebhook.bind(provider), authenticate = async (): Promise<string> => 'buyer-a';
         const host = kind === 'node-http-factory' ? await createNodeHttpHost(options, verify, authenticate) : await createFetchModularHost(options, verify, authenticate);
         const payments = host.payments;
@@ -392,10 +393,10 @@ test('both public hosts hold an unmatched supported reverse before or after a qu
         const ingress = async (type: string, data: Record<string, unknown>) => {
           const body = JSON.stringify(eventFixture(type, data, `evt_${String(++sequence).padStart(26, '0')}`));
           assert.equal((await post('/webhooks/paddle', body, { 'paddle-signature': sign(body) })).status, 200);
-          await payments.repair(100); await deliver(payments, 'credit', credit);
+          await payments.repair(100); await deliver(payments, 'credit', credit); await deliver(payments, 'access', access);
         };
         try {
-          await payments.registerConsumer('credit');
+          await payments.registerConsumer('credit'); await payments.registerConsumer('access');
           api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, request => {
             const body = JSON.parse(String(request.body)) as { custom_data: { payments: { intentId: string } } }; intentId = body.custom_data.payments.intentId;
             return responseFixture(transactionFixture({ intentId, status: 'ready', customerRef: null }));
@@ -403,21 +404,42 @@ test('both public hosts hold an unmatched supported reverse before or after a qu
           const response = await post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'unmatched-reverse' }));
           assert.equal(success(JSON.parse(response.body) as OperationResult<CheckoutReady>).intentId, intentId);
           await ingress('transaction.completed', transactionFixture({ intentId }));
+          await ingress('subscription.activated', subscriptionFixture());
+          assert.deepEqual([(await access.decisions())[0]!.body.newAction, (await access.decisions())[0]!.body.expand], [true, true]);
           const originalGrant = (await credit.decisions())[0]!.body.originalGrant; assert.ok(originalGrant);
           await ingress('adjustment.created', adjustmentFixture({ action: 'credit' }));
           const afterCredit = (await credit.decisions())[0]!;
           assert.deepEqual([afterCredit.body.status, afterCredit.body.allocated, afterCredit.body.eligible, afterCredit.body.held], ['withheld', '0', '0', '0']);
+          assert.deepEqual([(await access.decisions())[0]!.body.newAction, (await access.decisions())[0]!.body.expand], [false, false]);
+          assert.ok((await access.decisions())[0]!.body.restrictions.includes('full_adverse'));
           const projection = (await credit.owner.inspect<{ body: EvidenceMessage }>('evidence_projection')).find(source => source.body.aggregate.id === paddleIds.transaction)!;
           const staleResolution = { basisKey: afterCredit.basis_key, expectedDecisionRevision: Number(afterCredit.revision), expectedReadSet: afterCredit.body.readSet, selectedSource: sourceIdentity(projection.body), actorId: 'authorized-fixture-owner', approvalRef: `stale-reverse-${kind}-${orphanFirst}`, policyVersion: 'fixture-credit-policy-v1' };
           const orphan = adjustmentFixture({ id: 'adj_00000000000000000000000003', action: 'chargeback_reverse', total: '-1000', version: '2026-10-04T00:00:00Z' });
           if (orphanFirst) await ingress('adjustment.created', orphan);
           await ingress('adjustment.updated', adjustmentFixture({ action: 'credit', status: 'reversed', version: '2026-10-03T00:00:00Z' }));
           assert.equal((await credit.decisions())[0]!.body.eligible, '0');
+          const incompleteAccess = new AccessFixture({ pool, schema: access.owner.options.schema, trust, now: () => now });
+          for (const { body } of await incompleteAccess.owner.inspect<{ body: EvidenceMessage }>('evidence_projection')) assert.equal((await incompleteAccess.receive(body)).outcome, 'duplicate');
+          const incomplete = (await incompleteAccess.decisions())[0]!.body;
+          assert.deepEqual([incomplete.newAction, incomplete.expand, incomplete.read, incomplete.export, incomplete.cancel], [false, false, true, true, true], 'a reversed original without its proven reverse never reopens access');
+          assert.ok(incomplete.restrictions.includes('pending_adjustment_policy'));
+          assert.equal((await payments.readDeliveries('access', 100)).length, 0);
           await ingress('adjustment.created', adjustmentFixture({ id: paddleIds.reverseAdjustment, action: 'credit_reverse', total: '-1000', version: '2026-10-03T00:00:01Z' }));
           if (!orphanFirst) {
             const restored = (await credit.decisions())[0]!.body;
             assert.deepEqual([restored.status, restored.allocated, restored.eligible, restored.held], ['issued', Q.toString(), Q.toString(), '0'], 'the exact two-member qualified pair remains a positive restoration case');
             assert.equal(restored.originalGrant, originalGrant);
+            const qualified = (await incompleteAccess.decisions())[0]!.body;
+            assert.deepEqual([qualified.newAction, qualified.expand, qualified.read, qualified.export, qualified.cancel], [true, true, true, true, true], 'the qualified pair restores access with active lifecycle and unexpired payment');
+            assert.deepEqual(qualified.restrictions, []);
+            for (const { body } of await incompleteAccess.owner.inspect<{ body: EvidenceMessage }>('evidence_projection')) assert.equal((await incompleteAccess.receive(body)).outcome, 'duplicate');
+            assert.equal((await incompleteAccess.decisions())[0]!.body.newAction, true);
+            await incompleteAccess.restrict({ buyerId: 'buyer-a', restricted: true, actorId: 'security-owner', approvalRef: 'security-during-qualified-restoration' });
+            assert.deepEqual([(await incompleteAccess.decisions())[0]!.body.newAction, (await incompleteAccess.decisions())[0]!.body.expand], [false, false], 'qualified payment does not override independently owned security restriction');
+            assert.ok((await incompleteAccess.decisions())[0]!.body.restrictions.includes('security'));
+            assert.equal((await credit.decisions())[0]!.body.eligible, Q.toString());
+            await incompleteAccess.restrict({ buyerId: 'buyer-a', restricted: false, actorId: 'security-owner', approvalRef: 'security-explicitly-cleared' });
+            assert.equal((await incompleteAccess.decisions())[0]!.body.newAction, true);
             await ingress('adjustment.created', orphan);
           }
           const purchase = await payments.readPurchase('buyer-a', intentId); assert.ok(purchase);
@@ -429,6 +451,12 @@ test('both public hosts hold an unmatched supported reverse before or after a qu
           assert.equal((await restarted.receive(latest)).outcome, 'duplicate'); assert.equal((await restarted.receive(latest)).outcome, 'duplicate');
           const decision = (await restarted.decisions())[0]!, allocated = orphanFirst ? '0' : Q.toString();
           assert.deepEqual([decision.body.status, decision.body.allocated, decision.body.eligible, decision.body.held], ['held', allocated, '0', allocated]);
+          const restartedAccess = new AccessFixture({ pool, schema: access.owner.options.schema, trust, now: () => now });
+          for (const { body } of await restartedAccess.owner.inspect<{ body: EvidenceMessage }>('evidence_projection')) assert.equal((await restartedAccess.receive(body)).outcome, 'duplicate');
+          const accessHold = (await restartedAccess.decisions())[0]!.body;
+          assert.deepEqual([accessHold.newAction, accessHold.expand, accessHold.read, accessHold.export, accessHold.cancel], [false, false, true, true, true]);
+          assert.ok(accessHold.restrictions.includes('pending_adjustment_policy'));
+          assert.ok((await restartedAccess.owner.inspect<{ state: string }>('obligations')).some(obligation => obligation.state === 'pending'));
           assert.equal(decision.body.originalGrant, originalGrant);
           const effects = (await restarted.owner.inspect<{ body: Effect }>('effects')).map(effect => effect.body);
           assert.equal(effects.filter(effect => effect.kind === 'grant').length, 1);
@@ -440,8 +468,9 @@ test('both public hosts hold an unmatched supported reverse before or after a qu
           assert.equal(await restarted.resolveHeldDecision(staleResolution), 'conflict');
           assert.equal(await restarted.resolveHeldDecision({ ...staleResolution, expectedDecisionRevision: Number(decision.revision), expectedReadSet: decision.body.readSet, approvalRef: `current-unqualified-${kind}-${orphanFirst}` }), 'rejected', 'a fresh approval cannot make an unexplained reverse a qualified pair');
           assert.equal((await payments.readDeliveries('credit', 100)).length, 0, 'ACK confirms held evidence custody, not eligibility');
+          assert.equal((await payments.readDeliveries('access', 100)).length, 0, 'each independent owner ACKs its own durable policy hold');
           agent.assertNoPendingInterceptors();
-        } finally { await host.close(); await pool.query(`DROP SCHEMA "${schema}" CASCADE; DROP SCHEMA ${credit.owner.sql} CASCADE`); await pool.end(); }
+        } finally { await host.close(); await pool.query(`DROP SCHEMA "${schema}" CASCADE; DROP SCHEMA ${credit.owner.sql} CASCADE; DROP SCHEMA ${access.owner.sql} CASCADE`); await pool.end(); }
       });
     }
   } finally { await emulation.restore(); }
