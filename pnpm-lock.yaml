@@ -40,8 +40,8 @@ catalogs:
       specifier: 7.0.2
       version: 7.0.2
     undici:
-      specifier: 7.24.0
-      version: 7.24.0
+      specifier: 7.29.1
+      version: 7.29.1
     yaml:
       specifier: 2.9.0
       version: 2.9.0
@@ -91,7 +91,7 @@ importers:
         version: 7.0.2
       undici:
         specifier: 'catalog:'
-        version: 7.24.0
+        version: 7.29.1
       yaml:
         specifier: 'catalog:'
         version: 2.9.0
@@ -128,7 +128,7 @@ importers:
     devDependencies:
       undici:
         specifier: 'catalog:'
-        version: 7.24.0
+        version: 7.29.1
 
   packages/payments-postgres:
     dependencies:
@@ -825,8 +825,8 @@ packages:
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
-  undici@7.24.0:
-    resolution: {integrity: sha512-jxytwMHhsbdpBXxLAcuu0fzlQeXCNnWdDyRHpvWsUl8vd98UwYdl9YTyn8/HcpcJPC3pwUveefsa3zTxyD/ERg==}
+  undici@7.29.1:
+    resolution: {integrity: sha512-RYONW2MeafgYlkVOKYKkA/Ag7BmXqgIWCa8t1m0JcxrQg9pI9lEqRhAOruOBCbAohOa/gkCF+iPi9hrgvTzu6Q==}
     engines: {node: '>=20.18.1'}
 
   universalify@2.0.1:
@@ -1384,7 +1384,7 @@ snapshots:
 
   undici-types@7.18.2: {}
 
-  undici@7.24.0: {}
+  undici@7.29.1: {}
 
   universalify@2.0.1: {}
 
