@@ -46,4 +46,4 @@ The already reproduced strict TS7 NodeNext/Bundler browser blocker therefore rem
 
 ## Evidence and limits
 
-Exact API URLs, times, heads, registry tags/version presence, current source blobs/SHA-256 and the main delta are retained in `final-upstream-delivery-status.json`. The 20:25 research/documentation snapshot remains valid as a dated record; current main metadata is updated here. No optional new build, deployment, sandbox exercise or dependency adoption follows from this read-back.
+Exact API URLs, times, heads, registry tags/version presence, current source blobs/SHA-256 and the main delta are retained in [the read-back record](final-upstream-delivery-status.json). The 20:25 research/documentation snapshot remains valid as a dated record; current main metadata is updated here. No optional new build, deployment, sandbox exercise or dependency adoption follows from this read-back.
