@@ -30,7 +30,7 @@ in the frozen [implementation plan](../implementation-plan.md).
 | 1 | [Core](code/wave1-core.md), [Paddle](code/wave1-paddle.md), [consumers](code/wave1-consumers.md), [platform](code/wave1-platform.md) | All ten accepted findings corrected |
 | 2 | [Domain](code/wave2-domain.md), [consumers](code/wave2-consumers.md), [Paddle](code/wave2-paddle.md), [PostgreSQL and recovery](code/wave2-postgres.md) | All seven accepted findings corrected |
 | 3 | [Domain](code/wave3-domain.md), [consumers](code/wave3-consumers.md), [platform](code/wave3-platform.md), [provider](code/wave3-provider.md) | All five accepted findings corrected |
-| 4 | [PostgreSQL](code/wave4-postgres.md), [platform](code/wave4-platform.md), [consumers](code/wave4-consumers.md), [domain/provider](code/wave4-domain-provider.md) | All four reviews complete; correction qualification in progress |
+| 4 | [PostgreSQL](code/wave4-postgres.md), [platform](code/wave4-platform.md), [consumers](code/wave4-consumers.md), [domain/provider](code/wave4-domain-provider.md) | All four accepted findings corrected; independent correction qualification in progress |
 
 ### Wave 1 corrections
 
@@ -92,8 +92,8 @@ separate gates.
 
 | Accepted finding | Correction commits | Maintained regression or verification |
 | --- | --- | --- |
-| Ordinary renewal processing reopened unchanged reclassification quarantine and bypassed its persisted cooldown | Correction in progress | Independent actual pg-boss fault probes compare the unchanged cursor/decision and exact persisted deadline |
-| Historical adjustment reparenting omitted the original parent's T1 fence before its already prepared publication T2 | Correction in progress | Independent inverse-order admission/publication probe on both Node floors |
+| Ordinary renewal processing reopened unchanged reclassification quarantine and bypassed its persisted cooldown | 91138aa, e7803e3, 4d468eb | Exact persisted disposition/deadline, audited redrive, direct new-generation replacement and overlapping claims with the same attempt number |
+| Historical adjustment reparenting omitted the original parent's T1 fence before its already prepared publication T2 | 91138aa, e7803e3, bb5376c, 054a20b | Both-parent T1 and cleanup, first-certification lock race, 200-member page with enforced lock bound/rollback, pending duplicate enrichment and processed duplicate idempotency |
 | The documented unpublished tarball installation tried to resolve internal packages from npm | 70db2ef in the documentation/release PR | Both fresh hosts install using the documented commands/configuration directly; runtime imports and strict NodeNext/Bundler pass on both Node floors |
 | Access accepted an uncorrelated reversed adjustment and rejected the later qualified restoration pair | f560818, 560c75b | Pure fixture-owned whole-snapshot qualifier shared by independent owners; actual SDK in both hosts, restart/replay, positive restoration and independent security restriction |
 
