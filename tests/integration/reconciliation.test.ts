@@ -3,7 +3,7 @@ import { createHmac, randomUUID } from 'node:crypto';
 import test from 'node:test';
 import { Pool } from 'pg';
 import { MockAgent, getGlobalDispatcher, install, setGlobalDispatcher } from 'undici';
-import { createPaymentReconciler, createPayments, digest, type OfferSnapshot, type PaymentScope, type ReconciliationQuery, type VerifiedInput } from '@agent-teams/payments-core';
+import { createPaymentReconciler, createPayments, digest, inputRoutes, type OfferSnapshot, type PaymentScope, type ReconciliationQuery, type VerifiedInput } from '@agent-teams/payments-core';
 import { createPaddleProvider, createPaddleReconciliationSource } from '@agent-teams/payments-paddle';
 import { createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
 import { adjustmentFixture, eventFixture, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '../../packages/payments-paddle/test/fixtures.ts';
@@ -152,6 +152,71 @@ test('durable reconciliation through actual public Paddle SDK and PostgreSQL', {
       const [id] = await store.listWork(scope, 'inbox', 100); assert.ok(id);
       const input = (await store.loadReductionInput(scope, id))?.state.inbox[id]?.input; assert.equal(input?.observation.kind, 'unsupported'); assert.equal(input?.adverseTransactionRef, paddleIds.transaction);
       assert.equal(digest(input?.retainedRepresentation), input?.source.representationDigest);
+    }));
+
+    for (const mode of ['raw', 'mapped'] as const) await t.test(`future ${mode} entity events survive restart and publish higher unsupported evidence`, async () => isolated(async ({ schema, store, reconciler }) => {
+      const offer: OfferSnapshot = { applicationId: scope.applicationId, offerId: 'monthly', version: '1', policyVersion: '1', profile: 'monthly', currency: 'USD', allowZeroTotal: false, lines: [{ providerPriceRef: paddleIds.price, benefitSlotId: 'included', quantity: 1 }] };
+      const ids = ['intent-fixture', 'operation-fixture', 'basis-fixture', 'attempt-fixture'];
+      const runtimeOptions = { scope, provider, producerNamespace: 'reconciliation-fixture', catalog: { resolveOffer: async () => offer }, newId: () => ids.shift() ?? randomUUID() };
+      const runtime = createPayments({ ...runtimeOptions, store });
+      await runtime.registerConsumer('future-event-consumer');
+      api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, responseFixture(transactionFixture({ status: 'ready', customerRef: null })));
+      const checkout = await runtime.startPurchase({ buyerId: 'buyer-fixture', offerId: offer.offerId, requestKey: 'request-fixture' }); assert.equal(checkout.kind, 'succeeded');
+      if (checkout.kind !== 'succeeded') throw new Error('Expected checkout');
+      api.intercept({ path: path => new URL(path, 'https://sandbox-api.paddle.com').pathname === `/transactions/${paddleIds.transaction}`, method: 'GET' }).reply(200, responseFixture(transactionFixture()));
+      assert.deepEqual(await runtime.refreshPurchase('buyer-fixture', checkout.value.intentId), { kind: 'succeeded', value: 1 });
+      const baseline = await runtime.readPurchase('buyer-fixture', checkout.value.intentId); assert.ok(baseline);
+      const transaction = baseline.transactions[0]; assert.ok(transaction?.completion);
+      assert.deepEqual(transaction.flags, []);
+      const basis = baseline.intent.subscriptionBasisId; assert.ok(basis);
+      api.intercept({ path: path => new URL(path, 'https://sandbox-api.paddle.com').pathname === `/subscriptions/${paddleIds.subscription}`, method: 'GET' }).reply(200, responseFixture(subscriptionFixture()));
+      assert.deepEqual(await runtime.refreshSubscription('buyer-fixture', basis), { kind: 'succeeded', value: 1 });
+      const subscription = (await runtime.readObservedSubscription('buyer-fixture', basis))?.observations[0]; assert.ok(subscription?.current);
+      assert.deepEqual(subscription.flags, []);
+      const events = [
+        eventFixture('transaction.future_event', { id: paddleIds.transaction, updated_at: '2026-10-02T00:00:00Z', status: 'future_state' }, paddleIds.secondEvent),
+        eventFixture('subscription.future_event', { id: paddleIds.subscription, updated_at: '2026-10-02T00:00:00Z', status: 'future_state' }, paddleIds.thirdEvent),
+      ];
+      const rawInputs: VerifiedInput[] = [];
+      for (const event of events) {
+        const body = JSON.stringify(event), verified = await provider.verifyWebhook(body, sign(body)); assert.equal(verified.kind, 'succeeded');
+        if (verified.kind !== 'succeeded') throw new Error('Expected verified receipt');
+        rawInputs.push(verified.value);
+      }
+      if (mode === 'raw') await store.admitVerifiedInputs(scope, rawInputs);
+      else {
+        await reconciler.beginScan({ scanId: 'future-entities', epoch: 'epoch', query });
+        api.intercept({ path: eventPath(), method: 'GET' }).reply(200, responseFixture(events));
+        const result = await reconciler.resumeScan('future-entities'); assert.equal(result.kind, 'saved');
+        if (result.kind !== 'saved') throw new Error('Expected saved page');
+        assert.equal(result.admitted, 2); assert.equal(result.checkpoint.status, 'complete'); assert.equal(result.checkpoint.after, paddleIds.thirdEvent);
+      }
+      const reloadedStore = await createPostgresPaymentStore({ pool, schema, scope });
+      const restarted = createPayments({ ...runtimeOptions, store: reloadedStore });
+      const pending = await reloadedStore.listWork(scope, 'inbox', 100); assert.equal(pending.length, 2);
+      for (const id of pending) {
+        const retained = (await reloadedStore.loadReductionInput(scope, id))?.state.inbox[id]?.input; assert.ok(retained);
+        const isTransaction = retained.source.eventType === 'transaction.future_event';
+        assert.deepEqual(inputRoutes(retained), [{ type: isTransaction ? 'transaction' : 'subscription', id: isTransaction ? paddleIds.transaction : paddleIds.subscription }]);
+        assert.equal(retained.observation.kind, 'unsupported');
+        if (mode === 'raw') assert.deepEqual(retained, rawInputs.find(input => input.inputId === id));
+        else assert.equal(digest(retained.retainedRepresentation), retained.source.representationDigest);
+        assert.equal(await restarted.processInbox(id), 'processed');
+      }
+      const durable = createPayments({ ...runtimeOptions, store: await createPostgresPaymentStore({ pool, schema, scope }) });
+      const afterTransaction = (await durable.readPurchase('buyer-fixture', checkout.value.intentId))?.transactions[0];
+      assert.deepEqual(afterTransaction?.completion, transaction.completion); assert.deepEqual(afterTransaction?.flags, ['unsupported']);
+      const afterSubscription = (await durable.readObservedSubscription('buyer-fixture', basis))?.observations[0];
+      assert.deepEqual(afterSubscription?.current, subscription.current); assert.deepEqual(afterSubscription?.flags, ['unsupported']);
+      const messages = await durable.readDeliveries('future-event-consumer', 100);
+      for (const aggregate of [{ type: 'transaction', id: paddleIds.transaction, revision: transaction.evidenceRevision }, { type: 'subscription', id: paddleIds.subscription, revision: subscription.evidenceRevision }]) {
+        const latest = messages.filter(message => message.aggregate.type === aggregate.type && message.aggregate.id === aggregate.id).sort((a, b) => b.revision - a.revision)[0]; assert.ok(latest);
+        assert.ok(latest.revision > aggregate.revision); assert.notEqual(latest.kind, 'held');
+        if (latest.kind === 'held') throw new Error('Expected retained known evidence with unsupported hold flag');
+        assert.deepEqual(latest.flags, ['unsupported']);
+        const { bodyDigest, ...body } = latest; assert.equal(digest(body), bodyDigest);
+      }
+      if (mode === 'mapped') assert.equal((await reloadedStore.readCheckpoint(scope, 'future-entities'))?.status, 'complete');
     }));
 
     await t.test('public refresh preserves official SDK transaction and subscription receipt bodies and digests', async () => isolated(async ({ store }) => {

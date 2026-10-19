@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import test from 'node:test';
 import { MockAgent, getGlobalDispatcher, setGlobalDispatcher, install, fetch as undiciFetch } from 'undici';
 import { createPaddleProvider, PADDLE_API_PROFILE } from '../dist/index.js';
+import { digest, inputRoutes } from '@agent-teams/payments-core';
 import type { PaddleEventScanQuery } from '../dist/index.js';
 import type { Field, OfferSnapshot, PaymentScope, ProviderResult, VerifiedInput } from '@agent-teams/payments-core';
 import { adjustmentFixture, eventFixture, fixturePeriod, fixtureTime, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from './fixtures.ts';
@@ -106,6 +107,49 @@ test('official SDK contract probes with synthetic API1 fixtures and no network',
       assert.deepEqual(a.retainedRepresentation, { rawBody: bodyA });
       const unknownKnownFamily = JSON.stringify(eventFixture('transaction.future_event'));
       assert.equal(succeeded(await provider.verifyWebhook(unknownKnownFamily, sign(unknownKnownFamily))).observation.kind, 'unsupported');
+    });
+
+    await t.test('unsupported raw and actual SDK events retain only validated entity routes and complete custody', async () => {
+      const cases = [
+        { type: 'transaction.future_event', data: { id: paddleIds.transaction, future_total: 'uninterpreted' }, routes: [{ type: 'transaction', id: paddleIds.transaction }] },
+        { type: 'subscription.future_event', data: { id: paddleIds.subscription, transaction_id: paddleIds.transaction, future_total: 'uninterpreted' }, routes: [{ type: 'subscription', id: paddleIds.subscription }] },
+        { type: 'adjustment.future_event', data: { id: paddleIds.adjustment, transaction_id: paddleIds.transaction }, routes: [{ type: 'transaction', id: paddleIds.transaction }] },
+        { type: 'future.event', data: { id: paddleIds.transaction, transaction_id: paddleIds.transaction }, routes: [] },
+        { type: 'transaction.future_event', data: { id: 'txn_short', transaction_id: paddleIds.transaction }, routes: [] },
+        { type: 'transaction.future_event', data: { id: paddleIds.subscription }, routes: [] },
+        { type: 'subscription.future_event', data: { id: paddleIds.transaction }, routes: [] },
+        { type: 'subscription.future_event', data: { id: `${paddleIds.subscription} ` }, routes: [] },
+        { type: 'adjustment.future_event', data: { transaction_id: 'txn_short' }, routes: [] },
+        { type: 'transaction.updated', data: { ...transactionFixture(), collection_mode: 'manual' }, routes: [{ type: 'transaction', id: paddleIds.transaction }] },
+        { type: 'transaction.updated', data: { ...transactionFixture({ id: 'txn_short' }), collection_mode: 'manual' }, routes: [] },
+        { type: 'subscription.updated', data: subscriptionFixture({ version: 'invalid' }), routes: [{ type: 'subscription', id: paddleIds.subscription }] },
+        { type: 'subscription.updated', data: { ...subscriptionFixture({ version: 'invalid' }), id: 'sub_short' }, routes: [] },
+      ];
+      for (const item of cases) {
+        const body = JSON.stringify(eventFixture(item.type, item.data));
+        const raw = succeeded(await provider.verifyWebhook(body, sign(body)));
+        assert.deepEqual(inputRoutes(raw), item.routes, `${item.type}: raw route`);
+        assert.equal(raw.observation.kind, 'unsupported');
+        if (raw.observation.kind !== 'unsupported') throw new Error('Expected unsupported observation');
+        assert.equal(raw.observation.reason, item.type.endsWith('.updated') ? 'invalid_or_unsupported_provider_shape' : 'unsupported_event_type');
+        assert.deepEqual(raw.retainedRepresentation, { rawBody: body });
+        assert.equal(raw.source.representationDigest, createHash('sha256').update(body).digest('hex'));
+        assert.deepEqual(provider.normalizeVerifiedWebhook(raw), raw);
+        pool.intercept({ path: path => path.startsWith('/events?'), method: 'GET' }).reply(200, responseFixture([eventFixture(item.type, item.data)]));
+        const result = await provider.readEventPage(query()); assert.equal(result.kind, 'page');
+        if (result.kind !== 'page') throw new Error('Expected page');
+        const mapped = result.inputs[0]; assert.ok(mapped);
+        assert.deepEqual(inputRoutes(mapped), item.routes, `${item.type}: SDK route`);
+        assert.equal(mapped.observation.kind, 'unsupported');
+        if (mapped.observation.kind !== 'unsupported') throw new Error('Expected unsupported observation');
+        assert.equal(mapped.observation.reason, raw.observation.reason);
+        assert.equal(digest(mapped.retainedRepresentation), mapped.source.representationDigest);
+        assert.equal(result.hasMore, false); assert.equal(result.lastEventId, paddleIds.event);
+        const retained = mapped.retainedRepresentation as Record<string, unknown>;
+        assert.equal(retained['representationKind'], 'sdk_mapped_observation');
+        const diagnostic = retained['diagnostic'] as Record<string, Record<string, unknown>>;
+        if (item.data['future_total'] !== undefined) assert.equal(diagnostic['data']?.['futureTotal'], 'uninterpreted');
+      }
     });
 
     await t.test('same merchant customer does not give another app ownership; environment is trusted endpoint configuration', async () => {

@@ -1,5 +1,5 @@
 import { assertIdentifier, compareTime, exactTime, money } from '@agent-teams/payments-core';
-import type { AdjustmentObservation, EvidenceSource, Field, Money, Observation, PaymentScope, Period, ProviderLine, SubscriptionObservation, TransactionObservation } from '@agent-teams/payments-core';
+import type { AdjustmentObservation, EvidenceSource, Field, Money, Observation, PaymentScope, Period, ProviderLine, SubscriptionObservation, TransactionObservation, UnsupportedObservation } from '@agent-teams/payments-core';
 
 type RecordValue = Record<string, unknown>;
 type Mode = 'raw' | 'mapped';
@@ -149,19 +149,24 @@ export function adjustmentObservation(value: unknown, mode: Mode, source: Eviden
     amount: exactMoney(totals['total'], code, true), allocations, source };
 }
 
+function unsupportedRoutes(value: unknown, type: string, mode: Mode): Pick<UnsupportedObservation, 'transactionRef' | 'subscriptionRef'> {
+  const data = typeof value === 'object' && value !== null && !Array.isArray(value) ? value as RecordValue : {};
+  const transaction = type.startsWith('transaction.') ? data['id'] : type.startsWith('adjustment.') ? get(data, mode, 'transaction_id', 'transactionId') : undefined;
+  const subscription = type.startsWith('subscription.') ? data['id'] : undefined;
+  return {
+    ...(typeof transaction === 'string' && /^txn_[0-9a-z]{26}$/u.test(transaction) ? { transactionRef: transaction } : {}),
+    ...(typeof subscription === 'string' && /^sub_[0-9a-z]{26}$/u.test(subscription) ? { subscriptionRef: subscription } : {}),
+  };
+}
+
 /** Raw is decoded directly to preserve field presence; mapped API values carry explicit loss assumptions. */
 export function normalizeObservation(value: unknown, type: string, mode: Mode, source: EvidenceSource, scope: PaymentScope): Observation {
   try {
     if (transactionEvents.has(type)) return transactionObservation(value, mode, source, scope);
     if (subscriptionEvents.has(type)) return subscriptionObservation(value, mode, source);
     if (type === 'adjustment.created' || type === 'adjustment.updated' || type === 'adjustment.snapshot') return adjustmentObservation(value, mode, source);
-    return { kind: 'unsupported', reason: 'unsupported_event_type', source };
+    return { kind: 'unsupported', reason: 'unsupported_event_type', ...unsupportedRoutes(value, type, mode), source };
   } catch {
-    const data = typeof value === 'object' && value !== null && !Array.isArray(value) ? value as RecordValue : {};
-    const candidate = type.startsWith('transaction.') ? data['id'] : get(data, mode, 'transaction_id', 'transactionId');
-    const subscription = type.startsWith('subscription.') ? data['id'] : undefined;
-    return { kind: 'unsupported', reason: 'invalid_or_unsupported_provider_shape',
-      ...(typeof candidate === 'string' && candidate.length <= 256 ? { transactionRef: candidate } : {}),
-      ...(typeof subscription === 'string' && subscription.length <= 256 ? { subscriptionRef: subscription } : {}), source };
+    return { kind: 'unsupported', reason: 'invalid_or_unsupported_provider_shape', ...unsupportedRoutes(value, type, mode), source };
   }
 }
