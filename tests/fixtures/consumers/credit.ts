@@ -42,10 +42,13 @@ function condition(contribution: Contribution): Condition {
   if (!originals.length) return 'held';
   if (originals.some(original => original.type !== 'full' || original.amount.currency !== fact.total.currency || BigInt(original.amount.minorUnits) !== BigInt(fact.total.minorUnits) || original.allocations.length !== 1 || original.allocations.some(allocation => allocation.type !== 'full' || allocation.providerLineRef !== fact.lines[0]?.providerLineRef || allocation.amount.currency !== fact.total.currency || allocation.amount.minorUnits !== fact.total.minorUnits))) return 'held';
   if (originals.some(original => !['approved', 'reversed'].includes(original.status))) return 'held';
-  if (originals.some(original => original.status === 'approved')) return 'adverse';
+  if (originals.some(original => original.status === 'approved')) return originals.length === 1 && adjustments.length === 1 ? 'adverse' : 'held';
+  // This fixture qualifies exactly one original and its one reverse. A supported action name
+  // alone cannot explain an extra adjustment: every member must belong to this proven pair.
+  if (originals.length !== 1 || adjustments.length !== 2) return 'held';
   for (const original of originals) {
     const expectedAction = `${original.action}_reverse`;
-    const reversals = adjustments.filter(item => item.action === expectedAction && item.status === 'approved' && item.transactionRef === original.transactionRef && item.amount.currency === original.amount.currency && BigInt(item.amount.minorUnits) === -BigInt(original.amount.minorUnits) && canonical(item.allocations.map(allocation => [allocation.providerLineRef, allocation.amount.minorUnits]).sort()) === canonical(original.allocations.map(allocation => [allocation.providerLineRef, (-BigInt(allocation.amount.minorUnits)).toString()]).sort()));
+    const reversals = adjustments.filter(item => item.action === expectedAction && item.type === 'full' && item.status === 'approved' && item.transactionRef === original.transactionRef && item.amount.currency === original.amount.currency && BigInt(item.amount.minorUnits) === -BigInt(original.amount.minorUnits) && item.allocations.every(allocation => allocation.type === 'full' && allocation.amount.currency === original.amount.currency) && canonical(item.allocations.map(allocation => [allocation.providerLineRef, allocation.amount.minorUnits]).sort()) === canonical(original.allocations.map(allocation => [allocation.providerLineRef, (-BigInt(allocation.amount.minorUnits)).toString()]).sort()));
     if (reversals.length !== 1 || originals.length !== 1) return 'held';
   }
   return 'paid';
