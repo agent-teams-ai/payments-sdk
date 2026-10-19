@@ -49,12 +49,12 @@ test('bootstrap binds the namespace and runtime starts scheduling, work and supe
   let runtimePool: Pool | undefined;
   let jobs: ReturnType<typeof createPostgresPaymentJobs> | undefined;
   try {
-    await f.pool.query(`CREATE ROLE ${role} LOGIN`);
+    await f.pool.query(`CREATE ROLE ${role} LOGIN PASSWORD 'payments-runtime-fixture-only'`);
     await f.pool.query(`GRANT USAGE ON SCHEMA ${f.paymentSchema}, ${f.jobSchema} TO ${role}`);
     await f.pool.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA ${f.paymentSchema}, ${f.jobSchema} TO ${role}`);
     await f.pool.query(`REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA ${f.jobSchema} FROM PUBLIC`);
     await f.pool.query(`GRANT EXECUTE ON FUNCTION ${f.jobSchema}.job_now(), ${f.jobSchema}.create_queue(text, jsonb) TO ${role}`);
-    const url = new URL(databaseUrl); url.username = role; url.password = '';
+    const url = new URL(databaseUrl); url.username = role; url.password = 'payments-runtime-fixture-only';
     runtimePool = new Pool({ connectionString: url.toString(), max: 6 });
     await assert.rejects(runtimePool.query(`CREATE TABLE ${f.jobSchema}.forbidden (id text)`), /permission denied/);
     const errors: Error[] = [];

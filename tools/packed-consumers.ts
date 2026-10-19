@@ -27,7 +27,9 @@ try {
     // exist in a registry. pnpm 11 reads overrides from the workspace file, not package.json.
     const overrides = Object.entries(dependencies).filter(([name]) => name.startsWith('@agent-teams/payments-'));
     await writeFile(join(target, 'pnpm-workspace.yaml'), `overrides:\n${overrides.map(([name, value]) => `  ${JSON.stringify(name)}: ${JSON.stringify(value)}`).join('\n')}\n  "@types/node": "24.13.3"\n`);
-    pnpm(['install', '--offline', '--ignore-scripts', '--lockfile=false', '--strict-peer-dependencies'], target);
+    // A fresh CI cache contains the locked package bytes but may lack registry metadata.
+    // Permit that metadata lookup while reusing cached bytes for this new consumer graph.
+    pnpm(['install', '--prefer-offline', '--ignore-scripts', '--lockfile=false', '--strict-peer-dependencies'], target);
     const source = Object.keys(dependencies).filter((name) => name.startsWith('@agent-teams/payments-')).map((name, index) => `import * as api${index} from '${name}';\nvoid api${index};`).join('\n');
     await writeFile(join(target, 'index.ts'), source);
     for (const profile of profiles) {
