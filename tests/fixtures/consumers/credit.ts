@@ -7,15 +7,16 @@ import type { DeliveryResult, OwnerOptions, ReadSet, Source } from './owner.ts';
 const QUOTA = 100n, TOP_UP = 25n;
 const POLICY = 'fixture-credit-policy-v1';
 type Contribution = Readonly<{ source: Source; message: Extract<PaymentEvidenceChanged, { kind: 'complete' }>; fact: CompletionFact; slot: string; period?: Readonly<{ startsAt: string; endsAt: string }> }>;
-export type CreditDecision = Readonly<{ basisKey: string; buyerId: string; slot: string; bucket: 'included' | 'purchased'; amount: string; allocated: string; eligible: string; held: string; status: 'issued' | 'withheld' | 'held'; applied: 'never_issued' | 'issued' | 'reduced' | 'restored'; originalGrant?: string; originalSource?: string; supportSource?: string; selectedStream?: string; selectedByResolution?: string; reviewedPartialDigest?: string; policyVersion: string; readSet: ReadSet }>;
+export type CreditDecision = Readonly<{ basisKey: string; buyerId: string; slot: string; period?: Readonly<{ startsAt: string; endsAt: string }>; bucket: 'included' | 'purchased'; amount: string; allocated: string; eligible: string; held: string; status: 'issued' | 'withheld' | 'held'; applied: 'never_issued' | 'issued' | 'reduced' | 'restored' | 'reassigned'; initialGuardKey?: string; originalGrant?: string; originalSource?: string; supportSource?: string; selectedStream?: string; selectedByResolution?: string; reviewedPartialDigest?: string; policyVersion: string; readSet: ReadSet }>;
 export type HeldResolution = Readonly<{ basisKey: string; expectedDecisionRevision: number; expectedReadSet: ReadSet; selectedSource: string; actorId: string; approvalRef: string; policyVersion: string; reviewedPartialPolicy?: 'retain_full_symbolic_benefit' }>;
+type InitialGuard = { guardKey: string; status: 'selected' | 'held'; selectedSource?: string; selectedPeriod?: string; selectedStream?: string; selectedByResolution?: string; originalGrant?: string; originalSource?: string; allocationOwner?: string; readSet: ReadSet };
 
 function basis(contribution: Contribution): string {
   const { fact, slot, period } = contribution;
-  if (fact.classification === 'initial') return canonical(['initial', fact.scope.applicationId, fact.buyerId, fact.intentId, slot]);
   if (fact.classification === 'one_time') return canonical(['purchase', fact.scope.applicationId, fact.buyerId, fact.intentId, slot]);
   return canonical(['period', fact.scope.applicationId, fact.buyerId, fact.subscriptionBasisId, slot, period]);
 }
+function initialGuardKey(contribution: Contribution): string { return canonical(['initial', contribution.fact.scope.applicationId, contribution.fact.buyerId, contribution.fact.intentId, contribution.slot]); }
 function contributions(sources: readonly Source[]): Contribution[] {
   return sources.flatMap(source => {
     const body = source.held ? source.lastKnown : source.body;
@@ -48,22 +49,47 @@ function condition(contribution: Contribution): Condition {
 export class CreditFixture {
   readonly owner: ConsumerOwner;
   constructor(options: OwnerOptions) { this.owner = new ConsumerOwner(options); }
-  migrate(): Promise<void> { return this.owner.migrate(); }
+  async migrate(): Promise<void> {
+    await this.owner.migrate();
+    await this.owner.options.pool.query(`CREATE TABLE ${this.owner.sql}.initial_guards(guard_key text PRIMARY KEY,revision bigint NOT NULL,body jsonb NOT NULL)`);
+  }
   receive(message: unknown, faults: Readonly<{ beforeCommit?: () => void }> = {}): Promise<DeliveryResult> { return this.owner.receive(message, (client, sources) => this.recompute(client, sources), faults); }
   private async recompute(client: PoolClient, sources: readonly Source[], resolution?: HeldResolution): Promise<void> {
-    const groups = Map.groupBy(contributions(sources), basis);
-    // Initial guards must settle before stream-dependent renewals, under the SAME owner lock.
-    const entries = [...groups.entries()].sort(([a], [b]) => Number(!a.startsWith('["initial"')) - Number(!b.startsWith('["initial"')) || a.localeCompare(b));
+    const all = contributions(sources), groups = Map.groupBy(all, basis);
+    const guardGroups = Map.groupBy(all.filter(item => item.fact.classification === 'initial'), initialGuardKey);
+    const guards = new Map<string, InitialGuard>();
+    const previousGuards = new Map<string, Readonly<{ revision: number; body: InitialGuard }>>();
     const selectedStreams = new Map<string, string>();
+    // The initial-intent guard is ADDITIONAL to the recurring period identity. Every writer
+    // already holds the same buyer membership guard, including new sources and local resolution.
+    for (const [guardKey, items] of guardGroups) {
+      const result = await client.query<{ revision: string; body: InitialGuard }>(`SELECT revision,body FROM ${this.owner.sql}.initial_guards WHERE guard_key=$1`, [guardKey]);
+      const row = result.rows[0], old = row?.body;
+      if (row) previousGuards.set(guardKey, { revision: Number(row.revision), body: row.body });
+      const resolvedInitial = resolution ? items.find(item => basis(item) === resolution.basisKey && item.source.sourceKey === resolution.selectedSource) : undefined;
+      const selectedByResolution = resolvedInitial?.source.sourceKey ?? old?.selectedByResolution;
+      const chosen = selectedByResolution ? items.find(item => item.source.sourceKey === selectedByResolution) : items.length === 1 ? items[0] : undefined;
+      const selectedDecision = chosen ? await this.owner.decision<CreditDecision>(client, basis(chosen)) : undefined;
+      const reviewedPartial = chosen && reviewablePartial(chosen) && ((resolvedInitial && resolution?.reviewedPartialPolicy) || selectedDecision?.body.reviewedPartialDigest === chosen.source.digest);
+      const status = chosen && (condition(chosen) !== 'held' || reviewedPartial) ? 'selected' : 'held';
+      const guard: InitialGuard = { guardKey, status, ...(chosen ? { selectedSource: chosen.source.sourceKey, selectedPeriod: basis(chosen) } : {}), ...(chosen?.fact.providerSubscriptionRef ? { selectedStream: chosen.fact.providerSubscriptionRef } : {}), ...(selectedByResolution ? { selectedByResolution } : {}), ...(old?.originalGrant ? { originalGrant: old.originalGrant } : {}), ...(old?.originalSource ? { originalSource: old.originalSource } : {}), ...(old?.allocationOwner ? { allocationOwner: old.allocationOwner } : {}), readSet: evidenceReadSet(sources) };
+      guards.set(guardKey, guard);
+      if (status === 'selected' && chosen?.fact.subscriptionBasisId && chosen.fact.providerSubscriptionRef) selectedStreams.set(chosen.fact.subscriptionBasisId, chosen.fact.providerSubscriptionRef);
+    }
+    const selectedInitialPeriods = new Set([...guards.values()].filter(guard => guard.status === 'selected').map(guard => guard.selectedPeriod));
+    const entries = [...groups.entries()].sort(([a], [b]) => Number(!selectedInitialPeriods.has(a)) - Number(!selectedInitialPeriods.has(b)) || a.localeCompare(b));
     for (const [basisKey, items] of entries) {
       const first = items[0]; if (!first) continue;
       const stored = await this.owner.decision<CreditDecision>(client, basisKey), old = stored?.body;
+      const initial = items.find(item => item.fact.classification === 'initial');
+      const guard = initial ? guards.get(initialGuardKey(initial)) : undefined;
       const selected = resolution?.basisKey === basisKey ? resolution.selectedSource : old?.selectedByResolution;
       const chosen = selected ? items.find(item => item.source.sourceKey === selected) : items.length === 1 ? first : undefined;
       let reason: string | undefined = !chosen ? 'duplicate_payment_review' : undefined;
-      if (chosen && chosen.fact.classification !== 'initial' && chosen.fact.classification !== 'one_time') {
+      if (guard && (guard.status !== 'selected' || guard.selectedPeriod !== basisKey)) reason = 'initial_intent_review';
+      if (chosen && chosen.fact.classification !== 'one_time') {
         const stream = chosen.fact.subscriptionBasisId ? selectedStreams.get(chosen.fact.subscriptionBasisId) : undefined;
-        if (!stream || stream !== chosen.fact.providerSubscriptionRef) reason = 'unselected_subscription_stream';
+        if (!stream || stream !== chosen.fact.providerSubscriptionRef) reason ??= 'unselected_subscription_stream';
       }
       const reviewedPartialDigest = resolution?.basisKey === basisKey && resolution.reviewedPartialPolicy && chosen ? chosen.source.digest : old?.reviewedPartialDigest;
       const chosenCondition = chosen && reviewedPartialDigest === chosen.source.digest && reviewablePartial(chosen) ? 'paid' : chosen ? condition(chosen) : 'held';
@@ -71,6 +97,19 @@ export class CreditFixture {
       const quantity = first.fact.classification === 'one_time' ? TOP_UP : QUOTA;
       let allocated = BigInt(old?.allocated ?? '0'), applied = old?.applied ?? 'never_issued';
       let originalGrant = old?.originalGrant, originalSource = old?.originalSource;
+      let transferred = false;
+      // Selecting a competing initial in a different period may move an already issued symbolic
+      // allocation. Preserve its original issuance and audit a policy transfer, never a refund.
+      if (!reason && chosenCondition === 'paid' && guard?.originalGrant && !originalGrant && guard.allocationOwner !== basisKey) {
+        const previous = guard.allocationOwner ? await this.owner.decision<CreditDecision>(client, guard.allocationOwner) : undefined;
+        if (previous && BigInt(previous.body.allocated) > 0n) {
+          const amount = BigInt(previous.body.allocated);
+          await this.owner.effect(client, { effectKey: hash(['support-transfer-out', guard.originalGrant, previous.body.basisKey, basisKey]), basisKey: previous.body.basisKey, kind: 'support_transfer_out', amount: (-amount).toString(), causeEffectKey: guard.originalGrant, policyVersion: previous.body.policyVersion });
+          await this.owner.putDecision(client, previous.body.basisKey, previous.revision + 1, { ...previous.body, allocated: '0', eligible: '0', held: '0', status: 'held', applied: 'reassigned', readSet: evidenceReadSet(sources) } satisfies CreditDecision);
+          transferred = true;
+        }
+        originalGrant = guard.originalGrant; originalSource = guard.originalSource; guard.allocationOwner = basisKey;
+      }
       const supportSource = chosen?.source.sourceKey ?? old?.supportSource;
       // A policy hold never pretends to be a provider reversal. Correct only the causal support.
       const causal = items.find(item => item.source.sourceKey === (old?.supportSource ?? old?.originalSource));
@@ -86,16 +125,25 @@ export class CreditFixture {
           await this.owner.effect(client, { effectKey: originalGrant, basisKey, kind: 'grant', amount: quantity.toString(), sourceKey: originalSource, policyVersion: POLICY });
           applied = 'issued';
         } else {
-          await this.owner.effect(client, { effectKey: hash(['restoration', originalGrant, chosen.source.sourceKey, chosen.source.revision, resolution?.approvalRef ?? null]), basisKey, kind: 'restoration', amount: quantity.toString(), sourceKey: chosen.source.sourceKey, causeEffectKey: originalGrant, policyVersion: old?.policyVersion ?? POLICY });
+          await this.owner.effect(client, { effectKey: hash([transferred ? 'support-transfer-in' : 'restoration', originalGrant, chosen.source.sourceKey, chosen.source.revision, resolution?.approvalRef ?? null]), basisKey, kind: transferred ? 'support_transfer_in' : 'restoration', amount: quantity.toString(), sourceKey: chosen.source.sourceKey, causeEffectKey: originalGrant, policyVersion: old?.policyVersion ?? POLICY });
           applied = 'restored';
         }
         allocated = quantity;
       }
       const status = reason ? 'held' : chosenCondition === 'adverse' ? 'withheld' : 'issued';
-      const decision: CreditDecision = { basisKey, buyerId: first.fact.buyerId, slot: first.slot, bucket: first.fact.classification === 'one_time' ? 'purchased' : 'included', amount: quantity.toString(), allocated: allocated.toString(), eligible: status === 'issued' ? allocated.toString() : '0', held: status === 'held' ? allocated.toString() : '0', status, applied, ...(originalGrant ? { originalGrant } : {}), ...(originalSource ? { originalSource } : {}), ...(supportSource ? { supportSource } : {}), ...(selected ? { selectedByResolution: selected } : {}), ...(reviewedPartialDigest ? { reviewedPartialDigest } : {}), ...(chosen?.fact.providerSubscriptionRef ? { selectedStream: chosen.fact.providerSubscriptionRef } : {}), policyVersion: old?.policyVersion ?? POLICY, readSet: evidenceReadSet(sources) };
+      const decision: CreditDecision = { basisKey, buyerId: first.fact.buyerId, slot: first.slot, ...(first.period ? { period: first.period } : {}), bucket: first.fact.classification === 'one_time' ? 'purchased' : 'included', amount: quantity.toString(), allocated: allocated.toString(), eligible: status === 'issued' ? allocated.toString() : '0', held: status === 'held' ? allocated.toString() : '0', status, applied, ...(guard ? { initialGuardKey: guard.guardKey } : {}), ...(originalGrant ? { originalGrant } : {}), ...(originalSource ? { originalSource } : {}), ...(supportSource ? { supportSource } : {}), ...(selected ? { selectedByResolution: selected } : {}), ...(reviewedPartialDigest ? { reviewedPartialDigest } : {}), ...(chosen?.fact.providerSubscriptionRef ? { selectedStream: chosen.fact.providerSubscriptionRef } : {}), policyVersion: old?.policyVersion ?? POLICY, readSet: evidenceReadSet(sources) };
       if (canonical(old ?? null) !== canonical(decision)) await this.owner.putDecision(client, basisKey, (stored?.revision ?? 0) + 1, decision);
       await this.owner.obligation(client, hash(['credit-decision', basisKey]), basisKey, reason ?? 'none', sources, reason ? 'pending' : 'resolved');
-      if (first.fact.classification === 'initial' && chosen && !reason && chosen.fact.subscriptionBasisId && chosen.fact.providerSubscriptionRef) selectedStreams.set(chosen.fact.subscriptionBasisId, chosen.fact.providerSubscriptionRef);
+      if (guard && originalGrant && !guard.originalGrant) { guard.originalGrant = originalGrant; if (originalSource) guard.originalSource = originalSource; guard.allocationOwner = basisKey; }
+    }
+    for (const [guardKey, guard] of guards) {
+      const previous = previousGuards.get(guardKey);
+      if (canonical(previous?.body ?? null) !== canonical(guard)) {
+        const revision = (previous?.revision ?? 0) + 1;
+        await client.query(`INSERT INTO ${this.owner.sql}.initial_guards VALUES($1,$2,$3) ON CONFLICT(guard_key) DO UPDATE SET revision=EXCLUDED.revision,body=EXCLUDED.body`, [guardKey, revision, guard]);
+        await client.query(`INSERT INTO ${this.owner.sql}.outbox VALUES($1,$2)`, [hash(['initial-guard', guardKey, revision]), { guardKey, revision, body: guard }]);
+      }
+      await this.owner.obligation(client, hash(['initial-guard', guardKey]), guard.selectedPeriod ?? null, guard.status === 'held' ? 'initial_intent_review' : 'none', sources, guard.status === 'held' ? 'pending' : 'resolved');
     }
   }
   async resolveHeldDecision(command: HeldResolution): Promise<'resolved' | 'duplicate' | 'conflict' | 'rejected'> {
@@ -115,4 +163,5 @@ export class CreditFixture {
     });
   }
   async decisions(): Promise<Readonly<{ basis_key: string; revision: string; body: CreditDecision }>[]> { return this.owner.inspect('decisions'); }
+  async initialGuards(): Promise<Readonly<{ guard_key: string; revision: string; body: InitialGuard }>[]> { return (await this.owner.options.pool.query(`SELECT * FROM ${this.owner.sql}.initial_guards ORDER BY guard_key`)).rows as Readonly<{ guard_key: string; revision: string; body: InitialGuard }>[]; }
 }

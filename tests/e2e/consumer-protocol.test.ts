@@ -71,23 +71,23 @@ test('duplicate paid support is held in either order, resolved locally with whol
         const bFact = fact({ factId: 'completion-B', transactionRef: 'transaction-B', providerSubscriptionRef: 'subscription-B', lines: [{ ...fact().lines[0]!, providerLineRef: 'line-B', period: nextPeriod }] });
         const b = message(1, bFact);
         for (const input of order === 'refunded-A-first' ? [a, b] : [b, a]) await fixture.credit.receive(input);
-        let row = (await fixture.credit.decisions())[0]!;
-        assert.equal(row.body.status, 'held'); assert.equal(BigInt(row.body.eligible), 0n);
-        assert.equal(BigInt(row.body.held), order === 'paid-B-first' ? Q : 0n);
+        let row = (await fixture.credit.decisions()).find(candidate => candidate.body.period?.startsAt === nextPeriod.startsAt)!;
+        assert.ok((await fixture.credit.decisions()).every(candidate => candidate.body.status === 'held' && candidate.body.eligible === '0'));
+        assert.equal((await fixture.credit.decisions()).reduce((sum, candidate) => sum + BigInt(candidate.body.held), 0n), order === 'paid-B-first' ? Q : 0n);
         assert.equal((await fixture.credit.owner.inspect('evidence_projection')).length, 2, 'both financial contributions survive');
         const initialGrant = (await effects(fixture.credit)).find(effect => effect.kind === 'grant');
         const resolution: HeldResolution = { basisKey: row.basis_key, expectedDecisionRevision: Number(row.revision), expectedReadSet: row.body.readSet, selectedSource: sourceIdentity(b), actorId: 'authorized-test-operator', approvalRef: `select-B-${order}`, policyVersion: 'fixture-credit-policy-v1' };
         assert.equal(await fixture.credit.resolveHeldDecision({ ...resolution, expectedReadSet: [] }), 'conflict');
         assert.equal(await fixture.credit.resolveHeldDecision(resolution), 'resolved');
         assert.equal(await fixture.credit.resolveHeldDecision(resolution), 'duplicate');
-        row = (await fixture.credit.decisions())[0]!;
+        row = (await fixture.credit.decisions()).find(candidate => candidate.body.period?.startsAt === nextPeriod.startsAt)!;
         assert.equal(BigInt(row.body.eligible), Q); assert.equal(row.body.supportSource, sourceIdentity(b));
         assert.equal((await effects(fixture.credit)).filter(effect => effect.kind === 'grant').length, 1);
         assert.equal(row.body.originalGrant, initialGrant?.effectKey ?? (await effects(fixture.credit)).find(effect => effect.kind === 'grant')?.effectKey);
         const stale = { ...resolution, approvalRef: 'stale-approval' };
         await fixture.credit.receive(message(2, bFact, [adjustment({ adjustmentRef: 'refund-B', transactionRef: 'transaction-B', allocations: [{ providerLineRef: 'line-B', type: 'full', amount: { currency: 'USD', minorUnits: '1000' } }] })]));
         assert.equal(await fixture.credit.resolveHeldDecision(stale), 'conflict');
-        assert.equal(BigInt((await onlyCredit(fixture.credit)).eligible), 0n);
+        assert.equal((await fixture.credit.decisions()).reduce((sum, candidate) => sum + BigInt(candidate.body.eligible), 0n), 0n);
         assert.equal((await effects(fixture.credit)).filter(effect => effect.kind === 'correction').length, 1);
         assert.equal((await fixture.credit.owner.inspect('receipts')).length, 3, 'resolution creates neither fake producer revision nor receipt reset');
       } finally { await fixture.close(); }
@@ -181,12 +181,68 @@ test('initial stream guard, distinct renewal periods and intentional top-ups pre
     const rival = fact({ factId: 'rival-initial', transactionRef: 'initial-B', providerSubscriptionRef: 'subscription-B', lines: [{ ...fact().lines[0]!, providerLineRef: 'rival-line', period: nextPeriod }] });
     await Promise.all([fixture.credit.receive(message(1, rival)), fixture.credit.receive(message(2, renewalFact))]);
     decisions = await fixture.credit.decisions();
-    assert.equal(decisions.find(row => row.body.basisKey.startsWith('["initial"'))?.body.eligible, '0');
-    assert.equal(decisions.find(row => row.body.basisKey.startsWith('["period"'))?.body.eligible, '0', 'unselected stream renewals are held with the initial conflict');
-    assert.equal((await effects(fixture.credit)).filter(effect => effect.kind === 'grant' && effect.basisKey.startsWith('["initial"')).length, 1);
+    assert.ok(decisions.filter(row => row.body.bucket === 'included').every(row => row.body.eligible === '0'), 'initial guard holds both initial and stream-dependent renewal periods');
+    const guard = (await fixture.credit.initialGuards())[0]!.body;
+    assert.equal(guard.status, 'held'); assert.ok(guard.originalGrant);
+    assert.equal((await effects(fixture.credit)).filter(effect => effect.effectKey === guard.originalGrant && effect.kind === 'grant').length, 1);
     const legitimate = fact({ factId: 'legitimate-initial', transactionRef: 'initial-C', intentId: 'intent-legitimate', subscriptionBasisId: 'binding-c', providerSubscriptionRef: 'subscription-C' });
     await fixture.credit.receive(message(1, legitimate));
-    assert.equal((await fixture.credit.decisions()).find(row => row.body.basisKey.includes('intent-legitimate'))?.body.eligible, Q.toString());
+    assert.equal((await fixture.credit.decisions()).find(row => row.body.initialGuardKey?.includes('intent-legitimate'))?.body.eligible, Q.toString());
+  } finally { await fixture.close(); }
+});
+
+test('initial, renewal and recovery share one exact paid-period decision in either order across restart', async t => {
+  for (const classification of ['renewal', 'recovery'] as const) for (const initialFirst of [true, false]) {
+    await t.test(`${classification}, ${initialFirst ? 'initial first' : 'recurring first'}`, async () => {
+      const fixture = await consumers();
+      try {
+        const initial = message(1);
+        const recurringFact = fact({ transactionRef: 'same-period-recurring', factId: 'same-period-completion', classification, lines: [{ ...fact().lines[0]!, providerLineRef: 'same-period-line' }] });
+        const recurring = message(1, recurringFact);
+        await fixture.credit.receive(initialFirst ? initial : recurring);
+        const credit = new CreditFixture({ pool: fixture.pool, schema: fixture.credit.owner.options.schema, trust: fixture.trust });
+        await credit.receive(initialFirst ? recurring : initial);
+        let row = (await credit.decisions())[0]!;
+        assert.equal((await credit.decisions()).length, 1); assert.ok(row.basis_key.startsWith('["period"'));
+        assert.equal(row.body.status, 'held'); assert.equal(row.body.eligible, '0'); assert.equal(BigInt(row.body.held), initialFirst ? Q : 0n);
+        assert.equal((await credit.owner.inspect('evidence_projection')).length, 2);
+        assert.equal((await credit.initialGuards()).length, 1, 'initial guard is a separate durable constraint, not a second grant basis');
+        const original = (await effects(credit)).find(effect => effect.kind === 'grant');
+        assert.equal((await effects(credit)).filter(effect => effect.kind === 'grant').length, initialFirst ? 1 : 0);
+        for (const input of [recurring, initial]) assert.equal((await credit.receive(input)).outcome, 'duplicate');
+        const resolution: HeldResolution = { basisKey: row.basis_key, expectedDecisionRevision: Number(row.revision), expectedReadSet: row.body.readSet, selectedSource: sourceIdentity(recurring), actorId: 'authorized-period-owner', approvalRef: `same-period-${classification}-${initialFirst}`, policyVersion: 'fixture-credit-policy-v1' };
+        assert.equal(await credit.resolveHeldDecision(resolution), 'resolved'); assert.equal(await credit.resolveHeldDecision(resolution), 'duplicate');
+        row = (await credit.decisions())[0]!;
+        assert.equal(BigInt(row.body.eligible), Q); assert.equal(row.body.originalGrant, original?.effectKey ?? (await effects(credit)).find(effect => effect.kind === 'grant')?.effectKey);
+        assert.equal((await effects(credit)).filter(effect => effect.kind === 'grant').length, 1);
+        const next = fact({ transactionRef: 'genuine-next-period', factId: 'next-period-completion', classification: 'renewal', lines: [{ ...fact().lines[0]!, providerLineRef: 'next-period-line', period: nextPeriod }] });
+        await credit.receive(message(1, next));
+        assert.equal((await credit.decisions()).length, 2);
+        assert.equal((await credit.decisions()).reduce((sum, decision) => sum + BigInt(decision.body.eligible), 0n), 2n * Q);
+        assert.equal((await effects(credit)).filter(effect => effect.kind === 'grant').length, 2, 'one original issuance per genuine paid period');
+      } finally { await fixture.close(); }
+    });
+  }
+});
+
+test('authorized selection across competing initial periods transfers support without another original grant or a fictitious refund', async () => {
+  const fixture = await consumers();
+  try {
+    const a = message(1), b = message(1, fact({ factId: 'initial-B', transactionRef: 'initial-B', providerSubscriptionRef: 'subscription-B', lines: [{ ...fact().lines[0]!, providerLineRef: 'initial-B-line', period: nextPeriod }] }));
+    await fixture.credit.receive(a); const original = (await effects(fixture.credit)).find(effect => effect.kind === 'grant')!;
+    await fixture.credit.receive(b);
+    assert.ok((await fixture.credit.decisions()).every(row => row.body.eligible === '0'));
+    const target = (await fixture.credit.decisions()).find(row => row.body.period?.startsAt === nextPeriod.startsAt)!;
+    const command: HeldResolution = { basisKey: target.basis_key, expectedDecisionRevision: Number(target.revision), expectedReadSet: target.body.readSet, selectedSource: sourceIdentity(b), actorId: 'authorized-initial-owner', approvalRef: 'transfer-initial-support', policyVersion: 'fixture-credit-policy-v1' };
+    assert.equal(await fixture.credit.resolveHeldDecision(command), 'resolved'); assert.equal(await fixture.credit.resolveHeldDecision(command), 'duplicate');
+    const decisions = await fixture.credit.decisions();
+    assert.equal(decisions.reduce((sum, row) => sum + BigInt(row.body.eligible), 0n), Q);
+    assert.equal(decisions.reduce((sum, row) => sum + BigInt(row.body.allocated), 0n), Q);
+    assert.equal(decisions.find(row => row.body.period?.startsAt === nextPeriod.startsAt)?.body.originalGrant, original.effectKey);
+    const history = await effects(fixture.credit);
+    assert.equal(history.filter(effect => effect.kind === 'grant').length, 1); assert.equal(history.filter(effect => effect.kind === 'correction').length, 0);
+    assert.equal(history.filter(effect => effect.kind === 'support_transfer_out').length, 1); assert.equal(history.filter(effect => effect.kind === 'support_transfer_in').length, 1);
+    assert.equal((await fixture.credit.initialGuards())[0]?.body.originalGrant, original.effectKey);
   } finally { await fixture.close(); }
 });
 

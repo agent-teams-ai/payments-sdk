@@ -172,10 +172,10 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
 
           // Pending→full approved refund after ACK is a new evidence revision and one correction.
           assert.equal((await ingress('adjustment.created', adjustmentFixture({ status: 'pending_approval' }))).status, 200); await flush();
-          let initialDecision = (await credit.decisions()).find(row => row.body.basisKey.startsWith('["initial"'))!.body;
+          let initialDecision = (await credit.decisions()).find(row => row.body.initialGuardKey?.includes(`"${checkout.intentId}"`))!.body;
           assert.equal(initialDecision.eligible, '0'); assert.equal(initialDecision.held, Q.toString());
           assert.equal((await ingress('adjustment.updated', adjustmentFixture({ version: '2026-11-02T00:00:00.000001Z' }))).status, 200); await flush();
-          initialDecision = (await credit.decisions()).find(row => row.body.basisKey.startsWith('["initial"'))!.body;
+          initialDecision = (await credit.decisions()).find(row => row.body.initialGuardKey?.includes(`"${checkout.intentId}"`))!.body;
           assert.equal(initialDecision.eligible, '0'); assert.equal(initialDecision.allocated, '0');
           const originalGrant = initialDecision.originalGrant;
           assert.equal((await ingress('adjustment.updated', adjustmentFixture({ version: '2026-11-02T00:00:00.000001Z' }))).status, 200); await flush();
