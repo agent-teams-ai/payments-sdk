@@ -22,8 +22,8 @@ artifacts remain authoritative qualification evidence.
 The platform delivery documents and release workflow are in the stacked
 documentation/release PR. Four implementation review waves and the final exact
 commit's CI are required before merging the integrated candidate. The first
-three review waves and their accepted corrections are complete; the fourth wave
-and its correction cycle are in progress. Their dispositions and
+four review waves and their accepted corrections are complete; independent
+remediation rechecks and the final integrated CI are in progress. Their dispositions and
 regression evidence live in the [review index](reviews/README.md).
 
 ## Explicit admission boundaries
