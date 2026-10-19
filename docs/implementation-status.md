@@ -19,12 +19,14 @@ artifacts remain authoritative qualification evidence.
 | P6 — two host compositions | Node HTTP with explicit factory, and Fetch with actual published static Get Modular Assembly/Resources; common public protocol and shared fixture owners | [Node host](../examples/node-http.ts), [Fetch/Get Modular host](../examples/fetch-modular.ts), [real modular runtime scenarios](../packages/payments-get-modular/test/modular.test.ts), both hosts in the full-system suite |
 | P7 — reusable delivery and operations | Strict installed NodeNext/Bundler consumers, package archive audit, compiled durable-host example, integration/operations/qualification guides, optimized required CI and an exact-commit GitHub release candidate workflow | [Getting started](getting-started.md), [operations](operations.md), [qualification](qualification.md), [release process](releasing.md), [independent implementation reviews](reviews/README.md#implementation-review-status) |
 
-The platform delivery documents and release workflow are in the stacked
-documentation/release PR. Four implementation review waves and the final exact
-commit's CI are required before merging the integrated candidate. The first
-four review waves and their accepted corrections are complete; independent
-remediation rechecks and the final integrated CI are in progress. Their dispositions and
-regression evidence live in the [review index](reviews/README.md).
+The implementation is delivered through [PR #1](https://github.com/agent-teams-ai/payments-sdk/pull/1)
+and the integration/release documentation through [PR #2](https://github.com/agent-teams-ai/payments-sdk/pull/2).
+All four implementation review waves, their accepted corrections and four
+independent remediation rechecks are complete. Their exact subjects, dispositions
+and regression evidence live in the [review index](reviews/README.md).
+The protected main branch requires successful up-to-date aggregate CI. Release
+admission additionally requires a successful exact-commit main-push run; a green
+feature-branch check cannot authorize the release.
 
 ## Explicit admission boundaries
 
