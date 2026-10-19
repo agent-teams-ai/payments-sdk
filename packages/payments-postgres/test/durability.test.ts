@@ -78,6 +78,9 @@ test('database acquisition, lock and blackholed socket deadlines leave no borrow
 
 test('late old checkout evidence cannot release a newer unresolved subscription mutation lane', { timeout: 15_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store, 25);
+  // Only the deliberately held calls use the fault deadline. A separate public runtime
+  // records the successful retry with an ordinary budget on the same durable owner.
+  const successfulRetry = runtime(f.store, 1000);
   const old = deferred<ProviderResult<CheckoutReady>>(), cancellation = deferred<ProviderResult<{ kind: 'applied'; observedStatus: string }>>();
   try {
     context.provider.createCheckout = () => old.promise;
@@ -85,8 +88,8 @@ test('late old checkout evidence cannot release a newer unresolved subscription 
     assert.equal(first.kind, 'outcome_unknown'); if (first.kind !== 'outcome_unknown') throw new Error('Fixture');
     const op = await context.payments.readOperation(first.operationId); assert.ok(op?.intentId);
     assert.equal((await context.payments.resolveUnknownOperation({ operationId: op.operationId, expectedRevision: op.revision, actorId: 'operator', auditRef: 'approved-risk', reason: 'reviewed', action: 'retry', acceptedDuplicateRisk: true })).kind, 'succeeded');
-    context.provider.createCheckout = async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'new-tx', checkout: {} } });
-    assert.equal((await context.payments.executeOperation(op.operationId)).kind, 'succeeded');
+    successfulRetry.provider.createCheckout = async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'new-tx', checkout: {} } });
+    assert.equal((await successfulRetry.payments.executeOperation(op.operationId)).kind, 'succeeded');
     await observe(context.payments, receipt(transaction('new-tx', 'completed-new')));
     const basis = (await context.payments.readPurchase('buyer', op.intentId))?.intent.subscriptionBasisId; assert.ok(basis);
     context.provider.cancelSubscription = () => cancellation.promise;
@@ -103,7 +106,7 @@ test('late old checkout evidence cannot release a newer unresolved subscription 
     assert.equal((await context.payments.openPaymentUpdate({ buyerId: 'buyer', bindingId: basis, requestKey: 'blocked-update' })).kind, 'pending');
     assert.equal(updates, 0);
     assert.deepEqual((await context.payments.readPurchase('buyer', op.intentId))?.intent.transactionRefs.sort(), ['new-tx', 'old-tx']);
-  } finally { old.resolve({ kind: 'outcome_unknown' }); cancellation.resolve({ kind: 'outcome_unknown' }); await context.payments.drain(); await f.close(); }
+  } finally { old.resolve({ kind: 'outcome_unknown' }); cancellation.resolve({ kind: 'outcome_unknown' }); await context.payments.drain(); await successfulRetry.payments.drain(); await f.close(); }
 });
 
 test('T1 adverse custody invalidates a prepared T2 read set and cross-source conflicts fence both routes', async () => {
