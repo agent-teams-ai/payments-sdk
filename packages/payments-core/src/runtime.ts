@@ -97,6 +97,7 @@ export function createPayments(options: PaymentRuntimeOptions) {
     }
     const acquired = await acquireAndProcess(receipt.value, { type: 'subscription', id: ref });
     if (acquired.kind !== 'succeeded') return acquired;
+    if (acquired.value !== 1) return { kind: 'rejected', code: 'unclassified_external_state' };
     const authority = await store.loadPublicationInput(scope, { type: 'subscription', id: ref });
     if (!authority || authority.incompleteReason) return { kind: 'rejected', code: 'unclassified_external_state' };
     const binding = authority.state.subscriptionBindings[operation.subscriptionBindingId], aggregate = authority.state.subscriptions[ref];

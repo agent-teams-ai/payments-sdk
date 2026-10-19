@@ -255,7 +255,7 @@ export function compareEventIdentity(a: EventIdentityEvidence, b: EventIdentityE
 /** Retains every mutually certified field so partial A cannot hide a later B/C contradiction. */
 export function mergeEventIdentityEvidence(a: EventIdentityEvidence, b: EventIdentityEvidence): EventIdentityEvidence {
   if (compareEventIdentity(a, b) !== 'compatible') throw new TypeError('Cannot merge conflicting or unrelated event identities');
-  const projection = a.projection.kind === 'unsupported' ? b.projection : b.projection.kind === 'unsupported' ? a.projection : mergeFields(a.projection, b.projection);
+  const projection = a.projection.kind === 'unsupported' && b.projection.kind !== 'unsupported' ? b.projection : b.projection.kind === 'unsupported' && a.projection.kind !== 'unsupported' ? a.projection : mergeFields(a.projection, b.projection);
   const routes = [...a.routes]; for (const route of b.routes) if (!routes.some(existing => existing.type === route.type && existing.id === route.id)) routes.push(route);
   return { ...a, ...(a.eventType === undefined && b.eventType !== undefined ? { eventType: b.eventType } : {}), ...(a.occurredAt === undefined && b.occurredAt !== undefined ? { occurredAt: b.occurredAt } : {}), ...(a.rawStableEnvelopeDigest === undefined && b.rawStableEnvelopeDigest !== undefined ? { rawStableEnvelopeDigest: b.rawStableEnvelopeDigest } : {}), projection, routes };
 }

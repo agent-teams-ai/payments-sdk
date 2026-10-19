@@ -440,3 +440,12 @@ test('merged certified identity preserves richer evidence so pairwise partial co
   assert.equal(compareEventIdentity(aa, bb), 'compatible'); assert.equal(compareEventIdentity(aa, cc), 'compatible'); assert.equal(compareEventIdentity(bb, cc), 'conflict');
   const merged = mergeEventIdentityEvidence(aa, bb); assert.equal(compareEventIdentity(merged, cc), 'conflict'); assert.equal(compareEventIdentity(cc, merged), 'conflict'); assert.throws(() => mergeEventIdentityEvidence(merged, cc));
 });
+
+test('merging partial unsupported identities retains a certified route for later contradictions', () => {
+  const firstSource = eventSource('unsupported-route', 'authenticated_api'), secondSource = eventSource('unsupported-partial', 'authenticated_api');
+  const first: VerifiedInput = { scope, inputId: firstSource.receiptId, source: firstSource, observation: { kind: 'unsupported', transactionRef: 'tx-a', reason: 'unmapped', source: firstSource }, retainedRepresentation: {} };
+  const second: VerifiedInput = { scope, inputId: secondSource.receiptId, source: secondSource, observation: { kind: 'unsupported', reason: 'unmapped', source: secondSource }, retainedRepresentation: {} };
+  const merged = mergeEventIdentityEvidence(eventIdentityEvidence(first), eventIdentityEvidence(second));
+  const contradictory = eventIdentityEvidence(input(transaction('tx-b', 'contradictory-supported', 'one_time', { source: eventSource('contradictory-supported', 'authenticated_api') })));
+  assert.equal(compareEventIdentity(merged, contradictory), 'conflict'); assert.deepEqual(merged.routes, [{ type: 'transaction', id: 'tx-a' }]);
+});
