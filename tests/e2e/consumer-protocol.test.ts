@@ -173,3 +173,57 @@ test('access lifecycle serializes with paid evidence, preserves known periods an
     assert.equal(canonical((await fixture.access.owner.inspect('receipts')).length), '6');
   } finally { await fixture.close(); }
 });
+
+test('partial and unqualified reversal evidence stays held; authorized owner policy redrives after ACK/restart without a fake payment revision', async () => {
+  const fixture = await consumers();
+  try {
+    const partial = adjustment({ type: 'partial', amount: { currency: 'USD', minorUnits: '333' }, allocations: [{ providerLineRef: 'line-A', type: 'partial', amount: { currency: 'USD', minorUnits: '333' } }] });
+    const input = message(1, fact(), [partial]);
+    assert.equal((await fixture.credit.receive(input)).acknowledge, true);
+    assert.equal((await onlyCredit(fixture.credit)).status, 'held'); assert.equal((await effects(fixture.credit)).length, 0);
+    const restarted = new CreditFixture({ pool: fixture.pool, schema: fixture.credit.owner.options.schema, trust: fixture.trust });
+    assert.ok((await restarted.owner.inspect<{ state: string }>('obligations')).some(row => row.state === 'pending'));
+    const row = (await restarted.decisions())[0]!;
+    const command: HeldResolution = { basisKey: row.basis_key, expectedDecisionRevision: Number(row.revision), expectedReadSet: row.body.readSet, selectedSource: sourceIdentity(input), actorId: 'authorized-policy-owner', approvalRef: 'partial-reviewed', policyVersion: 'fixture-credit-policy-v1', reviewedPartialPolicy: 'retain_full_symbolic_benefit' };
+    assert.equal(await restarted.resolveHeldDecision(command), 'resolved');
+    assert.equal(await restarted.resolveHeldDecision(command), 'duplicate');
+    assert.equal(BigInt((await onlyCredit(restarted)).eligible), Q, 'explicit symbolic policy; never divide refund money into credits');
+    assert.equal((await restarted.owner.inspect('receipts')).length, 1);
+    assert.equal((await restarted.receive(input)).outcome, 'duplicate');
+    assert.equal((await effects(restarted)).filter(effect => effect.kind === 'grant').length, 1);
+    await restarted.receive(message(2, fact(), [adjustment({ status: 'reversed' })]));
+    assert.equal((await onlyCredit(restarted)).eligible, '0', 'unqualified reversal cannot reuse prior policy approval');
+    assert.equal((await onlyCredit(restarted)).held, Q.toString());
+    assert.equal((await effects(restarted)).filter(effect => effect.kind === 'correction').length, 0, 'policy hold does not invent a provider refund');
+  } finally { await fixture.close(); }
+});
+
+test('a buyer membership guard covers phantom contributions without serializing independent beneficiaries', { timeout: 5000 }, async () => {
+  const fixture = await consumers(), blocker = await fixture.pool.connect();
+  let waiting: Promise<unknown> | undefined;
+  try {
+    await blocker.query('BEGIN'); await fixture.credit.owner.lockBuyer(blocker, 'buyer-a');
+    waiting = fixture.credit.receive(message(1));
+    const other = fact({ buyerId: 'buyer-b', intentId: 'intent-b', transactionRef: 'transaction-b', subscriptionBasisId: 'binding-b', providerSubscriptionRef: 'subscription-b' });
+    assert.equal((await fixture.credit.receive(message(1, other))).outcome, 'accepted', 'different buyer must commit while buyer-a is locked');
+    assert.equal((await fixture.credit.decisions()).length, 1);
+    await blocker.query('COMMIT'); await waiting;
+    assert.equal((await fixture.credit.decisions()).length, 2);
+    assert.equal((await fixture.credit.decisions()).reduce((sum, row) => sum + BigInt(row.body.eligible), 0n), 2n * Q);
+  } finally { await blocker.query('ROLLBACK'); blocker.release(); await waiting?.catch(() => undefined); await fixture.close(); }
+});
+
+test('new higher revision with malformed payload or changed beneficiary holds the original contribution without routing it elsewhere', async () => {
+  const fixture = await consumers();
+  try {
+    const paid = message(1); await fixture.credit.receive(paid);
+    const malformed = message(2); const { bodyDigest: _digest, ...body } = malformed;
+    assert.equal((await fixture.credit.receive(signFixtureMessage({ ...body, completion: { invalid: true } }))).outcome, 'held');
+    assert.equal((await onlyCredit(fixture.credit)).eligible, '0');
+    assert.equal((await onlyCredit(fixture.credit)).held, Q.toString());
+    assert.equal((await fixture.credit.receive(message(3, fact({ buyerId: 'victim-b', intentId: 'intent-other' })))).outcome, 'held');
+    const original = await onlyCredit(fixture.credit); assert.equal(original.buyerId, 'buyer-a'); assert.equal(original.eligible, '0');
+    assert.equal((await effects(fixture.credit)).filter(effect => effect.kind === 'grant').length, 1);
+    await fixture.credit.receive(message(4)); assert.equal((await onlyCredit(fixture.credit)).eligible, Q.toString());
+  } finally { await fixture.close(); }
+});

@@ -7,8 +7,8 @@ import type { DeliveryResult, OwnerOptions, ReadSet, Source } from './owner.ts';
 const QUOTA = 100n, TOP_UP = 25n;
 const POLICY = 'fixture-credit-policy-v1';
 type Contribution = Readonly<{ source: Source; message: Extract<PaymentEvidenceChanged, { kind: 'complete' }>; fact: CompletionFact; slot: string; period?: Readonly<{ startsAt: string; endsAt: string }> }>;
-export type CreditDecision = Readonly<{ basisKey: string; buyerId: string; slot: string; bucket: 'included' | 'purchased'; amount: string; allocated: string; eligible: string; held: string; status: 'issued' | 'withheld' | 'held'; applied: 'never_issued' | 'issued' | 'reduced' | 'restored'; originalGrant?: string; originalSource?: string; supportSource?: string; selectedStream?: string; selectedByResolution?: string; policyVersion: string; readSet: ReadSet }>;
-export type HeldResolution = Readonly<{ basisKey: string; expectedDecisionRevision: number; expectedReadSet: ReadSet; selectedSource: string; actorId: string; approvalRef: string; policyVersion: string }>;
+export type CreditDecision = Readonly<{ basisKey: string; buyerId: string; slot: string; bucket: 'included' | 'purchased'; amount: string; allocated: string; eligible: string; held: string; status: 'issued' | 'withheld' | 'held'; applied: 'never_issued' | 'issued' | 'reduced' | 'restored'; originalGrant?: string; originalSource?: string; supportSource?: string; selectedStream?: string; selectedByResolution?: string; reviewedPartialDigest?: string; policyVersion: string; readSet: ReadSet }>;
+export type HeldResolution = Readonly<{ basisKey: string; expectedDecisionRevision: number; expectedReadSet: ReadSet; selectedSource: string; actorId: string; approvalRef: string; policyVersion: string; reviewedPartialPolicy?: 'retain_full_symbolic_benefit' }>;
 
 function basis(contribution: Contribution): string {
   const { fact, slot, period } = contribution;
@@ -25,6 +25,7 @@ function contributions(sources: readonly Source[]): Contribution[] {
   });
 }
 type Condition = 'paid' | 'adverse' | 'held';
+function reviewablePartial(contribution: Contribution): boolean { return !contribution.source.held && !contribution.message.flags.length && contribution.message.adjustments.length === 1 && contribution.message.adjustments.every(item => item.action === 'refund' && item.type === 'partial' && item.status === 'approved'); }
 function condition(contribution: Contribution): Condition {
   const { source, message, fact } = contribution;
   if (source.held || message.flags.some(flag => !['duplicate_payment', 'duplicate_initial_purchase'].includes(flag))) return 'held';
@@ -64,7 +65,8 @@ export class CreditFixture {
         const stream = chosen.fact.subscriptionBasisId ? selectedStreams.get(chosen.fact.subscriptionBasisId) : undefined;
         if (!stream || stream !== chosen.fact.providerSubscriptionRef) reason = 'unselected_subscription_stream';
       }
-      const chosenCondition = chosen ? condition(chosen) : 'held';
+      const reviewedPartialDigest = resolution?.basisKey === basisKey && resolution.reviewedPartialPolicy && chosen ? chosen.source.digest : old?.reviewedPartialDigest;
+      const chosenCondition = chosen && reviewedPartialDigest === chosen.source.digest && reviewablePartial(chosen) ? 'paid' : chosen ? condition(chosen) : 'held';
       if (chosenCondition === 'held') reason ??= 'pending_policy';
       const quantity = first.fact.classification === 'one_time' ? TOP_UP : QUOTA;
       let allocated = BigInt(old?.allocated ?? '0'), applied = old?.applied ?? 'never_issued';
@@ -89,7 +91,7 @@ export class CreditFixture {
         allocated = quantity;
       }
       const status = reason ? 'held' : chosenCondition === 'adverse' ? 'withheld' : 'issued';
-      const decision: CreditDecision = { basisKey, buyerId: first.fact.buyerId, slot: first.slot, bucket: first.fact.classification === 'one_time' ? 'purchased' : 'included', amount: quantity.toString(), allocated: allocated.toString(), eligible: status === 'issued' ? allocated.toString() : '0', held: status === 'held' ? allocated.toString() : '0', status, applied, ...(originalGrant ? { originalGrant } : {}), ...(originalSource ? { originalSource } : {}), ...(supportSource ? { supportSource } : {}), ...(selected ? { selectedByResolution: selected } : {}), ...(chosen?.fact.providerSubscriptionRef ? { selectedStream: chosen.fact.providerSubscriptionRef } : {}), policyVersion: old?.policyVersion ?? POLICY, readSet: evidenceReadSet(sources) };
+      const decision: CreditDecision = { basisKey, buyerId: first.fact.buyerId, slot: first.slot, bucket: first.fact.classification === 'one_time' ? 'purchased' : 'included', amount: quantity.toString(), allocated: allocated.toString(), eligible: status === 'issued' ? allocated.toString() : '0', held: status === 'held' ? allocated.toString() : '0', status, applied, ...(originalGrant ? { originalGrant } : {}), ...(originalSource ? { originalSource } : {}), ...(supportSource ? { supportSource } : {}), ...(selected ? { selectedByResolution: selected } : {}), ...(reviewedPartialDigest ? { reviewedPartialDigest } : {}), ...(chosen?.fact.providerSubscriptionRef ? { selectedStream: chosen.fact.providerSubscriptionRef } : {}), policyVersion: old?.policyVersion ?? POLICY, readSet: evidenceReadSet(sources) };
       if (canonical(old ?? null) !== canonical(decision)) await this.owner.putDecision(client, basisKey, (stored?.revision ?? 0) + 1, decision);
       await this.owner.obligation(client, hash(['credit-decision', basisKey]), basisKey, reason ?? 'none', sources, reason ? 'pending' : 'resolved');
       if (first.fact.classification === 'initial' && chosen && !reason && chosen.fact.subscriptionBasisId && chosen.fact.providerSubscriptionRef) selectedStreams.set(chosen.fact.subscriptionBasisId, chosen.fact.providerSubscriptionRef);
@@ -105,7 +107,7 @@ export class CreditFixture {
       if (audits.rows[0]) return canonical(audits.rows[0].body) === canonical(command) ? 'duplicate' : 'conflict';
       const current = await this.owner.decision<CreditDecision>(client, command.basisKey), sources = await this.owner.sources(client, buyerId);
       if (!current || current.revision !== command.expectedDecisionRevision || canonical(command.expectedReadSet) !== canonical(evidenceReadSet(sources))) return 'conflict';
-      if (!contributions(sources).some(item => basis(item) === command.basisKey && item.source.sourceKey === command.selectedSource && condition(item) === 'paid')) return 'rejected';
+      if (!contributions(sources).some(item => basis(item) === command.basisKey && item.source.sourceKey === command.selectedSource && (condition(item) === 'paid' || (command.reviewedPartialPolicy === 'retain_full_symbolic_benefit' && reviewablePartial(item))))) return 'rejected';
       await client.query(`INSERT INTO ${this.owner.sql}.audits VALUES($1,$2)`, [command.approvalRef, command]);
       await this.recompute(client, sources, command);
       return 'resolved';

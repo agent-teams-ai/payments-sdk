@@ -83,7 +83,10 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
           assert.equal((await post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'initial' }))).status, 401);
           const responses = await Promise.all(Array.from({ length: 8 }, () => post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'initial', buyerId: 'victim-ignored' }), { 'x-fixture-auth': 'buyer-a-token' })));
           const values = responses.map(response => JSON.parse(response.body) as OperationResult<CheckoutReady>);
-          const checkout = success(values.find(value => value.kind === 'succeeded')!); assert.equal(createCalls, 1);
+          assert.ok(values.every(value => ['succeeded', 'pending'].includes(value.kind)), JSON.stringify(values));
+          await payments.repair(100);
+          const repeated = await post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'initial' }), { 'x-fixture-auth': 'buyer-a-token' });
+          const checkout = success(JSON.parse(repeated.body) as OperationResult<CheckoutReady>); assert.equal(createCalls, 1);
           assert.equal(checkout.transactionRef, paddleIds.transaction);
           assert.equal(await payments.flushPublication({ type: 'transaction', id: paddleIds.transaction }), 'committed');
           await payments.repair(100);
