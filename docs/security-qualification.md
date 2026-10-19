@@ -64,6 +64,20 @@ an unmatched Paddle path and an unapproved origin both fail with
 `UND_MOCK_ERR_MOCK_NOT_MATCHED` while mock network connections are disabled.
 The harness restores its saved global descriptors and dispatcher during cleanup.
 
+## Node bundled transport scope
+
+The dated npm audit results below cover the npm dependency graph. In production,
+the official Paddle SDK uses the global `fetch` supplied by the host Node runtime;
+this development-only **7.30.1** pin does not update Node's built-in transport.
+The qualified floor binaries report bundled Undici **7.29.1** on Node **24.21.0**
+and **8.11.2** on Node **26.11.1**. Those version strings overlap the official
+[GHSA-xjj6-f33q-929c](https://github.com/nodejs/undici/security/advisories/GHSA-xjj6-f33q-929c)
+affected ranges `>=7.18.0, <7.30.1` and `>=8.0.0, <8.12.2`. Version overlap
+alone does not establish application exploitability or account for source-level
+backports. Qualification of the runtime source and any backports remains a
+separate pending review. This dependency change does not claim to remediate all
+runtime HTTP vulnerabilities.
+
 ## Actual consumer qualification
 
 Both runs used **pnpm 11.25.0**, **TypeScript 7.0.2**, installed official
