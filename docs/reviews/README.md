@@ -30,7 +30,7 @@ in the frozen [implementation plan](../implementation-plan.md).
 | 1 | [Core](code/wave1-core.md), [Paddle](code/wave1-paddle.md), [consumers](code/wave1-consumers.md), [platform](code/wave1-platform.md) | All ten accepted findings corrected |
 | 2 | [Domain](code/wave2-domain.md), [consumers](code/wave2-consumers.md), [Paddle](code/wave2-paddle.md), [PostgreSQL and recovery](code/wave2-postgres.md) | All seven accepted findings corrected |
 | 3 | [Domain](code/wave3-domain.md), [consumers](code/wave3-consumers.md), [platform](code/wave3-platform.md), [provider](code/wave3-provider.md) | All five accepted findings corrected |
-| 4 | [PostgreSQL](code/wave4-postgres.md), [platform](code/wave4-platform.md), [consumers](code/wave4-consumers.md), [domain/provider](code/wave4-domain-provider.md) | All four accepted findings corrected; independent correction qualification in progress |
+| 4 | [PostgreSQL](code/wave4-postgres.md), [platform](code/wave4-platform.md), [consumers](code/wave4-consumers.md), [domain/provider](code/wave4-domain-provider.md) | All four accepted findings corrected and independently rechecked |
 
 ### Wave 1 corrections
 
@@ -98,8 +98,25 @@ separate gates.
 | Access accepted an uncorrelated reversed adjustment and rejected the later qualified restoration pair | f560818, 560c75b | Pure fixture-owned whole-snapshot qualifier shared by independent owners; actual SDK in both hosts, restart/replay, positive restoration and independent security restriction |
 
 The domain/provider reviewer established no additional P0/P1/P2 at its frozen
-revision. Final correction deltas receive independent follow-up qualification;
-the original reports retain their own exact subjects and boundaries.
+revision. The original reports retain their own exact subjects and boundaries.
+
+### Independent remediation rechecks
+
+All four reviewers independently rechecked the integrated correction candidate
+`7e648f1674db14b6e1f7ee8b795516f38bdcb4a0`. Each retained its historical report and
+recorded new execution evidence separately. All accepted findings are closed;
+the bounded follow-ups established no new actionable P0/P1/P2.
+
+| Reviewer | Independent correction evidence |
+| --- | --- |
+| [PostgreSQL](code/wave4-postgres-remediation.md) | Original three fault/admission oracles, eight maintained correction cases and memory parity on both Node floors; runtime-role check |
+| [Consumers](code/wave4-consumers-remediation.md) | Original public SDK regression through both hosts and complete 52-test E2E group on both Node floors |
+| [Platform](code/wave4-platform-remediation.md) | Fresh current archives installed using the guide verbatim, public runtime imports, eight strict consumer combinations and one physical Resources identity |
+| [Domain/provider](code/wave4-domain-provider-remediation.md) | Independent pending/processed admission, exact custody/cardinality and retained-control probes plus existing SDK/profile/late-outcome compatibility on both Node floors |
+
+The later report and status commits update documentation only. CI still qualifies
+each exact release candidate independently. The [final upstream read-back](upstream-delivery-status.md)
+records official publication/source status through 2026-10-19 21:00:05 UTC.
 
 ## Qualification boundaries
 

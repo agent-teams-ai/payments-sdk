@@ -2,6 +2,15 @@
 
 This record separates admitted upstream source, published dependencies and local consumer qualification. Official-source read-back: **2026-10-19 20:25:36 UTC**. The accepted implementation plan and earlier review records retain their original snapshots; this record owns subsequent dependency and release-status updates.
 
+Final delivery read-back completed at **2026-10-19 21:00:05 UTC**; the
+[official-source follow-up](reviews/upstream-delivery-status.md) confirms the
+same dependency versions and publication/browser gates. Get Modular main advanced
+to [`eef13520a0c7908ba6c764f8aac8a13862df671a`](https://github.com/agent-teams-ai/get-modular/commit/eef13520a0c7908ba6c764f8aac8a13862df671a)
+through one installed-source/shutdown fixture qualification commit. The complete
+delta changes no package runtime source, CMS or observation contract document;
+direct watch/load/types/values/CMS reads retain the same blobs. The dated source
+and dependency qualification below remains its original reproducible snapshot.
+
 ## Qualified dependency change
 
 The workspace pins development-only `@agent-teams/engineering-foundation` to **1.10.1**. Its [official release](https://github.com/agent-teams-ai/engineering-foundation/releases/tag/%40agent-teams/engineering-foundation%401.10.1), published to [npm](https://registry.npmjs.org/%40agent-teams%2Fengineering-foundation) at 2026-10-19 19:36:48.427 UTC, fixes API extraction staging to exclude the generated `.worker-tmp` runtime-profile projection. [The source correction](https://github.com/agent-teams-ai/engineering-foundation/pull/414) prevents duplicated source trees and staged-entry budget exhaustion; it adds no payment runtime capability.
