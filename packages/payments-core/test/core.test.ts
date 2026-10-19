@@ -449,3 +449,16 @@ test('merging partial unsupported identities retains a certified route for later
   const contradictory = eventIdentityEvidence(input(transaction('tx-b', 'contradictory-supported', 'one_time', { source: eventSource('contradictory-supported', 'authenticated_api') })));
   assert.equal(compareEventIdentity(merged, contradictory), 'conflict'); assert.deepEqual(merged.routes, [{ type: 'transaction', id: 'tx-a' }]);
 });
+
+test('quarantined preflight custody cannot authorize dispatch using an older matching projection', async () => {
+  const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, 'quarantine-authority-initial', 'monthly'));
+  const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis);
+  const prior: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: yes(null), currentPeriod: yes(period), priceRefs: yes(['price']), source: eventSource('prior-authority', 'authenticated_api', { eventType: 'subscription.updated' }) };
+  await observe(context, prior);
+  const conflicting = acquired({ ...prior, source: eventSource('contradictory-authority', 'authenticated_api', { eventType: 'subscription.canceled' }) });
+  context.provider.readSubscriptionInput = async () => ({ kind: 'succeeded', value: conflicting });
+  Object.assign(context.provider.capabilities, { cancellation: ['now'] }); let mutations = 0;
+  context.provider.cancelSubscription = async () => { mutations += 1; return { kind: 'succeeded', value: { kind: 'applied', observedStatus: 'canceled' } }; };
+  assert.deepEqual(await context.payments.requestCancellation({ buyerId: 'buyer', bindingId: basis, requestKey: 'quarantined-authority-command', timing: 'now' }), { kind: 'rejected', code: 'unclassified_external_state' }); assert.equal(mutations, 0);
+  assert.equal((await context.store.loadReductionInput(scope, conflicting.inputId))?.state.inbox[conflicting.inputId]?.state, 'quarantined');
+});
