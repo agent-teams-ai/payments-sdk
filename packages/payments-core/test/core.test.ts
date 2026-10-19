@@ -232,7 +232,7 @@ test('unknown final line profile is incomplete and a fuller same-version receipt
   const context = setup(), checkout = await purchase(context), observation = transaction(checkout.transactionRef, 'partial-line');
   if (observation.lines.presence !== 'known') throw new Error('Fixture');
   await observe(context, { ...observation, lines: yes(observation.lines.value.map(line => ({ ...line, trial: unknown, proration: unknown, billingCycle: unknown }))) });
-  let aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate?.flags.includes('incomplete')); assert.ok(!aggregate.flags.includes('catalog_mismatch'));
+  let aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.flags.includes('incomplete')); assert.ok(!aggregate.flags.includes('catalog_mismatch'));
   await observe(context, transaction(checkout.transactionRef, 'full-line'));
   aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate?.completion); assert.ok(!aggregate.flags.includes('incomplete')); assert.ok(!aggregate.flags.includes('catalog_mismatch'));
 });
