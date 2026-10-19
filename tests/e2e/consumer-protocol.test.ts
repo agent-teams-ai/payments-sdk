@@ -246,6 +246,20 @@ test('authorized selection across competing initial periods transfers support wi
   } finally { await fixture.close(); }
 });
 
+test('a resolution of one initial period invalidates a stale competing period decision through their shared guard', async () => {
+  const fixture = await consumers();
+  try {
+    const a = message(1), b = message(1, fact({ factId: 'initial-B', transactionRef: 'initial-B', providerSubscriptionRef: 'subscription-B', lines: [{ ...fact().lines[0]!, providerLineRef: 'initial-B-line', period: nextPeriod }] }));
+    await fixture.credit.receive(a); await fixture.credit.receive(b);
+    const rows = await fixture.credit.decisions();
+    const commands = rows.map(row => ({ basisKey: row.basis_key, expectedDecisionRevision: Number(row.revision), expectedReadSet: row.body.readSet, selectedSource: sourceIdentity(row.body.period?.startsAt === nextPeriod.startsAt ? b : a), actorId: 'authorized-initial-owner', approvalRef: `concurrent-${row.body.period?.startsAt}`, policyVersion: 'fixture-credit-policy-v1' }));
+    const outcomes = await Promise.all(commands.map(command => fixture.credit.resolveHeldDecision(command)));
+    assert.deepEqual(outcomes.sort(), ['conflict', 'resolved']);
+    assert.equal((await fixture.credit.decisions()).reduce((sum, row) => sum + BigInt(row.body.eligible), 0n), Q);
+    assert.equal((await effects(fixture.credit)).filter(effect => effect.kind === 'grant').length, 1);
+  } finally { await fixture.close(); }
+});
+
 test('access lifecycle serializes with paid evidence, preserves known periods and never paywalls read/export/cancel', async () => {
   const fixture = await consumers();
   try {
