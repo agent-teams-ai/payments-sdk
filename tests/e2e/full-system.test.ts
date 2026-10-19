@@ -12,7 +12,7 @@ import { createFetchModularHost } from '../../examples/fetch-modular.ts';
 import type { HostedPayments } from '../../examples/node-http.ts';
 import { AccessFixture, CreditFixture } from '../fixtures/consumers/index.ts';
 import type { Effect } from '../fixtures/consumers/index.ts';
-import { adjustmentFixture, eventFixture, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '../fixtures/paddle/fixtures.ts';
+import { adjustmentFixture, eventFixture, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '../../packages/payments-paddle/test/fixtures.ts';
 import { nextPeriod, offer, producerNamespace, scope } from './consumer-support.ts';
 
 const SECRET = 'synthetic-e2e-destination-secret';
@@ -129,6 +129,46 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
             assert.equal(success(await payments.refreshPurchase('buyer-a', ready.intentId)), 1); await flush();
           }
           assert.equal((await credit.decisions()).filter(row => row.body.bucket === 'purchased').reduce((sum, row) => sum + BigInt(row.body.eligible), 0n), 2n * T);
+
+          // A second intentional monthly intent is recovered entirely through the SDK events API.
+          // No webhook/raw representation has ever supplied either of these commercial facts.
+          const apiInitialRef = 'txn_00000000000000000000000005', apiRenewalRef = 'txn_00000000000000000000000006', apiSubscriptionRef = 'sub_00000000000000000000000005';
+          let apiIntent = '';
+          api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, options => { const body = JSON.parse(String(options.body)) as { custom_data: { payments: { intentId: string } } }; apiIntent = body.custom_data.payments.intentId; return responseFixture(transactionFixture({ id: apiInitialRef, intentId: apiIntent, status: 'ready', customerRef: null, subscriptionRef: null })); });
+          const apiCreated = await post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'api-only-monthly' }), { 'x-fixture-auth': 'buyer-a-token' });
+          const apiCheckout = success(JSON.parse(apiCreated.body) as OperationResult<CheckoutReady>);
+          const apiInitial = transactionFixture({ id: apiInitialRef, intentId: apiIntent, subscriptionRef: apiSubscriptionRef });
+          const apiRenewal = transactionFixture({ id: apiRenewalRef, intentId: apiIntent, subscriptionRef: apiSubscriptionRef, origin: 'subscription_recurring', version: '2026-11-01T00:00:00.000009Z' });
+          apiRenewal['billing_period'] = { starts_at: nextPeriod.startsAt, ends_at: nextPeriod.endsAt };
+          api.intercept({ path: path => path.startsWith('/events?'), method: 'GET' }).reply(200, responseFixture([
+            eventFixture('transaction.completed', apiInitial, 'evt_02000000000000000000000001'), eventFixture('transaction.completed', apiRenewal, 'evt_02000000000000000000000002'),
+          ]));
+          const page = await provider.readEventPage({ from: '2026-09-01T00:00:00Z', to: '2026-12-01T00:00:00Z', epoch: 'e2e-api-catchup', queryVersion: 'e2e/1' });
+          if (page.kind !== 'page') throw new Error(page.reason);
+          assert.equal(page.inputs.length, 2);
+          for (const input of page.inputs) { assert.equal(input.source.kind, 'authenticated_api'); assert.equal(input.source.verification, undefined); success(await payments.ingestVerifiedInput(input)); assert.equal(await payments.processInbox(input.inputId), 'processed'); }
+          await flush();
+          const apiPurchase = await payments.readPurchase('buyer-a', apiCheckout.intentId); assert.ok(apiPurchase);
+          assert.equal(apiPurchase.transactions.filter(transaction => transaction.completion?.classification === 'initial').length, 1);
+          assert.equal(apiPurchase.transactions.filter(transaction => transaction.completion?.classification === 'renewal').length, 1);
+          assert.equal((await credit.decisions()).filter(row => row.body.bucket === 'included').reduce((sum, row) => sum + BigInt(row.body.eligible), 0n), 4n * Q, 'positive API-only initial and renewal fulfillment is mandatory');
+
+          // Method-change zero is an explicit management operation, distinct from the approved
+          // zero commercial purchase above; the completed management checkout cannot grant T/Q.
+          const methodRef = 'txn_00000000000000000000000007';
+          const method = transactionFixture({ id: methodRef, intentId: checkout.intentId, origin: 'subscription_payment_method_change', total: '0' });
+          api.intercept({ path: `/subscriptions/${paddleIds.subscription}/update-payment-method-transaction`, method: 'GET' }).reply(200, responseFixture(method));
+          assert.equal(success(await payments.openPaymentUpdate({ buyerId: 'buyer-a', bindingId: basisId, requestKey: 'method-update' })).transactionRef, methodRef);
+          assert.equal((await ingress('transaction.completed', method)).status, 200); await flush();
+          assert.equal((await credit.decisions()).reduce((sum, row) => sum + BigInt(row.body.eligible), 0n), 4n * Q + 2n * T);
+
+          const scheduled = subscriptionFixture({ scheduled: true, version: '2026-11-02T00:00:00.000001Z' });
+          scheduled['scheduled_change'] = { action: 'cancel', effective_at: nextPeriod.endsAt, resume_at: null }; scheduled['current_billing_period'] = { starts_at: nextPeriod.startsAt, ends_at: nextPeriod.endsAt };
+          api.intercept({ path: `/subscriptions/${paddleIds.subscription}/cancel`, method: 'POST', body: JSON.stringify({ effective_from: 'next_billing_period' }) }).reply(200, responseFixture(scheduled));
+          assert.deepEqual(success(await payments.requestCancellation({ buyerId: 'buyer-a', bindingId: basisId, requestKey: 'cancel-period-end', timing: 'period_end' })), { kind: 'scheduled', effectiveAt: nextPeriod.endsAt });
+          assert.equal((await ingress('subscription.updated', scheduled)).status, 200); await flush();
+          assert.equal((await access.decisions()).find(row => row.body.bindingId === basisId)?.body.newAction, true);
+          assert.deepEqual((await access.decisions()).find(row => row.body.bindingId === basisId)?.body.scheduledChange, { action: 'cancel', effectiveAt: nextPeriod.endsAt });
 
           // Pending→full approved refund after ACK is a new evidence revision and one correction.
           assert.equal((await ingress('adjustment.created', adjustmentFixture({ status: 'pending_approval' }))).status, 200); await flush();
