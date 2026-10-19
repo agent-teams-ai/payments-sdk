@@ -31,6 +31,10 @@ export interface PaymentSqlTransaction {
   query<R extends QueryResultRow = QueryResultRow>(text: string, values?: readonly unknown[]): Promise<QueryResult<R>>;
 }
 
+export interface PaymentSqlExecutor {
+  executeSql(text: string, values?: unknown[]): Promise<{ rows: QueryResultRow[] }>;
+}
+
 /** SQL identifiers are configuration, never request data. Limit prevents PostgreSQL name truncation. */
 export function sqlIdentifier(value: string): string {
   if (!/^[a-z][a-z0-9_]{0,47}$/.test(value)) throw new TypeError('Invalid payment schema or role identifier');
@@ -69,20 +73,21 @@ function acquire(pool: Pool, timeoutMs: number): Promise<PoolClient> {
   });
 }
 
-/**
- * A deadline owns the checked-out connection and destroys it on expiration. It covers BEGIN,
- * statements, COMMIT and cleanup, rather than abandoning a live transaction with Promise.race.
- * A failed COMMIT is always unknown to the caller and cannot authorize an external dispatch.
- */
-export async function withPaymentTransaction<T>(
+type OwnedConnection = Readonly<{
+  sql: PaymentSqlTransaction;
+  expired: () => boolean;
+  destroy: () => void;
+}>;
+
+/** One connection ownership protocol for owner transactions and pg-boss's self-contained SQL. */
+async function withPaymentConnection<T>(
   pool: Pool,
-  operation: (transaction: PaymentSqlTransaction) => Promise<T>,
-  timeouts: DatabaseTimeouts = defaultDatabaseTimeouts,
+  operation: (connection: OwnedConnection) => Promise<T>,
+  timeouts: DatabaseTimeouts,
 ): Promise<T> {
   validateTimeouts(timeouts);
   const startedAt = performance.now();
   const client = await acquire(pool, timeouts.acquireMs);
-  let phase: 'begin' | 'work' | 'commit' | 'done' = 'begin';
   let released = false;
   let expired = false;
   const release = (destroy: boolean): void => {
@@ -101,13 +106,35 @@ export async function withPaymentTransaction<T>(
   timer.unref();
   const transaction: PaymentSqlTransaction = {
     async query<R extends QueryResultRow = QueryResultRow>(text: string, values?: readonly unknown[]): Promise<QueryResult<R>> {
-      if (expired || released) throw new PaymentDatabaseError(phase === 'commit' ? 'commit_unknown' : 'transaction_timeout');
+      if (expired || released) throw new PaymentDatabaseError('transaction_timeout');
       // pg 8.23 supports per-query timeout; @types/pg 8.20 omits this documented runtime option.
       const config: QueryConfig & { query_timeout: number } = { text, ...(values === undefined ? {} : { values: [...values] }), query_timeout: remaining() };
       return client.query<R>(config);
     },
   };
   try {
+    return await operation({ sql: transaction, expired: () => expired, destroy: () => release(true) });
+  } finally {
+    clearTimeout(timer);
+    release(false);
+    client.removeListener('error', onError);
+  }
+}
+
+/**
+ * A deadline owns the checked-out connection and destroys it on expiration. It covers BEGIN,
+ * statements, COMMIT and cleanup, rather than abandoning a live transaction with Promise.race.
+ * A failed COMMIT is always unknown to the caller and cannot authorize an external dispatch.
+ */
+export async function withPaymentTransaction<T>(
+  pool: Pool,
+  operation: (transaction: PaymentSqlTransaction) => Promise<T>,
+  timeouts: DatabaseTimeouts = defaultDatabaseTimeouts,
+): Promise<T> {
+  return withPaymentConnection(pool, async connection => {
+    const transaction = connection.sql;
+    let phase: 'begin' | 'work' | 'commit' | 'done' = 'begin';
+    try {
     await transaction.query('BEGIN');
     await transaction.query(
       "SELECT set_config('synchronous_commit', 'on', true), set_config('lock_timeout', $1, true), set_config('statement_timeout', $2, true), set_config('transaction_timeout', $3, true)",
@@ -117,25 +144,56 @@ export async function withPaymentTransaction<T>(
     const result = await operation(transaction);
     phase = 'commit';
     await transaction.query('COMMIT');
-    if (expired) throw new PaymentDatabaseError('commit_unknown');
+    if (connection.expired()) throw new PaymentDatabaseError('commit_unknown');
     phase = 'done';
     return result;
   } catch (error) {
     if (phase === 'commit') {
-      release(true);
+      connection.destroy();
       throw new PaymentDatabaseError('commit_unknown', { cause: error });
     }
-    if (!released) {
+    if (!connection.expired()) {
       try { await transaction.query('ROLLBACK'); }
-      catch { release(true); }
+      catch { connection.destroy(); }
     }
-    if (expired) throw new PaymentDatabaseError('transaction_timeout', { cause: error });
+    if (connection.expired()) throw new PaymentDatabaseError('transaction_timeout', { cause: error });
     throw error;
-  } finally {
-    clearTimeout(timer);
-    release(false);
-    client.removeListener('error', onError);
-  }
+    }
+  }, timeouts);
+}
+
+/**
+ * pg-boss migrations and maintenance issue SQL scripts containing their own BEGIN/COMMIT.
+ * Session settings cover those scripts without nesting transactions. Previous host settings
+ * are restored before a healthy connection returns to the borrowed pool; failed scripts destroy
+ * only their checkout, so no open transaction or weakened durability can leak to a sibling.
+ */
+export function createPaymentSqlExecutor(pool: Pool, timeouts: DatabaseTimeouts = defaultDatabaseTimeouts): PaymentSqlExecutor {
+  validateTimeouts(timeouts);
+  return {
+    executeSql(text, values) {
+      return withPaymentConnection(pool, async connection => {
+        const sql = connection.sql;
+        try {
+          const previous = (await sql.query<{ sync: string; lock: string; statement: string; transaction: string }>(
+            "SELECT current_setting('synchronous_commit') AS sync, current_setting('lock_timeout') AS lock, current_setting('statement_timeout') AS statement, current_setting('transaction_timeout') AS transaction",
+          )).rows[0];
+          if (!previous) throw new Error('PostgreSQL session settings are unavailable');
+          const configure = "SELECT set_config('synchronous_commit', $1, false), set_config('lock_timeout', $2, false), set_config('statement_timeout', $3, false), set_config('transaction_timeout', $4, false)";
+          await sql.query(configure, ['on', `${timeouts.lockMs}ms`, `${timeouts.statementMs}ms`, `${timeouts.transactionMs}ms`]);
+          const result = await sql.query(text, values);
+          await sql.query(configure, [previous.sync, previous.lock, previous.statement, previous.transaction]);
+          // node-postgres returns an array for a multi-statement script. Its last result is the
+          // public executor result; ordinary pg-boss queries are a single statement with rows.
+          const last: QueryResult | undefined = Array.isArray(result) ? result.at(-1) as QueryResult | undefined : result;
+          return { rows: last?.rows ?? [] };
+        } catch (error) {
+          connection.destroy();
+          throw error;
+        }
+      }, timeouts);
+    },
+  };
 }
 
 export async function assertPostgresDurability(pool: Pool, schema: string): Promise<void> {
