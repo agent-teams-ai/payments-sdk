@@ -27,6 +27,9 @@ async function consumer(): Promise<string> {
     await mkdir(target, { recursive: true });
     await cp(join(repository, 'packages', `payments-${name}`, 'package.json'), join(target, 'package.json'));
     await cp(join(repository, 'packages', `payments-${name}`, 'src'), join(target, 'src'), { recursive: true });
+    if (name !== 'postgres') {
+      await cp(join(repository, 'packages', `payments-${name}`, 'test'), join(target, 'test'), { recursive: true });
+    }
   }
   await symlink(join(repository, 'node_modules'), join(root, 'node_modules'), 'dir');
   return root;

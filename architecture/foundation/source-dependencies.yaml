@@ -9,6 +9,9 @@ governedRoots:
   - packages/payments-paddle/src
   - packages/payments-postgres/src
   - packages/payments-get-modular/src
+  - packages/payments-core/test
+  - packages/payments-paddle/test
+  - packages/payments-get-modular/test
 boundaries:
   - id: payments.core
     roots: [packages/payments-core/src]
@@ -45,4 +48,31 @@ boundaries:
       boundaries: [payments.core]
       packages: ['@get-modular/core', '@get-modular/assembly', '@get-modular/resources']
       builtins: []
+      runtimeReferences: []
+  - id: payments.core-tests
+    dependencyMode: development
+    roots: [packages/payments-core/test]
+    entrypoints: []
+    allow:
+      boundaries: [payments.core]
+      packages: []
+      builtins: [node:assert/strict, node:test, node:crypto]
+      runtimeReferences: []
+  - id: payments.paddle-tests
+    dependencyMode: development
+    roots: [packages/payments-paddle/test]
+    entrypoints: []
+    allow:
+      boundaries: [payments.core, payments.paddle]
+      packages: ['@paddle/paddle-node-sdk', undici]
+      builtins: [node:assert/strict, node:test, node:crypto, node:fs/promises, node:path, node:url]
+      runtimeReferences: []
+  - id: payments.get-modular-tests
+    dependencyMode: development
+    roots: [packages/payments-get-modular/test]
+    entrypoints: []
+    allow:
+      boundaries: [payments.core, payments.get-modular]
+      packages: ['@get-modular/core', '@get-modular/assembly', '@get-modular/resources', '@get-modular/conformance']
+      builtins: [node:assert/strict, node:test]
       runtimeReferences: []
