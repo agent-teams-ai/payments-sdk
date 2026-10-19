@@ -269,5 +269,310 @@ class PostgresPaymentStore implements PaymentStore {
     return result;
   }
 
-  // Bounded reduction and delivery methods are implemented below.
+  async loadReductionInput(scope: PaymentScope, inputId: string): Promise<ReductionInput | undefined> {
+    return this.tx(scope, tx => this.workingSet(tx, scope, inputId));
+  }
+
+  async loadPublicationInput(scope: PaymentScope, aggregate: AggregateIdentity): Promise<ReductionInput | undefined> {
+    return this.tx(scope, tx => this.workingSet(tx, scope, '', aggregate));
+  }
+
+  private async workingSet(tx: PaymentSqlTransaction, scope: PaymentScope, inputId: string, aggregate?: AggregateIdentity): Promise<ReductionInput | undefined> {
+    const configuration = await this.records.configuration(tx, scope);
+    const state = createEmptyPaymentState();
+    state.consumers = configuration.body.consumers;
+    state.recoveryFenced = configuration.body.recoveryFenced;
+    const expected: PaymentReadVersion[] = [{ table: 'configuration', id: 'scope', revision: configuration.revision }];
+    const maximumRecords = this.options.maxWorkingSetRecords ?? 128;
+    let remainingBytes = this.options.maxWorkingSetBytes ?? 2_097_152;
+    let incomplete = false;
+    const seen = new Set<string>();
+    const guard = async (id: string): Promise<void> => {
+      if (expected.some(item => item.table === 'guards' && item.id === id)) return;
+      expected.push({ table: 'guards', id, revision: (await this.records.read(tx, 'guards', id))?.revision ?? null });
+    };
+    const add = async (table: MutableTable, id: string): Promise<void> => {
+      const key = canonicalJson([table, id]);
+      if (seen.has(key)) return;
+      seen.add(key);
+      if (expected.length >= maximumRecords) { incomplete = true; return; }
+      const result = await tx.query<{ revision: string; body: unknown; bytes: number; metadata: { revision?: number; evidenceRevision?: number } }>(
+        `SELECT revision, CASE WHEN octet_length(body::text) <= $3 THEN body ELSE NULL END AS body,
+        octet_length(body::text) AS bytes,
+        jsonb_build_object('revision', body -> 'revision', 'evidenceRevision', body -> 'evidenceRevision') AS metadata
+        FROM ${this.records.sql}.records WHERE kind = $1 AND id = $2`, [table, id, Math.max(0, remainingBytes)],
+      );
+      const row = result.rows[0];
+      const revision = row ? Number(row.revision) : null;
+      if (revision !== null && !Number.isSafeInteger(revision)) throw new RangeError('Unsupported stored revision');
+      expected.push({ table, id, revision });
+      if (!row) return;
+      if (row.body !== null) {
+        remainingBytes -= row.bytes;
+        (state[table] as Record<string, unknown>)[id] = row.body;
+        return;
+      }
+      incomplete = true;
+      // A held commit updates only these publication counters. Stored history is never replaced.
+      if (table === 'transactions') {
+        const partial = transactionAggregate(state, id);
+        partial.revision = row.metadata.revision ?? 0;
+        partial.evidenceRevision = row.metadata.evidenceRevision ?? 0;
+        partial.publicationRequired = true;
+      } else if (table === 'subscriptions') {
+        state.subscriptions[id] = { subscriptionRef: id, revision: row.metadata.revision ?? 0, evidenceRevision: row.metadata.evidenceRevision ?? 0, flags: ['incomplete'], publicationRequired: true };
+      }
+    };
+    const includeIntent = async (intentId: string): Promise<void> => {
+      // Read the membership guard BEFORE its predicate, and validate it in the committing T2.
+      await guard(`intent:${intentId}`);
+      await add('intents', intentId);
+      const intent = state.intents[intentId];
+      if (!intent) return;
+      if (intent.subscriptionBasisId) await add('subscriptionBindings', intent.subscriptionBasisId);
+      const candidates = await tx.query<{ id: string }>(
+        `SELECT id FROM ${this.records.sql}.records WHERE kind = 'transactions'
+         AND body #>> '{completion,intentId}' = $1
+         AND body #>> '{completion,classification}' IN ('initial', 'one_time') ORDER BY id LIMIT $2`, [intentId, maximumRecords + 1],
+      );
+      if (candidates.rows.length > maximumRecords) incomplete = true;
+      for (const row of candidates.rows.slice(0, maximumRecords)) await add('transactions', row.id);
+    };
+    let transactionRef: string | undefined;
+    let subscriptionRef: string | undefined;
+    if (aggregate) {
+      if (aggregate.type === 'transaction') transactionRef = aggregate.id;
+      else subscriptionRef = aggregate.id;
+    } else {
+      // Input custody is independently capped at admission; routing survives a smaller reducer budget.
+      const receipt = await this.records.read<InboxRecord>(tx, 'inbox', inputId);
+      if (!receipt) return undefined;
+      expected.push({ table: 'inbox', id: inputId, revision: receipt.revision });
+      seen.add(canonicalJson(['inbox', inputId]));
+      state.inbox[inputId] = receipt.body;
+      remainingBytes -= Buffer.byteLength(JSON.stringify(receipt.body));
+      if (remainingBytes < 0) incomplete = true;
+      const observation = receipt.body.input.observation;
+      transactionRef = receipt.body.input.adverseTransactionRef ?? ('transactionRef' in observation ? observation.transactionRef : undefined);
+      if (observation.kind === 'transaction' && observation.subscriptionRef.presence === 'known') subscriptionRef = observation.subscriptionRef.value ?? undefined;
+      else if ('subscriptionRef' in observation && typeof observation.subscriptionRef === 'string') subscriptionRef = observation.subscriptionRef;
+    }
+    if (transactionRef) {
+      await add('transactions', transactionRef);
+      await add('bindings', transactionRef);
+      const binding = state.bindings[transactionRef];
+      if (binding) await includeIntent(binding.intentId);
+      const current = state.transactions[transactionRef]?.current;
+      if (!subscriptionRef && current?.subscriptionRef.presence === 'known') subscriptionRef = current.subscriptionRef.value ?? undefined;
+    }
+    if (subscriptionRef) {
+      await guard(`subscription:${subscriptionRef}`);
+      await add('subscriptions', subscriptionRef);
+      const matches = await tx.query<{ id: string }>(
+        `SELECT id FROM ${this.records.sql}.records WHERE kind = 'subscriptionBindings'
+         AND body -> 'providerSubscriptionRefs' ? $1 ORDER BY id LIMIT $2`, [subscriptionRef, maximumRecords + 1],
+      );
+      if (matches.rows.length > maximumRecords) incomplete = true;
+      for (const match of matches.rows.slice(0, maximumRecords)) {
+        await add('subscriptionBindings', match.id);
+        const binding = state.subscriptionBindings[match.id];
+        if (binding) await includeIntent(binding.originatingIntentId);
+      }
+    }
+    return { inputId, state, expected, ...(incomplete ? { incompleteReason: 'working_set_limit' } : {}) };
+  }
+
+  async commitReduction(scope: PaymentScope, commit: ReductionCommit): Promise<StoreCommitResult> {
+    return this.tx(scope, async tx => {
+      if ((await this.records.configuration(tx, scope)).body.recoveryFenced) return fenced;
+      const keys: RecordKey[] = commit.expected.filter(item => item.table !== 'configuration').map(item => ({ kind: item.table, id: item.id }));
+      for (const table of mutableTables) for (const id of Object.keys(commit.state[table])) keys.push({ kind: table, id });
+      for (const binding of Object.values(commit.state.bindings)) keys.push({ kind: 'guards', id: `intent:${binding.intentId}` });
+      for (const binding of Object.values(commit.state.subscriptionBindings)) for (const ref of binding.providerSubscriptionRefs) keys.push({ kind: 'guards', id: `subscription:${ref}` });
+      for (const [id] of Object.entries(commit.state.evidence)) keys.push({ kind: 'evidence', id });
+      await this.records.lock(tx, keys);
+      for (const item of commit.expected) if (await this.records.version(tx, item) !== item.revision) return conflict;
+      // Validate all immutable outputs before changing any row. Conflict is a rejected commit.
+      for (const [id, message] of Object.entries(commit.state.evidence)) {
+        const existing = await this.records.read<EvidenceMessage>(tx, 'evidence', id);
+        if (existing && existing.body.bodyDigest !== message.bodyDigest) return conflict;
+      }
+      for (const table of mutableTables) {
+        for (const [id, value] of Object.entries(commit.state[table])) {
+          const previous = await this.records.read<unknown>(tx, table, id);
+          if (commit.heldReason) {
+            if (table === 'transactions' || table === 'subscriptions') {
+              const partial = value as TransactionAggregate | SubscriptionAggregate;
+              if (previous) {
+                await tx.query(`UPDATE ${this.records.sql}.records SET revision = revision + 1,
+                  body = body || $3::jsonb, updated_at = clock_timestamp() WHERE kind = $1 AND id = $2`,
+                [table, id, JSON.stringify({ revision: partial.revision, evidenceRevision: partial.evidenceRevision, publicationRequired: false })]);
+              }
+            } else if (table === 'inbox' && id === commit.inputId) {
+              await tx.query(`UPDATE ${this.records.sql}.records SET revision = revision + 1,
+                body = body || $2::jsonb, updated_at = clock_timestamp() WHERE kind = 'inbox' AND id = $1`,
+              [id, JSON.stringify({ state: 'quarantined', issue: commit.heldReason })]);
+            }
+            continue;
+          }
+          if (canonicalJson(previous?.body ?? null) === canonicalJson(value)) continue;
+          await this.records.write(tx, table, id, value);
+          if (table === 'transactions') {
+            const transaction = value as TransactionAggregate;
+            const intentId = transaction.completion?.intentId ?? commit.state.bindings[id]?.intentId;
+            if (intentId) await this.records.guard(tx, `intent:${intentId}`);
+          } else if (table === 'bindings') {
+            await this.records.guard(tx, `intent:${(value as TransactionBinding).intentId}`);
+          } else if (table === 'subscriptionBindings') {
+            for (const ref of (value as SubscriptionBinding).providerSubscriptionRefs) await this.records.guard(tx, `subscription:${ref}`);
+          }
+        }
+      }
+      for (const [id, message] of Object.entries(commit.state.evidence)) await this.records.write(tx, 'evidence', id, message);
+      for (const [id, delivery] of Object.entries(commit.state.deliveries)) {
+        const existing = await this.records.read<Delivery>(tx, 'deliveries', id);
+        if (!existing) await this.records.write(tx, 'deliveries', id, delivery);
+        await this.work(tx, { kind: 'delivery', id }, existing?.body.acknowledged ? 'complete' : 'pending');
+      }
+      for (const issue of commit.state.issues) await this.records.write(tx, 'issues', digest(issue), { issue });
+      for (const aggregate of Object.values(commit.state.transactions)) await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'transaction', id: aggregate.transactionRef }) }, aggregate.publicationRequired ? 'pending' : 'complete');
+      for (const aggregate of Object.values(commit.state.subscriptions)) await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'subscription', id: aggregate.subscriptionRef }) }, aggregate.publicationRequired ? 'pending' : 'complete');
+      const receipt = commit.state.inbox[commit.inputId];
+      if (receipt) await this.work(tx, { kind: 'inbox', id: commit.inputId }, receipt.state === 'pending' ? 'pending' : receipt.state === 'quarantined' ? 'quarantined' : 'complete');
+      return committed;
+    });
+  }
+
+  async readPurchase(scope: PaymentScope, buyerId: string, intentId: string): ReturnType<PaymentStore['readPurchase']> {
+    return this.tx(scope, async tx => {
+      await this.records.configuration(tx, scope);
+      const intent = (await this.records.read<PurchaseIntent>(tx, 'intents', intentId))?.body;
+      if (!intent || intent.buyerId !== buyerId) return undefined;
+      const result = await tx.query<{ body: TransactionAggregate }>(`SELECT t.body FROM ${this.records.sql}.records b
+        JOIN ${this.records.sql}.records t ON t.kind = 'transactions' AND t.id = b.id
+        WHERE b.kind = 'bindings' AND b.body ->> 'intentId' = $1 ORDER BY t.id LIMIT 101`, [intentId]);
+      if (result.rows.length > 100) throw new RangeError('Purchase query requires operator investigation of excessive candidate transactions');
+      return { intent, transactions: result.rows.map(row => row.body) };
+    });
+  }
+
+  async readSubscription(scope: PaymentScope, buyerId: string, bindingId: string): ReturnType<PaymentStore['readSubscription']> {
+    return this.tx(scope, async tx => {
+      await this.records.configuration(tx, scope);
+      const binding = (await this.records.read<SubscriptionBinding>(tx, 'subscriptionBindings', bindingId))?.body;
+      if (!binding || binding.buyerId !== buyerId) return undefined;
+      if (binding.providerSubscriptionRefs.length > 100) throw new RangeError('Too many candidate subscription streams');
+      const result = await tx.query<{ body: SubscriptionAggregate }>(`SELECT body FROM ${this.records.sql}.records
+        WHERE kind = 'subscriptions' AND id = ANY($1::text[]) ORDER BY id`, [binding.providerSubscriptionRefs]);
+      return { binding, observations: result.rows.map(row => row.body) };
+    });
+  }
+
+  async listWork(scope: PaymentScope, kind: 'inbox' | 'publication' | 'prepared' | 'unknown', limit: number): Promise<readonly string[]> {
+    assertBatchLimit(limit);
+    return this.tx(scope, async tx => {
+      await this.records.configuration(tx, scope);
+      // Completed pg-boss jobs are disposable. These obligations outlive all job retention.
+      const result = await tx.query<{ id: string }>(`SELECT id FROM ${this.records.sql}.obligations
+        WHERE kind = $1 AND state = 'pending' ORDER BY next_attempt_at, id LIMIT $2`, [kind, limit]);
+      return result.rows.map(row => row.id);
+    });
+  }
+
+  async registerConsumer(scope: PaymentScope, consumerId: string, backfill: boolean): Promise<void> {
+    if (!/^[A-Za-z0-9_.:-]{1,128}$/.test(consumerId)) throw new TypeError('Invalid consumer identity');
+    await this.tx(scope, async tx => {
+      const config = await this.records.configuration(tx, scope, true);
+      if (!config.body.consumers.includes(consumerId)) {
+        if (config.body.consumers.length >= 32) throw new RangeError('Consumer target bound exceeded');
+        config.body.consumers.push(consumerId);
+        await tx.query(`UPDATE ${this.records.sql}.configuration SET revision = revision + 1, body = $1 WHERE id = 'owner'`, [JSON.stringify(config.body)]);
+      }
+      if (backfill) {
+        // Bounded batches are resumed by a durable cursor, never a single unbounded transaction.
+        await this.records.write(tx, 'backfills', consumerId, { consumerId, after: null, state: 'pending' });
+        await this.records.obligation(tx, { kind: 'delivery', id: `backfill:${consumerId}` });
+      }
+    });
+    if (backfill) await this.backfillConsumer(scope, consumerId);
+  }
+
+  private async backfillConsumer(scope: PaymentScope, consumerId: string): Promise<void> {
+    await this.tx(scope, async tx => {
+      await this.records.configuration(tx, scope);
+      await this.records.lock(tx, [{ kind: 'backfills', id: consumerId }]);
+      const cursor = (await this.records.read<{ consumerId: string; after: string | null; state: string }>(tx, 'backfills', consumerId))?.body;
+      if (!cursor || cursor.state === 'complete') return;
+      const messages = await tx.query<{ id: string }>(`SELECT id FROM ${this.records.sql}.records
+        WHERE kind = 'evidence' AND ($1::text IS NULL OR id > $1) ORDER BY id LIMIT 100`, [cursor.after]);
+      for (const row of messages.rows) {
+        const id = canonicalJson([row.id, consumerId]);
+        const existing = await this.records.read<Delivery>(tx, 'deliveries', id);
+        if (!existing) await this.records.write(tx, 'deliveries', id, { consumerId, messageId: row.id, acknowledged: false, attempts: 0 });
+        await this.work(tx, { kind: 'delivery', id }, existing?.body.acknowledged ? 'complete' : 'pending');
+      }
+      const last = messages.rows.at(-1)?.id;
+      await this.records.write(tx, 'backfills', consumerId, { consumerId, after: last ?? cursor.after, state: messages.rows.length < 100 ? 'complete' : 'pending' });
+      await this.records.obligation(tx, { kind: 'delivery', id: `backfill:${consumerId}` }, messages.rows.length < 100 ? 'complete' : 'pending');
+    });
+  }
+
+  async listDeliveries(scope: PaymentScope, consumerId: string, limit: number): Promise<readonly EvidenceMessage[]> {
+    assertBatchLimit(limit);
+    await this.backfillConsumer(scope, consumerId);
+    return this.tx(scope, async tx => {
+      const config = await this.records.configuration(tx, scope);
+      if (config.body.recoveryFenced || !config.body.consumers.includes(consumerId)) return [];
+      const messages = await tx.query<{ body: EvidenceMessage }>(`SELECT e.body FROM ${this.records.sql}.records d
+        JOIN ${this.records.sql}.records e ON e.kind = 'evidence' AND e.id = d.body ->> 'messageId'
+        WHERE d.kind = 'deliveries' AND d.body ->> 'consumerId' = $1 AND d.body ->> 'acknowledged' = 'false'
+        ORDER BY e.updated_at, e.id LIMIT $2`, [consumerId, limit]);
+      return messages.rows.map(row => row.body);
+    });
+  }
+
+  async acknowledgeDelivery(scope: PaymentScope, consumerId: string, messageId: string, bodyDigest: string): Promise<'acknowledged' | 'duplicate' | 'conflict'> {
+    return this.tx(scope, async tx => {
+      await this.records.configuration(tx, scope);
+      const id = canonicalJson([messageId, consumerId]);
+      await this.records.lock(tx, [{ kind: 'deliveries', id }]);
+      const delivery = (await this.records.read<Delivery>(tx, 'deliveries', id))?.body;
+      const message = (await this.records.read<EvidenceMessage>(tx, 'evidence', messageId))?.body;
+      if (!delivery || !message || message.bodyDigest !== bodyDigest) return 'conflict';
+      if (delivery.acknowledged) return 'duplicate';
+      delivery.acknowledged = true;
+      await this.records.write(tx, 'deliveries', id, delivery);
+      await this.work(tx, { kind: 'delivery', id }, 'complete');
+      return 'acknowledged';
+    });
+  }
+
+  async setRecoveryFence(scope: PaymentScope, recoveryFenced: boolean, auditRef: string): Promise<void> {
+    if (!auditRef || auditRef.length > 512) throw new TypeError('A recovery fence requires an audit reference');
+    await this.tx(scope, async tx => {
+      const config = await this.records.configuration(tx, scope, true);
+      config.body.recoveryFenced = recoveryFenced;
+      config.body.fenceAudits.push({ fenced: recoveryFenced, auditRef, at: new Date().toISOString() });
+      await tx.query(`UPDATE ${this.records.sql}.configuration SET revision = revision + 1, body = $1 WHERE id = 'owner'`, [JSON.stringify(config.body)]);
+    });
+  }
+
+  async readCheckpoint(scope: PaymentScope, scanId: string): Promise<ScanCheckpoint | undefined> {
+    return this.tx(scope, async tx => {
+      await this.records.configuration(tx, scope);
+      return (await this.records.read<ScanCheckpoint>(tx, 'scans', scanId))?.body;
+    });
+  }
+
+  async commitScanPage(scope: PaymentScope, expected: ScanCheckpoint | undefined, next: ScanCheckpoint, inputs: readonly VerifiedInput[]): Promise<StoreCommitResult> {
+    return this.tx(scope, async tx => {
+      if ((await this.records.configuration(tx, scope)).body.recoveryFenced) return fenced;
+      await this.records.lock(tx, [{ kind: 'scans', id: next.scanId }]);
+      const current = (await this.records.read<ScanCheckpoint>(tx, 'scans', next.scanId))?.body;
+      if (canonicalJson(current ?? null) !== canonicalJson(expected ?? null)) return conflict;
+      await this.admitInputs(tx, scope, inputs);
+      await this.records.write(tx, 'scans', next.scanId, next);
+      return committed;
+    });
+  }
 }

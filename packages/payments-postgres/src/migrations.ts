@@ -29,6 +29,7 @@ export async function migratePaymentSchema(options: Readonly<{ pool: Pool; schem
       PRIMARY KEY (kind, id)
     )`);
     await tx.query(`CREATE INDEX IF NOT EXISTS records_intent_idx ON ${schema}.records ((body ->> 'intentId'), kind, id)`);
+    await tx.query(`CREATE INDEX IF NOT EXISTS records_completion_intent_idx ON ${schema}.records ((body #>> '{completion,intentId}'), id) WHERE kind = 'transactions'`);
     await tx.query(`CREATE INDEX IF NOT EXISTS records_subscription_idx ON ${schema}.records USING gin ((body -> 'providerSubscriptionRefs')) WHERE kind = 'subscriptionBindings'`);
     await tx.query(`CREATE INDEX IF NOT EXISTS records_state_idx ON ${schema}.records (kind, (body ->> 'state'), id)`);
     await tx.query(`CREATE INDEX IF NOT EXISTS records_publication_idx ON ${schema}.records (kind, id) WHERE body ->> 'publicationRequired' = 'true'`);
