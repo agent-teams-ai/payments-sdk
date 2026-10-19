@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Provider-neutral payment evidence and durable operation core",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "engines": { "node": ">=24.21.0 <25 || >=26.11.1 <27" },
   "files": ["dist"],
   "exports": {

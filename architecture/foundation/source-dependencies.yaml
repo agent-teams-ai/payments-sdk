@@ -20,7 +20,7 @@ boundaries:
     allow:
       boundaries: []
       packages: []
-      builtins: []
+      builtins: [node:crypto]
       runtimeReferences: []
   - id: payments.paddle
     roots: [packages/payments-paddle/src]
@@ -28,7 +28,7 @@ boundaries:
     packageExports: ['.']
     allow:
       boundaries: [payments.core]
-      packages: ['@paddle/paddle-node-sdk']
+      packages: ['@agent-teams/payments-core', '@paddle/paddle-node-sdk']
       builtins: [node:crypto]
       runtimeReferences: []
   - id: payments.postgres
@@ -37,7 +37,7 @@ boundaries:
     packageExports: ['.']
     allow:
       boundaries: [payments.core]
-      packages: [pg, pg-boss]
+      packages: ['@agent-teams/payments-core', pg, pg-boss]
       builtins: [node:crypto]
       runtimeReferences: []
   - id: payments.get-modular
@@ -46,7 +46,7 @@ boundaries:
     packageExports: ['.']
     allow:
       boundaries: [payments.core]
-      packages: ['@get-modular/core', '@get-modular/assembly', '@get-modular/resources']
+      packages: ['@agent-teams/payments-core', '@get-modular/core', '@get-modular/assembly', '@get-modular/resources']
       builtins: []
       runtimeReferences: []
   - id: payments.core-tests
@@ -55,7 +55,7 @@ boundaries:
     entrypoints: []
     allow:
       boundaries: [payments.core]
-      packages: []
+      packages: ['@agent-teams/payments-core']
       builtins: [node:assert/strict, node:test, node:crypto]
       runtimeReferences: []
   - id: payments.paddle-tests
@@ -64,7 +64,7 @@ boundaries:
     entrypoints: []
     allow:
       boundaries: [payments.core, payments.paddle]
-      packages: ['@paddle/paddle-node-sdk', undici]
+      packages: ['@agent-teams/payments-core', '@paddle/paddle-node-sdk', undici]
       builtins: [node:assert/strict, node:test, node:crypto, node:fs/promises, node:path, node:url]
       runtimeReferences: []
   - id: payments.get-modular-tests
@@ -73,6 +73,6 @@ boundaries:
     entrypoints: []
     allow:
       boundaries: [payments.core, payments.get-modular]
-      packages: ['@get-modular/core', '@get-modular/assembly', '@get-modular/resources', '@get-modular/conformance']
+      packages: ['@agent-teams/payments-core', '@get-modular/core', '@get-modular/assembly', '@get-modular/resources', '@get-modular/conformance']
       builtins: [node:assert/strict, node:test]
       runtimeReferences: []

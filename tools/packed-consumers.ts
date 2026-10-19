@@ -23,6 +23,10 @@ try {
       '@get-modular/resources': '0.1.0',
     });
     await writeFile(join(target, 'package.json'), JSON.stringify({ private: true, type: 'module', dependencies, packageManager: 'pnpm@11.25.0' }));
+    // Every internal transitive dependency must resolve to this build, before these versions
+    // exist in a registry. pnpm 11 reads overrides from the workspace file, not package.json.
+    const overrides = Object.entries(dependencies).filter(([name]) => name.startsWith('@agent-teams/payments-'));
+    await writeFile(join(target, 'pnpm-workspace.yaml'), `overrides:\n${overrides.map(([name, value]) => `  ${JSON.stringify(name)}: ${JSON.stringify(value)}`).join('\n')}\n  "@types/node": "24.13.3"\n`);
     pnpm(['install', '--offline', '--ignore-scripts', '--lockfile=false', '--strict-peer-dependencies'], target);
     const source = Object.keys(dependencies).filter((name) => name.startsWith('@agent-teams/payments-')).map((name, index) => `import * as api${index} from '${name}';\nvoid api${index};`).join('\n');
     await writeFile(join(target, 'index.ts'), source);
