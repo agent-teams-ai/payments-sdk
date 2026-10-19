@@ -9,10 +9,11 @@ export type OwnerConfiguration = {
   consumers: string[];
   recoveryFenced: boolean;
   fenceAudits: { fenced: boolean; auditRef: string; at: string }[];
+  jobTransport?: { jobSchema: string; queueName: string };
 };
 export type StoredRecord<T> = Readonly<{ revision: number; body: T }>;
 export type RecordKey = Readonly<{ kind: string; id: string }>;
-export type DurableWork = Readonly<{ kind: 'inbox' | 'publication' | 'prepared' | 'unknown' | 'delivery'; id: string }>;
+export type DurableWork = Readonly<{ kind: 'inbox' | 'publication' | 'prepared' | 'unknown' | 'delivery' | 'scan'; id: string }>;
 
 /** Storage details stay in the outer adapter; core sees named atomic methods and revision tokens. */
 export class PaymentRecords {

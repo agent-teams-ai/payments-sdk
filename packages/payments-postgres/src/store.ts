@@ -1,8 +1,9 @@
 import {
-  admitInput, canonicalJson, createEmptyPaymentState, digest, sameOperationCommand, transactionAggregate,
+  admitInput, canonicalJson, compareEventIdentity, createEmptyPaymentState, digest, eventIdentityEvidence,
+  inputRoutes, mergeEventIdentityEvidence, sameOperationCommand, subscriptionAggregate, transactionAggregate,
 } from '@agent-teams/payments-core';
 import type {
-  AggregateIdentity, Delivery, EvidenceMessage, InboxRecord, IntentAdmission, JsonValue,
+  AggregateIdentity, Delivery, EventIdentityEvidence, EvidenceMessage, InboxRecord, IntentAdmission, JsonValue,
   OperationCommit, OperationInput, PaymentOperation, PaymentReadVersion, PaymentScope,
   PaymentStore, ProviderResult, PurchaseIntent, ReductionCommit, ReductionInput,
   ScanCheckpoint, StoreCommitResult, SubscriptionAggregate, SubscriptionBinding,
@@ -29,6 +30,7 @@ export type PostgresPaymentStoreOptions = Readonly<{
 const mutableTables = ['intents', 'operations', 'bindings', 'subscriptionBindings', 'transactions', 'subscriptions', 'inbox'] as const;
 type MutableTable = typeof mutableTables[number];
 type Lane = { revision: number; unresolvedOperationId?: string };
+type StoredEventIdentity = { evidence: EventIdentityEvidence; conflict: boolean };
 const committed = { kind: 'committed' } as const;
 const conflict = { kind: 'conflict' } as const;
 const fenced = { kind: 'recovery_fenced' } as const;
@@ -235,42 +237,70 @@ class PostgresPaymentStore implements PaymentStore {
     if (inputs.length === 0) return [];
     assertBatchLimit(inputs.length);
     if (Buffer.byteLength(JSON.stringify(inputs)) > 2_097_152) throw new RangeError('Payment receipt batch exceeds custody bound');
-    const keys: RecordKey[] = [];
     for (const input of inputs) {
       if (canonicalJson(input.scope) !== canonicalJson(scope)) throw new Error('Verified input scope mismatch');
-      keys.push({ kind: 'inbox', id: input.inputId });
-      if (input.source.eventId) keys.push({ kind: 'eventIdentity', id: input.source.eventId });
-      const ref = input.adverseTransactionRef ?? ('transactionRef' in input.observation ? input.observation.transactionRef : undefined);
-      if (ref) keys.push({ kind: 'transactions', id: ref });
     }
-    await this.records.lock(tx, keys);
+    // Event identity has only T1 writers. Lock it before receipt identities, then aggregate routes
+    // in the same order T2 uses. This includes the OLD routes of a contradictory representation.
+    const events = new Map<string, StoredEventIdentity>();
+    const eventIds = [...new Set(inputs.flatMap(input => input.source.eventId ? [input.source.eventId] : []))];
+    await this.records.lock(tx, eventIds.map(id => ({ kind: 'eventIdentity', id })));
+    for (const id of eventIds) {
+      const value = (await this.records.read<StoredEventIdentity>(tx, 'eventIdentity', id))?.body;
+      if (value) events.set(id, value);
+    }
+    await this.records.lock(tx, inputs.map(input => ({ kind: 'inbox', id: input.inputId })));
+    const existingReceipts = new Map<string, InboxRecord>();
+    for (const input of inputs) {
+      const prior = (await this.records.read<InboxRecord>(tx, 'inbox', input.inputId))?.body;
+      if (prior) existingReceipts.set(input.inputId, prior);
+    }
+    const routes = inputs.flatMap(input => [
+      ...inputRoutes(input),
+      ...(existingReceipts.has(input.inputId) ? inputRoutes(existingReceipts.get(input.inputId)!.input) : []),
+      ...(input.source.eventId ? events.get(input.source.eventId)?.evidence.routes ?? [] : []),
+    ]);
+    await this.records.lock(tx, routes.map(route => ({ kind: route.type === 'transaction' ? 'transactions' : 'subscriptions', id: route.id })));
     const result: { inputId: string; kind: 'admitted' | 'duplicate' | 'conflict' }[] = [];
     for (const input of inputs) {
       const state = createEmptyPaymentState();
       const existing = (await this.records.read<InboxRecord>(tx, 'inbox', input.inputId))?.body;
       if (existing) state.inbox[input.inputId] = existing;
-      let eventConflict = false;
-      if (input.source.eventId && input.source.stableEnvelopeDigest) {
-        const identity = (await this.records.read<{ digest: string }>(tx, 'eventIdentity', input.source.eventId))?.body;
-        if (!identity) await this.records.write(tx, 'eventIdentity', input.source.eventId, { digest: input.source.stableEnvelopeDigest });
-        else eventConflict = identity.digest !== input.source.stableEnvelopeDigest;
-      }
-      const ref = input.adverseTransactionRef ?? ('transactionRef' in input.observation ? input.observation.transactionRef : undefined);
-      if (ref) {
-        const aggregate = (await this.records.read<TransactionAggregate>(tx, 'transactions', ref))?.body;
-        if (aggregate) state.transactions[ref] = aggregate;
+      const eventId = input.source.eventId;
+      const incomingIdentity = eventIdentityEvidence(input);
+      const identity = eventId ? events.get(eventId) : undefined;
+      const eventConflict = identity !== undefined && (identity.conflict || compareEventIdentity(identity.evidence, incomingIdentity) === 'conflict');
+      const affected = [...inputRoutes(input), ...(existing ? inputRoutes(existing.input) : []), ...(identity?.evidence.routes ?? [])];
+      for (const route of affected) {
+        if (route.type === 'transaction') {
+          const aggregate = (await this.records.read<TransactionAggregate>(tx, 'transactions', route.id))?.body;
+          if (aggregate) state.transactions[route.id] = aggregate;
+        } else {
+          const aggregate = (await this.records.read<SubscriptionAggregate>(tx, 'subscriptions', route.id))?.body;
+          if (aggregate) state.subscriptions[route.id] = aggregate;
+        }
       }
       let kind = admitInput(state, input);
       if (eventConflict) {
         kind = 'conflict';
         const receipt = state.inbox[input.inputId];
         if (receipt) receipt.conflict = true;
-        if (ref) {
-          const aggregate = transactionAggregate(state, ref);
-          if (!aggregate.flags.includes('conflict')) aggregate.flags.push('conflict');
-          aggregate.revision += 1;
-          aggregate.publicationRequired = true;
+        for (const route of affected) {
+          const aggregate = route.type === 'transaction' ? transactionAggregate(state, route.id) : subscriptionAggregate(state, route.id);
+          if (!aggregate.flags.includes('conflict')) {
+            aggregate.flags.push('conflict');
+            aggregate.revision += 1;
+            aggregate.publicationRequired = true;
+          }
         }
+      }
+      if (eventId) {
+        // Keep the merged certified facts: pairwise compatible partial receipts are not transitive.
+        // After a contradiction the original summary remains fenced; previously flagged routes
+        // need no unbounded replay list. Every new contradictory route is fenced in this T1.
+        const next = identity ? { evidence: eventConflict ? identity.evidence : mergeEventIdentityEvidence(identity.evidence, incomingIdentity), conflict: eventConflict } : { evidence: incomingIdentity, conflict: false };
+        events.set(eventId, next);
+        await this.records.write(tx, 'eventIdentity', eventId, next);
       }
       const receipt = state.inbox[input.inputId];
       if (!receipt) throw new Error('Admission lost its durable receipt');
@@ -280,6 +310,10 @@ class PostgresPaymentStore implements PaymentStore {
       for (const [id, aggregate] of Object.entries(state.transactions)) {
         await this.records.write(tx, 'transactions', id, aggregate);
         if (aggregate.publicationRequired) await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'transaction', id }) });
+      }
+      for (const [id, aggregate] of Object.entries(state.subscriptions)) {
+        await this.records.write(tx, 'subscriptions', id, aggregate);
+        if (aggregate.publicationRequired) await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'subscription', id }) });
       }
       await this.work(tx, { kind: 'inbox', id: input.inputId }, receipt.state === 'processed' ? 'complete' : 'pending');
       result.push({ inputId: input.inputId, kind });
@@ -590,6 +624,7 @@ class PostgresPaymentStore implements PaymentStore {
       if (canonicalJson(current ?? null) !== canonicalJson(expected ?? null)) return conflict;
       await this.admitInputs(tx, scope, inputs);
       await this.records.write(tx, 'scans', next.scanId, next);
+      await this.work(tx, { kind: 'scan', id: next.scanId }, next.status === 'running' ? 'pending' : next.status === 'gap' ? 'quarantined' : 'complete');
       return committed;
     });
   }
