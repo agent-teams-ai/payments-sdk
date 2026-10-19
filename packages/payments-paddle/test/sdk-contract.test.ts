@@ -68,6 +68,50 @@ test('official SDK contract probes with synthetic API1 fixtures and no network',
       }
     });
 
+    await t.test('closed transaction status meanings preserve every documented noncompletion and distinguish unknown values', async () => {
+      const statuses = ['draft', 'ready', 'billed', 'paid', 'canceled', 'past_due', 'completed', 'future_provider_status', 'another_future_status'];
+      const apiIdentities = new Set<string>();
+      for (const status of statuses) {
+        const data = transactionFixture({ status });
+        const body = JSON.stringify(eventFixture('transaction.updated', data));
+        const raw = succeeded(await provider.verifyWebhook(body, sign(body)));
+        pool.intercept({ path: path => new URL(path, 'https://sandbox-api.paddle.com').pathname === `/transactions/${paddleIds.transaction}`, method: 'GET' }).reply(200, responseFixture(data));
+        const mapped = succeeded(await provider.readTransactionInput(paddleIds.transaction));
+        for (const input of [raw, mapped]) {
+          assert.equal(input.observation.kind, 'transaction'); if (input.observation.kind !== 'transaction') throw new Error('Expected transaction');
+          assert.equal(input.observation.status, status);
+          assert.deepEqual(input.observation.statusMeaning, { kind: status === 'completed' ? 'completed' : status.endsWith('future_status') || status === 'future_provider_status' ? 'unsupported' : 'not_completed' });
+        }
+        assert.ok(!apiIdentities.has(mapped.inputId)); apiIdentities.add(mapped.inputId);
+      }
+    });
+
+    await t.test('subscription profile preserves required child presence and distinct raw/API source identities', async () => {
+      const configurations = [
+        {}, { quantity: 2, maximumQuantity: 100 }, { omitQuantity: true }, { collectionMode: 'manual' },
+        { collectionMode: 'future_collection_one' }, { collectionMode: 'future_collection_two' }, { trial: true }, { monthly: false },
+      ];
+      const rawIdentities = new Set<string>(), apiIdentities = new Set<string>();
+      for (const configuration of configurations) {
+        const data = subscriptionFixture(configuration), body = JSON.stringify(eventFixture('subscription.updated', data));
+        const raw = succeeded(await provider.verifyWebhook(body, sign(body)));
+        pool.intercept({ path: path => new URL(path, 'https://sandbox-api.paddle.com').pathname === `/subscriptions/${paddleIds.subscription}`, method: 'GET' }).reply(200, responseFixture(data));
+        const mapped = succeeded(await provider.readSubscriptionInput(paddleIds.subscription));
+        for (const input of [raw, mapped]) {
+          assert.equal(input.observation.kind, 'subscription'); if (input.observation.kind !== 'subscription') throw new Error('Expected subscription');
+          const item = value(input.observation.items)[0]; assert.ok(item); assert.equal(item.providerPriceRef, paddleIds.price);
+          if (configuration.omitQuantity) assert.deepEqual(item.quantity, { presence: 'unknown' });
+          else { assert.equal(value(item.quantity), configuration.quantity ?? 1); assert.equal(item.quantity.presence === 'known' ? item.quantity.provenance : undefined, 'observed'); }
+          assert.equal(value(item.trial), configuration.trial ?? false);
+          assert.equal(value(item.billingCycle)?.interval ?? null, configuration.monthly === false ? null : 'month');
+          const mode = configuration.collectionMode ?? 'automatic';
+          assert.deepEqual(value(input.observation.collection), mode === 'automatic' ? { kind: 'automatic' } : mode === 'manual' ? { kind: 'invoice' } : { kind: 'unsupported', value: mode });
+        }
+        assert.ok(!rawIdentities.has(raw.inputId)); rawIdentities.add(raw.inputId);
+        assert.ok(!apiIdentities.has(mapped.inputId)); apiIdentities.add(mapped.inputId);
+      }
+    });
+
     await t.test('raw field absence stays unknown; mapped selected nulls are explicit assumptions', async () => {
       const raw = transactionFixture({ monthly: false, customerRef: null }), items = raw['items'] as Record<string, unknown>[];
       const price = items[0]?.['price'] as Record<string, unknown>; delete price['billing_cycle'];

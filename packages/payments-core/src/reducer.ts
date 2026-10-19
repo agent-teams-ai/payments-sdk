@@ -1,9 +1,30 @@
-import type { AdjustmentObservation, AggregateIdentity, CompletionFact, EventIdentityEvidence, EvidenceFlag, EvidenceMessage, Field, ObjectVersionEvidence, Observation, OfferSnapshot, PaymentScope, PaymentState, ProviderLine, SubscriptionAggregate, SubscriptionBinding, SubscriptionObservation, TransactionAggregate, TransactionObservation, VerifiedInput } from './contracts.js';
+import type { AdjustmentObservation, AggregateIdentity, CompletionFact, EventIdentityEvidence, EvidenceFlag, EvidenceMessage, Field, ObjectVersionEvidence, Observation, OfferSnapshot, PaymentScope, PaymentState, ProfileEvidenceHolds, ProviderLine, SubscriptionAggregate, SubscriptionBinding, SubscriptionObservation, TransactionAggregate, TransactionObservation, VerifiedInput } from './contracts.js';
 import { assertIdentifier, canonicalJson, compareTime, digest, exactTime, money, MAX_OBJECT_VERSION_EVIDENCE_BYTES, objectVersionKey } from './values.js';
 
 const known = <T>(field: Field<T>): field is Readonly<{ presence: 'known'; value: T; provenance?: 'observed' | 'schema_assumed_null' }> => field.presence === 'known';
-function flag(target: { flags: EvidenceFlag[] }, value: EvidenceFlag): void { if (!target.flags.includes(value)) target.flags.push(value); }
-function removeFlag(target: { flags: EvidenceFlag[] }, value: EvidenceFlag): void { target.flags = target.flags.filter(item => item !== value); }
+type FlaggedEvidence = ProfileEvidenceHolds & { flags: EvidenceFlag[] };
+function flag(target: FlaggedEvidence, value: EvidenceFlag): void {
+  if (target.retainedFlags && !target.retainedFlags.includes(value)) target.retainedFlags.push(value);
+  if (!target.flags.includes(value)) target.flags.push(value);
+}
+function removeFlag(target: FlaggedEvidence, value: EvidenceFlag): void {
+  if (target.retainedFlags) target.retainedFlags = target.retainedFlags.filter(item => item !== value);
+  target.flags = target.flags.filter(item => item !== value || target.currentProfileFlags?.includes(item));
+}
+function setCurrentProfileFlags(target: FlaggedEvidence, flags: EvidenceFlag[]): void {
+  // Existing persisted flags and independently added controls remain historical. A matching
+  // historical flag must survive even when a current profile hold with the same name resolves.
+  target.retainedFlags = [...new Set([...(target.retainedFlags ?? []), ...target.flags.filter(item => !target.currentProfileFlags?.includes(item))])];
+  target.currentProfileFlags = [...new Set(flags)];
+  target.flags = [...new Set([...target.retainedFlags, ...target.currentProfileFlags])];
+}
+function transactionStatusFlags(observation: TransactionObservation): EvidenceFlag[] {
+  switch (observation.statusMeaning?.kind) {
+    case 'completed': case 'not_completed': return [];
+    case 'unsupported': return ['unsupported'];
+    default: return ['incomplete'];
+  }
+}
 export function transactionAggregate(state: PaymentState, ref: string): TransactionAggregate {
   return state.transactions[ref] ??= { transactionRef: ref, revision: 0, evidenceRevision: 0, observations: [], adjustments: {}, pendingAdverse: [], flags: [], publicationRequired: false };
 }
@@ -92,7 +113,9 @@ function validLine(line: ProviderLine, offer: OfferSnapshot): boolean {
 export type Classification = Readonly<{ kind: 'commercial'; fact: CompletionFact; holdReason?: EvidenceFlag }> | Readonly<{ kind: 'management' }> | Readonly<{ kind: 'held'; reason: EvidenceFlag }> | Readonly<{ kind: 'not_completed' }>;
 /** Final server completed classifier. Neither amount, customer nor correlation alone proves ownership. */
 export function classifyCompletion(state: PaymentState, scope: PaymentScope, observation: TransactionObservation): Classification {
-  if (observation.status !== 'completed') return { kind: 'not_completed' };
+  const statusFlags = transactionStatusFlags(observation), statusHold = statusFlags[0];
+  if (statusHold) return { kind: 'held', reason: statusHold };
+  if (observation.statusMeaning.kind !== 'completed') return { kind: 'not_completed' };
   const binding = state.bindings[observation.transactionRef];
   if (!binding) return { kind: 'held', reason: 'unresolved_binding' };
   if (binding.purpose === 'payment_method' || (known(observation.origin) && observation.origin.value === 'subscription_payment_method_change')) return { kind: 'management' };
@@ -174,7 +197,9 @@ function reduceTransaction(state: PaymentState, scope: PaymentScope, observation
     effective = mergeFields(sameVersion, observation);
     aggregate.observations[aggregate.observations.indexOf(sameVersion)] = effective;
   } else aggregate.observations.push(observation);
-  if (!aggregate.current || compareTime(effective.version, aggregate.current.version) >= 0) aggregate.current = effective;
+  if (!aggregate.current || compareTime(effective.version, aggregate.current.version) >= 0) {
+    aggregate.current = effective; setCurrentProfileFlags(aggregate, transactionStatusFlags(effective));
+  }
   bindRenewal(state, effective);
   const classification = classifyCompletion(state, scope, effective);
   if (classification.kind === 'commercial') {
@@ -189,7 +214,7 @@ function reduceTransaction(state: PaymentState, scope: PaymentScope, observation
     const subRef = classification.fact.providerSubscriptionRef;
     const subscription = subRef ? state.subscriptions[subRef]?.current : undefined;
     if (subscription) reduceSubscription(state, subscription);
-  } else if (classification.kind === 'held') flag(aggregate, classification.reason);
+  } else if (classification.kind === 'held' && transactionStatusFlags(effective).length === 0) flag(aggregate, classification.reason);
   else if (classification.kind === 'management') removeFlag(aggregate, 'unresolved_binding');
   aggregate.revision += 1; aggregate.publicationRequired = true;
 }
@@ -209,16 +234,24 @@ function reduceSubscription(state: PaymentState, observation: SubscriptionObserv
     else aggregate.lastKnown = current;
   }
   aggregate.current = observation;
-  if ((known(observation.status) && !['active', 'past_due', 'canceled'].includes(observation.status.value)) || (known(observation.scheduledChange) && observation.scheduledChange.value && observation.scheduledChange.value.action !== 'cancel')) flag(aggregate, 'unsupported');
-  if (!known(observation.status) || !known(observation.scheduledChange) || !known(observation.currentPeriod) || !known(observation.priceRefs) || !known(observation.customerRef)) flag(aggregate, 'incomplete'); else removeFlag(aggregate, 'incomplete');
+  const profileFlags: EvidenceFlag[] = [];
+  if ((known(observation.status) && !['active', 'past_due', 'canceled'].includes(observation.status.value)) || (known(observation.scheduledChange) && observation.scheduledChange.value && observation.scheduledChange.value.action !== 'cancel') || (observation.collection?.presence === 'known' && observation.collection.value.kind !== 'automatic')) profileFlags.push('unsupported');
+  if (!known(observation.status) || !known(observation.scheduledChange) || !known(observation.currentPeriod) || !known(observation.customerRef) || observation.collection?.presence !== 'known' || observation.items?.presence !== 'known') profileFlags.push('incomplete');
+  if (observation.items?.presence === 'known') {
+    for (const item of observation.items.value) {
+      if (!known(item.quantity) || !known(item.billingCycle) || !known(item.trial)) profileFlags.push('incomplete');
+      if ((known(item.quantity) && item.quantity.value !== 1) || (known(item.billingCycle) && (item.billingCycle.value?.interval !== 'month' || item.billingCycle.value.frequency !== 1)) || (known(item.trial) && item.trial.value)) profileFlags.push('unsupported');
+    }
+  }
   const bindings = Object.values(state.subscriptionBindings).filter(binding => binding.providerSubscriptionRefs.includes(observation.subscriptionRef));
   if (bindings.length !== 1) flag(aggregate, 'unresolved_binding');
   else {
     removeFlag(aggregate, 'unresolved_binding');
     const binding = bindings[0];
     if (binding && known(observation.customerRef) && binding.customerRef !== null && observation.customerRef.value !== binding.customerRef) flag(aggregate, 'ownership_mismatch');
-    if (binding && known(observation.priceRefs) && canonicalJson([...observation.priceRefs.value].sort()) !== canonicalJson(binding.offer.lines.map(line => line.providerPriceRef).sort())) flag(aggregate, 'catalog_mismatch');
+    if (binding && observation.items?.presence === 'known' && canonicalJson(observation.items.value.map(item => item.providerPriceRef).sort()) !== canonicalJson(binding.offer.lines.map(line => line.providerPriceRef).sort())) profileFlags.push('catalog_mismatch');
   }
+  setCurrentProfileFlags(aggregate, profileFlags);
   aggregate.revision += 1; aggregate.publicationRequired = true;
 }
 function reduceAdjustment(state: PaymentState, observation: AdjustmentObservation): void {

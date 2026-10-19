@@ -11,7 +11,7 @@ const period = { startsAt: '2026-01-01T00:00:00Z', endsAt: '2026-02-01T00:00:00Z
 function source(id: string): EvidenceSource { return { kind: 'authenticated_api', receiptId: id, representationDigest: digest(id), decoderVersion: '1', apiProfile: 'fake-v1' }; }
 function offer(profile: 'one_time' | 'monthly' = 'one_time', allowZeroTotal = false): OfferSnapshot { return { applicationId: 'app-a', offerId: 'offer', version: 'v1', policyVersion: 'policy-v1', currency: 'USD', profile, allowZeroTotal, lines: [{ providerPriceRef: 'price', benefitSlotId: 'benefit', quantity: 1 }] }; }
 function transaction(ref: string, receiptId: string, profile: 'one_time' | 'monthly' = 'one_time', extra: Partial<TransactionObservation> = {}): TransactionObservation {
-  return { kind: 'transaction', transactionRef: ref, version: at, status: 'completed', origin: yes('api'), customerRef: yes('payer'), subscriptionRef: profile === 'monthly' ? yes('sub-a') : yes(null), intentCorrelation: unknown, currency: yes('USD'), total: yes(money('USD', '1000')), lines: yes([{ providerLineRef: `line-${ref}`, providerPriceRef: 'price', quantity: 1, amount: money('USD', '1000'), billingCycle: profile === 'monthly' ? yes({ interval: 'month', frequency: 1 }) : yes(null), trial: yes(false), proration: yes(false), period: profile === 'monthly' ? yes(period) : yes(null) }]), source: source(receiptId), ...extra };
+  return { kind: 'transaction', transactionRef: ref, version: at, status: 'completed', statusMeaning: { kind: 'completed' }, origin: yes('api'), customerRef: yes('payer'), subscriptionRef: profile === 'monthly' ? yes('sub-a') : yes(null), intentCorrelation: unknown, currency: yes('USD'), total: yes(money('USD', '1000')), lines: yes([{ providerLineRef: `line-${ref}`, providerPriceRef: 'price', quantity: 1, amount: money('USD', '1000'), billingCycle: profile === 'monthly' ? yes({ interval: 'month', frequency: 1 }) : yes(null), trial: yes(false), proration: yes(false), period: profile === 'monthly' ? yes(period) : yes(null) }]), source: source(receiptId), ...extra };
 }
 function input(observation: Observation, adverseTransactionRef?: string): VerifiedInput {
   return { scope, inputId: observation.source.receiptId, source: observation.source, observation, retainedRepresentation: JSON.parse(canonicalJson(observation)) as VerifiedInput['retainedRepresentation'], ...(adverseTransactionRef ? { adverseTransactionRef } : {}) };
@@ -26,7 +26,7 @@ function deferred<T>() { let resolve!: (value: T) => void; const promise = new P
 function setup(profile: 'one_time' | 'monthly' = 'one_time', allowZeroTotal = false, timeoutMs = 1000) {
   const store = new MemoryPaymentStore(); let counter = 0, calls = 0, currentOffer = offer(profile, allowZeroTotal);
   let create: PaymentProvider['createCheckout'] = async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: `tx-${calls}`, checkout: { token: `token-${calls}` } } });
-  const provider: PaymentProvider = { scope, capabilities: { checkout: true, transactionRead: true, subscriptionRead: true, cancellation: [], paymentUpdate: false, customerManagement: false }, createCheckout: command => { calls += 1; return create(command); }, readTransaction: async () => ({ kind: 'unsupported', capability: 'test-read' }), readSubscription: async ref => ({ kind: 'succeeded', value: { kind: 'subscription', subscriptionRef: ref, version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: yes(null), currentPeriod: yes(period), priceRefs: yes(['price']), source: source(`authority-${ref}`) } }) };
+  const provider: PaymentProvider = { scope, capabilities: { checkout: true, transactionRead: true, subscriptionRead: true, cancellation: [], paymentUpdate: false, customerManagement: false }, createCheckout: command => { calls += 1; return create(command); }, readTransaction: async () => ({ kind: 'unsupported', capability: 'test-read' }), readSubscription: async ref => ({ kind: 'succeeded', value: { kind: 'subscription', subscriptionRef: ref, version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: yes(null), currentPeriod: yes(period), collection: yes({ kind: 'automatic' }), items: yes([{ providerPriceRef: 'price', quantity: yes(1), billingCycle: yes({ interval: 'month', frequency: 1 }), trial: yes(false) }]), source: source(`authority-${ref}`) } }) };
   provider.readTransactionInput = async ref => { const result = await provider.readTransaction(ref); return result.kind === 'succeeded' ? { kind: 'succeeded', value: acquired(result.value) } : result; };
   provider.readSubscriptionInput = async ref => { const result = await provider.readSubscription(ref); return result.kind === 'succeeded' ? { kind: 'succeeded', value: acquired(result.value) } : result; };
   const payments = createPayments({ scope, producerNamespace: 'payments', provider, store, catalog: { resolveOffer: async () => currentOffer }, now: () => at, newId: () => `id-${++counter}`, operationTimeoutMs: timeoutMs });
@@ -113,7 +113,7 @@ test('zero-value commercial policy, management completion and trials remain dist
 
 test('paid is intermediate; distinct source deliveries produce one immutable completion', async () => {
   const context = setup(), checkout = await purchase(context); await context.payments.registerConsumer('credits');
-  await observe(context, transaction(checkout.transactionRef, 'paid', 'one_time', { status: 'paid', version: '2026-01-01T00:00:00Z' }));
+  await observe(context, transaction(checkout.transactionRef, 'paid', 'one_time', { status: 'paid', statusMeaning: { kind: 'not_completed' }, version: '2026-01-01T00:00:00Z' }));
   assert.equal((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.completion, undefined);
   await observe(context, transaction(checkout.transactionRef, 'completed'));
   const before = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.completion;
@@ -135,7 +135,7 @@ test('same-version compatible partial evidence upgrades; contradictory known evi
 test('newer subscription unknown does not carry old scheduled change into current projection', async () => {
   const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, 'initial', 'monthly'));
   const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis);
-  const subscription: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: yes({ action: 'cancel', effectiveAt: period.endsAt }), currentPeriod: yes(period), priceRefs: yes(['price']), source: source('scheduled') };
+  const subscription: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: yes({ action: 'cancel', effectiveAt: period.endsAt }), currentPeriod: yes(period), collection: yes({ kind: 'automatic' }), items: yes([{ providerPriceRef: 'price', quantity: yes(1), billingCycle: yes({ interval: 'month', frequency: 1 }), trial: yes(false) }]), source: source('scheduled') };
   await observe(context, subscription);
   await observe(context, { ...subscription, version: '2026-01-01T00:00:00.000002Z', scheduledChange: unknown, source: source('newer-incomplete') });
   await observe(context, { ...subscription, version: '2026-01-01T00:00:00Z', status: yes('canceled'), source: source('older-cancel') });
@@ -303,14 +303,14 @@ test('late success before an authorized retry is dispatched prevents a gratuitou
 test('payment update recovers the original recurring period and method updates remain noncommercial', async () => {
   const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, 'monthly-initial', 'monthly'));
   const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis);
-  const renewal = transaction('failed-renewal', 'renewal-failed', 'monthly', { status: 'past_due', origin: yes('subscription_recurring'), version: '2026-02-01T00:00:00Z' });
+  const renewal = transaction('failed-renewal', 'renewal-failed', 'monthly', { status: 'past_due', statusMeaning: { kind: 'not_completed' }, origin: yes('subscription_recurring'), version: '2026-02-01T00:00:00Z' });
   if (renewal.lines.presence !== 'known') throw new Error('Fixture');
   const renewalLines = renewal.lines.value.map(line => ({ ...line, period: yes({ startsAt: '2026-02-01T00:00:00Z', endsAt: '2026-03-01T00:00:00Z' }) }));
   await observe(context, { ...renewal, lines: yes(renewalLines) });
   Object.assign(context.provider.capabilities, { paymentUpdate: true });
   context.provider.openPaymentUpdate = async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'failed-renewal', purpose: 'recovery', checkout: { token: 'recover' } } });
   const ready = await context.payments.openPaymentUpdate({ buyerId: 'buyer', bindingId: basis, requestKey: 'recover' }); assert.equal(ready.kind, 'succeeded'); if (ready.kind === 'succeeded') assert.equal(ready.value.purpose, 'recovery');
-  await observe(context, { ...renewal, lines: yes(renewalLines), status: 'completed', version: '2026-02-02T00:00:00Z', source: source('renewal-recovered') });
+  await observe(context, { ...renewal, lines: yes(renewalLines), status: 'completed', statusMeaning: { kind: 'completed' }, version: '2026-02-02T00:00:00Z', source: source('renewal-recovered') });
   const fact = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions.find(item => item.transactionRef === 'failed-renewal')?.completion;
   assert.equal(fact?.classification, 'recovery'); assert.equal(fact?.lines[0]?.period?.startsAt, '2026-02-01T00:00:00Z');
   context.provider.openPaymentUpdate = async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'method-change', purpose: 'payment_method', checkout: { token: 'method' } } });
@@ -381,7 +381,7 @@ test('public refresh preserves exact acquired receipts and honestly rejects prov
   assert.deepEqual(storedTransaction.state.inbox[transactionReceipt.inputId]?.input, transactionReceipt);
   assert.equal(digest(storedTransaction.state.inbox[transactionReceipt.inputId]?.input.retainedRepresentation), transactionReceipt.source.representationDigest);
   const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis);
-  const subscriptionReceipt = acquired({ kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), currentPeriod: yes(period), scheduledChange: yes(null), priceRefs: yes(['price']), source: source('full-provider-subscription') });
+  const subscriptionReceipt = acquired({ kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), currentPeriod: yes(period), scheduledChange: yes(null), collection: yes({ kind: 'automatic' }), items: yes([{ providerPriceRef: 'price', quantity: yes(1), billingCycle: yes({ interval: 'month', frequency: 1 }), trial: yes(false) }]), source: source('full-provider-subscription') });
   context.provider.readSubscriptionInput = async () => ({ kind: 'succeeded', value: subscriptionReceipt });
   assert.deepEqual(await context.payments.refreshSubscription('buyer', basis), { kind: 'succeeded', value: 1 });
   assert.deepEqual((await context.store.loadReductionInput(scope, subscriptionReceipt.inputId))?.state.inbox[subscriptionReceipt.inputId]?.input, subscriptionReceipt);
@@ -403,7 +403,7 @@ test('refresh rejects a substituted body under an otherwise valid receipt digest
 test('known subscription customer mismatch blocks both mutations without reusing historical ownership', async () => {
   const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, 'ownership-initial', 'monthly'));
   const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis);
-  await observe(context, { kind: 'subscription', subscriptionRef: 'sub-a', version: '2026-01-02T00:00:00Z', status: yes('active'), customerRef: yes('other-payer'), scheduledChange: yes(null), currentPeriod: yes(period), priceRefs: yes(['price']), source: source('ownership-changed') });
+  await observe(context, { kind: 'subscription', subscriptionRef: 'sub-a', version: '2026-01-02T00:00:00Z', status: yes('active'), customerRef: yes('other-payer'), scheduledChange: yes(null), currentPeriod: yes(period), collection: yes({ kind: 'automatic' }), items: yes([{ providerPriceRef: 'price', quantity: yes(1), billingCycle: yes({ interval: 'month', frequency: 1 }), trial: yes(false) }]), source: source('ownership-changed') });
   let cancellations = 0, updates = 0;
   Object.assign(context.provider.capabilities, { cancellation: ['now'], paymentUpdate: true });
   context.provider.cancelSubscription = async () => { cancellations += 1; return { kind: 'succeeded', value: { kind: 'applied', observedStatus: 'canceled' } }; };
@@ -423,7 +423,7 @@ test('authority read set fences a customer mismatch committed between preflight 
   context.store.beginExternalDispatch = async (paymentScope, commit) => {
     if (inject && commit.operation.kind === 'cancellation') {
       inject = false; assert.ok(commit.expectedReadSet?.some(row => row.table === 'subscriptions' && row.id === 'sub-a'));
-      await observe(context, { kind: 'subscription', subscriptionRef: 'sub-a', version: '2026-01-02T00:00:00Z', status: yes('active'), customerRef: yes('changed-after-preflight'), scheduledChange: yes(null), currentPeriod: yes(period), priceRefs: yes(['price']), source: source('interleaved-mismatch') });
+      await observe(context, { kind: 'subscription', subscriptionRef: 'sub-a', version: '2026-01-02T00:00:00Z', status: yes('active'), customerRef: yes('changed-after-preflight'), scheduledChange: yes(null), currentPeriod: yes(period), collection: yes({ kind: 'automatic' }), items: yes([{ providerPriceRef: 'price', quantity: yes(1), billingCycle: yes({ interval: 'month', frequency: 1 }), trial: yes(false) }]), source: source('interleaved-mismatch') });
     }
     return original(paymentScope, commit);
   };
@@ -435,7 +435,7 @@ test('authority read set fences a customer mismatch committed between preflight 
 test('billing eligibility holds do not remove proven authority to cancel, and failed preflight never dispatches', async () => {
   const context = await duplicateMonthly(); Object.assign(context.provider.capabilities, { cancellation: ['now'] }); let mutations = 0;
   context.provider.cancelSubscription = async () => { mutations += 1; return { kind: 'succeeded', value: { kind: 'applied', observedStatus: 'canceled' } }; };
-  context.provider.readSubscription = async ref => ({ kind: 'succeeded', value: { kind: 'subscription', subscriptionRef: ref, version: at, status: yes('paused'), customerRef: yes('payer'), scheduledChange: unknown, currentPeriod: unknown, priceRefs: yes(['different-price']), source: source('held-but-owned') } });
+  context.provider.readSubscription = async ref => ({ kind: 'succeeded', value: { kind: 'subscription', subscriptionRef: ref, version: at, status: yes('paused'), customerRef: yes('payer'), scheduledChange: unknown, currentPeriod: unknown, collection: yes({ kind: 'automatic' }), items: yes([{ providerPriceRef: 'different-price', quantity: yes(1), billingCycle: yes({ interval: 'month', frequency: 1 }), trial: yes(false) }]), source: source('held-but-owned') } });
   assert.equal((await context.payments.requestCancellation({ buyerId: 'buyer', bindingId: context.basis, requestKey: 'owned-held-cancel', timing: 'now' })).kind, 'succeeded'); assert.equal(mutations, 1);
   const current = await context.payments.readObservedSubscription('buyer', context.basis); assert.ok(current?.observations.find(row => row.subscriptionRef === 'sub-a')?.flags.includes('unsupported'));
   context.provider.readSubscriptionInput = async () => ({ kind: 'outcome_unknown' });
@@ -498,7 +498,7 @@ test('merging partial unsupported identities retains a certified route for later
 test('quarantined preflight custody cannot authorize dispatch using an older matching projection', async () => {
   const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, 'quarantine-authority-initial', 'monthly'));
   const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis);
-  const prior: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: yes(null), currentPeriod: yes(period), priceRefs: yes(['price']), source: eventSource('prior-authority', 'authenticated_api', { eventType: 'subscription.updated' }) };
+  const prior: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: yes(null), currentPeriod: yes(period), collection: yes({ kind: 'automatic' }), items: yes([{ providerPriceRef: 'price', quantity: yes(1), billingCycle: yes({ interval: 'month', frequency: 1 }), trial: yes(false) }]), source: eventSource('prior-authority', 'authenticated_api', { eventType: 'subscription.updated' }) };
   await observe(context, prior);
   const conflicting = acquired({ ...prior, source: eventSource('contradictory-authority', 'authenticated_api', { eventType: 'subscription.canceled' }) });
   context.provider.readSubscriptionInput = async () => ({ kind: 'succeeded', value: conflicting });
@@ -512,7 +512,7 @@ test('an acknowledged subscription feed receives a higher revision for a newly r
   const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, 'stale-hold-initial', 'monthly'));
   const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis);
   await context.payments.registerConsumer('stale-hold-consumer');
-  const current: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: '2026-01-02T00:00:00Z', status: yes('active'), customerRef: yes('payer'), scheduledChange: yes(null), currentPeriod: yes(period), priceRefs: yes(['price']), source: source('latest-owned-subscription') };
+  const current: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: '2026-01-02T00:00:00Z', status: yes('active'), customerRef: yes('payer'), scheduledChange: yes(null), currentPeriod: yes(period), collection: yes({ kind: 'automatic' }), items: yes([{ providerPriceRef: 'price', quantity: yes(1), billingCycle: yes({ interval: 'month', frequency: 1 }), trial: yes(false) }]), source: source('latest-owned-subscription') };
   await observe(context, current);
   const first = (await context.payments.readDeliveries('stale-hold-consumer'))[0]; assert.ok(first); await context.payments.acknowledgeDelivery('stale-hold-consumer', first.messageId, first.bodyDigest);
   const stale = { ...current, version: '2026-01-01T00:00:00Z', customerRef: yes('old-contradictory-payer'), source: source('stale-customer-contradiction') };
@@ -528,7 +528,7 @@ test('subscription exact-version contradictions remain held across watermark adv
   for (const late of [false, true]) {
     const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, `history-initial-${late}`, 'monthly'));
     const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis); await context.payments.registerConsumer('history-consumer');
-    const first: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: yes(null), currentPeriod: yes(period), priceRefs: yes(['price']), source: source(`subscription-v1-${late}`) };
+    const first: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: yes(null), currentPeriod: yes(period), collection: yes({ kind: 'automatic' }), items: yes([{ providerPriceRef: 'price', quantity: yes(1), billingCycle: yes({ interval: 'month', frequency: 1 }), trial: yes(false) }]), source: source(`subscription-v1-${late}`) };
     const latest = { ...first, version: '2026-01-01T00:00:00.000002Z', source: source(`subscription-v2-${late}`) }, contradiction = { ...first, version: '2026-01-01T01:00:00.000001000+01:00', status: yes('canceled'), source: source(`subscription-v1-conflict-${late}`) };
     await observe(context, first); if (late) await observe(context, latest);
     for (const message of await context.payments.readDeliveries('history-consumer')) await context.payments.acknowledgeDelivery('history-consumer', message.messageId, message.bodyDigest);
@@ -585,7 +585,7 @@ test('an exact-version adjustment parent contradiction atomically holds both ack
 
 test('historical exact-version partial summaries merge compatible knowledge and nanosecond-equivalent spellings', async () => {
   const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, 'compatible-history-initial', 'monthly'));
-  const first: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: unknown, currentPeriod: yes(period), priceRefs: yes(['price']), source: source('historical-partial') };
+  const first: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: unknown, currentPeriod: yes(period), collection: yes({ kind: 'automatic' }), items: yes([{ providerPriceRef: 'price', quantity: yes(1), billingCycle: yes({ interval: 'month', frequency: 1 }), trial: yes(false) }]), source: source('historical-partial') };
   await observe(context, first); await observe(context, { ...first, version: '2026-01-01T00:00:00.000002Z', scheduledChange: yes(null), source: source('historical-latest') });
   const richer = { ...first, version: '2026-01-01T01:00:00.000001000+01:00', scheduledChange: yes(null), source: source('historical-richer') }; await observe(context, richer);
   const key = objectVersionKey(first); assert.ok(key); assert.equal(objectVersionKey(richer), key);

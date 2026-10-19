@@ -131,7 +131,7 @@ test('financial facts and delivery advance only through explicit durable command
     const source = { kind: 'authenticated_api', receiptId: 'receipt', representationDigest: digest('representation'), decoderVersion: '1', apiProfile: 'fixture-v1' } as const;
     const known = <T>(value: T) => ({ presence: 'known', value }) as const;
     const observation: TransactionObservation = {
-      kind: 'transaction', transactionRef: checkout.value.transactionRef, version: '2026-01-01T00:00:00Z', status: 'completed',
+      kind: 'transaction', transactionRef: checkout.value.transactionRef, version: '2026-01-01T00:00:00Z', status: 'completed', statusMeaning: { kind: 'completed' },
       origin: known('api'), customerRef: known('customer'), subscriptionRef: known(null), intentCorrelation: known(checkout.value.intentId),
       currency: known('USD'), total: known(money('USD', '1000')),
       lines: known([{ providerLineRef: 'line', providerPriceRef: 'price', quantity: 1, amount: money('USD', '1000'), billingCycle: known(null), trial: known(false), proration: known(false), period: known(null) }]), source,
@@ -174,7 +174,7 @@ test('a public Assembly runtime can audit and select duplicate initial subscript
     const receiptId = `${transactionRef}-receipt`;
     const source = { kind: 'authenticated_api', receiptId, representationDigest: digest(receiptId), decoderVersion: '1', apiProfile: 'fixture-v1' } as const;
     const observation: TransactionObservation = {
-      kind: 'transaction', transactionRef, version: '2026-01-01T00:00:00Z', status: 'completed', origin: known(initial ? 'api' : 'subscription_recurring'),
+      kind: 'transaction', transactionRef, version: '2026-01-01T00:00:00Z', status: 'completed', statusMeaning: { kind: 'completed' }, origin: known(initial ? 'api' : 'subscription_recurring'),
       customerRef: known('customer'), subscriptionRef: known(subscriptionRef), intentCorrelation: { presence: 'unknown' }, currency: known('USD'), total: known(money('USD', '1000')),
       lines: known([{ providerLineRef: `${transactionRef}-line`, providerPriceRef: 'price', quantity: 1, amount: money('USD', '1000'), billingCycle: known({ interval: 'month', frequency: 1 }), trial: known(false), proration: known(false), period: known({ startsAt: `2026-01-${day}T00:00:00Z`, endsAt: `2026-02-${day}T00:00:00Z` }) }]), source,
     };
