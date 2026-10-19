@@ -54,7 +54,24 @@ cd ..
 
 The manifest binds the tarball hashes to the exact reviewed commit and CI run. SHA-256 detects byte changes relative to that manifest; it is not a detached signing or npm provenance attestation. Obtain assets from the authoritative GitHub release and confirm the expected tag/commit and successful CI.
 
-Install the matching package set from local tarballs. For a plain Paddle/PostgreSQL host:
+Install the matching package set from local tarballs. Before npm publication,
+pnpm also needs explicit overrides for the SDK packages' transitive dependencies.
+Adding all tarballs in one command does not make their internal versioned
+dependencies resolve locally.
+
+For a plain Paddle/PostgreSQL host, download the assets into
+`payments-candidate` at the application workspace root. Merge these entries into
+that workspace's `pnpm-workspace.yaml` (create the file if it does not exist):
+
+```yaml
+overrides:
+  '@agent-teams/payments-core': file:./payments-candidate/agent-teams-payments-core-0.1.0.tgz
+  '@agent-teams/payments-paddle': file:./payments-candidate/agent-teams-payments-paddle-0.1.0.tgz
+  '@agent-teams/payments-postgres': file:./payments-candidate/agent-teams-payments-postgres-0.1.0.tgz
+```
+
+Keep existing workspace packages, overrides and other settings. These paths are
+relative to that configuration file. Then install from the host application:
 
 ```sh
 pnpm add ./payments-candidate/agent-teams-payments-core-0.1.0.tgz \
@@ -62,7 +79,25 @@ pnpm add ./payments-candidate/agent-teams-payments-core-0.1.0.tgz \
   ./payments-candidate/agent-teams-payments-postgres-0.1.0.tgz pg@8.23.1
 ```
 
-For Get Modular, also install its matching SDK tarball and the qualified exact peers Core/Assembly `0.5.0` and Resources `0.1.0`. Conformance is development-only. Supply matching local tarballs for SDK dependencies together so the package manager can resolve the same version across the entire set; do not mix an unpublished local package with an assumed public registry dependency. The repository's `test:packed` gate demonstrates strict isolated consumers of the complete packed set. Upstream observation implementation has merged, but its coordinated new train was still unpublished at the [current official read-back](upstream-qualification.md#get-modular-merged-implementation-unpublished-release-train); it does not widen this candidate's qualified peer set.
+For Get Modular, add this fourth entry under the same `overrides` mapping:
+
+```yaml
+  '@agent-teams/payments-get-modular': file:./payments-candidate/agent-teams-payments-get-modular-0.1.0.tgz
+```
+
+Then install its matching SDK tarball and the qualified exact peers:
+
+```sh
+pnpm add ./payments-candidate/agent-teams-payments-get-modular-0.1.0.tgz \
+  @get-modular/core@0.5.0 @get-modular/assembly@0.5.0 @get-modular/resources@0.1.0
+```
+
+Conformance is development-only. The repository's `test:packed` gate uses the
+same explicit local-package overrides and demonstrates strict isolated consumers
+of the complete packed set. Upstream observation implementation has merged, but
+its coordinated new train was still unpublished at the
+[current official read-back](upstream-qualification.md#get-modular-merged-implementation-unpublished-release-train);
+it does not widen this candidate's qualified peer set.
 
 The [getting-started guide](getting-started.md) and [adapter guides](../README.md#start-here) explain runtime configuration. Preserve installed versions and the source/CI manifest in deployment evidence. Complete the separate [deployment gates](qualification.md#deployment-and-credential-gates) before real financial/product effects.
 
