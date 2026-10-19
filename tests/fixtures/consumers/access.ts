@@ -1,6 +1,7 @@
 /** Independent Commercial Access style qualification owner. No production Platform package. */
 import type { PoolClient } from 'pg';
 import { ConsumerOwner, canonical, evidenceReadSet, hash } from './owner.ts';
+import { qualifyFullAdjustmentSnapshot } from './adjustments.ts';
 import type { DeliveryResult, OwnerOptions, ReadSet, Source } from './owner.ts';
 
 const POLICY = 'fixture-access-no-grace-v1';
@@ -39,12 +40,9 @@ export class AccessFixture {
         }
         if (body?.kind !== 'complete' || body.completion?.subscriptionBasisId !== bindingId) continue;
         if (source.held || body.flags.length) restrictions.add('pending_payment_evidence');
-        if (body.adjustments.some(item => item.status !== 'reversed')) {
-          // Access policy owns its own narrow full-refund rule and holds ambiguous adjustments.
-          const full = body.adjustments.some(item => ['refund', 'credit', 'chargeback'].includes(item.action) && item.status === 'approved' && item.type === 'full' && item.amount.currency === body.completion?.total.currency && item.amount.minorUnits === body.completion.total.minorUnits);
-          if (full) { restrictions.add('full_adverse'); continue; }
-          restrictions.add('pending_adjustment_policy');
-        }
+        const adjustment = qualifyFullAdjustmentSnapshot(body.completion, body.adjustments);
+        if (adjustment === 'full_adverse') { restrictions.add('full_adverse'); continue; }
+        if (adjustment === 'held') restrictions.add('pending_adjustment_policy');
         for (const line of body.completion.lines) if (line.period) periods.push(line.period);
       }
       // Financial history is retained even when current lifecycle no longer supplies a period.

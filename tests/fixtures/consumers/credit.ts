@@ -3,6 +3,7 @@ import { exactTime } from '@agent-teams/payments-core';
 import type { CompletionFact, PaymentEvidenceChanged } from '@agent-teams/payments-core';
 import type { PoolClient } from 'pg';
 import { ConsumerOwner, canonical, evidenceReadSet, hash } from './owner.ts';
+import { qualifyFullAdjustmentSnapshot } from './adjustments.ts';
 import type { DeliveryResult, OwnerOptions, ReadSet, Source } from './owner.ts';
 
 const QUOTA = 100n, TOP_UP = 25n;
@@ -35,23 +36,8 @@ function reviewablePartial(contribution: Contribution): boolean { return !contri
 function condition(contribution: Contribution): Condition {
   const { source, message, fact } = contribution;
   if (source.held || message.flags.some(flag => !['duplicate_payment', 'duplicate_initial_purchase'].includes(flag))) return 'held';
-  const adjustments = message.adjustments;
-  if (!adjustments.length) return 'paid';
-  if (adjustments.some(item => !['refund', 'credit', 'chargeback', 'refund_reverse', 'credit_reverse', 'chargeback_reverse'].includes(item.action))) return 'held';
-  const originals = adjustments.filter(adjustment => ['refund', 'credit', 'chargeback'].includes(adjustment.action));
-  if (!originals.length) return 'held';
-  if (originals.some(original => original.type !== 'full' || original.amount.currency !== fact.total.currency || BigInt(original.amount.minorUnits) !== BigInt(fact.total.minorUnits) || original.allocations.length !== 1 || original.allocations.some(allocation => allocation.type !== 'full' || allocation.providerLineRef !== fact.lines[0]?.providerLineRef || allocation.amount.currency !== fact.total.currency || allocation.amount.minorUnits !== fact.total.minorUnits))) return 'held';
-  if (originals.some(original => !['approved', 'reversed'].includes(original.status))) return 'held';
-  if (originals.some(original => original.status === 'approved')) return originals.length === 1 && adjustments.length === 1 ? 'adverse' : 'held';
-  // This fixture qualifies exactly one original and its one reverse. A supported action name
-  // alone cannot explain an extra adjustment: every member must belong to this proven pair.
-  if (originals.length !== 1 || adjustments.length !== 2) return 'held';
-  for (const original of originals) {
-    const expectedAction = `${original.action}_reverse`;
-    const reversals = adjustments.filter(item => item.action === expectedAction && item.type === 'full' && item.status === 'approved' && item.transactionRef === original.transactionRef && item.amount.currency === original.amount.currency && BigInt(item.amount.minorUnits) === -BigInt(original.amount.minorUnits) && item.allocations.every(allocation => allocation.type === 'full' && allocation.amount.currency === original.amount.currency) && canonical(item.allocations.map(allocation => [allocation.providerLineRef, allocation.amount.minorUnits]).sort()) === canonical(original.allocations.map(allocation => [allocation.providerLineRef, (-BigInt(allocation.amount.minorUnits)).toString()]).sort()));
-    if (reversals.length !== 1 || originals.length !== 1) return 'held';
-  }
-  return 'paid';
+  const qualification = qualifyFullAdjustmentSnapshot(fact, message.adjustments);
+  return qualification === 'held' ? 'held' : qualification === 'full_adverse' ? 'adverse' : 'paid';
 }
 
 export class CreditFixture {
