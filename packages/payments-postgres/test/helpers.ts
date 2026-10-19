@@ -26,11 +26,11 @@ export function receipt(observation: Observation, extra: Partial<VerifiedInput> 
 }
 
 export function transaction(transactionRef: string, receiptId: string, extra: Partial<TransactionObservation> = {}): TransactionObservation {
-  return { kind: 'transaction', transactionRef, version: at, status: 'completed', origin: known('api'), customerRef: known('customer'), subscriptionRef: known('sub-a'), intentCorrelation: unknown, currency: known('USD'), total: known(money('USD', '1000')), lines: known([{ providerLineRef: `line-${transactionRef}`, providerPriceRef: 'price', quantity: 1, amount: money('USD', '1000'), billingCycle: known({ interval: 'month', frequency: 1 }), trial: known(false), proration: known(false), period: known(period) }]), source: { kind: 'authenticated_api', receiptId, representationDigest: '', apiProfile: 'fixture-v1', decoderVersion: '1' }, ...extra };
+  return { kind: 'transaction', transactionRef, version: at, status: 'completed', statusMeaning: { kind: 'completed' }, origin: known('api'), customerRef: known('customer'), subscriptionRef: known('sub-a'), intentCorrelation: unknown, currency: known('USD'), total: known(money('USD', '1000')), lines: known([{ providerLineRef: `line-${transactionRef}`, providerPriceRef: 'price', quantity: 1, amount: money('USD', '1000'), billingCycle: known({ interval: 'month', frequency: 1 }), trial: known(false), proration: known(false), period: known(period) }]), source: { kind: 'authenticated_api', receiptId, representationDigest: '', apiProfile: 'fixture-v1', decoderVersion: '1' }, ...extra };
 }
 
 export function subscription(ref: string, receiptId = `authority-${ref}`): SubscriptionObservation {
-  return { kind: 'subscription', subscriptionRef: ref, version: at, status: known('active'), customerRef: known('customer'), scheduledChange: known(null), currentPeriod: known(period), priceRefs: known(['price']), source: { kind: 'authenticated_api', receiptId, representationDigest: '', apiProfile: 'fixture-v1', decoderVersion: '1' } };
+  return { kind: 'subscription', subscriptionRef: ref, version: at, status: known('active'), customerRef: known('customer'), scheduledChange: known(null), currentPeriod: known(period), collection: known({ kind: 'automatic' }), items: known([{ providerPriceRef: 'price', quantity: known(1), billingCycle: known({ interval: 'month', frequency: 1 }), trial: known(false) }]), source: { kind: 'authenticated_api', receiptId, representationDigest: '', apiProfile: 'fixture-v1', decoderVersion: '1' } };
 }
 
 export function runtime(store: PaymentStore, timeoutMs = 1000) {

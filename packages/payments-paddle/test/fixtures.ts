@@ -20,20 +20,20 @@ export function productFixture(): FixtureObject {
     status: 'active', created_at: fixtureTime, updated_at: fixtureTime, import_meta: null };
 }
 
-export function priceFixture(monthly = true, trial = false): FixtureObject {
+export function priceFixture(monthly = true, trial = false, maximumQuantity = 1): FixtureObject {
   return { id: paddleIds.price, product_id: paddleIds.product, description: 'Synthetic supported price', name: 'Fixture', type: 'standard',
     billing_cycle: monthly ? { interval: 'month', frequency: 1 } : null, trial_period: trial ? { interval: 'day', frequency: 7, requires_payment_method: true } : null,
-    tax_mode: 'account_setting', unit_price: { amount: '1000', currency_code: 'USD' }, unit_price_overrides: [], quantity: { minimum: 1, maximum: 1 }, status: 'active',
+    tax_mode: 'account_setting', unit_price: { amount: '1000', currency_code: 'USD' }, unit_price_overrides: [], quantity: { minimum: 1, maximum: maximumQuantity }, status: 'active',
     created_at: fixtureTime, updated_at: fixtureTime, custom_data: null, import_meta: null, product: null };
 }
 
-export function transactionFixture(options: Readonly<{ id?: string; monthly?: boolean; trial?: boolean; total?: string; status?: string; origin?: string; subscriptionRef?: string | null; customerRef?: string | null; applicationId?: string; intentId?: string; version?: string }> = {}): FixtureObject {
+export function transactionFixture(options: Readonly<{ id?: string; monthly?: boolean; trial?: boolean; total?: string; status?: string; origin?: string; subscriptionRef?: string | null; customerRef?: string | null; applicationId?: string; intentId?: string; version?: string; maximumQuantity?: number }> = {}): FixtureObject {
   const total = options.total ?? '1000', monthly = options.monthly ?? true;
   return { id: options.id ?? paddleIds.transaction, status: options.status ?? 'completed', customer_id: options.customerRef === undefined ? paddleIds.customer : options.customerRef,
     address_id: null, business_id: null, custom_data: { payments: { applicationId: options.applicationId ?? 'app-a', paymentAccountId: 'merchant-fixture', environment: 'sandbox', intentId: options.intentId ?? 'intent-fixture', attemptId: 'attempt-fixture' } },
     currency_code: 'USD', origin: options.origin ?? 'api', subscription_id: options.subscriptionRef === undefined ? monthly ? paddleIds.subscription : null : options.subscriptionRef,
     invoice_id: null, invoice_number: null, collection_mode: 'automatic', discount_id: null, billing_details: null, billing_period: monthly ? { ...fixturePeriod } : null,
-    items: [{ price: priceFixture(monthly, options.trial), quantity: 1, proration: null }],
+    items: [{ price: priceFixture(monthly, options.trial, options.maximumQuantity), quantity: 1, proration: null }],
     details: { tax_rates_used: [], totals: { subtotal: total, discount: '0', tax: '0', total, credit: '0', credit_to_balance: '0', balance: '0', grand_total: total, fee: null, earnings: null, currency_code: 'USD' },
       adjusted_totals: null, payout_totals: null, adjusted_payout_totals: null,
       line_items: [{ id: paddleIds.line, price_id: paddleIds.price, quantity: 1, proration: null, tax_rate: '0', unit_totals: { subtotal: total, discount: '0', tax: '0', total }, totals: { subtotal: total, discount: '0', tax: '0', total }, product: productFixture() }] },
@@ -41,13 +41,13 @@ export function transactionFixture(options: Readonly<{ id?: string; monthly?: bo
   };
 }
 
-export function subscriptionFixture(options: Readonly<{ status?: string; scheduled?: boolean; version?: string }> = {}): FixtureObject {
+export function subscriptionFixture(options: Readonly<{ status?: string; scheduled?: boolean; version?: string; quantity?: number; omitQuantity?: boolean; maximumQuantity?: number; collectionMode?: string; trial?: boolean; monthly?: boolean }> = {}): FixtureObject {
   return { id: paddleIds.subscription, status: options.status ?? 'active', customer_id: paddleIds.customer, address_id: 'add_01j00000000000000000000001', business_id: null,
     currency_code: 'USD', created_at: fixtureTime, updated_at: options.version ?? fixtureTime, started_at: fixtureTime, first_billed_at: fixtureTime, next_billed_at: fixturePeriod.ends_at,
-    paused_at: null, canceled_at: options.status === 'canceled' ? fixtureTime : null, discount: null, collection_mode: 'automatic', billing_details: null,
+    paused_at: null, canceled_at: options.status === 'canceled' ? fixtureTime : null, discount: null, collection_mode: options.collectionMode ?? 'automatic', billing_details: options.collectionMode === 'manual' ? { enable_checkout: false, purchase_order_number: '', additional_information: null, payment_terms: { interval: 'day', frequency: 14 } } : null,
     current_billing_period: options.status === 'canceled' ? null : { ...fixturePeriod }, billing_cycle: { interval: 'month', frequency: 1 },
     scheduled_change: options.scheduled ? { action: 'cancel', effective_at: fixturePeriod.ends_at, resume_at: null } : null, management_urls: null,
-    items: [{ status: 'active', quantity: 1, recurring: true, created_at: fixtureTime, updated_at: fixtureTime, previously_billed_at: fixtureTime, next_billed_at: fixturePeriod.ends_at, trial_dates: null, price: priceFixture(), product: productFixture() }],
+    items: [{ status: 'active', ...(options.omitQuantity ? {} : { quantity: options.quantity ?? 1 }), recurring: true, created_at: fixtureTime, updated_at: fixtureTime, previously_billed_at: fixtureTime, next_billed_at: fixturePeriod.ends_at, trial_dates: null, price: priceFixture(options.monthly, options.trial, options.maximumQuantity), product: productFixture() }],
     custom_data: null, import_meta: null,
   };
 }

@@ -7,7 +7,7 @@ import { normalizeObservation, subscriptionObservation, transactionObservation }
 import { translatePaddleError } from './errors.js';
 
 export const PADDLE_API_PROFILE = 'paddle-billing-api-1';
-export const PADDLE_DECODER_VERSION = 'paddle-supported-profile/1';
+export const PADDLE_DECODER_VERSION = 'paddle-supported-profile/2';
 export type PaddleProviderOptions = Readonly<{
   scope: PaymentScope; apiKey: string; apiVersion: 1;
   webhook?: Readonly<{ endpointId: string; secret: string; apiVersion: 1 }>;
