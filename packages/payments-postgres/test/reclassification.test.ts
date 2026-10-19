@@ -273,7 +273,13 @@ test('an old failed claimant cannot quarantine replacement work claimed again at
     assert.deepEqual(await workDisposition(f, bindingId), current, 'old attempt one cannot overwrite the current generation attempt one');
     releaseNew.resolve();
     await untilPersisted(async () => (await workDisposition(f, bindingId))?.state === 'quarantined', 'the current claimant retains its own fault policy');
-    assert.equal((await workDisposition(f, bindingId))?.attempts, 1); assert.equal(calls, 2); assert.deepEqual(errors, []);
+    assert.equal((await workDisposition(f, bindingId))?.attempts, 1); assert.equal(calls, 2);
+    await jobs.stop(); await jobs.drain();
+    await select(context, bindingId, 'sub-a');
+    const replacedFault = await workDisposition(f, bindingId); assert.ok(replacedFault);
+    assert.equal(replacedFault.state, 'pending'); assert.equal(replacedFault.attempts, 0); assert.equal(replacedFault.issue, null);
+    assert.equal((await cursor(f, bindingId))?.decisionRevision, 3, 'a genuine new decision directly replaces the prior quarantined generation');
+    assert.deepEqual(errors, []);
   } finally { releaseOld.resolve(); releaseNew.resolve(); await jobs?.stop(); await jobs?.drain(); await context.payments.drain(); await f.pool.query(`DROP SCHEMA IF EXISTS "${jobSchema}" CASCADE`); await f.close(); }
 });
 
