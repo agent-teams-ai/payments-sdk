@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { ExactTime, Money, PaymentOperation, PaymentScope, PaymentState } from './contracts.js';
+import type { ExactTime, Money, Observation, PaymentOperation, PaymentScope, PaymentState } from './contracts.js';
 
 export function canonicalJson(value: unknown): string {
   const visit = (input: unknown): unknown => {
@@ -51,11 +51,20 @@ export function compareTime(a: string, b: string): -1 | 0 | 1 {
   return x.fraction === y.fraction ? 0 : x.fraction < y.fraction ? -1 : 1;
 }
 export function createEmptyPaymentState(): PaymentState {
-  return { revision: 0, recoveryFenced: false, intents: {}, operations: {}, requestKeys: {}, bindings: {}, subscriptionBindings: {}, transactions: {}, subscriptions: {}, inbox: {}, evidence: {}, deliveries: {}, consumers: [], scans: {}, issues: [] };
+  return { revision: 0, recoveryFenced: false, intents: {}, operations: {}, requestKeys: {}, bindings: {}, subscriptionBindings: {}, transactions: {}, subscriptions: {}, versionEvidence: {}, inbox: {}, evidence: {}, deliveries: {}, consumers: [], scans: {}, issues: [] };
 }
 
 /** Mutable lifecycle commits cannot change the immutable command or its external subject. */
 export function sameOperationCommand(a: PaymentOperation, b: PaymentOperation): boolean {
   const command = (operation: PaymentOperation) => ({ operationId: operation.operationId, kind: operation.kind, buyerId: operation.buyerId, requestKey: operation.requestKey, fingerprint: operation.fingerprint, intentId: operation.intentId, subscriptionBindingId: operation.subscriptionBindingId, providerSubscriptionRef: operation.providerSubscriptionRef, timing: operation.timing });
   return canonicalJson(command(a)) === canonicalJson(command(b));
+}
+
+/** Per-version certified summary bound; immutable receipts remain separately retained in custody. */
+export const MAX_OBJECT_VERSION_EVIDENCE_BYTES = 262_144;
+export function objectVersionKey(observation: Observation): string | undefined {
+  if (observation.kind === 'unsupported') return undefined;
+  const time = exactTime(observation.version);
+  const entityRef = observation.kind === 'transaction' ? observation.transactionRef : observation.kind === 'subscription' ? observation.subscriptionRef : observation.adjustmentRef;
+  return canonicalJson([observation.kind, entityRef, time.seconds, time.fraction]);
 }
