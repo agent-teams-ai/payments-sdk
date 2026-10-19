@@ -15,6 +15,11 @@ export const fixtureTime = '2026-10-01T00:00:00.123456Z';
 export const fixturePeriod = { starts_at: fixtureTime, ends_at: '2026-11-01T00:00:00.123456Z' };
 export type FixtureObject = Record<string, unknown>;
 
+export function productFixture(): FixtureObject {
+  return { id: paddleIds.product, name: 'Synthetic fixture product', type: 'standard', description: null, tax_category: 'standard', image_url: null, custom_data: null,
+    status: 'active', created_at: fixtureTime, updated_at: fixtureTime, import_meta: null };
+}
+
 export function priceFixture(monthly = true, trial = false): FixtureObject {
   return { id: paddleIds.price, product_id: paddleIds.product, description: 'Synthetic supported price', name: 'Fixture', type: 'standard',
     billing_cycle: monthly ? { interval: 'month', frequency: 1 } : null, trial_period: trial ? { interval: 'day', frequency: 7, requires_payment_method: true } : null,
@@ -31,7 +36,7 @@ export function transactionFixture(options: Readonly<{ id?: string; monthly?: bo
     items: [{ price: priceFixture(monthly, options.trial), quantity: 1, proration: null }],
     details: { tax_rates_used: [], totals: { subtotal: total, discount: '0', tax: '0', total, credit: '0', credit_to_balance: '0', balance: '0', grand_total: total, fee: null, earnings: null, currency_code: 'USD' },
       adjusted_totals: null, payout_totals: null, adjusted_payout_totals: null,
-      line_items: [{ id: paddleIds.line, price_id: paddleIds.price, quantity: 1, proration: null, tax_rate: '0', unit_totals: { subtotal: total, discount: '0', tax: '0', total }, totals: { subtotal: total, discount: '0', tax: '0', total }, product: null }] },
+      line_items: [{ id: paddleIds.line, price_id: paddleIds.price, quantity: 1, proration: null, tax_rate: '0', unit_totals: { subtotal: total, discount: '0', tax: '0', total }, totals: { subtotal: total, discount: '0', tax: '0', total }, product: productFixture() }] },
     payments: [], checkout: { url: 'https://checkout.paddle.test/fixture' }, created_at: fixtureTime, updated_at: options.version ?? fixtureTime, billed_at: fixtureTime, revised_at: null,
   };
 }
@@ -42,7 +47,7 @@ export function subscriptionFixture(options: Readonly<{ status?: string; schedul
     paused_at: null, canceled_at: options.status === 'canceled' ? fixtureTime : null, discount: null, collection_mode: 'automatic', billing_details: null,
     current_billing_period: options.status === 'canceled' ? null : { ...fixturePeriod }, billing_cycle: { interval: 'month', frequency: 1 },
     scheduled_change: options.scheduled ? { action: 'cancel', effective_at: fixturePeriod.ends_at, resume_at: null } : null, management_urls: null,
-    items: [{ status: 'active', quantity: 1, recurring: true, created_at: fixtureTime, updated_at: fixtureTime, previously_billed_at: fixtureTime, next_billed_at: fixturePeriod.ends_at, trial_dates: null, price: priceFixture(), product: null }],
+    items: [{ status: 'active', quantity: 1, recurring: true, created_at: fixtureTime, updated_at: fixtureTime, previously_billed_at: fixtureTime, next_billed_at: fixturePeriod.ends_at, trial_dates: null, price: priceFixture(), product: productFixture() }],
     custom_data: null, import_meta: null,
   };
 }

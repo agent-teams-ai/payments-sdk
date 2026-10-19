@@ -27,11 +27,13 @@ function httpsUrl(value: unknown): string { const result = string(value), parsed
 function placeholderSource(query?: JsonValue): EvidenceSource {
   return { kind: 'authenticated_api', receiptId: '', representationDigest: '', decoderVersion: PADDLE_DECODER_VERSION, sdkVersion: SDK_VERSION, apiProfile: PADDLE_API_PROFILE, ...(query === undefined ? {} : { query }) };
 }
-function apiReceipt(observation: Observation, scope: PaymentScope): VerifiedInput {
-  // This is the neutral semantic projection. It is not the SDK entity or original API JSON.
+function apiReceipt(observation: Observation, scope: PaymentScope, mappedDiagnostic: unknown): VerifiedInput {
+  // Only the validated neutral projection is policy input. The diagnostic is explicitly
+  // SDK-mapped/lossy JSON, never an SDK class instance or original provider wire body.
   const { source: original, ...projection } = observation;
-  const representation = json(projection), representationDigest = digest(representation);
-  const receiptId = digest([scope, 'mapped-api-observation', original.eventId ?? null, representationDigest, PADDLE_DECODER_VERSION]);
+  const representation = json({ representationKind: 'sdk_mapped_observation', sdkVersion: SDK_VERSION, decoderVersion: PADDLE_DECODER_VERSION, projection, diagnostic: mappedDiagnostic });
+  const representationDigest = digest(representation);
+  const receiptId = digest([scope, 'mapped-api-observation', original.eventId ?? null, original.query ?? null, representationDigest, PADDLE_DECODER_VERSION]);
   const source: EvidenceSource = { ...original, receiptId, representationDigest };
   const normalized = { ...observation, source };
   return { scope, inputId: receiptId, source, observation: normalized, retainedRepresentation: representation,
@@ -77,21 +79,32 @@ export class PaddlePaymentProvider implements PaymentProvider {
   }
 
   async readTransaction(transactionRef: string): Promise<ProviderResult<TransactionObservation>> {
+    const result = await this.readTransactionInput(transactionRef);
+    return result.kind === 'succeeded' ? { kind: 'succeeded', value: result.value.observation as TransactionObservation } : result;
+  }
+
+  /** Full source receipt for durable reconciliation; ordinary read returns only its neutral observation. */
+  async readTransactionInput(transactionRef: string): Promise<ProviderResult<VerifiedInput>> {
     try { providerId(transactionRef, 'txn'); } catch { return { kind: 'rejected', code: 'validation' }; }
     try {
       const result = await this.#sdk.transactions.get(transactionRef);
       if (result.id !== transactionRef) return { kind: 'rejected', code: 'ownership_mismatch' };
-      const receipt = apiReceipt(transactionObservation(result, 'mapped', placeholderSource(), this.scope), this.scope);
-      return { kind: 'succeeded', value: receipt.observation as TransactionObservation };
+      const receipt = apiReceipt(transactionObservation(result, 'mapped', placeholderSource(), this.scope), this.scope, result);
+      return { kind: 'succeeded', value: receipt };
     } catch (error) { return translatePaddleError(error, false); }
   }
 
   async readSubscription(subscriptionRef: string): Promise<ProviderResult<SubscriptionObservation>> {
+    const result = await this.readSubscriptionInput(subscriptionRef);
+    return result.kind === 'succeeded' ? { kind: 'succeeded', value: result.value.observation as SubscriptionObservation } : result;
+  }
+
+  async readSubscriptionInput(subscriptionRef: string): Promise<ProviderResult<VerifiedInput>> {
     try { providerId(subscriptionRef, 'sub'); } catch { return { kind: 'rejected', code: 'validation' }; }
     try {
       const result = await this.#sdk.subscriptions.get(subscriptionRef);
       if (result.id !== subscriptionRef) return { kind: 'rejected', code: 'ownership_mismatch' };
-      return { kind: 'succeeded', value: apiReceipt(subscriptionObservation(result, 'mapped', placeholderSource()), this.scope).observation as SubscriptionObservation };
+      return { kind: 'succeeded', value: apiReceipt(subscriptionObservation(result, 'mapped', placeholderSource()), this.scope, result) };
     } catch (error) { return translatePaddleError(error, false); }
   }
 
@@ -136,7 +149,7 @@ export class PaddlePaymentProvider implements PaymentProvider {
     const config = this.#options.webhook;
     if (config === undefined) return { kind: 'unsupported', capability: 'webhook_verification' };
     let body: string;
-    try { body = typeof rawBody === 'string' ? rawBody : new TextDecoder('utf-8', { fatal: true }).decode(rawBody); } catch { return { kind: 'rejected', code: 'validation' }; }
+    try { body = typeof rawBody === 'string' ? rawBody : new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(rawBody); } catch { return { kind: 'rejected', code: 'validation' }; }
     try { if (!(await this.#sdk.webhooks.isSignatureValid(body, config.secret, signature))) return { kind: 'rejected', code: 'permission_denied' }; } catch { return { kind: 'rejected', code: 'permission_denied' }; }
     try {
       const parsed: unknown = JSON.parse(body), event = envelope(parsed);
@@ -162,7 +175,7 @@ export class PaddlePaymentProvider implements PaymentProvider {
     const body = string(object(input.retainedRepresentation)['rawBody']);
     if (rawDigest(body) !== input.source.verification.rawBodyDigest) throw new TypeError('Retained body digest mismatch');
     const event = envelope(JSON.parse(body) as unknown);
-    if (event.eventId !== input.source.eventId) throw new TypeError('Retained event mismatch');
+    if (event.eventId !== input.source.eventId || event.eventType !== input.source.eventType || event.occurredAt !== input.source.occurredAt || rawDigest(body) !== input.source.representationDigest) throw new TypeError('Retained event mismatch');
     return this.#webhookInput(body, event, { ...input.source, decoderVersion: PADDLE_DECODER_VERSION });
   }
 
@@ -183,7 +196,7 @@ export class PaddlePaymentProvider implements PaymentProvider {
         if (previous !== undefined && eventId <= previous) return gap('nonprogressing_event_page');
         previous = eventId; exactTime(event.occurredAt);
         const source: EvidenceSource = { ...placeholderSource(json(query)), eventId, eventType: event.eventType, occurredAt: event.occurredAt };
-        inputs.push(apiReceipt(normalizeObservation(event.data, event.eventType, 'mapped', source, this.scope), this.scope));
+        inputs.push(apiReceipt(normalizeObservation(event.data, event.eventType, 'mapped', source, this.scope), this.scope, event));
       }
       return { kind: 'page', inputs, hasMore: collection.hasMore, ...(previous === undefined ? {} : { lastEventId: previous }) };
     } catch { return gap('sdk_acquisition_or_mapping_failed'); }
@@ -199,7 +212,7 @@ export class PaddlePaymentProvider implements PaymentProvider {
         const ref = providerId(value.id, 'adj');
         if ((previous !== undefined && ref <= previous) || value.transactionId !== transactionRef) throw new TypeError('Invalid adjustment page');
         previous = ref;
-        return apiReceipt(normalizeObservation(value, 'adjustment.snapshot', 'mapped', placeholderSource(json({ transactionRef, after: after ?? null })), this.scope), this.scope);
+        return apiReceipt(normalizeObservation(value, 'adjustment.snapshot', 'mapped', placeholderSource(json({ transactionRef, after: after ?? null })), this.scope), this.scope, value);
       });
       return { kind: 'succeeded', value: { inputs, hasMore: collection.hasMore, ...(previous === undefined ? {} : { lastAdjustmentId: previous }) } };
     } catch (error) { return translatePaddleError(error, false); }

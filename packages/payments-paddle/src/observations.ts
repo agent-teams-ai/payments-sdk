@@ -3,6 +3,8 @@ import type { AdjustmentObservation, EvidenceSource, Field, Money, Observation, 
 
 type RecordValue = Record<string, unknown>;
 type Mode = 'raw' | 'mapped';
+const transactionEvents = new Set(['transaction.created', 'transaction.ready', 'transaction.billed', 'transaction.paid', 'transaction.completed', 'transaction.updated', 'transaction.revised', 'transaction.canceled', 'transaction.past_due', 'transaction.payment_failed']);
+const subscriptionEvents = new Set(['subscription.created', 'subscription.activated', 'subscription.trialing', 'subscription.updated', 'subscription.paused', 'subscription.resumed', 'subscription.canceled', 'subscription.past_due', 'subscription.imported']);
 const unknown = <T>(): Field<T> => ({ presence: 'unknown' });
 const known = <T>(value: T, assumed = false): Field<T> => assumed ? { presence: 'known', value, provenance: 'schema_assumed_null' } : { presence: 'known', value, provenance: 'observed' };
 const record = (value: unknown): RecordValue => {
@@ -49,6 +51,7 @@ function nonTrial(value: unknown, mode: Mode): Field<boolean> {
   return field(() => {
     const item = record(value);
     text(item['interval']); positiveInteger(item['frequency']);
+    if (typeof get(item, mode, 'requires_payment_method', 'requiresPaymentMethod') !== 'boolean') throw new TypeError('Invalid trial payment-method requirement');
     return true;
   });
 }
@@ -149,9 +152,9 @@ export function adjustmentObservation(value: unknown, mode: Mode, source: Eviden
 /** Raw is decoded directly to preserve field presence; mapped API values carry explicit loss assumptions. */
 export function normalizeObservation(value: unknown, type: string, mode: Mode, source: EvidenceSource, scope: PaymentScope): Observation {
   try {
-    if (type.startsWith('transaction.')) return transactionObservation(value, mode, source, scope);
-    if (type.startsWith('subscription.')) return subscriptionObservation(value, mode, source);
-    if (type.startsWith('adjustment.')) return adjustmentObservation(value, mode, source);
+    if (transactionEvents.has(type)) return transactionObservation(value, mode, source, scope);
+    if (subscriptionEvents.has(type)) return subscriptionObservation(value, mode, source);
+    if (type === 'adjustment.created' || type === 'adjustment.updated' || type === 'adjustment.snapshot') return adjustmentObservation(value, mode, source);
     return { kind: 'unsupported', reason: 'unsupported_event_type', source };
   } catch {
     const data = typeof value === 'object' && value !== null && !Array.isArray(value) ? value as RecordValue : {};
