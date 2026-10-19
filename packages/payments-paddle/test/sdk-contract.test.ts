@@ -143,9 +143,12 @@ test('official SDK contract probes with synthetic API1 fixtures and no network',
 
     await t.test('payment update GET has mutation uncertainty and no automatic retry', async () => {
       pool.intercept({ path: `/subscriptions/${paddleIds.subscription}/update-payment-method-transaction`, method: 'GET' }).replyWithError(new Error('simulated response loss after provider effect'));
-      assert.equal((await provider.openPaymentUpdate({ subscriptionRef: paddleIds.subscription, attemptId: 'attempt-update' })).kind, 'outcome_unknown');
+      assert.equal((await provider.openPaymentUpdate({ subscriptionRef: paddleIds.subscription, intentId: 'intent-update', attemptId: 'attempt-update' })).kind, 'outcome_unknown');
       pool.intercept({ path: `/subscriptions/${paddleIds.subscription}/update-payment-method-transaction`, method: 'GET' }).reply(200, responseFixture(transactionFixture({ total: '0', origin: 'subscription_payment_method_change' })));
-      assert.equal(succeeded(await provider.openPaymentUpdate({ subscriptionRef: paddleIds.subscription, attemptId: 'attempt-update-2' })).transactionRef, paddleIds.transaction);
+      const ready = succeeded(await provider.openPaymentUpdate({ subscriptionRef: paddleIds.subscription, intentId: 'intent-update', attemptId: 'attempt-update-2' }));
+      assert.equal(ready.transactionRef, paddleIds.transaction);
+      assert.equal(ready.purpose, 'payment_method');
+      assert.equal(ready.intentId, 'intent-update');
     });
 
     await t.test('network/non-JSON create outcomes remain unknown; known validation rejection stays rejected', async () => {

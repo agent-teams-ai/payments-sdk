@@ -13,7 +13,7 @@
     "build": "tsc -b",
     "typecheck": "tsc -b && tsc -p tsconfig.checks.json",
     "toolchain:check": "node tools/toolchain.ts",
-    "lint": "oxlint --config .oxlintrc.json packages tests tools",
+    "lint": "oxlint --config .oxlintrc.json packages tests tools examples",
     "foundation:check": "agent-teams-foundation check",
     "foundation:assert-dev-only": "agent-teams-foundation assert-dev-only",
     "foundation:assert-registry": "agent-teams-foundation assert-registry",

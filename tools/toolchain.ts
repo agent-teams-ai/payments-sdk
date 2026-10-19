@@ -43,7 +43,7 @@ for (const project of projects) {
 }
 
 let count = 0;
-for await (const source of glob(['packages/**/*.{ts,js,mjs,mts,cjs,cts,tsx,jsx}', 'tools/**/*.{ts,js,mjs,mts,cjs,cts,tsx,jsx}', 'tests/**/*.{ts,js,mjs,mts,cjs,cts,tsx,jsx}'], { cwd: root, exclude: ['**/dist/**', '**/node_modules/**'] })) {
+for await (const source of glob(['packages/**/*.{ts,js,mjs,mts,cjs,cts,tsx,jsx}', 'tools/**/*.{ts,js,mjs,mts,cjs,cts,tsx,jsx}', 'tests/**/*.{ts,js,mjs,mts,cjs,cts,tsx,jsx}', 'examples/**/*.{ts,js,mjs,mts,cjs,cts,tsx,jsx}'], { cwd: root, exclude: ['**/dist/**', '**/node_modules/**'] })) {
   assert.ok(source.endsWith('.ts') && !source.endsWith('.d.ts'), `${source}: maintained sources must be .ts`);
   assert.equal(owners.get(resolve(root, source))?.length, 1, `${source}: needs exactly one strict owning project; found ${owners.get(resolve(root, source))?.join(', ') ?? 'none'}`);
   count += 1;
