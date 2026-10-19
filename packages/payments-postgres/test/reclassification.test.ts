@@ -390,5 +390,12 @@ test('a duplicate pending receipt fences a historical parent certified since its
     for (const checkout of [a, b]) {
       const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.flags.includes('conflict')); assert.ok(!aggregate.pendingAdverse.includes(early.inputId));
     }
+    const beforeReplay = await Promise.all([a, b].map(checkout => context.payments.readPurchase('buyer', checkout.intentId)));
+    const evidence = async () => (await f.pool.query(`SELECT id, body FROM "${f.schema}".records WHERE kind = 'evidence' ORDER BY id`)).rows;
+    const immutableEvidence = await evidence();
+    success(await context.payments.ingestVerifiedInput(early));
+    assert.equal(await context.payments.processInbox(early.inputId), 'duplicate');
+    assert.deepEqual(await Promise.all([a, b].map(checkout => context.payments.readPurchase('buyer', checkout.intentId))), beforeReplay, 'processed duplicates cannot recreate pending markers or rewrite completion');
+    assert.deepEqual(await evidence(), immutableEvidence, 'processed replay creates no new evidence and preserves immutable messages');
   } finally { await context.payments.drain(); await f.close(); }
 });
