@@ -227,3 +227,51 @@ test('shutdown tracks physical safe reads and cleanup, including nested producer
   await Promise.resolve(); assert.equal(drained, false);
   read.resolve({ kind: 'succeeded', value: transaction(checkout.transactionRef, 'drained-read') }); await refreshing; await drain; assert.equal(drained, true);
 });
+
+test('unknown final line profile is incomplete and a fuller same-version receipt positively recovers', async () => {
+  const context = setup(), checkout = await purchase(context), observation = transaction(checkout.transactionRef, 'partial-line');
+  if (observation.lines.presence !== 'known') throw new Error('Fixture');
+  await observe(context, { ...observation, lines: yes(observation.lines.value.map(line => ({ ...line, trial: unknown, proration: unknown, billingCycle: unknown }))) });
+  let aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate?.flags.includes('incomplete')); assert.ok(!aggregate.flags.includes('catalog_mismatch'));
+  await observe(context, transaction(checkout.transactionRef, 'full-line'));
+  aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate?.completion); assert.ok(!aggregate.flags.includes('incomplete')); assert.ok(!aggregate.flags.includes('catalog_mismatch'));
+});
+
+test('late success before an authorized retry is dispatched prevents a gratuitous second create', async () => {
+  const context = setup('one_time', false, 1), reply = deferred<ProviderResult<{ intentId: string; transactionRef: string; checkout: { token: string } }>>(); let intentId = '';
+  context.replaceCreate(async command => { intentId = command.intentId; return reply.promise; });
+  const unknownResult = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'request' }); assert.equal(unknownResult.kind, 'outcome_unknown'); if (unknownResult.kind !== 'outcome_unknown') throw new Error('Fixture');
+  const operation = await context.payments.readOperation(unknownResult.operationId); assert.ok(operation);
+  await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'risk', reason: 'retry authorized', action: 'retry', acceptedDuplicateRisk: true });
+  reply.resolve({ kind: 'succeeded', value: { intentId, transactionRef: 'proven-existing', checkout: { token: 'existing' } } }); await context.payments.drain();
+  assert.equal((await context.payments.executeOperation(operation.operationId)).kind, 'succeeded'); assert.equal(context.calls(), 1);
+});
+
+test('payment update recovers the original recurring period and method updates remain noncommercial', async () => {
+  const context = setup('monthly'), checkout = await purchase(context); await observe(context, transaction(checkout.transactionRef, 'monthly-initial', 'monthly'));
+  const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis);
+  const renewal = transaction('failed-renewal', 'renewal-failed', 'monthly', { status: 'past_due', origin: yes('subscription_recurring'), version: '2026-02-01T00:00:00Z' });
+  if (renewal.lines.presence !== 'known') throw new Error('Fixture');
+  const renewalLines = renewal.lines.value.map(line => ({ ...line, period: yes({ startsAt: '2026-02-01T00:00:00Z', endsAt: '2026-03-01T00:00:00Z' }) }));
+  await observe(context, { ...renewal, lines: yes(renewalLines) });
+  Object.assign(context.provider.capabilities, { paymentUpdate: true });
+  context.provider.openPaymentUpdate = async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'failed-renewal', purpose: 'recovery', checkout: { token: 'recover' } } });
+  const ready = await context.payments.openPaymentUpdate({ buyerId: 'buyer', bindingId: basis, requestKey: 'recover' }); assert.equal(ready.kind, 'succeeded'); if (ready.kind === 'succeeded') assert.equal(ready.value.purpose, 'recovery');
+  await observe(context, { ...renewal, lines: yes(renewalLines), status: 'completed', version: '2026-02-02T00:00:00Z', source: source('renewal-recovered') });
+  const fact = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions.find(item => item.transactionRef === 'failed-renewal')?.completion;
+  assert.equal(fact?.classification, 'recovery'); assert.equal(fact?.lines[0]?.period?.startsAt, '2026-02-01T00:00:00Z');
+  context.provider.openPaymentUpdate = async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'method-change', purpose: 'payment_method', checkout: { token: 'method' } } });
+  assert.equal((await context.payments.openPaymentUpdate({ buyerId: 'buyer', bindingId: basis, requestKey: 'method' })).kind, 'succeeded');
+  await observe(context, transaction('method-change', 'method-completed', 'monthly', { origin: yes('subscription_payment_method_change'), total: yes(money('USD', '0')) }));
+  assert.equal((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions.find(item => item.transactionRef === 'method-change')?.completion, undefined);
+});
+
+test('conflicting raw event identity holds its original route even when the conflicting payload changes transaction', async () => {
+  const context = setup(), checkout = await purchase(context);
+  const raw = (receiptId: string, stableEnvelopeDigest: string): EvidenceSource => ({ ...source(receiptId), kind: 'verified_webhook', eventId: 'same-event', stableEnvelopeDigest, verification: { verifiedAt: at, endpointId: 'endpoint', rawBodyDigest: digest(receiptId) } });
+  const first = transaction(checkout.transactionRef, 'raw-a', 'one_time', { source: raw('raw-a', 'body-a') }); await observe(context, first);
+  const conflicting = transaction('different-transaction', 'raw-b', 'one_time', { source: raw('raw-b', 'body-b') });
+  assert.equal((await context.payments.ingestVerifiedInput(input(conflicting))).kind, 'succeeded');
+  assert.equal(await context.payments.processInbox('raw-b'), 'quarantined');
+  assert.ok((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.flags.includes('conflict'));
+});

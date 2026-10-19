@@ -21,6 +21,7 @@ export type Observation = TransactionObservation | SubscriptionObservation | Adj
 /** The adapter assigns scope from trusted endpoint/connection configuration, never from event custom data. */
 export type VerifiedInput = Readonly<{ scope: PaymentScope; inputId: string; source: EvidenceSource; observation: Observation; retainedRepresentation: JsonValue; adverseTransactionRef?: string }>;
 export type CheckoutReady = Readonly<{ intentId: string; transactionRef: string; checkout: Readonly<{ url?: string; token?: string }> }>;
+export type PaymentUpdateReady = CheckoutReady & Readonly<{ purpose: 'payment_method' | 'recovery' }>;
 export type CancellationOutcome = Readonly<{ kind: 'scheduled'; effectiveAt: string }> | Readonly<{ kind: 'applied'; observedStatus: string }>;
 export type CapabilityProfile = Readonly<{ checkout: true; transactionRead: true; subscriptionRead: true; cancellation: readonly ('now' | 'period_end')[]; paymentUpdate: boolean; customerManagement: boolean }>;
 export interface PaymentProvider {
@@ -30,7 +31,7 @@ export interface PaymentProvider {
   readTransaction(transactionRef: string): Promise<ProviderResult<TransactionObservation>>;
   readSubscription(subscriptionRef: string): Promise<ProviderResult<SubscriptionObservation>>;
   cancelSubscription?(input: Readonly<{ subscriptionRef: string; timing: 'now' | 'period_end'; attemptId: string }>): Promise<ProviderResult<CancellationOutcome>>;
-  openPaymentUpdate?(input: Readonly<{ subscriptionRef: string; attemptId: string }>): Promise<ProviderResult<CheckoutReady>>;
+  openPaymentUpdate?(input: Readonly<{ subscriptionRef: string; intentId: string; attemptId: string }>): Promise<ProviderResult<PaymentUpdateReady>>;
   createManagementLink?(input: Readonly<{ customerRef: string; subscriptionRefs: readonly string[] }>): Promise<ProviderResult<Readonly<{ url: string; expiresAt?: string }>>>;
 }
 export type OperationKind = 'purchase' | 'cancellation' | 'payment_update';

@@ -84,7 +84,7 @@ export class MemoryPaymentStore implements PaymentStore {
       if (existingId && existingId !== commit.operation.operationId) return { kind: 'conflict' } as const;
       if (commit.binding) {
         const existing = state.bindings[commit.binding.transactionRef];
-        if (existing && (existing.intentId !== commit.binding.intentId || existing.buyerId !== commit.binding.buyerId || existing.purpose !== commit.binding.purpose)) return { kind: 'conflict' } as const;
+        if (existing && (existing.intentId !== commit.binding.intentId || existing.buyerId !== commit.binding.buyerId || (existing.purpose !== commit.binding.purpose && !(existing.purpose === 'commercial' && commit.binding.purpose === 'recovery')))) return { kind: 'conflict' } as const;
         state.bindings[commit.binding.transactionRef] = existing?.customerRef !== null && existing?.customerRef !== undefined ? { ...commit.binding, customerRef: existing.customerRef } : commit.binding;
         const aggregate = transactionAggregate(state, commit.binding.transactionRef); aggregate.revision += 1; aggregate.publicationRequired = true;
       }

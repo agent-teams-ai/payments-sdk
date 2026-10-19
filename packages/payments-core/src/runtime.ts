@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { AggregateIdentity, CancellationOutcome, CheckoutReady, EvidenceMessage, JsonValue, OperationCommit, OperationInput, OperationResult, PaymentOperation, PaymentReadVersion, PaymentRuntimeOptions, ProviderResult, ResolveUnknown, StartPurchase, SubscriptionBinding, TransactionBinding, VerifiedInput } from './contracts.js';
+import type { AggregateIdentity, CancellationOutcome, CheckoutReady, EvidenceMessage, JsonValue, OperationCommit, OperationInput, OperationResult, PaymentOperation, PaymentReadVersion, PaymentUpdateReady, PaymentRuntimeOptions, ProviderResult, ResolveUnknown, StartPurchase, SubscriptionBinding, TransactionBinding, VerifiedInput } from './contracts.js';
 import { processInput, publishEvidence, reduceObservation, publishHeldEvidence, validateOffer } from './reducer.js';
 import { assertIdentifier, assertScope, canonicalJson, digest, sameScope } from './values.js';
 
@@ -19,7 +19,8 @@ function resultState(result: ProviderResult<JsonValue>): PaymentOperation['state
 }
 /** Ordinary factory. Host supplies authenticated commands, catalog, connection, storage and lifecycle. */
 export function createPayments(options: PaymentRuntimeOptions) {
-  const { scope, provider, store, catalog, producerNamespace } = options;
+  const { provider, store, catalog, producerNamespace } = options;
+  const scope = Object.freeze(structuredClone(options.scope));
   assertScope(scope); assertIdentifier(producerNamespace);
   if (!sameScope(scope, provider.scope)) throw new TypeError('Provider scope mismatch');
   if (!provider.capabilities.checkout || !provider.capabilities.transactionRead || !provider.capabilities.subscriptionRead) throw new TypeError('Required provider capability missing');
@@ -50,7 +51,7 @@ export function createPayments(options: PaymentRuntimeOptions) {
       const operation = structuredClone(input.operation), attempt = operation.attempts.find(item => item.attemptId === attemptId);
       if (!attempt) throw new Error('Attempt disappeared');
       const currentAttempt = operation.attempts.at(-1)?.attemptId === attemptId;
-      const mayFinish = currentAttempt && ['dispatch_started', 'outcome_unknown'].includes(operation.state);
+      const mayFinish = currentAttempt && (['dispatch_started', 'outcome_unknown'].includes(operation.state) || (operation.state === 'prepared' && result.kind === 'succeeded'));
       let binding: TransactionBinding | undefined;
       const intent = input.intent ? structuredClone(input.intent) : undefined;
       if (result.kind === 'succeeded' && operation.kind === 'purchase') {
@@ -60,8 +61,9 @@ export function createPayments(options: PaymentRuntimeOptions) {
         binding = { transactionRef: checkout.transactionRef, intentId: intent.intentId, buyerId: intent.buyerId, purpose: 'commercial', customerRef: null };
         if (!intent.transactionRefs.includes(checkout.transactionRef)) intent.transactionRefs.push(checkout.transactionRef);
       } else if (result.kind === 'succeeded' && operation.kind === 'payment_update') {
-        const checkout = result.value as unknown as CheckoutReady;
-        if (input.subscriptionBinding) binding = { transactionRef: checkout.transactionRef, intentId: input.subscriptionBinding.originatingIntentId, buyerId: operation.buyerId, purpose: 'payment_method', customerRef: input.subscriptionBinding.customerRef };
+        const checkout = result.value as unknown as PaymentUpdateReady;
+        if (!['payment_method', 'recovery'].includes(checkout.purpose)) throw new Error('Unproven payment update purpose');
+        if (input.subscriptionBinding) binding = { transactionRef: checkout.transactionRef, intentId: input.subscriptionBinding.originatingIntentId, buyerId: operation.buyerId, purpose: checkout.purpose, customerRef: input.subscriptionBinding.customerRef };
       }
       if (mayFinish) { operation.state = resultState(result); operation.result = result; }
       operation.revision += 1;
@@ -96,7 +98,7 @@ export function createPayments(options: PaymentRuntimeOptions) {
         const subscriptionRef = input.subscriptionBinding?.selectedSubscriptionRef;
         if (!subscriptionRef) return { kind: 'rejected', code: 'ownership_mismatch' };
         if (operation.kind === 'cancellation' && operation.timing && provider.cancelSubscription) return jsonResult(await provider.cancelSubscription({ subscriptionRef, timing: operation.timing, attemptId }));
-        if (operation.kind === 'payment_update' && provider.openPaymentUpdate) return jsonResult(await provider.openPaymentUpdate({ subscriptionRef, attemptId }));
+        if (operation.kind === 'payment_update' && provider.openPaymentUpdate) return jsonResult(await provider.openPaymentUpdate({ subscriptionRef, intentId: input.subscriptionBinding?.originatingIntentId ?? '', attemptId }));
         return { kind: 'unsupported', capability: operation.kind };
       } catch { return { kind: 'outcome_unknown' }; }
     };
@@ -219,8 +221,8 @@ export function createPayments(options: PaymentRuntimeOptions) {
   async function requestCancellation(command: Readonly<{ buyerId: string; bindingId: string; requestKey: string; timing: 'now' | 'period_end' }>): Promise<OperationResult<CancellationOutcome>> {
     return await admitSubscriptionCommand({ ...command, kind: 'cancellation' }) as OperationResult<CancellationOutcome>;
   }
-  async function openPaymentUpdate(command: Readonly<{ buyerId: string; bindingId: string; requestKey: string }>): Promise<OperationResult<CheckoutReady>> {
-    return await admitSubscriptionCommand({ ...command, kind: 'payment_update' }) as OperationResult<CheckoutReady>;
+  async function openPaymentUpdate(command: Readonly<{ buyerId: string; bindingId: string; requestKey: string }>): Promise<OperationResult<PaymentUpdateReady>> {
+    return await admitSubscriptionCommand({ ...command, kind: 'payment_update' }) as OperationResult<PaymentUpdateReady>;
   }
   /** Host must authorize customer-wide authority independently; local subscription ownership is insufficient. */
   async function createManagementLink(command: Readonly<{ buyerId: string; bindingId: string; customerAuthority: Readonly<{ customerRef: string; authorizationRef: string }> }>): Promise<OperationResult<Readonly<{ url: string; expiresAt?: string }>>> {

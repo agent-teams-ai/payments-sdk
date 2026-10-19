@@ -12,7 +12,7 @@ function subscriptionAggregate(state: PaymentState, ref: string): SubscriptionAg
 }
 function semantic(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(semantic);
-  if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'provenance' && key !== 'source').map(([key, item]) => [key, key === 'version' && 'kind' in value && typeof item === 'string' ? { seconds: exactTime(item).seconds, fraction: exactTime(item).fraction } : semantic(item)]));
+  if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'provenance' && key !== 'source').map(([key, item]) => [key, ((key === 'version' && 'kind' in value) || ['startsAt', 'endsAt', 'effectiveAt'].includes(key)) && typeof item === 'string' ? { seconds: exactTime(item).seconds, fraction: exactTime(item).fraction } : semantic(item)]));
   return value;
 }
 function compatible(a: unknown, b: unknown): boolean {
@@ -57,6 +57,7 @@ function validLine(line: ProviderLine, offer: OfferSnapshot): boolean {
   const expected = offer.lines[0];
   if (!expected || line.providerPriceRef !== expected.providerPriceRef || line.quantity !== 1 || line.amount.currency !== offer.currency || !known(line.trial) || line.trial.value || !known(line.proration) || line.proration.value || !known(line.billingCycle)) return false;
   money(line.amount.currency, line.amount.minorUnits); assertIdentifier(line.providerLineRef);
+  if (BigInt(line.amount.minorUnits) < 0n) return false;
   if (offer.profile === 'one_time') return line.billingCycle.value === null && (!known(line.period) || line.period.value === null);
   const cycle = line.billingCycle.value;
   if (cycle?.interval !== 'month' || cycle.frequency !== 1 || !known(line.period) || line.period.value === null) return false;
@@ -73,6 +74,7 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
   if (!intent) return { kind: 'held', reason: 'unresolved_binding' };
   const offer = intent.offer;
   if (!known(observation.lines) || !known(observation.total) || !known(observation.currency) || !known(observation.origin) || !known(observation.customerRef) || (offer.profile === 'monthly' && !known(observation.subscriptionRef))) return { kind: 'held', reason: 'incomplete' };
+  if (observation.lines.value.some(line => !known(line.billingCycle) || !known(line.trial) || !known(line.proration) || (offer.profile === 'monthly' && !known(line.period)))) return { kind: 'held', reason: 'incomplete' };
   if (observation.currency.value !== offer.currency || observation.total.value.currency !== offer.currency || observation.lines.value.length !== offer.lines.length || !observation.lines.value.every(line => validLine(line, offer))) return { kind: 'held', reason: 'catalog_mismatch' };
   money(observation.total.value.currency, observation.total.value.minorUnits);
   if (BigInt(observation.total.value.minorUnits) < 0n || (!offer.allowZeroTotal && observation.total.value.minorUnits === '0')) return { kind: 'held', reason: 'catalog_mismatch' };
@@ -153,6 +155,8 @@ function reduceTransaction(state: PaymentState, scope: PaymentScope, observation
 function reduceSubscription(state: PaymentState, observation: SubscriptionObservation): void {
   exactTime(observation.version);
   const aggregate = subscriptionAggregate(state, observation.subscriptionRef);
+  if (known(observation.currentPeriod) && observation.currentPeriod.value && compareTime(observation.currentPeriod.value.startsAt, observation.currentPeriod.value.endsAt) >= 0) throw new TypeError('Invalid subscription period');
+  if (known(observation.scheduledChange) && observation.scheduledChange.value) exactTime(observation.scheduledChange.value.effectiveAt);
   const current = aggregate.current;
   if (current) {
     const order = compareTime(observation.version, current.version);
@@ -162,6 +166,7 @@ function reduceSubscription(state: PaymentState, observation: SubscriptionObserv
     else aggregate.lastKnown = current;
   }
   aggregate.current = observation;
+  if ((known(observation.status) && !['active', 'past_due', 'canceled'].includes(observation.status.value)) || (known(observation.scheduledChange) && observation.scheduledChange.value && observation.scheduledChange.value.action !== 'cancel')) flag(aggregate, 'unsupported');
   if (!known(observation.status) || !known(observation.scheduledChange) || !known(observation.currentPeriod) || !known(observation.priceRefs) || !known(observation.customerRef)) flag(aggregate, 'incomplete'); else removeFlag(aggregate, 'incomplete');
   const bindings = Object.values(state.subscriptionBindings).filter(binding => binding.providerSubscriptionRefs.includes(observation.subscriptionRef));
   if (bindings.length !== 1) flag(aggregate, 'unresolved_binding');
@@ -183,6 +188,7 @@ function reduceAdjustment(state: PaymentState, observation: AdjustmentObservatio
     if (order === 0 && !compatible(semantic(current), semantic(observation))) { flag(aggregate, 'conflict'); aggregate.revision += 1; aggregate.publicationRequired = true; return; }
   }
   aggregate.adjustments[observation.adjustmentRef] = observation;
+  if (observation.allocations.some(allocation => allocation.amount.currency !== observation.amount.currency)) flag(aggregate, 'unsupported');
   if (!['refund', 'credit', 'chargeback', 'chargeback_reverse', 'chargeback_warning', 'chargeback_warning_reverse', 'credit_reverse'].includes(observation.action) || !['pending_approval', 'approved', 'rejected', 'reversed'].includes(observation.status)) flag(aggregate, 'unsupported');
   aggregate.revision += 1; aggregate.publicationRequired = true;
 }
@@ -209,7 +215,12 @@ export function admitInput(state: PaymentState, input: VerifiedInput): 'admitted
   }
   let conflict = false;
   if (input.source.eventId && input.source.stableEnvelopeDigest) for (const receipt of Object.values(state.inbox)) {
-    if (receipt.input.source.eventId === input.source.eventId && receipt.input.source.stableEnvelopeDigest && receipt.input.source.stableEnvelopeDigest !== input.source.stableEnvelopeDigest) conflict = true;
+    if (receipt.input.source.eventId === input.source.eventId && receipt.input.source.stableEnvelopeDigest && receipt.input.source.stableEnvelopeDigest !== input.source.stableEnvelopeDigest) {
+      conflict = true;
+      const prior = receipt.input.observation;
+      if ('transactionRef' in prior && prior.transactionRef) { const aggregate = transactionAggregate(state, prior.transactionRef); flag(aggregate, 'conflict'); aggregate.revision += 1; aggregate.publicationRequired = true; }
+      if ('subscriptionRef' in prior && typeof prior.subscriptionRef === 'string') { const aggregate = subscriptionAggregate(state, prior.subscriptionRef); flag(aggregate, 'conflict'); aggregate.revision += 1; aggregate.publicationRequired = true; }
+    }
   }
   state.inbox[input.inputId] = { input, state: 'pending', conflict, attempts: 0 };
   const adverse = input.adverseTransactionRef ?? (input.observation.kind === 'adjustment' ? input.observation.transactionRef : undefined);
