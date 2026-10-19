@@ -375,7 +375,18 @@ export function admitInput(state: PaymentState, input: VerifiedInput): 'admitted
   const existing = state.inbox[input.inputId];
   if (existing) {
     const identityConflict = compareEventIdentity(eventIdentityEvidence(existing.input), eventIdentityEvidence(input)) === 'conflict';
-    if (existing.input.source.representationDigest === input.source.representationDigest && !identityConflict) { if (existing.state !== 'processed') existing.state = 'pending'; return 'duplicate'; }
+    if (existing.input.source.representationDigest === input.source.representationDigest && !identityConflict) {
+      if (existing.state !== 'processed') {
+        existing.state = 'pending';
+        // Certification may have appeared since the first admission. Replays retain custody
+        // on any newly known route without reopening markers already completed by T2.
+        for (const ref of adverseTransactionRefs(state, input)) {
+          const aggregate = transactionAggregate(state, ref);
+          if (!aggregate.pendingAdverse.includes(input.inputId)) { aggregate.pendingAdverse.push(input.inputId); aggregate.revision += 1; aggregate.publicationRequired = true; }
+        }
+      }
+      return 'duplicate';
+    }
     existing.conflict = true; state.issues.push(`input-identity-conflict:${input.inputId}`);
     flagInputConflict(state, existing.input); flagInputConflict(state, input);
     return 'conflict';

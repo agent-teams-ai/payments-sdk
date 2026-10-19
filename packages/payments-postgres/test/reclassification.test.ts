@@ -369,3 +369,26 @@ test('T1 parent discovery waits for a concurrent first exact-version certificati
     }
   } finally { if (gateHeld) await blocker.query('ROLLBACK'); blocker.release(); await context.payments.drain(); await f.close(); }
 });
+
+
+test('a duplicate pending receipt fences a historical parent certified since its first admission', async () => {
+  const f = await databaseFixture(), context = runtime(f.store);
+  try {
+    const a = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'a' })), b = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'b' }));
+    await observe(context.payments, receipt(transaction(a.transactionRef, 'paid-a'))); await observe(context.payments, receipt(transaction(b.transactionRef, 'paid-b', { subscriptionRef: known('sub-b') })));
+    const original: AdjustmentObservation = { kind: 'adjustment', adjustmentRef: 'late-certification', transactionRef: a.transactionRef, version: at, action: 'refund', status: 'rejected', amount: money('USD', '100'), allocations: [], source: transaction(a.transactionRef, 'original').source };
+    const early = receipt({ ...original, transactionRef: b.transactionRef, source: { ...original.source, receiptId: 'early-other-parent' } });
+    success(await context.payments.ingestVerifiedInput(early));
+    await observe(context.payments, receipt(original));
+    const stale = await f.store.loadPublicationInput(scope, { type: 'transaction', id: a.transactionRef }); assert.ok(stale);
+    for (const observation of stale.state.transactions[a.transactionRef]?.observations ?? []) reduceObservation(stale.state, scope, observation);
+    publishEvidence(stale.state, scope, 'database-fixture', 65536);
+    success(await context.payments.ingestVerifiedInput(early));
+    assert.deepEqual(await f.store.commitReduction(scope, { inputId: stale.inputId, expected: stale.expected, state: stale.state }), { kind: 'conflict' });
+    for (const checkout of [a, b]) assert.ok((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.pendingAdverse.includes(early.inputId));
+    assert.equal(await context.payments.processInbox(early.inputId), 'processed');
+    for (const checkout of [a, b]) {
+      const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.flags.includes('conflict')); assert.ok(!aggregate.pendingAdverse.includes(early.inputId));
+    }
+  } finally { await context.payments.drain(); await f.close(); }
+});
