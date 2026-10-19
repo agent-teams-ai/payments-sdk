@@ -15,10 +15,10 @@ function sign(body: string): string { const ts = Math.floor(Date.now() / 1000); 
 
 test('durable reconciliation through actual public Paddle SDK and PostgreSQL', { timeout: 60_000 }, async t => {
   const names = ['fetch', 'Headers', 'Response', 'Request', 'FormData', 'WebSocket', 'CloseEvent', 'ErrorEvent', 'MessageEvent', 'EventSource'] as const;
+  const connectionString = process.env['DATABASE_URL']; if (!connectionString) throw new Error('DATABASE_URL is required for reconciliation integration tests');
   const saved = names.map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)] as const), dispatcher = getGlobalDispatcher();
   install(); const agent = new MockAgent(); agent.disableNetConnect(); setGlobalDispatcher(agent);
   const api = agent.get('https://sandbox-api.paddle.com');
-  const connectionString = process.env['DATABASE_URL']; if (!connectionString) throw new Error('DATABASE_URL is required for reconciliation integration tests');
   const pool = new Pool({ connectionString, max: 8, connectionTimeoutMillis: 1000 });
   const provider = createPaddleProvider({ scope, apiKey: 'synthetic-noncredential', apiVersion: 1, webhook: { endpointId: 'reconciliation-fixture', secret, apiVersion: 1 } });
   const source = createPaddleReconciliationSource(provider);
