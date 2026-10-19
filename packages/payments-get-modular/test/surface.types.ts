@@ -1,4 +1,4 @@
-import type { PaymentsCheckout, PaymentsRead, PaymentsModule } from '../dist/index.js';
+import type { PaymentsCheckout, PaymentsRead, PaymentsProcessing, PaymentsModule } from '../dist/index.js';
 
 /** Compile-time consumer boundary; intentionally never invoked by runtime tests. */
 export function readFacetDoesNotCarryCommands(read: PaymentsRead, checkout: PaymentsCheckout, module: PaymentsModule): void {
@@ -10,4 +10,12 @@ export function readFacetDoesNotCarryCommands(read: PaymentsRead, checkout: Paym
   void module.control.close();
   // @ts-expect-error checkout consumers do not receive processing authority
   void checkout.processInbox('receipt');
+}
+
+/** Audited recovery stays on the managed runtime, with read and mutation authority segregated. */
+export function subscriptionSelectionSurface(read: PaymentsRead, processing: PaymentsProcessing, command: Parameters<PaymentsProcessing['selectSubscriptionStream']>[0]): void {
+  void read.readSubscriptionSelection(command.buyerId, command.bindingId, command.providerSubscriptionRef);
+  void processing.selectSubscriptionStream(command);
+  // @ts-expect-error read-only consumers cannot authorize a support-stream change
+  void read.selectSubscriptionStream(command);
 }

@@ -47,9 +47,9 @@ export const paymentsModule = implement<PaymentsCapabilities>()(paymentsDeclarat
     },
   });
   const checkout = Object.freeze({ startPurchase: track(runtime.startPurchase) });
-  const read = Object.freeze({ readOperation: track(runtime.readOperation), readPurchase: track(runtime.readPurchase), readObservedSubscription: track(runtime.readObservedSubscription) });
+  const read = Object.freeze({ readOperation: track(runtime.readOperation), readPurchase: track(runtime.readPurchase), readObservedSubscription: track(runtime.readObservedSubscription), readSubscriptionSelection: track(runtime.readSubscriptionSelection) });
   const management = Object.freeze({ requestCancellation: track(runtime.requestCancellation), openPaymentUpdate: track(runtime.openPaymentUpdate), createManagementLink: track(runtime.createManagementLink) });
-  const processing = Object.freeze({ ingestVerifiedInput: track(runtime.ingestVerifiedInput), processInbox: track(runtime.processInbox), flushPublication: track(runtime.flushPublication), executeOperation: track(runtime.executeOperation), refreshPurchase: track(runtime.refreshPurchase), refreshSubscription: track(runtime.refreshSubscription), resolveUnknownOperation: track(runtime.resolveUnknownOperation), repair: track(runtime.repair) });
+  const processing = Object.freeze({ ingestVerifiedInput: track(runtime.ingestVerifiedInput), processInbox: track(runtime.processInbox), flushPublication: track(runtime.flushPublication), executeOperation: track(runtime.executeOperation), refreshPurchase: track(runtime.refreshPurchase), refreshSubscription: track(runtime.refreshSubscription), resolveUnknownOperation: track(runtime.resolveUnknownOperation), selectSubscriptionStream: track(runtime.selectSubscriptionStream), repair: track(runtime.repair) });
   const delivery = Object.freeze({ registerConsumer: track(runtime.registerConsumer), readDeliveries: track(runtime.readDeliveries), acknowledgeDelivery: track(runtime.acknowledgeDelivery) });
   const instance: PaymentsModule = Object.freeze({ scope: runtime.scope, checkout, read, management, processing, delivery, lifecycle: runtime.lifecycle });
   return { instance, capabilities: { [Checkout.id]: checkout, [Read.id]: read, [Management.id]: management, [Processing.id]: processing, [Delivery.id]: delivery } };

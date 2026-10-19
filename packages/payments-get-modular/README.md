@@ -71,14 +71,16 @@ A larger Host adds `paymentsGroup` to its one composition root and consumes only
 | Descriptor | Value / root facet | Authority |
 | --- | --- | --- |
 | `Checkout` | `PaymentsCheckout` / `checkout` | `startPurchase` |
-| `Read` | `PaymentsRead` / `read` | `readOperation`, `readPurchase`, `readObservedSubscription` |
+| `Read` | `PaymentsRead` / `read` | `readOperation`, `readPurchase`, `readObservedSubscription`, `readSubscriptionSelection` |
 | `Management` | `PaymentsManagement` / `management` | Explicit cancellation, payment update, authorized management link |
-| `Processing` | `PaymentsProcessing` / `processing` | Verified admission, inbox/publication processing, operation dispatch, refresh, audited unknown resolution and bounded repair |
+| `Processing` | `PaymentsProcessing` / `processing` | Verified admission, inbox/publication processing, operation dispatch, refresh, audited unknown resolution, audited subscription stream selection and bounded repair |
 | `Delivery` | `PaymentsDelivery` / `delivery` | Consumer registration, durable delivery reads and acknowledgement |
 
 The root also exposes the configured payment `scope` and read-only `lifecycle()` diagnostics. It does not expose the resource control or the core runtime's `stop()`/`drain()` methods. Consumers receive frozen facet objects and the actual core operation results, including `unsupported`, `pending`, and `outcome_unknown`.
 
 Start checkout with `host.payments.checkout.startPurchase(...)`. A successful checkout is an instruction to show checkout, not a confirmed purchase or a product grant. Admit verified input through `processing.ingestVerifiedInput(...)`; process it explicitly; deliver resulting immutable evidence through the durable delivery protocol. Neither module construction nor lifecycle cleanup dispatches a financial command.
+
+For duplicate initial subscription streams, the authorized Host reads `read.readSubscriptionSelection(buyerId, bindingId, providerSubscriptionRef)` and submits its `expectedReadSet` to `processing.selectSubscriptionStream(...)` together with the operator, audit reference and reason. The core validates the complete read set and persists the technical stream selection audit. A stale selection is rejected. The read facet cannot authorize the mutation, and the managed runtime remains the composition's single payment runtime throughout recovery.
 
 ## Ownership, cancellation and shutdown
 
@@ -106,6 +108,6 @@ Only replaceable read projections or diagnostics belong in these hooks. Checkout
 
 ## Verification
 
-The package tests exercise the real published Assembly, Resources and Conformance runtimes: a hand-written wiring/namespace oracle, module isolation, smoke success/failure/abort injection, two independent runs from one template, sibling ownership, provider promises held past command timeout, admitted storage reads during close, downstream startup failure, cancelled late resource acquisition and invalid configuration. An explicit checkout → verified input → processed fact → durable delivery → acknowledgement scenario verifies that financial processing needs no hook. Strict compile-time probes prevent read facets from acquiring checkout or processing methods.
+The package tests exercise the real published Assembly, Resources and Conformance runtimes: a hand-written wiring/namespace oracle, module isolation, smoke success/failure/abort injection, two independent runs from one template, sibling ownership, provider promises held past command timeout, admitted storage reads during close, downstream startup failure, cancelled late resource acquisition and invalid configuration. An explicit checkout → verified input → processed fact → durable delivery → acknowledgement scenario verifies that financial processing needs no hook. A public Assembly run also preserves both duplicate initial payments, reads the selection basis, persists an audited support-stream choice, rejects a stale read set and releases only the selected stream's renewal hold. Strict compile-time probes prevent read facets from acquiring checkout or selection mutation methods.
 
 Run the repository's `build`, `typecheck`, `lint`, `foundation:check` and `test:modular` gates. Packed NodeNext and Bundler consumers remain repository release gates; installing this package should preserve exactly one qualified Get Modular peer identity.

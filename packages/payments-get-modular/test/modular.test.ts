@@ -36,7 +36,7 @@ test('real isolation exposes segregated immutable capability facets and disposes
   const host = fixture();
   const built = await isolate(paymentsModule, { dependencies: { configuration: host.options } });
   assert.deepEqual(Object.keys(built.capabilities[Checkout.id]), ['startPurchase']);
-  assert.deepEqual(Object.keys(built.capabilities[Read.id]), ['readOperation', 'readPurchase', 'readObservedSubscription']);
+  assert.deepEqual(Object.keys(built.capabilities[Read.id]), ['readOperation', 'readPurchase', 'readObservedSubscription', 'readSubscriptionSelection']);
   assert.deepEqual(Object.keys(built.capabilities[Management.id]), ['requestCancellation', 'openPaymentUpdate', 'createManagementLink']);
   assert.deepEqual(Object.keys(built.capabilities[Delivery.id]), ['registerConsumer', 'readDeliveries', 'acknowledgeDelivery']);
   assert.equal(built.capabilities[Processing.id], built.instance.processing);
@@ -151,6 +151,73 @@ test('financial facts and delivery advance only through explicit durable command
     assert.deepEqual(await built.instance.delivery.readDeliveries('consumer'), []);
     assert.equal(host.calls(), 1);
   } finally { assert.equal((await built.close()).complete, true); }
+});
+
+test('a public Assembly runtime can audit and select duplicate initial subscription streams', async () => {
+  const host = fixture('app-a', undefined, 'monthly'), first = deferred<Awaited<ReturnType<PaymentProvider['createCheckout']>>>();
+  const lateSettled = deferred<void>(), originalFinish = host.store.finishAttempt.bind(host.store);
+  host.store.finishAttempt = async (...args) => {
+    const result = await originalFinish(...args);
+    if (args[1].binding?.transactionRef === 'initial-a' && result.kind === 'committed') lateSettled.resolve();
+    return result;
+  };
+  let intentId = '';
+  host.replaceCheckout(input => { intentId = input.intentId; return first.promise; });
+  const prepared = await compose();
+  assert.equal(prepared.status, 'prepared'); if (prepared.status !== 'prepared') throw new Error('Expected prepared composition');
+  const attempt = createScope({ name: 'duplicate-stream-selection' });
+  const outcome = await prepared.prepared.run({ scope: attempt.resources, inputs: inputs(host.options) });
+  assert.equal(outcome.status, 'succeeded'); if (outcome.status !== 'succeeded') throw new Error('Expected successful run');
+  const { read, processing, checkout } = outcome.roots.payments;
+  const known = <T>(value: T) => ({ presence: 'known', value }) as const;
+  async function observe(transactionRef: string, subscriptionRef: string, initial: boolean, day = '01'): Promise<void> {
+    const receiptId = `${transactionRef}-receipt`;
+    const source = { kind: 'authenticated_api', receiptId, representationDigest: digest(receiptId), decoderVersion: '1', apiProfile: 'fixture-v1' } as const;
+    const observation: TransactionObservation = {
+      kind: 'transaction', transactionRef, version: '2026-01-01T00:00:00Z', status: 'completed', origin: known(initial ? 'api' : 'subscription_recurring'),
+      customerRef: known('customer'), subscriptionRef: known(subscriptionRef), intentCorrelation: { presence: 'unknown' }, currency: known('USD'), total: known(money('USD', '1000')),
+      lines: known([{ providerLineRef: `${transactionRef}-line`, providerPriceRef: 'price', quantity: 1, amount: money('USD', '1000'), billingCycle: known({ interval: 'month', frequency: 1 }), trial: known(false), proration: known(false), period: known({ startsAt: `2026-01-${day}T00:00:00Z`, endsAt: `2026-02-${day}T00:00:00Z` }) }]), source,
+    };
+    const verified: VerifiedInput = { scope: host.options.scope, inputId: receiptId, source, observation, retainedRepresentation: JSON.parse(canonicalJson(observation)) as VerifiedInput['retainedRepresentation'] };
+    assert.equal((await processing.ingestVerifiedInput(verified)).kind, 'succeeded');
+    assert.equal(await processing.processInbox(receiptId), 'processed');
+  }
+  try {
+    const unknown = await checkout.startPurchase(command);
+    assert.equal(unknown.kind, 'outcome_unknown'); if (unknown.kind !== 'outcome_unknown') throw new Error('Expected unknown first attempt');
+    const operation = await read.readOperation(unknown.operationId); assert.ok(operation);
+    assert.equal((await processing.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'accepted-duplicate-risk', reason: 'recover unknown checkout', action: 'retry', acceptedDuplicateRisk: true })).kind, 'succeeded');
+    host.replaceCheckout(async input => ({ kind: 'succeeded', value: { intentId: input.intentId, transactionRef: 'initial-b', checkout: { token: 'b' } } }));
+    assert.equal((await processing.executeOperation(operation.operationId)).kind, 'succeeded');
+    first.resolve({ kind: 'succeeded', value: { intentId, transactionRef: 'initial-a', checkout: { token: 'a' } } });
+    await lateSettled.promise;
+    await observe('initial-a', 'sub-a', true);
+    await observe('initial-b', 'sub-b', true, '02');
+    await observe('renew-a', 'sub-a', false);
+    await observe('renew-b', 'sub-b', false);
+    const before = await read.readPurchase('buyer', intentId), basis = before?.intent.subscriptionBasisId; assert.ok(basis);
+    assert.equal(before.transactions.filter(item => item.completion).length, 4);
+    assert.ok(before.transactions.every(item => item.flags.includes('duplicate_initial_purchase')));
+    const selection = await read.readSubscriptionSelection('buyer', basis, 'sub-b'); assert.ok(selection);
+    const resolution = await processing.selectSubscriptionStream({ buyerId: 'buyer', bindingId: basis, providerSubscriptionRef: 'sub-b', expectedReadSet: selection.expectedReadSet, actorId: 'operator', auditRef: 'choose-sub-b', reason: 'choose duplicate support stream' });
+    assert.equal(resolution.kind, 'succeeded');
+    if (resolution.kind !== 'succeeded') throw new Error('Expected selected stream');
+    assert.equal(resolution.value.selectedSubscriptionRef, 'sub-b');
+    assert.deepEqual(resolution.value.streamSelection, { actorId: 'operator', auditRef: 'choose-sub-b', reason: 'choose duplicate support stream', at: '2026-01-01T00:00:00Z' });
+    assert.equal((await processing.selectSubscriptionStream({ buyerId: 'buyer', bindingId: basis, providerSubscriptionRef: 'sub-b', expectedReadSet: selection.expectedReadSet, actorId: 'operator', auditRef: 'stale-selection', reason: 'stale read set' })).kind, 'rejected');
+    assert.equal(await processing.flushPublication({ type: 'transaction', id: 'renew-b' }), 'committed');
+    const after = await read.readPurchase('buyer', intentId); assert.ok(after);
+    assert.equal(after.transactions.filter(item => item.completion).length, 4);
+    assert.ok(!after.transactions.find(item => item.transactionRef === 'renew-b')?.flags.includes('duplicate_initial_purchase'));
+    assert.ok(after.transactions.find(item => item.transactionRef === 'renew-a')?.flags.includes('duplicate_initial_purchase'));
+    assert.equal(host.calls(), 2);
+  } finally {
+    // A failed assertion must not strand the deliberately held first provider call.
+    first.resolve({ kind: 'succeeded', value: { intentId, transactionRef: 'initial-a', checkout: { token: 'a' } } });
+    assert.equal((await attempt.control.close()).complete, true);
+  }
+  await assert.rejects(read.readSubscriptionSelection('buyer', 'basis', 'sub-b'));
+  await assert.rejects(processing.selectSubscriptionStream({ buyerId: 'buyer', bindingId: 'basis', providerSubscriptionRef: 'sub-b', expectedReadSet: [], actorId: 'operator', auditRef: 'after-close', reason: 'scope closed' }));
 });
 
 const Diagnostics = defineContract<Readonly<{ healthy: boolean }>>()({ id: 'test/diagnostics', revision: 1 });

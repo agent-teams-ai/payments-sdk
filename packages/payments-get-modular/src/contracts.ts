@@ -4,9 +4,9 @@ import { defineContract, type CapabilitiesOf } from '@get-modular/assembly';
 /** Per-run, trusted Host configuration. Provider, store and pool ownership stays with the Host. */
 export const PaymentsConfiguration = defineContract<PaymentRuntimeOptions>()({ id: 'agent-teams/payments/configuration', revision: 1 });
 export type PaymentsCheckout = Pick<Payments, 'startPurchase'>;
-export type PaymentsRead = Pick<Payments, 'readOperation' | 'readPurchase' | 'readObservedSubscription'>;
+export type PaymentsRead = Pick<Payments, 'readOperation' | 'readPurchase' | 'readObservedSubscription' | 'readSubscriptionSelection'>;
 export type PaymentsManagement = Pick<Payments, 'requestCancellation' | 'openPaymentUpdate' | 'createManagementLink'>;
-export type PaymentsProcessing = Pick<Payments, 'ingestVerifiedInput' | 'processInbox' | 'flushPublication' | 'executeOperation' | 'refreshPurchase' | 'refreshSubscription' | 'resolveUnknownOperation' | 'repair'>;
+export type PaymentsProcessing = Pick<Payments, 'ingestVerifiedInput' | 'processInbox' | 'flushPublication' | 'executeOperation' | 'refreshPurchase' | 'refreshSubscription' | 'resolveUnknownOperation' | 'selectSubscriptionStream' | 'repair'>;
 export type PaymentsDelivery = Pick<Payments, 'registerConsumer' | 'readDeliveries' | 'acknowledgeDelivery'>;
 
 export const Checkout = defineContract<PaymentsCheckout>()({ id: 'agent-teams/payments/checkout', revision: 1 });
