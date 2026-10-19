@@ -23,21 +23,34 @@ export const paymentsDeclaration = declareModule({
 
 /** Inert definition: imports and preparation acquire no resources and perform no provider calls. */
 export const paymentsModule = implement<PaymentsCapabilities>()(paymentsDeclaration, async ({ configuration }, { resources }) => {
+  const active = new Set<Promise<unknown>>();
+  function track<A extends readonly unknown[], R>(call: (...args: A) => Promise<R>): (...args: A) => Promise<R> {
+    return (...args) => {
+      if (resources.signal.aborted) return Promise.reject(resources.signal.reason);
+      const task = call(...args);
+      active.add(task);
+      void task.finally(() => active.delete(task)).catch(() => undefined);
+      return task;
+    };
+  }
   // setup() owns cleanup before its promise resolves. Assembly itself never disposes returned products.
   const runtime = await resources.setup({
     name: 'runtime',
     setup: () => createPayments(configuration),
     cleanup: async (payments) => {
       payments.stop();
+      // Facet calls may still be awaiting catalog/storage reads before reaching a provider.
+      // Stop new calls, retain their borrowed dependencies, and let every admitted call settle.
+      await Promise.allSettled(active);
       // A caller deadline/abort does not terminate a provider promise or its durable settlement.
       await payments.drain();
     },
   });
-  const checkout = Object.freeze({ startPurchase: runtime.startPurchase });
-  const read = Object.freeze({ readOperation: runtime.readOperation, readPurchase: runtime.readPurchase, readObservedSubscription: runtime.readObservedSubscription });
-  const management = Object.freeze({ requestCancellation: runtime.requestCancellation, openPaymentUpdate: runtime.openPaymentUpdate, createManagementLink: runtime.createManagementLink });
-  const processing = Object.freeze({ ingestVerifiedInput: runtime.ingestVerifiedInput, processInbox: runtime.processInbox, flushPublication: runtime.flushPublication, executeOperation: runtime.executeOperation, refreshPurchase: runtime.refreshPurchase, refreshSubscription: runtime.refreshSubscription, resolveUnknownOperation: runtime.resolveUnknownOperation, repair: runtime.repair });
-  const delivery = Object.freeze({ registerConsumer: runtime.registerConsumer, readDeliveries: runtime.readDeliveries, acknowledgeDelivery: runtime.acknowledgeDelivery });
+  const checkout = Object.freeze({ startPurchase: track(runtime.startPurchase) });
+  const read = Object.freeze({ readOperation: track(runtime.readOperation), readPurchase: track(runtime.readPurchase), readObservedSubscription: track(runtime.readObservedSubscription) });
+  const management = Object.freeze({ requestCancellation: track(runtime.requestCancellation), openPaymentUpdate: track(runtime.openPaymentUpdate), createManagementLink: track(runtime.createManagementLink) });
+  const processing = Object.freeze({ ingestVerifiedInput: track(runtime.ingestVerifiedInput), processInbox: track(runtime.processInbox), flushPublication: track(runtime.flushPublication), executeOperation: track(runtime.executeOperation), refreshPurchase: track(runtime.refreshPurchase), refreshSubscription: track(runtime.refreshSubscription), resolveUnknownOperation: track(runtime.resolveUnknownOperation), repair: track(runtime.repair) });
+  const delivery = Object.freeze({ registerConsumer: track(runtime.registerConsumer), readDeliveries: track(runtime.readDeliveries), acknowledgeDelivery: track(runtime.acknowledgeDelivery) });
   const instance: PaymentsModule = Object.freeze({ scope: runtime.scope, checkout, read, management, processing, delivery, lifecycle: runtime.lifecycle });
   return { instance, capabilities: { [Checkout.id]: checkout, [Read.id]: read, [Management.id]: management, [Processing.id]: processing, [Delivery.id]: delivery } };
 }, scoped);
