@@ -74,6 +74,10 @@ schedule before starting pg-boss. Runtime uses `migrate:false`,
 `createSchema:false`, `supervise:true`, `schedule:true` and `reindex:false`.
 Error and warning listeners are installed before pg-boss starts. Failed startup
 stops installed workers and timers and preserves the host pool.
+If failure happens after the core handlers were installed, that jobs instance is
+terminal. Its `status()` and `drain()` retain every admitted core call, including a
+physical SDK request still unresolved after its logical deadline. Drain it before
+constructing a replacement; a second `start()` cannot replace that ownership.
 
 The store's optional queue sends use the already checked-out payment transaction
 through pg-boss's public `send(..., { db })` seam. This makes a T1/T2 record change

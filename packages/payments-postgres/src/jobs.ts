@@ -228,10 +228,14 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
         started = true;
       } catch (error) {
         accepting = false;
+        // A worker may already have admitted an SDK call before a later registration fails.
+        // Keep its core lifecycle reachable through status/drain, and make this instance
+        // terminal rather than allowing a second installation to replace that ownership.
+        if (handlers) stopRequested = true;
         await boss.offWork(paymentWorkQueue, { wait: false });
         await boss.offWork(paymentRepairQueue, { wait: false });
         await boss.stop({ close: false, graceful: true });
-        transportStopped = true; handlers = undefined;
+        transportStopped = true;
         throw error;
       } finally { starting = undefined; }
     })();

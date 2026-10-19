@@ -186,3 +186,34 @@ test('shutdown reports a physically unresolved SDK call and leaves the shared po
     assert.equal((await sibling.pool.query('SELECT 1 AS alive')).rows[0]?.alive, 1);
   } finally { held.resolve({ kind: 'outcome_unknown' }); await f.cleanup(); await sibling.cleanup(); }
 });
+
+test('partial worker startup retains physical SDK debt and cannot replace its drain owner', { timeout: 30_000 }, async () => {
+  const f = await fixture(), held = deferred<ProviderResult<CheckoutReady>>(), entered = deferred<void>();
+  const core = runtime(f.store, async command => { entered.resolve(); return held.promise.then(result => result.kind === 'succeeded' ? { ...result, value: { ...result.value, intentId: command.intentId } } : result); }, 25);
+  const originalWork = f.jobs.queue.boss.work;
+  Object.defineProperty(f.jobs.queue.boss, 'work', { value: async (name: string, ...args: unknown[]) => {
+    if (name === 'payments_repair') { await entered.promise; throw new Error('injected registration failure after dispatch'); }
+    return Reflect.apply(originalWork, f.jobs.queue.boss, [name, ...args]) as Promise<string>;
+  } });
+  try {
+    await prepare(f.store, 'startup-debt');
+    await assert.rejects(f.jobs.start({ payments: core.payments, store: f.store }), /registration failure after dispatch/);
+    assert.equal(core.payments.lifecycle().unresolvedExternalCalls, 1);
+    assert.equal(f.jobs.status().unresolvedExternalCalls, 1);
+    assert.equal(f.jobs.status().transportStopped, true);
+    await assert.rejects(f.jobs.start({ payments: runtime(f.store).payments, store: f.store }), /stopping/);
+    core.payments.stop();
+    const reachedCoreDrain = deferred<void>(), originalDrain = core.payments.drain;
+    core.payments.drain = () => { reachedCoreDrain.resolve(); return originalDrain(); };
+    let settled = false;
+    const draining = f.jobs.drain().then(result => { settled = true; return result; });
+    await reachedCoreDrain.promise;
+    assert.equal(settled, false, 'the physical provider barrier still owns late settlement');
+    held.resolve({ kind: 'succeeded', value: { intentId: 'startup-debt', transactionRef: 'startup-late', checkout: {} } });
+    const result = await draining;
+    assert.deepEqual(result, { transportStopped: true, admittedHandlers: 0, unresolvedExternalCalls: 0, pendingCoreWork: 0 });
+    assert.equal((await core.payments.readOperation('operation-startup-debt'))?.state, 'succeeded');
+    assert.equal(core.calls(), 1);
+    assert.equal((await f.pool.query('SELECT 1 AS alive')).rows[0]?.alive, 1);
+  } finally { held.resolve({ kind: 'outcome_unknown' }); await core.payments.drain(); await f.cleanup(); }
+});
