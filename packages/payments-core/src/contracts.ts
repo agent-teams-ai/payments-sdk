@@ -13,6 +13,13 @@ export interface Catalog { resolveOffer(scope: PaymentScope, offerId: string): P
 export type Field<T> = Readonly<{ presence: 'known'; value: T; provenance?: 'observed' | 'schema_assumed_null' }> | Readonly<{ presence: 'unknown' }>;
 export type EvidenceSource = Readonly<{ kind: 'verified_webhook' | 'authenticated_api'; receiptId: string; representationDigest: string; decoderVersion: string; sdkVersion?: string; apiProfile: string; eventId?: string; eventType?: string; occurredAt?: string; stableEnvelopeDigest?: string; verification?: Readonly<{ verifiedAt: string; endpointId: string; rawBodyDigest: string }>; query?: JsonValue }>;
 export type BillingCycle = Readonly<{ interval: string; frequency: number }>;
+/** Observation origin, subscription status/scheduled action and adjustment action/status use the
+ * core-owned canonical vocabulary exported by vocabulary.ts. Adapters translate supported vendor
+ * values before admission. Canonical token strings are reserved for deliberate mapping: an
+ * unrecognized wire value must not become known canonical evidence through a string fallback.
+ * Use Field unknown for an uninterpreted field and retain the exact raw value in the receipt.
+ * Open string fields may retain unsupported values only when they cannot collide with a token.
+ * Canonical token spellings and observation DTO shapes are part of the durable replay protocol. */
 /** Closed adapter interpretation; the original status remains evidence, never a fallback classifier. */
 export type TransactionStatusMeaning = Readonly<{ kind: 'completed' }> | Readonly<{ kind: 'not_completed' }> | Readonly<{ kind: 'unsupported' }>;
 export type CollectionMethod = Readonly<{ kind: 'automatic' }> | Readonly<{ kind: 'invoice' }> | Readonly<{ kind: 'unsupported'; value: string }>;

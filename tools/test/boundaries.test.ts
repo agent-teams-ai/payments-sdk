@@ -65,7 +65,7 @@ async function mutation(name: string, change: (root: string) => Promise<void>, e
   }
 }
 
-test('installed Foundation permits the actual source graph and same-owner imports', async () => {
+void test('installed Foundation permits the actual source graph and same-owner imports', async () => {
   const root = await consumer();
   try {
     await writeFile(join(root, 'packages/payments-core/src/boundary-witness.ts'), 'export const witness = 1;\n');
@@ -78,16 +78,16 @@ test('installed Foundation permits the actual source graph and same-owner import
 });
 
 for (const target of ['@agent-teams/payments-paddle', '@agent-teams/payments-postgres', '@agent-teams/payments-get-modular', '@agent-teams/engineering-foundation']) {
-  test(`installed Foundation rejects core importing ${target}`, () => mutation(target, async (root) => {
+  void test(`installed Foundation rejects core importing ${target}`, () => mutation(target, async (root) => {
     await writeFile(join(root, 'packages/payments-core/src/forbidden.ts'), `import '${target}';\n`);
   }, /source-dependencies\.forbidden-package-dependency$/));
 }
 
-test('installed Foundation rejects source without an owner inside the selected package universe', () => mutation('unowned source', async (root) => {
+void test('installed Foundation rejects source without an owner inside the selected package universe', () => mutation('unowned source', async (root) => {
   await writeFile(join(root, 'packages/payments-core/unknown.ts'), 'export const unowned = true;\n');
 }, /source-dependencies\.unclassified-source-file$/));
 
-test('installed Foundation rejects a new ungoverned package inside the selected universe', () => mutation('unowned package', async (root) => {
+void test('installed Foundation rejects a new ungoverned package inside the selected universe', () => mutation('unowned package', async (root) => {
   const path = join(root, 'packages/payments-unowned/src');
   await mkdir(path, { recursive: true });
   await writeFile(join(path, '../package.json'), JSON.stringify({ name: '@agent-teams/payments-unowned', type: 'module' }));
@@ -95,12 +95,12 @@ test('installed Foundation rejects a new ungoverned package inside the selected 
 }, /source-dependencies\.uncovered-workspace-package-root$/));
 
 for (const specifier of ['@agent-teams/payments-core/internal', '../../payments-core/src/index.js']) {
-  test(`installed Foundation rejects cross-package bypass ${specifier}`, () => mutation(specifier, async (root) => {
+  void test(`installed Foundation rejects cross-package bypass ${specifier}`, () => mutation(specifier, async (root) => {
     await writeFile(join(root, 'packages/payments-paddle/src/forbidden.ts'), `import '${specifier}';\n`);
   }, /source-dependencies\./));
 }
 
-test('installed Foundation rejects a runtime import of an allowlisted development-only dependency', () => mutation('runtime development dependency', async (root) => {
+void test('installed Foundation rejects a runtime import of an allowlisted development-only dependency', () => mutation('runtime development dependency', async (root) => {
   const policyPath = join(root, 'architecture/foundation/source-dependencies.yaml');
   const policy = parse(await readFile(policyPath, 'utf8')) as DependencyPolicy;
   const core = policy.boundaries.find((boundary) => boundary.id === 'payments.core');

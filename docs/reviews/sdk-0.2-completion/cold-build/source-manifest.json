@@ -1,0 +1,1122 @@
+{
+  "baseline_sha": "95e996ff0bbe8edb003fcd42ab66c6aa429a7253",
+  "baseline_tree": "975754efb236ba0552144a6d6e41ba056d18a573",
+  "changed_paths": [
+    "docs/foundation-adoption.md",
+    "qualification/observation/tsconfig.json",
+    "tsconfig.checks.json"
+  ],
+  "patch_sha256": "538dc9b01661af58a85afc86838f91cae72fcbafec85eead2295535defc2eccf",
+  "tracked_file_count": 212,
+  "files": [
+    {
+      "path": ".github/workflows/checks.yaml",
+      "baseline_sha256": "172d6baedf2c71707b003d3143a021dd32b4240b54f74d591bfcad56c9095cf9",
+      "fixed_sha256": "172d6baedf2c71707b003d3143a021dd32b4240b54f74d591bfcad56c9095cf9"
+    },
+    {
+      "path": ".github/workflows/release.yaml",
+      "baseline_sha256": "07182586ec764a67e4be19e31b6f14a002b4ef1dc7638a593089523e9d00b7fa",
+      "fixed_sha256": "07182586ec764a67e4be19e31b6f14a002b4ef1dc7638a593089523e9d00b7fa"
+    },
+    {
+      "path": ".gitignore",
+      "baseline_sha256": "c5850ce4ef957529844a652002826ec7a4e21f66f4d74583c39b7f3a18cf7277",
+      "fixed_sha256": "c5850ce4ef957529844a652002826ec7a4e21f66f4d74583c39b7f3a18cf7277"
+    },
+    {
+      "path": ".oxlintrc.json",
+      "baseline_sha256": "0ea191babbadca5da52802185fb1d23dd51e1b682c9da073324850fe7b07c940",
+      "fixed_sha256": "0ea191babbadca5da52802185fb1d23dd51e1b682c9da073324850fe7b07c940"
+    },
+    {
+      "path": "AGENTS.md",
+      "baseline_sha256": "5db3d0df3ca85b4084bbc17a3728332dcf1f4fb78bb931e923ec46210bba7fe0",
+      "fixed_sha256": "5db3d0df3ca85b4084bbc17a3728332dcf1f4fb78bb931e923ec46210bba7fe0"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "baseline_sha256": "27f4f48e2ff36244bae5a566110888c922feba6cb8076e7f0a65386179173118",
+      "fixed_sha256": "27f4f48e2ff36244bae5a566110888c922feba6cb8076e7f0a65386179173118"
+    },
+    {
+      "path": "CLAUDE.md",
+      "baseline_sha256": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49",
+      "fixed_sha256": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49"
+    },
+    {
+      "path": "LICENSE",
+      "baseline_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "fixed_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "README.md",
+      "baseline_sha256": "b178448830ccbc5d077b88eadf71d8210267a7df7b50265074ee5ce5919ee0d5",
+      "fixed_sha256": "b178448830ccbc5d077b88eadf71d8210267a7df7b50265074ee5ce5919ee0d5"
+    },
+    {
+      "path": "architecture/foundation/dependency-declarations.yaml",
+      "baseline_sha256": "97100a09b68e192a203a67d70e0765d92ed9f32cce92ae9498a6586da000adea",
+      "fixed_sha256": "97100a09b68e192a203a67d70e0765d92ed9f32cce92ae9498a6586da000adea"
+    },
+    {
+      "path": "architecture/foundation/source-dependencies.yaml",
+      "baseline_sha256": "ecfca7cc8684c8c2f4efeb825a158d5ca0ae711beba520eb738253cbde8ea848",
+      "fixed_sha256": "ecfca7cc8684c8c2f4efeb825a158d5ca0ae711beba520eb738253cbde8ea848"
+    },
+    {
+      "path": "docs/architecture.md",
+      "baseline_sha256": "dacbcbf46b341ae97920027edb3c19a8bc264c0d26390c06f75405f68a8200cb",
+      "fixed_sha256": "dacbcbf46b341ae97920027edb3c19a8bc264c0d26390c06f75405f68a8200cb"
+    },
+    {
+      "path": "docs/developer-stack.md",
+      "baseline_sha256": "eca4285108c8af3287ab11047c5a63c1fcb9ffa542e439515c40bc318e66ba4d",
+      "fixed_sha256": "eca4285108c8af3287ab11047c5a63c1fcb9ffa542e439515c40bc318e66ba4d"
+    },
+    {
+      "path": "docs/foundation-adoption.md",
+      "baseline_sha256": "af1bdbfaa02716420e0f3570fa34d4c48522b18aeab9c3d75fc968026a14fa42",
+      "fixed_sha256": "10caf602b8c8428890e8648332d7572e94b05b889b89baca1804be14b6a7f243"
+    },
+    {
+      "path": "docs/getting-started.md",
+      "baseline_sha256": "34c7a897dd5a54bda03dea5a4c63231c9872a0fbc73abfe706d8833bb4f39534",
+      "fixed_sha256": "34c7a897dd5a54bda03dea5a4c63231c9872a0fbc73abfe706d8833bb4f39534"
+    },
+    {
+      "path": "docs/implementation-plan.md",
+      "baseline_sha256": "b4e7ba0d5715f5ef3f6a80290d02b54be7dc8a3dd2ae8e71443c1845dafeaf95",
+      "fixed_sha256": "b4e7ba0d5715f5ef3f6a80290d02b54be7dc8a3dd2ae8e71443c1845dafeaf95"
+    },
+    {
+      "path": "docs/implementation-status.md",
+      "baseline_sha256": "978d3974f92aa93d8bb04465a2b19fa8c1ed49cfc07c22ae7d752d556c5f5f56",
+      "fixed_sha256": "978d3974f92aa93d8bb04465a2b19fa8c1ed49cfc07c22ae7d752d556c5f5f56"
+    },
+    {
+      "path": "docs/node-or-bun-adoption.md",
+      "baseline_sha256": "1b6a93e3137e061563daee6901946fc704c2b66f749201b97b4d5373aee702c4",
+      "fixed_sha256": "1b6a93e3137e061563daee6901946fc704c2b66f749201b97b4d5373aee702c4"
+    },
+    {
+      "path": "docs/operations.md",
+      "baseline_sha256": "e14d345c4f8c265ef732aecdba76b704fcaf1e296f2913c6d409ab36582518a8",
+      "fixed_sha256": "e14d345c4f8c265ef732aecdba76b704fcaf1e296f2913c6d409ab36582518a8"
+    },
+    {
+      "path": "docs/qualification.md",
+      "baseline_sha256": "29702df89da75f3d08b3b5c875475aaff650487ac05a354fddfb67b3e5c2ebb3",
+      "fixed_sha256": "29702df89da75f3d08b3b5c875475aaff650487ac05a354fddfb67b3e5c2ebb3"
+    },
+    {
+      "path": "docs/reclassification.md",
+      "baseline_sha256": "e0d92848231e659b8d94cfde6ff3acf87d6c9dd9441e5bea7ab20a8f46fe0ca7",
+      "fixed_sha256": "e0d92848231e659b8d94cfde6ff3acf87d6c9dd9441e5bea7ab20a8f46fe0ca7"
+    },
+    {
+      "path": "docs/reconciliation.md",
+      "baseline_sha256": "5079353f277e891f54a4eebe76ea7466ec6ada57f52200bd5c88d396deb73500",
+      "fixed_sha256": "5079353f277e891f54a4eebe76ea7466ec6ada57f52200bd5c88d396deb73500"
+    },
+    {
+      "path": "docs/recovery.md",
+      "baseline_sha256": "199c4dec47ad8315a217f2e8c4949226ae368e0f0196a372d8ab81da3d77b635",
+      "fixed_sha256": "199c4dec47ad8315a217f2e8c4949226ae368e0f0196a372d8ab81da3d77b635"
+    },
+    {
+      "path": "docs/releasing.md",
+      "baseline_sha256": "8a5a8f0e246e7ddedbedb0831a103617e019e63625ca6ee54924c6285d944807",
+      "fixed_sha256": "8a5a8f0e246e7ddedbedb0831a103617e019e63625ca6ee54924c6285d944807"
+    },
+    {
+      "path": "docs/reviews/README.md",
+      "baseline_sha256": "e8d11059bef2c79036e8567d6b64ba79f55626f941e1e465599b94270f8b709f",
+      "fixed_sha256": "e8d11059bef2c79036e8567d6b64ba79f55626f941e1e465599b94270f8b709f"
+    },
+    {
+      "path": "docs/reviews/code/wave1-consumers.md",
+      "baseline_sha256": "37e25cab1104b24572c10e06d5ee55b88d4797e3482055fe5ff0aab17a15f780",
+      "fixed_sha256": "37e25cab1104b24572c10e06d5ee55b88d4797e3482055fe5ff0aab17a15f780"
+    },
+    {
+      "path": "docs/reviews/code/wave1-core.md",
+      "baseline_sha256": "776b46eda7e3d28c5feae32e2a7ad3a459fb637faaf5b6896f0cd548c127842c",
+      "fixed_sha256": "776b46eda7e3d28c5feae32e2a7ad3a459fb637faaf5b6896f0cd548c127842c"
+    },
+    {
+      "path": "docs/reviews/code/wave1-paddle.md",
+      "baseline_sha256": "0c66b551bcc4e4fcc1809202ac010049e3315aef9e6a7031af8075af44543727",
+      "fixed_sha256": "0c66b551bcc4e4fcc1809202ac010049e3315aef9e6a7031af8075af44543727"
+    },
+    {
+      "path": "docs/reviews/code/wave1-platform.md",
+      "baseline_sha256": "876c43e867af2edf1afcd3ccfb290a972a482945b1776792387815c287e0eb9c",
+      "fixed_sha256": "876c43e867af2edf1afcd3ccfb290a972a482945b1776792387815c287e0eb9c"
+    },
+    {
+      "path": "docs/reviews/code/wave2-consumers.md",
+      "baseline_sha256": "ea3c71a2dac193a7cda82779ec5ed27ca71f15d17d728b5792f78b9e9ef86317",
+      "fixed_sha256": "ea3c71a2dac193a7cda82779ec5ed27ca71f15d17d728b5792f78b9e9ef86317"
+    },
+    {
+      "path": "docs/reviews/code/wave2-domain.md",
+      "baseline_sha256": "878b28454a3626074ecc397dd2c024b3b22fa1df9a03215858ee65a60dbdf0bb",
+      "fixed_sha256": "878b28454a3626074ecc397dd2c024b3b22fa1df9a03215858ee65a60dbdf0bb"
+    },
+    {
+      "path": "docs/reviews/code/wave2-paddle.md",
+      "baseline_sha256": "4455581777beafd802e20772b970edb8651aceacd4fcaf7631f78ffc890baad8",
+      "fixed_sha256": "4455581777beafd802e20772b970edb8651aceacd4fcaf7631f78ffc890baad8"
+    },
+    {
+      "path": "docs/reviews/code/wave2-postgres.md",
+      "baseline_sha256": "4c3edd4b2ac36750514182d8f77ea63553a7355d47d45f73d5c2884e171b695f",
+      "fixed_sha256": "4c3edd4b2ac36750514182d8f77ea63553a7355d47d45f73d5c2884e171b695f"
+    },
+    {
+      "path": "docs/reviews/code/wave3-consumers.md",
+      "baseline_sha256": "d1f60054ec627e6925a8629c99eee753fd3bdea593e1fe4a21a230d32aeb07ec",
+      "fixed_sha256": "d1f60054ec627e6925a8629c99eee753fd3bdea593e1fe4a21a230d32aeb07ec"
+    },
+    {
+      "path": "docs/reviews/code/wave3-domain.md",
+      "baseline_sha256": "0a5a4f49bfa239b18a86371370c7b435ee8f0d6952634ab6cb386689c8a5c3f7",
+      "fixed_sha256": "0a5a4f49bfa239b18a86371370c7b435ee8f0d6952634ab6cb386689c8a5c3f7"
+    },
+    {
+      "path": "docs/reviews/code/wave3-platform.md",
+      "baseline_sha256": "fd89a66b94751b54b435714521f7138680d68012b24cd611ed5de5ddfb4a23ab",
+      "fixed_sha256": "fd89a66b94751b54b435714521f7138680d68012b24cd611ed5de5ddfb4a23ab"
+    },
+    {
+      "path": "docs/reviews/code/wave3-provider.md",
+      "baseline_sha256": "f563378836b268cf0a1464a6da2589036365447e5414f68a0515424e83133397",
+      "fixed_sha256": "f563378836b268cf0a1464a6da2589036365447e5414f68a0515424e83133397"
+    },
+    {
+      "path": "docs/reviews/code/wave4-consumers-remediation.md",
+      "baseline_sha256": "3f33a5896491e65dd60be6d2bade74821e9599128cb7169cd0135435a1e4af44",
+      "fixed_sha256": "3f33a5896491e65dd60be6d2bade74821e9599128cb7169cd0135435a1e4af44"
+    },
+    {
+      "path": "docs/reviews/code/wave4-consumers.md",
+      "baseline_sha256": "bf1aee030979703bad280b710e0f7ce6f691dcce68e6c343863d061f69a555cb",
+      "fixed_sha256": "bf1aee030979703bad280b710e0f7ce6f691dcce68e6c343863d061f69a555cb"
+    },
+    {
+      "path": "docs/reviews/code/wave4-domain-provider-remediation.md",
+      "baseline_sha256": "77d5fd5384ab496b2d578f81b2b19f97392d0c35d41ab4125b72c5fc67ba6883",
+      "fixed_sha256": "77d5fd5384ab496b2d578f81b2b19f97392d0c35d41ab4125b72c5fc67ba6883"
+    },
+    {
+      "path": "docs/reviews/code/wave4-domain-provider.md",
+      "baseline_sha256": "d1f888e3ec10c6752502cb07f164420f72571fbb4553ff90dde3e38829793323",
+      "fixed_sha256": "d1f888e3ec10c6752502cb07f164420f72571fbb4553ff90dde3e38829793323"
+    },
+    {
+      "path": "docs/reviews/code/wave4-platform-remediation.md",
+      "baseline_sha256": "19b340807c26b4f7e87f8b9079c41125350654b85a138954025deb943f58eeb9",
+      "fixed_sha256": "19b340807c26b4f7e87f8b9079c41125350654b85a138954025deb943f58eeb9"
+    },
+    {
+      "path": "docs/reviews/code/wave4-platform.md",
+      "baseline_sha256": "3a4b76b9ef969146fe75749340072808af8c76361bcad8e7dbef595fcd92b6fa",
+      "fixed_sha256": "3a4b76b9ef969146fe75749340072808af8c76361bcad8e7dbef595fcd92b6fa"
+    },
+    {
+      "path": "docs/reviews/code/wave4-postgres-remediation.md",
+      "baseline_sha256": "88d8d82bb72365bf5a8f6a8b872db6899ac4be3273efda05457ed135614b045e",
+      "fixed_sha256": "88d8d82bb72365bf5a8f6a8b872db6899ac4be3273efda05457ed135614b045e"
+    },
+    {
+      "path": "docs/reviews/code/wave4-postgres.md",
+      "baseline_sha256": "2c04d4275041d14dce60368ca509b5c70de55559a7d8f311d567a81e9496b71a",
+      "fixed_sha256": "2c04d4275041d14dce60368ca509b5c70de55559a7d8f311d567a81e9496b71a"
+    },
+    {
+      "path": "docs/reviews/design/wave1-architecture.md",
+      "baseline_sha256": "6c192f8c44b06e6c3f911761d6faae2d28c063b570cad07b76ae2a0e16ac92d4",
+      "fixed_sha256": "6c192f8c44b06e6c3f911761d6faae2d28c063b570cad07b76ae2a0e16ac92d4"
+    },
+    {
+      "path": "docs/reviews/design/wave1-integration.md",
+      "baseline_sha256": "1833342854d41ce4453b40835ee4a9d235f7c410561ab45e45790ca71ee292bd",
+      "fixed_sha256": "1833342854d41ce4453b40835ee4a9d235f7c410561ab45e45790ca71ee292bd"
+    },
+    {
+      "path": "docs/reviews/design/wave1-money.md",
+      "baseline_sha256": "44da4d79d6d639593fe289280ecc5bef50a020e28e7404f42d645ce915c5c629",
+      "fixed_sha256": "44da4d79d6d639593fe289280ecc5bef50a020e28e7404f42d645ce915c5c629"
+    },
+    {
+      "path": "docs/reviews/design/wave1-provider.md",
+      "baseline_sha256": "b89e20829b0490966a03cf5c34fee14a2957b5b1c68072ed7aac3d4606a37d88",
+      "fixed_sha256": "b89e20829b0490966a03cf5c34fee14a2957b5b1c68072ed7aac3d4606a37d88"
+    },
+    {
+      "path": "docs/reviews/design/wave2-architecture.md",
+      "baseline_sha256": "3752f628bae3d07be3b01212f8abf61f7c1c10ad4f4b2b3281e5782a7df9908e",
+      "fixed_sha256": "3752f628bae3d07be3b01212f8abf61f7c1c10ad4f4b2b3281e5782a7df9908e"
+    },
+    {
+      "path": "docs/reviews/design/wave2-consumers.md",
+      "baseline_sha256": "a1ad02efaa277462ab3e3ac73fcf4807b6c6adc4e242c5e01bd37ffac179cb95",
+      "fixed_sha256": "a1ad02efaa277462ab3e3ac73fcf4807b6c6adc4e242c5e01bd37ffac179cb95"
+    },
+    {
+      "path": "docs/reviews/design/wave2-contracts.md",
+      "baseline_sha256": "2744c69866f853707b2ab326c8cb1a0add0750bffae38a73cc75e9cac8605ed8",
+      "fixed_sha256": "2744c69866f853707b2ab326c8cb1a0add0750bffae38a73cc75e9cac8605ed8"
+    },
+    {
+      "path": "docs/reviews/design/wave2-storage.md",
+      "baseline_sha256": "49c951f1b4938c54ce9ffc85181ae9c6f7cd8715b19bd72155f63ec07f021541",
+      "fixed_sha256": "49c951f1b4938c54ce9ffc85181ae9c6f7cd8715b19bd72155f63ec07f021541"
+    },
+    {
+      "path": "docs/reviews/design/wave3-integration.md",
+      "baseline_sha256": "afba5e20bbd4dc2fb85fbad5b6490f9d434ff46abfff48bfabaea66e3099ffdb",
+      "fixed_sha256": "afba5e20bbd4dc2fb85fbad5b6490f9d434ff46abfff48bfabaea66e3099ffdb"
+    },
+    {
+      "path": "docs/reviews/design/wave3-money.md",
+      "baseline_sha256": "843ab3ffec87d4d69235c8abe139cf4102cd22430f9b3b859c2b24e0918e5b64",
+      "fixed_sha256": "843ab3ffec87d4d69235c8abe139cf4102cd22430f9b3b859c2b24e0918e5b64"
+    },
+    {
+      "path": "docs/reviews/design/wave3-operations.md",
+      "baseline_sha256": "9ec6e0ff5cb11f2b1838e42c07b7fd7db1910827e983031b7df30038c115d945",
+      "fixed_sha256": "9ec6e0ff5cb11f2b1838e42c07b7fd7db1910827e983031b7df30038c115d945"
+    },
+    {
+      "path": "docs/reviews/design/wave3-provider-security.md",
+      "baseline_sha256": "320b87938eff1f444ba46dfef45b9ee870f58226f0a77679c60acac192296309",
+      "fixed_sha256": "320b87938eff1f444ba46dfef45b9ee870f58226f0a77679c60acac192296309"
+    },
+    {
+      "path": "docs/reviews/design/wave4-integration.md",
+      "baseline_sha256": "98bb9f60f524506a824704a92fc0d8e9ef75089a5cb7667cee5f79f893a7a516",
+      "fixed_sha256": "98bb9f60f524506a824704a92fc0d8e9ef75089a5cb7667cee5f79f893a7a516"
+    },
+    {
+      "path": "docs/reviews/design/wave4-money.md",
+      "baseline_sha256": "a6d4a8f60eaf14e303a0b7c1138db9e39166c1369c7f303352f4f1db78c2b47e",
+      "fixed_sha256": "a6d4a8f60eaf14e303a0b7c1138db9e39166c1369c7f303352f4f1db78c2b47e"
+    },
+    {
+      "path": "docs/reviews/design/wave4-operations.md",
+      "baseline_sha256": "2a5f74326930197a99d0b258284298a74242f326dd4dbe5cf889a39ae3feb27b",
+      "fixed_sha256": "2a5f74326930197a99d0b258284298a74242f326dd4dbe5cf889a39ae3feb27b"
+    },
+    {
+      "path": "docs/reviews/design/wave4-provider.md",
+      "baseline_sha256": "a41df6a0c8a1953480a83d2bf110e298c62210ba1c960f0f62df3bac5ea02b91",
+      "fixed_sha256": "a41df6a0c8a1953480a83d2bf110e298c62210ba1c960f0f62df3bac5ea02b91"
+    },
+    {
+      "path": "docs/reviews/development-security-qualification-results.json",
+      "baseline_sha256": "6f3709df9ac67a107e3b396a8fd09bca9ef93ee400b288103e0beed95d1203cb",
+      "fixed_sha256": "6f3709df9ac67a107e3b396a8fd09bca9ef93ee400b288103e0beed95d1203cb"
+    },
+    {
+      "path": "docs/reviews/drizzle-admission.md",
+      "baseline_sha256": "96ba1e22c30704c0d4a5ee920715ea9835bcf5bccfd7afe97479bb9ef3541628",
+      "fixed_sha256": "96ba1e22c30704c0d4a5ee920715ea9835bcf5bccfd7afe97479bb9ef3541628"
+    },
+    {
+      "path": "docs/reviews/drizzle-custody-performance.json",
+      "baseline_sha256": "5811aa8ba7e585bf1b396bf7402ec0e3e359afed69c8a64fc2c0f57b881d717f",
+      "fixed_sha256": "5811aa8ba7e585bf1b396bf7402ec0e3e359afed69c8a64fc2c0f57b881d717f"
+    },
+    {
+      "path": "docs/reviews/drizzle-custody-performance.md",
+      "baseline_sha256": "7a7dd3bf9138567484799bf6519583786001f8bd1094eaddc3acb1bac1b1c8ca",
+      "fixed_sha256": "7a7dd3bf9138567484799bf6519583786001f8bd1094eaddc3acb1bac1b1c8ca"
+    },
+    {
+      "path": "docs/reviews/drizzle-event-page-performance.json",
+      "baseline_sha256": "c41083281bfc65ec80b77499d16bca715b84166b210127b33489174d9f02c196",
+      "fixed_sha256": "c41083281bfc65ec80b77499d16bca715b84166b210127b33489174d9f02c196"
+    },
+    {
+      "path": "docs/reviews/drizzle-event-page-performance.md",
+      "baseline_sha256": "bc47240ecd88aab0c96dd63d2887cc36d91e44c7c277532e0f08a12102f521c4",
+      "fixed_sha256": "bc47240ecd88aab0c96dd63d2887cc36d91e44c7c277532e0f08a12102f521c4"
+    },
+    {
+      "path": "docs/reviews/final-upstream-delivery-status.json",
+      "baseline_sha256": "4bf2999cad1978cc2dfe0a50cff89bbc1c0eeef6ad842f9de28b3e08ddae99d4",
+      "fixed_sha256": "4bf2999cad1978cc2dfe0a50cff89bbc1c0eeef6ad842f9de28b3e08ddae99d4"
+    },
+    {
+      "path": "docs/reviews/foundation-profile.md",
+      "baseline_sha256": "a7f88eb9ba0c446ddde86cbbd85023ecf7266f58db7fcb1848d21b16200a7c23",
+      "fixed_sha256": "a7f88eb9ba0c446ddde86cbbd85023ecf7266f58db7fcb1848d21b16200a7c23"
+    },
+    {
+      "path": "docs/reviews/node-or-bun-adoption.md",
+      "baseline_sha256": "b1a739df20947450faae6a9e9fc7b36b1c77d45c9ba68f5b04c6a5387652ca72",
+      "fixed_sha256": "b1a739df20947450faae6a9e9fc7b36b1c77d45c9ba68f5b04c6a5387652ca72"
+    },
+    {
+      "path": "docs/reviews/node-or-bun-independent.md",
+      "baseline_sha256": "94542e041b6697007b399a99d974af2c62f61eaff6ae08118ca59ea6cafa2a23",
+      "fixed_sha256": "94542e041b6697007b399a99d974af2c62f61eaff6ae08118ca59ea6cafa2a23"
+    },
+    {
+      "path": "docs/reviews/node-runtime-security-evidence/README.md",
+      "baseline_sha256": "eb7575df07b21a5d409e5001a725c539f385ed075aacc4e0f1390d4086a98b14",
+      "fixed_sha256": "eb7575df07b21a5d409e5001a725c539f385ed075aacc4e0f1390d4086a98b14"
+    },
+    {
+      "path": "docs/reviews/node-runtime-security-evidence/actual-runtime-versions.json",
+      "baseline_sha256": "6b107c02b50cacdb8023e9320f771faf6048ebf2e8741497242bb7f6d03e50c7",
+      "fixed_sha256": "6b107c02b50cacdb8023e9320f771faf6048ebf2e8741497242bb7f6d03e50c7"
+    },
+    {
+      "path": "docs/reviews/node-runtime-security-evidence/content-encoding-runtime-probe-results.json",
+      "baseline_sha256": "fcb7a2fc2ba5f31af0641dd8c23346e59c7bdd0f757b5cbbf7c225de64939c0c",
+      "fixed_sha256": "fcb7a2fc2ba5f31af0641dd8c23346e59c7bdd0f757b5cbbf7c225de64939c0c"
+    },
+    {
+      "path": "docs/reviews/node-runtime-security-evidence/content-encoding-runtime-probe.ts.txt",
+      "baseline_sha256": "0df66ca92fb85736e42f1a921e8761deb020e83e4d9c44a7fa43dc48b51ad6ab",
+      "fixed_sha256": "0df66ca92fb85736e42f1a921e8761deb020e83e4d9c44a7fa43dc48b51ad6ab"
+    },
+    {
+      "path": "docs/reviews/node-runtime-security-evidence/decision-summary.json",
+      "baseline_sha256": "5c38a16a810d1e2b52d4f00b9ef81f23511f5e42d5a33c1492053aeba793eb66",
+      "fixed_sha256": "5c38a16a810d1e2b52d4f00b9ef81f23511f5e42d5a33c1492053aeba793eb66"
+    },
+    {
+      "path": "docs/reviews/node-runtime-security-evidence/retrieval-manifest-binary.json",
+      "baseline_sha256": "627b106d6b4e333537984efa2b34572210524ac7ae2f8c88d9d5e8c1772876fe",
+      "fixed_sha256": "627b106d6b4e333537984efa2b34572210524ac7ae2f8c88d9d5e8c1772876fe"
+    },
+    {
+      "path": "docs/reviews/node-runtime-security-evidence/retrieval-manifest-paddle.json",
+      "baseline_sha256": "6f62c3fd6eb9630a78050974c2d0121c761db17d31f5b74a361fc3e2a678e6b0",
+      "fixed_sha256": "6f62c3fd6eb9630a78050974c2d0121c761db17d31f5b74a361fc3e2a678e6b0"
+    },
+    {
+      "path": "docs/reviews/node-runtime-security-evidence/retrieval-manifest-source.json",
+      "baseline_sha256": "601d28d12169c5eb6b70ab0941b681470301927c1d32e0d9ea9d269dc3102332",
+      "fixed_sha256": "601d28d12169c5eb6b70ab0941b681470301927c1d32e0d9ea9d269dc3102332"
+    },
+    {
+      "path": "docs/reviews/node-runtime-security-evidence/retrieval-manifest.json",
+      "baseline_sha256": "73e0da0c2953a0b815007977a0faabb4bbc73c6865acef1e331cc252b0ec9774",
+      "fixed_sha256": "73e0da0c2953a0b815007977a0faabb4bbc73c6865acef1e331cc252b0ec9774"
+    },
+    {
+      "path": "docs/reviews/node-runtime-security-evidence/source-comparison.json",
+      "baseline_sha256": "264ef161989a26ccaa2681d7ba79ffbd9d1ff397dc8498e2ac82721cb932181a",
+      "fixed_sha256": "264ef161989a26ccaa2681d7ba79ffbd9d1ff397dc8498e2ac82721cb932181a"
+    },
+    {
+      "path": "docs/reviews/node-runtime-security-research.md",
+      "baseline_sha256": "964a89be7c0d4d97431c2318cfe7b68404d708c6ccdf74f12a54e2285fc9cd0e",
+      "fixed_sha256": "964a89be7c0d4d97431c2318cfe7b68404d708c6ccdf74f12a54e2285fc9cd0e"
+    },
+    {
+      "path": "docs/reviews/observation/admission.md",
+      "baseline_sha256": "b79759b07c104c09fc4aad8e0ccc2de3b907d6cbe9533562a72f25bf26f3bd79",
+      "fixed_sha256": "b79759b07c104c09fc4aad8e0ccc2de3b907d6cbe9533562a72f25bf26f3bd79"
+    },
+    {
+      "path": "docs/reviews/observation/architecture.md",
+      "baseline_sha256": "b42b6eb844e4eb338710d35bbc5c9d8953765e12f0d279ec6a4326e4413a7153",
+      "fixed_sha256": "b42b6eb844e4eb338710d35bbc5c9d8953765e12f0d279ec6a4326e4413a7153"
+    },
+    {
+      "path": "docs/reviews/observation/contract.md",
+      "baseline_sha256": "ff262edc13ddc2706e771bc4effec759e2656c4ed5b775d12c846ce60487533e",
+      "fixed_sha256": "ff262edc13ddc2706e771bc4effec759e2656c4ed5b775d12c846ce60487533e"
+    },
+    {
+      "path": "docs/reviews/observation/e2e.md",
+      "baseline_sha256": "fea4e8e071918f53c26d69a581679958544a3acc46c6178c8b12e626f2230233",
+      "fixed_sha256": "fea4e8e071918f53c26d69a581679958544a3acc46c6178c8b12e626f2230233"
+    },
+    {
+      "path": "docs/reviews/observation/local-qualification.json",
+      "baseline_sha256": "c5c8aaad2084dd22eeb2a39088372ada2b0fbc738e1e5d0ba3f83f59f0bda423",
+      "fixed_sha256": "c5c8aaad2084dd22eeb2a39088372ada2b0fbc738e1e5d0ba3f83f59f0bda423"
+    },
+    {
+      "path": "docs/reviews/observation/observation-candidate-node-24.21.0.json",
+      "baseline_sha256": "979bef96c769775c16392f63eefa55c26223c2aecfd50da03dc92cec6f9f6511",
+      "fixed_sha256": "979bef96c769775c16392f63eefa55c26223c2aecfd50da03dc92cec6f9f6511"
+    },
+    {
+      "path": "docs/reviews/observation/observation-candidate-node-24.21.0.log",
+      "baseline_sha256": "8a2ab7fea2080b719f28bfd591f517ae5cad46a0caf17edd7f37d5796aab320d",
+      "fixed_sha256": "8a2ab7fea2080b719f28bfd591f517ae5cad46a0caf17edd7f37d5796aab320d"
+    },
+    {
+      "path": "docs/reviews/observation/observation-candidate-node-26.11.1.json",
+      "baseline_sha256": "db198ab163c3de76b36651675087e82e6e5c3adf6fda5427e5e6c720378ae361",
+      "fixed_sha256": "db198ab163c3de76b36651675087e82e6e5c3adf6fda5427e5e6c720378ae361"
+    },
+    {
+      "path": "docs/reviews/observation/observation-candidate-node-26.11.1.log",
+      "baseline_sha256": "94cff1680f76dc79685fd4acb43e88c56818421b5084c36f9a30dd75ecaeecbb",
+      "fixed_sha256": "94cff1680f76dc79685fd4acb43e88c56818421b5084c36f9a30dd75ecaeecbb"
+    },
+    {
+      "path": "docs/reviews/pr5-delivery-gates.md",
+      "baseline_sha256": "923ed672c055537815794dd1003a664ad068bf7db88f3ae654e28712c7b6b9af",
+      "fixed_sha256": "923ed672c055537815794dd1003a664ad068bf7db88f3ae654e28712c7b6b9af"
+    },
+    {
+      "path": "docs/reviews/prerelease-security-admission-review.md",
+      "baseline_sha256": "52ed57df1f194f15701a427ea46b5dc7bfc43e64898e11039b21de7dda7978b3",
+      "fixed_sha256": "52ed57df1f194f15701a427ea46b5dc7bfc43e64898e11039b21de7dda7978b3"
+    },
+    {
+      "path": "docs/reviews/sdk-0.2/README.md",
+      "baseline_sha256": "89d3786e8370b2e92e20781429cabeb0dc94342b12843061b1e9d9b73e7fe34e",
+      "fixed_sha256": "89d3786e8370b2e92e20781429cabeb0dc94342b12843061b1e9d9b73e7fe34e"
+    },
+    {
+      "path": "docs/reviews/sdk-0.2/commit-map.json",
+      "baseline_sha256": "221a904611ede52475a8698d0ce7e966edda630d71617a28b08f7dc1a50fc47e",
+      "fixed_sha256": "221a904611ede52475a8698d0ce7e966edda630d71617a28b08f7dc1a50fc47e"
+    },
+    {
+      "path": "docs/reviews/sdk-0.2/contracts-workers.md",
+      "baseline_sha256": "d44a9530c14a1d40835f64aebdd7fd82a89b46fab917849ad293a2ac803e431c",
+      "fixed_sha256": "d44a9530c14a1d40835f64aebdd7fd82a89b46fab917849ad293a2ac803e431c"
+    },
+    {
+      "path": "docs/reviews/sdk-0.2/custody-batching.md",
+      "baseline_sha256": "c9402500814295796b8fcafaecb7ba32577f1787eb3a21c9b49a5a5225040569",
+      "fixed_sha256": "c9402500814295796b8fcafaecb7ba32577f1787eb3a21c9b49a5a5225040569"
+    },
+    {
+      "path": "docs/reviews/sdk-0.2/custody-reads.md",
+      "baseline_sha256": "f906df0829bb0bb19c3ca7690defbc1572882f35019cc6926e938f565a5866b5",
+      "fixed_sha256": "f906df0829bb0bb19c3ca7690defbc1572882f35019cc6926e938f565a5866b5"
+    },
+    {
+      "path": "docs/reviews/sdk-0.2/delivery.md",
+      "baseline_sha256": "f11c0c253ffe5f7f8f9ba6a33a05310468ebf9258df371b1e51574d38fe1b425",
+      "fixed_sha256": "f11c0c253ffe5f7f8f9ba6a33a05310468ebf9258df371b1e51574d38fe1b425"
+    },
+    {
+      "path": "docs/reviews/sdk-0.2/drizzle.md",
+      "baseline_sha256": "5b13e0b6f304733a2f045e00db98994f1df81c9396017ea4d02fb64a0eb8c2aa",
+      "fixed_sha256": "5b13e0b6f304733a2f045e00db98994f1df81c9396017ea4d02fb64a0eb8c2aa"
+    },
+    {
+      "path": "docs/reviews/sdk-0.2/evidence-review.md",
+      "baseline_sha256": "eb7ca51ca55be7ecb3b36c13924d925fa494f9781bb8b8b082508a5003b7916f",
+      "fixed_sha256": "eb7ca51ca55be7ecb3b36c13924d925fa494f9781bb8b8b082508a5003b7916f"
+    },
+    {
+      "path": "docs/reviews/sdk-0.2/observation.md",
+      "baseline_sha256": "e5267e24e13690843080ddd34c3169c2129e090e383c793667c79894eac0fb22",
+      "fixed_sha256": "e5267e24e13690843080ddd34c3169c2129e090e383c793667c79894eac0fb22"
+    },
+    {
+      "path": "docs/reviews/sdk-0.2/qualification.md",
+      "baseline_sha256": "1b8226bd0c999faec13a8a6de36dfe5c3c70b26c55f5cf00eb360c44905fc5ac",
+      "fixed_sha256": "1b8226bd0c999faec13a8a6de36dfe5c3c70b26c55f5cf00eb360c44905fc5ac"
+    },
+    {
+      "path": "docs/reviews/security-dependency-review.md",
+      "baseline_sha256": "0c8a7f515cd5ecae168abf4c19d63d75468fdacfd8b4e377b8fa03917fe25e1b",
+      "fixed_sha256": "0c8a7f515cd5ecae168abf4c19d63d75468fdacfd8b4e377b8fa03917fe25e1b"
+    },
+    {
+      "path": "docs/reviews/upstream-continuation-2026-10-20.md",
+      "baseline_sha256": "f72e670576d9a6f96c6d11fb2cb0bfee04c11e4045c2d0e9fa3b20edf258ae31",
+      "fixed_sha256": "f72e670576d9a6f96c6d11fb2cb0bfee04c11e4045c2d0e9fa3b20edf258ae31"
+    },
+    {
+      "path": "docs/reviews/upstream-delivery-status.md",
+      "baseline_sha256": "0d73775cde60a4acb9f824c136108eab8431fb71ca08f59e1ab4d3781352afdb",
+      "fixed_sha256": "0d73775cde60a4acb9f824c136108eab8431fb71ca08f59e1ab4d3781352afdb"
+    },
+    {
+      "path": "docs/security-qualification.md",
+      "baseline_sha256": "b0e26971ab208f0a2be6e811796da6439104ad7298322bb4154fbd8773b3cc6a",
+      "fixed_sha256": "b0e26971ab208f0a2be6e811796da6439104ad7298322bb4154fbd8773b3cc6a"
+    },
+    {
+      "path": "docs/upstream-qualification.md",
+      "baseline_sha256": "9abcc8cdb8fa9362ebb4112866d05fd26d62cd71a2fcf7c0880da546df87d25a",
+      "fixed_sha256": "9abcc8cdb8fa9362ebb4112866d05fd26d62cd71a2fcf7c0880da546df87d25a"
+    },
+    {
+      "path": "examples/fetch-modular.ts",
+      "baseline_sha256": "167c745bbee1be8c855568552ed778b7407c7012155bb2a0e82f04e297c68c8e",
+      "fixed_sha256": "167c745bbee1be8c855568552ed778b7407c7012155bb2a0e82f04e297c68c8e"
+    },
+    {
+      "path": "examples/node-http.ts",
+      "baseline_sha256": "a70256729a530ce3738706e815fdac273872f17174613b8d4f99f593b321fbfd",
+      "fixed_sha256": "a70256729a530ce3738706e815fdac273872f17174613b8d4f99f593b321fbfd"
+    },
+    {
+      "path": "examples/paddle-postgres.ts",
+      "baseline_sha256": "5febd43c5de0fb89260ba975f6121af679946e8433a31b298bd21b5b01e17616",
+      "fixed_sha256": "5febd43c5de0fb89260ba975f6121af679946e8433a31b298bd21b5b01e17616"
+    },
+    {
+      "path": "foundation.config.yaml",
+      "baseline_sha256": "3f0328837ac68fc19658d9ac19b40c830ebb52aaf82d636da37e80d92c81a854",
+      "fixed_sha256": "3f0328837ac68fc19658d9ac19b40c830ebb52aaf82d636da37e80d92c81a854"
+    },
+    {
+      "path": "package.json",
+      "baseline_sha256": "474edb739290e6c3413acd3719e80b43046c2ea3dd8c21bd92ed9987d8179516",
+      "fixed_sha256": "474edb739290e6c3413acd3719e80b43046c2ea3dd8c21bd92ed9987d8179516"
+    },
+    {
+      "path": "packages/payments-core/package.json",
+      "baseline_sha256": "adac9d4c2b22af5ab3c6c0f77e56c34aa1d59f3ed1f614f29bc363372db28f66",
+      "fixed_sha256": "adac9d4c2b22af5ab3c6c0f77e56c34aa1d59f3ed1f614f29bc363372db28f66"
+    },
+    {
+      "path": "packages/payments-core/src/contracts.ts",
+      "baseline_sha256": "1d04f3a0ff6ceea275b3d764e45faaaa035056b1b136102a2c24f842a03f8e07",
+      "fixed_sha256": "1d04f3a0ff6ceea275b3d764e45faaaa035056b1b136102a2c24f842a03f8e07"
+    },
+    {
+      "path": "packages/payments-core/src/index.ts",
+      "baseline_sha256": "6f1cb6ada940a98f3faa1ea06f41414ee07413374540f8a600474459295b8544",
+      "fixed_sha256": "6f1cb6ada940a98f3faa1ea06f41414ee07413374540f8a600474459295b8544"
+    },
+    {
+      "path": "packages/payments-core/src/memory.ts",
+      "baseline_sha256": "b5edd7d3321e23a5e162d63ec9b1f0db938a97740fcb254995e97722b74fe680",
+      "fixed_sha256": "b5edd7d3321e23a5e162d63ec9b1f0db938a97740fcb254995e97722b74fe680"
+    },
+    {
+      "path": "packages/payments-core/src/reconciliation.ts",
+      "baseline_sha256": "07bfe5acfe7949d384273933136ec8868f7a796e34b2f3cdb5bbe47518d6f844",
+      "fixed_sha256": "07bfe5acfe7949d384273933136ec8868f7a796e34b2f3cdb5bbe47518d6f844"
+    },
+    {
+      "path": "packages/payments-core/src/reducer.ts",
+      "baseline_sha256": "3b281c901a8c789bce99b5ccfb60372a3c2941765c7874d96487200b3e2c48b0",
+      "fixed_sha256": "3b281c901a8c789bce99b5ccfb60372a3c2941765c7874d96487200b3e2c48b0"
+    },
+    {
+      "path": "packages/payments-core/src/runtime.ts",
+      "baseline_sha256": "5043316d378fbbd9608ac64704e70a82ea43c245d211a8bbda9a617617b74d6e",
+      "fixed_sha256": "5043316d378fbbd9608ac64704e70a82ea43c245d211a8bbda9a617617b74d6e"
+    },
+    {
+      "path": "packages/payments-core/src/values.ts",
+      "baseline_sha256": "6f297afd4f6997922837f3f3460e75d4b56871602eff1a759e14ab913ee4bb75",
+      "fixed_sha256": "6f297afd4f6997922837f3f3460e75d4b56871602eff1a759e14ab913ee4bb75"
+    },
+    {
+      "path": "packages/payments-core/src/vocabulary.ts",
+      "baseline_sha256": "a42fe9927f6ddaeaff4b69ad17d66f33ca466f4ff13cda75038a51dcbc21ad2b",
+      "fixed_sha256": "a42fe9927f6ddaeaff4b69ad17d66f33ca466f4ff13cda75038a51dcbc21ad2b"
+    },
+    {
+      "path": "packages/payments-core/test/core.test.ts",
+      "baseline_sha256": "c4bf2b73ad2a26f750633a321cc03d347ed4299e06ad7b6cd1e736ba059bdba7",
+      "fixed_sha256": "c4bf2b73ad2a26f750633a321cc03d347ed4299e06ad7b6cd1e736ba059bdba7"
+    },
+    {
+      "path": "packages/payments-core/test/reconciliation.test.ts",
+      "baseline_sha256": "2c551c72917545279005ca84e8f31c092b6872e9dda6282df8e0bee938cacfc8",
+      "fixed_sha256": "2c551c72917545279005ca84e8f31c092b6872e9dda6282df8e0bee938cacfc8"
+    },
+    {
+      "path": "packages/payments-core/tsconfig.json",
+      "baseline_sha256": "5b4b55bfb81fb6c8f607e25828289d11f790a112b724e25c13a2bc5d60050aec",
+      "fixed_sha256": "5b4b55bfb81fb6c8f607e25828289d11f790a112b724e25c13a2bc5d60050aec"
+    },
+    {
+      "path": "packages/payments-get-modular/README.md",
+      "baseline_sha256": "a28b2c7a269e0b82368677e93f07cc9e376d06d9aa0f489ee1467898cac5a7fc",
+      "fixed_sha256": "a28b2c7a269e0b82368677e93f07cc9e376d06d9aa0f489ee1467898cac5a7fc"
+    },
+    {
+      "path": "packages/payments-get-modular/package.json",
+      "baseline_sha256": "6658b9b11e3ce220aea53eae64a740feb171a511ff72a4e95b0eef20a36ef19b",
+      "fixed_sha256": "6658b9b11e3ce220aea53eae64a740feb171a511ff72a4e95b0eef20a36ef19b"
+    },
+    {
+      "path": "packages/payments-get-modular/src/contracts.ts",
+      "baseline_sha256": "008ac423ec89ec0214b63697ecbf6ae0f6dd924c2c46ee6ab5026ba1e857507b",
+      "fixed_sha256": "008ac423ec89ec0214b63697ecbf6ae0f6dd924c2c46ee6ab5026ba1e857507b"
+    },
+    {
+      "path": "packages/payments-get-modular/src/index.ts",
+      "baseline_sha256": "35c77b7685a3cf4fdfe183eee88191c660854fbf23c6bc8db31c3493d5fac549",
+      "fixed_sha256": "35c77b7685a3cf4fdfe183eee88191c660854fbf23c6bc8db31c3493d5fac549"
+    },
+    {
+      "path": "packages/payments-get-modular/src/module.ts",
+      "baseline_sha256": "62b6240f8d17c1e3b285c076c48d347b013ccad82605d755eafb3bb6f4160410",
+      "fixed_sha256": "62b6240f8d17c1e3b285c076c48d347b013ccad82605d755eafb3bb6f4160410"
+    },
+    {
+      "path": "packages/payments-get-modular/src/observation/composition.ts",
+      "baseline_sha256": "f9dda0363ee4f0168707a7f338fb76ab49835588154e256bb4977c5a8c58054f",
+      "fixed_sha256": "f9dda0363ee4f0168707a7f338fb76ab49835588154e256bb4977c5a8c58054f"
+    },
+    {
+      "path": "packages/payments-get-modular/src/observation/index.ts",
+      "baseline_sha256": "d2e465c07272b257855acfd0d6c261d0fdb066ebf01bc375413305ba014db16d",
+      "fixed_sha256": "d2e465c07272b257855acfd0d6c261d0fdb066ebf01bc375413305ba014db16d"
+    },
+    {
+      "path": "packages/payments-get-modular/src/observation/projection.ts",
+      "baseline_sha256": "1ff860fb6309cab483ee3fdf3778f2f004d5cc974969cc67dc8718763bb49dbd",
+      "fixed_sha256": "1ff860fb6309cab483ee3fdf3778f2f004d5cc974969cc67dc8718763bb49dbd"
+    },
+    {
+      "path": "packages/payments-get-modular/test/fixtures.ts",
+      "baseline_sha256": "0b18d5f0a81d694bf96eb07a0636dfee852c37602538a4f1a4ab00e00e00d7a6",
+      "fixed_sha256": "0b18d5f0a81d694bf96eb07a0636dfee852c37602538a4f1a4ab00e00e00d7a6"
+    },
+    {
+      "path": "packages/payments-get-modular/test/modular.test.ts",
+      "baseline_sha256": "354f190112c22ad06dc7cc26b7b2dfbad676e19fd0cecdbb59bad810d50b1abc",
+      "fixed_sha256": "354f190112c22ad06dc7cc26b7b2dfbad676e19fd0cecdbb59bad810d50b1abc"
+    },
+    {
+      "path": "packages/payments-get-modular/test/surface.types.ts",
+      "baseline_sha256": "4caceeca18eb56fac20932da7d9aca49430d2bb91cdc077c8dacaa84eb016837",
+      "fixed_sha256": "4caceeca18eb56fac20932da7d9aca49430d2bb91cdc077c8dacaa84eb016837"
+    },
+    {
+      "path": "packages/payments-get-modular/tsconfig.json",
+      "baseline_sha256": "e3bcffe097a030fc5c09213d2efffa3ac43f3b618edfdc3aa29601c05bf4b199",
+      "fixed_sha256": "e3bcffe097a030fc5c09213d2efffa3ac43f3b618edfdc3aa29601c05bf4b199"
+    },
+    {
+      "path": "packages/payments-paddle/README.md",
+      "baseline_sha256": "b509272f20f7a93bb5a1d53833c65fe55966247efc55ffe8736aad3fdebab748",
+      "fixed_sha256": "b509272f20f7a93bb5a1d53833c65fe55966247efc55ffe8736aad3fdebab748"
+    },
+    {
+      "path": "packages/payments-paddle/package.json",
+      "baseline_sha256": "6cc9da8c0d22c10145e88a798cb45dd99dcc10744725d522fbaef4f8558a5038",
+      "fixed_sha256": "6cc9da8c0d22c10145e88a798cb45dd99dcc10744725d522fbaef4f8558a5038"
+    },
+    {
+      "path": "packages/payments-paddle/src/errors.ts",
+      "baseline_sha256": "91d7dd620f6da841b6c771584fbf8876ba08e03217a6ce5c2141decdd7df7e9f",
+      "fixed_sha256": "91d7dd620f6da841b6c771584fbf8876ba08e03217a6ce5c2141decdd7df7e9f"
+    },
+    {
+      "path": "packages/payments-paddle/src/index.ts",
+      "baseline_sha256": "305fdc239063121c44db8aad40bb3d6771f19a3077128ee326ca10fd174a19b7",
+      "fixed_sha256": "305fdc239063121c44db8aad40bb3d6771f19a3077128ee326ca10fd174a19b7"
+    },
+    {
+      "path": "packages/payments-paddle/src/observations.ts",
+      "baseline_sha256": "7cc4157d7fe336c817c887b226a1372344c99296ac2e7378f45f47bac1f716b9",
+      "fixed_sha256": "7cc4157d7fe336c817c887b226a1372344c99296ac2e7378f45f47bac1f716b9"
+    },
+    {
+      "path": "packages/payments-paddle/src/provider.ts",
+      "baseline_sha256": "2ef232521b448c7e8de6c4cf68272115a98c3b5a8d8b68bcf94cfefbbd886b31",
+      "fixed_sha256": "2ef232521b448c7e8de6c4cf68272115a98c3b5a8d8b68bcf94cfefbbd886b31"
+    },
+    {
+      "path": "packages/payments-paddle/src/reconciliation.ts",
+      "baseline_sha256": "44a85ccf3400c480b513c49736fbc5112f0164ce95601487051607b75ac6d771",
+      "fixed_sha256": "44a85ccf3400c480b513c49736fbc5112f0164ce95601487051607b75ac6d771"
+    },
+    {
+      "path": "packages/payments-paddle/test/fixtures.ts",
+      "baseline_sha256": "06b4bcd580ae7b66d0019ec0a6107e67b360b3754e683f0d27e8d40ff3010784",
+      "fixed_sha256": "06b4bcd580ae7b66d0019ec0a6107e67b360b3754e683f0d27e8d40ff3010784"
+    },
+    {
+      "path": "packages/payments-paddle/test/sdk-contract.test.ts",
+      "baseline_sha256": "e531cf79c4caa06381700f16ac7dbc2e86df42fb1fb612de51559c77dca23bd9",
+      "fixed_sha256": "e531cf79c4caa06381700f16ac7dbc2e86df42fb1fb612de51559c77dca23bd9"
+    },
+    {
+      "path": "packages/payments-paddle/tsconfig.json",
+      "baseline_sha256": "b0bf64f5043e05100cbe9d310ccf7f98a361290a21b9b0811218fcb6f7339ebc",
+      "fixed_sha256": "b0bf64f5043e05100cbe9d310ccf7f98a361290a21b9b0811218fcb6f7339ebc"
+    },
+    {
+      "path": "packages/payments-postgres/NOTICE",
+      "baseline_sha256": "615835ec6ed2417c70e17c41895e4a89903ea81432baf77841f81abfe55617cd",
+      "fixed_sha256": "615835ec6ed2417c70e17c41895e4a89903ea81432baf77841f81abfe55617cd"
+    },
+    {
+      "path": "packages/payments-postgres/README.md",
+      "baseline_sha256": "afdda2692703e99d4a01b2a4c1a7c2bf0903d8acf81edd3e98711cceb41956dc",
+      "fixed_sha256": "afdda2692703e99d4a01b2a4c1a7c2bf0903d8acf81edd3e98711cceb41956dc"
+    },
+    {
+      "path": "packages/payments-postgres/package.json",
+      "baseline_sha256": "39732cc41829d6853398624d641aad12f99ea1febd0e85b06958f121c26c3daf",
+      "fixed_sha256": "39732cc41829d6853398624d641aad12f99ea1febd0e85b06958f121c26c3daf"
+    },
+    {
+      "path": "packages/payments-postgres/src/database.ts",
+      "baseline_sha256": "3ec408fc6ffadc587091a6079d77da0f014ae858f0e76b9b0f707a30d84e6911",
+      "fixed_sha256": "3ec408fc6ffadc587091a6079d77da0f014ae858f0e76b9b0f707a30d84e6911"
+    },
+    {
+      "path": "packages/payments-postgres/src/index.ts",
+      "baseline_sha256": "1412d500091b4b162b9f70aab57e73fe2122e0582892259ac01e0f79c370b4c9",
+      "fixed_sha256": "1412d500091b4b162b9f70aab57e73fe2122e0582892259ac01e0f79c370b4c9"
+    },
+    {
+      "path": "packages/payments-postgres/src/job-transport.ts",
+      "baseline_sha256": "14179f4087286e098e0cb3ccb23e7ae70eefdf70016da0c8ceb334f312368d8e",
+      "fixed_sha256": "14179f4087286e098e0cb3ccb23e7ae70eefdf70016da0c8ceb334f312368d8e"
+    },
+    {
+      "path": "packages/payments-postgres/src/jobs.ts",
+      "baseline_sha256": "7f961efef455b0415372edd2636ce96c26407a6babd1a1efc5f463564a6f515c",
+      "fixed_sha256": "7f961efef455b0415372edd2636ce96c26407a6babd1a1efc5f463564a6f515c"
+    },
+    {
+      "path": "packages/payments-postgres/src/migrations.ts",
+      "baseline_sha256": "f3a31a58604a8499bdc23e3c3cd1d2bf004312e5b7db4997d82c5e767506525e",
+      "fixed_sha256": "f3a31a58604a8499bdc23e3c3cd1d2bf004312e5b7db4997d82c5e767506525e"
+    },
+    {
+      "path": "packages/payments-postgres/src/pg-boss-declarations.ts",
+      "baseline_sha256": "aaeb184e233a3505cbbf6d1aeb88673fe48a53acc4b74fc595911cfe12131c2a",
+      "fixed_sha256": "aaeb184e233a3505cbbf6d1aeb88673fe48a53acc4b74fc595911cfe12131c2a"
+    },
+    {
+      "path": "packages/payments-postgres/src/records.ts",
+      "baseline_sha256": "628f153d20e890985b0cd4eab7ee4fead9d24c7f8100b53c21442d4920136899",
+      "fixed_sha256": "628f153d20e890985b0cd4eab7ee4fead9d24c7f8100b53c21442d4920136899"
+    },
+    {
+      "path": "packages/payments-postgres/src/recovery.ts",
+      "baseline_sha256": "49c00ec7ee2f279064b75eee229a22db85f5820b34b4c123b0587b9a57401eb4",
+      "fixed_sha256": "49c00ec7ee2f279064b75eee229a22db85f5820b34b4c123b0587b9a57401eb4"
+    },
+    {
+      "path": "packages/payments-postgres/src/schema.ts",
+      "baseline_sha256": "e1e6f24c1a470b32c24113ee5a2017edfa862cc45bdf49401b6ee1e91040d301",
+      "fixed_sha256": "e1e6f24c1a470b32c24113ee5a2017edfa862cc45bdf49401b6ee1e91040d301"
+    },
+    {
+      "path": "packages/payments-postgres/src/store.ts",
+      "baseline_sha256": "2f54df6a18e90f500a0a146351a2ed4504658257d15db902afec2ab64813bf31",
+      "fixed_sha256": "2f54df6a18e90f500a0a146351a2ed4504658257d15db902afec2ab64813bf31"
+    },
+    {
+      "path": "packages/payments-postgres/test/drizzle.test.ts",
+      "baseline_sha256": "b329334f596ada3c53ca4c16d21ed369479d710001f8d860ea824ebfd39f97f7",
+      "fixed_sha256": "b329334f596ada3c53ca4c16d21ed369479d710001f8d860ea824ebfd39f97f7"
+    },
+    {
+      "path": "packages/payments-postgres/test/drizzle.types.ts",
+      "baseline_sha256": "46f4d45be3b8583e13cc8db0c6802a0698abc9ba54cd0b3ab39b6fc83d5e9274",
+      "fixed_sha256": "46f4d45be3b8583e13cc8db0c6802a0698abc9ba54cd0b3ab39b6fc83d5e9274"
+    },
+    {
+      "path": "packages/payments-postgres/test/durability.test.ts",
+      "baseline_sha256": "2bc3def2ed23b180341907a05f6c59660795d2c955deabdbbb92f01127d8a55c",
+      "fixed_sha256": "2bc3def2ed23b180341907a05f6c59660795d2c955deabdbbb92f01127d8a55c"
+    },
+    {
+      "path": "packages/payments-postgres/test/fault-proxy.ts",
+      "baseline_sha256": "01c0d3d60b07552298d662ff93f2fb826846a85199c41ccb430ee050ccdb0b8d",
+      "fixed_sha256": "01c0d3d60b07552298d662ff93f2fb826846a85199c41ccb430ee050ccdb0b8d"
+    },
+    {
+      "path": "packages/payments-postgres/test/helpers.ts",
+      "baseline_sha256": "d603eed29f2e5c958aa09e7ba70521bdd1d5bb78bc65aa531cd70b93426e2e2b",
+      "fixed_sha256": "d603eed29f2e5c958aa09e7ba70521bdd1d5bb78bc65aa531cd70b93426e2e2b"
+    },
+    {
+      "path": "packages/payments-postgres/test/jobs.test.ts",
+      "baseline_sha256": "772524e6beeec1460a4d73f8db2e06ddd97e31fecbbac3de3dada5dbf08357fd",
+      "fixed_sha256": "772524e6beeec1460a4d73f8db2e06ddd97e31fecbbac3de3dada5dbf08357fd"
+    },
+    {
+      "path": "packages/payments-postgres/test/reclassification.test.ts",
+      "baseline_sha256": "b55bd83dc8bab25bb2b300ece87f13460241693709dc5ab13fcd679d7df0d23b",
+      "fixed_sha256": "b55bd83dc8bab25bb2b300ece87f13460241693709dc5ab13fcd679d7df0d23b"
+    },
+    {
+      "path": "packages/payments-postgres/tsconfig.json",
+      "baseline_sha256": "b0bf64f5043e05100cbe9d310ccf7f98a361290a21b9b0811218fcb6f7339ebc",
+      "fixed_sha256": "b0bf64f5043e05100cbe9d310ccf7f98a361290a21b9b0811218fcb6f7339ebc"
+    },
+    {
+      "path": "patches/drizzle-orm@1.0.0-rc.5-5935859.patch",
+      "baseline_sha256": "c0ac842c102d0e7a339e79a1676c02fa0dd803a11f6cc82e4b42007c8e153efb",
+      "fixed_sha256": "c0ac842c102d0e7a339e79a1676c02fa0dd803a11f6cc82e4b42007c8e153efb"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "baseline_sha256": "48f67891884649613aae4d79ee28eb1ebe113816191502d979e7f15e85af86b8",
+      "fixed_sha256": "48f67891884649613aae4d79ee28eb1ebe113816191502d979e7f15e85af86b8"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "baseline_sha256": "d8305313db73b9feabfcdebba9de486d70977bb7bccaf83115fc53660eab841e",
+      "fixed_sha256": "d8305313db73b9feabfcdebba9de486d70977bb7bccaf83115fc53660eab841e"
+    },
+    {
+      "path": "qualification/drizzle/artifact.json",
+      "baseline_sha256": "dcfaafe4097ad62534b4686b2e5479f87167d917d0daf93a87571658d1a47799",
+      "fixed_sha256": "dcfaafe4097ad62534b4686b2e5479f87167d917d0daf93a87571658d1a47799"
+    },
+    {
+      "path": "qualification/observation/README.md",
+      "baseline_sha256": "19bdee0af79c87d8e791702a4836e90ca923914f73c7ad401090eee9fde4baf5",
+      "fixed_sha256": "19bdee0af79c87d8e791702a4836e90ca923914f73c7ad401090eee9fde4baf5"
+    },
+    {
+      "path": "qualification/observation/financial.test.ts",
+      "baseline_sha256": "4e50cfd7bedc3450d6f8641f70a3c03356455d96b33e2305bb12a934caeacfd7",
+      "fixed_sha256": "4e50cfd7bedc3450d6f8641f70a3c03356455d96b33e2305bb12a934caeacfd7"
+    },
+    {
+      "path": "qualification/observation/identity.test.ts",
+      "baseline_sha256": "77b153b287121d45bcbc7dacd0384e18327a2cff063a989bb71cd60056047046",
+      "fixed_sha256": "77b153b287121d45bcbc7dacd0384e18327a2cff063a989bb71cd60056047046"
+    },
+    {
+      "path": "qualification/observation/lifecycle.test.ts",
+      "baseline_sha256": "85209587e489a2a0e1051ff62e17b7389f0b496aa7c58f6c8f8798a3bc2fe7f9",
+      "fixed_sha256": "85209587e489a2a0e1051ff62e17b7389f0b496aa7c58f6c8f8798a3bc2fe7f9"
+    },
+    {
+      "path": "qualification/observation/projection-lifecycle.test.ts",
+      "baseline_sha256": "17cc312035c3ae76c0e74447146aa803f4cbd8ebefcfe86bc300c7a8cffa9903",
+      "fixed_sha256": "17cc312035c3ae76c0e74447146aa803f4cbd8ebefcfe86bc300c7a8cffa9903"
+    },
+    {
+      "path": "qualification/observation/published-artifacts.json",
+      "baseline_sha256": "d7f7335f50a40a2e1afb47f5cc5d851ce7347ebb6875851f162b18b4fef88559",
+      "fixed_sha256": "d7f7335f50a40a2e1afb47f5cc5d851ce7347ebb6875851f162b18b4fef88559"
+    },
+    {
+      "path": "qualification/observation/surface.types.ts",
+      "baseline_sha256": "cb0368c98957473ddf28277189467f5546df5d8d168b0d1a6cbbe0479d4d4dd1",
+      "fixed_sha256": "cb0368c98957473ddf28277189467f5546df5d8d168b0d1a6cbbe0479d4d4dd1"
+    },
+    {
+      "path": "qualification/observation/test-support.ts",
+      "baseline_sha256": "387b57d0a854e2e7c1a5b196103e208ad4d046de014cd2c6dfc7eadf4cd0ec40",
+      "fixed_sha256": "387b57d0a854e2e7c1a5b196103e208ad4d046de014cd2c6dfc7eadf4cd0ec40"
+    },
+    {
+      "path": "qualification/observation/tsconfig.json",
+      "baseline_sha256": "406e55ee6d2ab0f2192cb29ea14ee984b29ead2369eb5afd6ba57767fb850957",
+      "fixed_sha256": "00b16345291f9d0cab880a356c5d4793594d0fb7638ab384a839fc48b23e1e32"
+    },
+    {
+      "path": "qualification/observation/upstream-artifacts.json",
+      "baseline_sha256": "c2e12d8bf5b6ecf9d92764cc37e23eecc9c01b1e117e8731cdc4cacb8064459c",
+      "fixed_sha256": "c2e12d8bf5b6ecf9d92764cc37e23eecc9c01b1e117e8731cdc4cacb8064459c"
+    },
+    {
+      "path": "qualification/tooling/artifacts.json",
+      "baseline_sha256": "868af7a7a3b45d12fd853d8a456e011d4d5e032730b065147824424ee326c954",
+      "fixed_sha256": "868af7a7a3b45d12fd853d8a456e011d4d5e032730b065147824424ee326c954"
+    },
+    {
+      "path": "tests/e2e/consumer-protocol.test.ts",
+      "baseline_sha256": "0989f267e2c980b44e0f35f539a4585e8a8c03f043a0648ab245d10060605dab",
+      "fixed_sha256": "0989f267e2c980b44e0f35f539a4585e8a8c03f043a0648ab245d10060605dab"
+    },
+    {
+      "path": "tests/e2e/consumer-support.ts",
+      "baseline_sha256": "daea64e2ed7ca8d5ecc62204425e5c5dc70fbbf399609202cfed262700863313",
+      "fixed_sha256": "daea64e2ed7ca8d5ecc62204425e5c5dc70fbbf399609202cfed262700863313"
+    },
+    {
+      "path": "tests/e2e/foreign-provider.test.ts",
+      "baseline_sha256": "dc33b98896277b0f8b3ad88d9239faa64cfc2b20e548970162fb755459322aa2",
+      "fixed_sha256": "dc33b98896277b0f8b3ad88d9239faa64cfc2b20e548970162fb755459322aa2"
+    },
+    {
+      "path": "tests/e2e/full-system.test.ts",
+      "baseline_sha256": "433a7e31017ee7494d0b8a34233ffd39dee2fd142ed1aa371285365a54a2bcfc",
+      "fixed_sha256": "433a7e31017ee7494d0b8a34233ffd39dee2fd142ed1aa371285365a54a2bcfc"
+    },
+    {
+      "path": "tests/e2e/provider-profile.test.ts",
+      "baseline_sha256": "17774815136a55700a07e48b5ee1f8d4bcbd1826848556043b265f4d79623c65",
+      "fixed_sha256": "17774815136a55700a07e48b5ee1f8d4bcbd1826848556043b265f4d79623c65"
+    },
+    {
+      "path": "tests/fixtures/consumers/access.ts",
+      "baseline_sha256": "617c1366473224b94e4e1f76d06857782a2776dc3849b674b6b50f6d407eb631",
+      "fixed_sha256": "617c1366473224b94e4e1f76d06857782a2776dc3849b674b6b50f6d407eb631"
+    },
+    {
+      "path": "tests/fixtures/consumers/adjustments.ts",
+      "baseline_sha256": "df7fa061c3eac3918ef7710fe66bad692b4c2241614dbcfe0ff75989dd96a5f7",
+      "fixed_sha256": "df7fa061c3eac3918ef7710fe66bad692b4c2241614dbcfe0ff75989dd96a5f7"
+    },
+    {
+      "path": "tests/fixtures/consumers/credit.ts",
+      "baseline_sha256": "28a89862d83015358c6990f44da9aaa5614191cbd2e014b12d710b735f6a32f8",
+      "fixed_sha256": "28a89862d83015358c6990f44da9aaa5614191cbd2e014b12d710b735f6a32f8"
+    },
+    {
+      "path": "tests/fixtures/consumers/index.ts",
+      "baseline_sha256": "390b9070f6b547de68f0d194d244552b8d1ccb56f16f1006d0808873d9138f70",
+      "fixed_sha256": "390b9070f6b547de68f0d194d244552b8d1ccb56f16f1006d0808873d9138f70"
+    },
+    {
+      "path": "tests/fixtures/consumers/owner.ts",
+      "baseline_sha256": "fc11385e79087b9ba6c7cf36fd1ec048cc68a69b5bd6cfc9aacdb4bc7d20dcd5",
+      "fixed_sha256": "fc11385e79087b9ba6c7cf36fd1ec048cc68a69b5bd6cfc9aacdb4bc7d20dcd5"
+    },
+    {
+      "path": "tests/fixtures/paddle/fixtures.ts",
+      "baseline_sha256": "18f66fb18d96b20619ed75e115ca4997a082e82c282bb986d33bd769dcfbfabb",
+      "fixed_sha256": "18f66fb18d96b20619ed75e115ca4997a082e82c282bb986d33bd769dcfbfabb"
+    },
+    {
+      "path": "tests/integration/reconciliation.test.ts",
+      "baseline_sha256": "9375f762cd20215c996d794b631cc9c049bde8aa8da8b01e737ab251a48f17f4",
+      "fixed_sha256": "9375f762cd20215c996d794b631cc9c049bde8aa8da8b01e737ab251a48f17f4"
+    },
+    {
+      "path": "tests/integration/recovery.test.ts",
+      "baseline_sha256": "c6c8eca6bb8b846f384b820ef9a48c4996187c4d9849a73bf14e1502305802e9",
+      "fixed_sha256": "c6c8eca6bb8b846f384b820ef9a48c4996187c4d9849a73bf14e1502305802e9"
+    },
+    {
+      "path": "tools/package-artifacts.ts",
+      "baseline_sha256": "0506291eb0fe2d900af01fdb71624e89166703257ec2208f50619bf6b7e15a92",
+      "fixed_sha256": "0506291eb0fe2d900af01fdb71624e89166703257ec2208f50619bf6b7e15a92"
+    },
+    {
+      "path": "tools/packed-consumers.ts",
+      "baseline_sha256": "2b445e304a322616a99ba0534ebc315ffe70d049bf6fd73d0f60e1a29ec03255",
+      "fixed_sha256": "2b445e304a322616a99ba0534ebc315ffe70d049bf6fd73d0f60e1a29ec03255"
+    },
+    {
+      "path": "tools/packed-npm.ts",
+      "baseline_sha256": "7f3c02b5901ff5891bdce26769d4ab96e6ce4401dd0a300f1a9be31481778ffe",
+      "fixed_sha256": "7f3c02b5901ff5891bdce26769d4ab96e6ce4401dd0a300f1a9be31481778ffe"
+    },
+    {
+      "path": "tools/qualify-drizzle.ts",
+      "baseline_sha256": "22f115dc1884fdd295b09a9d8bab196d8de917917be634c6dac723a039cf706b",
+      "fixed_sha256": "22f115dc1884fdd295b09a9d8bab196d8de917917be634c6dac723a039cf706b"
+    },
+    {
+      "path": "tools/qualify-observation.ts",
+      "baseline_sha256": "a829c7382ca170bb4b4ebe4e159024de8d383dacfc5d7fcd45f6a631d4c30007",
+      "fixed_sha256": "a829c7382ca170bb4b4ebe4e159024de8d383dacfc5d7fcd45f6a631d4c30007"
+    },
+    {
+      "path": "tools/release-candidate.ts",
+      "baseline_sha256": "f2f21ec3a1140ab7d4aeaee0c698d96693dd7c8ac104e5b7fa8269f5d32d6942",
+      "fixed_sha256": "f2f21ec3a1140ab7d4aeaee0c698d96693dd7c8ac104e5b7fa8269f5d32d6942"
+    },
+    {
+      "path": "tools/release-dry-run.ts",
+      "baseline_sha256": "c3e6040f9181f7d1c2cd0abfebc2b69cac233204ea39b5d2c6a34433dc0fcfb2",
+      "fixed_sha256": "c3e6040f9181f7d1c2cd0abfebc2b69cac233204ea39b5d2c6a34433dc0fcfb2"
+    },
+    {
+      "path": "tools/release-policy.ts",
+      "baseline_sha256": "7d48317b277bdf51da8a39870631085053610e27626b8d842bc18687a08d9fda",
+      "fixed_sha256": "7d48317b277bdf51da8a39870631085053610e27626b8d842bc18687a08d9fda"
+    },
+    {
+      "path": "tools/run-tests.ts",
+      "baseline_sha256": "3d8b2f402b334c5eba459145815c12000b3b7953ea896a79982262b41a79c49b",
+      "fixed_sha256": "3d8b2f402b334c5eba459145815c12000b3b7953ea896a79982262b41a79c49b"
+    },
+    {
+      "path": "tools/test/boundaries.test.ts",
+      "baseline_sha256": "4d1be1bd173241a61bcab8653f0a3eb97f146e4abd6d0ed60ce5586a9ec6295c",
+      "fixed_sha256": "4d1be1bd173241a61bcab8653f0a3eb97f146e4abd6d0ed60ce5586a9ec6295c"
+    },
+    {
+      "path": "tools/test/captured-command.test.ts",
+      "baseline_sha256": "ee2f71cd8d21629b11b1675e5d8f779e89590175ce70e3c62c8c113eff29e2ae",
+      "fixed_sha256": "ee2f71cd8d21629b11b1675e5d8f779e89590175ce70e3c62c8c113eff29e2ae"
+    },
+    {
+      "path": "tools/test/release-policy.test.ts",
+      "baseline_sha256": "20b5468f7ec6d8cdc5843e412c3ee66be6179af78b52d1e1fd1a61e57b6444ad",
+      "fixed_sha256": "20b5468f7ec6d8cdc5843e412c3ee66be6179af78b52d1e1fd1a61e57b6444ad"
+    },
+    {
+      "path": "tools/toolchain.ts",
+      "baseline_sha256": "995ebefda090c2f52e0736f630872afb54d32e8e1c933671b024a592bc554bb6",
+      "fixed_sha256": "995ebefda090c2f52e0736f630872afb54d32e8e1c933671b024a592bc554bb6"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "baseline_sha256": "304130be90c7465f9b77a262bc5974b080bc42b713703f42e444410449083ac7",
+      "fixed_sha256": "304130be90c7465f9b77a262bc5974b080bc42b713703f42e444410449083ac7"
+    },
+    {
+      "path": "tsconfig.checks.json",
+      "baseline_sha256": "35b1d772ede811c9ef9bdbda382453ad6c4861a6ad485cbb9453713e58570f9b",
+      "fixed_sha256": "ead663c843a01263fb768628f3057966492c38ab17cdcada37f5b909719a6637"
+    },
+    {
+      "path": "tsconfig.json",
+      "baseline_sha256": "fe66cd167240c0a58c9a87f4e688d8341c8146d7a967fd78d4f9e9cccb5fa2ea",
+      "fixed_sha256": "fe66cd167240c0a58c9a87f4e688d8341c8146d7a967fd78d4f9e9cccb5fa2ea"
+    }
+  ],
+  "baseline_errors": {
+    "TS18046": 63,
+    "TS18048": 6,
+    "TS2307": 30,
+    "TS2322": 6,
+    "TS2339": 11,
+    "TS2345": 2,
+    "TS2347": 4,
+    "TS2488": 1,
+    "TS2571": 6,
+    "TS2578": 4,
+    "TS2698": 1,
+    "TS7006": 33,
+    "TS7019": 2,
+    "TS7022": 2
+  },
+  "baseline_missing_modules": [
+    "examples/fetch-modular.ts(4,93): error TS2307: Cannot find module '@agent-teams/payments-get-modular' or its corresponding type declarations.",
+    "examples/fetch-modular.ts(5,43): error TS2307: Cannot find module '@agent-teams/payments-get-modular' or its corresponding type declarations.",
+    "examples/paddle-postgres.ts(5,38): error TS2307: Cannot find module '@agent-teams/payments-paddle' or its corresponding type declarations.",
+    "examples/paddle-postgres.ts(6,44): error TS2307: Cannot find module '@agent-teams/payments-paddle' or its corresponding type declarations.",
+    "examples/paddle-postgres.ts(7,123): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.",
+    "examples/paddle-postgres.ts(8,41): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.",
+    "packages/payments-get-modular/test/modular.test.ts(7,225): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.",
+    "packages/payments-get-modular/test/surface.types.ts(1,89): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.",
+    "packages/payments-paddle/test/sdk-contract.test.ts(5,58): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.",
+    "packages/payments-paddle/test/sdk-contract.test.ts(7,43): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.",
+    "packages/payments-postgres/test/drizzle.test.ts(3,38): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.",
+    "packages/payments-postgres/test/drizzle.test.ts(4,40): error TS2307: Cannot find module '../dist/database.js' or its corresponding type declarations.",
+    "packages/payments-postgres/test/drizzle.test.ts(5,32): error TS2307: Cannot find module '../dist/records.js' or its corresponding type declarations.",
+    "packages/payments-postgres/test/drizzle.test.ts(6,47): error TS2307: Cannot find module '../dist/schema.js' or its corresponding type declarations.",
+    "packages/payments-postgres/test/durability.test.ts(6,114): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.",
+    "packages/payments-postgres/test/durability.test.ts(7,66): error TS2307: Cannot find module '../dist/database.js' or its corresponding type declarations.",
+    "packages/payments-postgres/test/helpers.ts(6,66): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.",
+    "packages/payments-postgres/test/jobs.test.ts(8,147): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.",
+    "packages/payments-postgres/test/reclassification.test.ts(6,125): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.",
+    "tests/e2e/foreign-provider.test.ts(7,66): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.",
+    "tests/e2e/full-system.test.ts(8,38): error TS2307: Cannot find module '@agent-teams/payments-paddle' or its corresponding type declarations.",
+    "tests/e2e/full-system.test.ts(9,66): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.",
+    "tests/e2e/provider-profile.test.ts(8,38): error TS2307: Cannot find module '@agent-teams/payments-paddle' or its corresponding type declarations.",
+    "tests/e2e/provider-profile.test.ts(9,66): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.",
+    "tests/integration/reconciliation.test.ts(7,72): error TS2307: Cannot find module '@agent-teams/payments-paddle' or its corresponding type declarations.",
+    "tests/integration/reconciliation.test.ts(8,66): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.",
+    "tests/integration/recovery.test.ts(8,8): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.",
+    "tests/integration/recovery.test.ts(9,83): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.",
+    "qualification/observation/test-support.ts(7,38): error TS2307: Cannot find module '@agent-teams/payments-paddle' or its corresponding type declarations.",
+    "qualification/observation/test-support.ts(8,66): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations."
+  ],
+  "fixed_source_manifest_sha256": "a5e2225685302921828a45fe72633c42f9c3ca388f707779358d6de1ca62ab70"
+}

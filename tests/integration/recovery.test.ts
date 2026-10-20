@@ -51,21 +51,21 @@ async function consumerCheckpoints(credit: CreditFixture): Promise<RecoveryCheck
   return receipts.map(row => {
     const source = sources.find(value => value.body.aggregate.id === 'restored-transaction'); assert.ok(source);
     return { messageId: row.message_id, revision: Number(row.revision), bodyDigest: row.digest, aggregate: source.body.aggregate };
-  }).sort((a, b) => a.messageId < b.messageId ? -1 : 1);
+  }).toSorted((a, b) => a.messageId < b.messageId ? -1 : 1);
 }
 async function requiredScans(admin: Awaited<ReturnType<typeof createPostgresPaymentRecovery>>, initial: PaymentRecoverySession): Promise<PaymentRecoverySession> {
   let session = initial;
-  while (session.producerScan.status !== 'complete') session = await admin.scanProducerHistory(session.sessionId, session.revision, 100, audit);
-  while (session.uncertaintyScan.status !== 'complete') session = await admin.scanUncertainOperations(session.sessionId, session.revision, 100, audit);
+  while (session.producerScan.status !== 'complete') {session = await admin.scanProducerHistory(session.sessionId, session.revision, 100, audit);}
+  while (session.uncertaintyScan.status !== 'complete') {session = await admin.scanUncertainOperations(session.sessionId, session.revision, 100, audit);}
   return admin.reviewArchives(session.sessionId, session.revision, { auditRef: 'archive-review', sources: ['fixture-owner-unit-export'], limitations: 'Logical rollback only; no physical backup, WAL replay or HA promotion qualification' }, audit);
 }
 
-test('logical producer-only restore stays fenced below the consumer revision 10 until original immutable history and counters match', async () => {
+void test('logical producer-only restore stays fenced below the consumer revision 10 until original immutable history and counters match', async () => {
   const f = await databaseFixture(), c = await consumer(f), context = runtime(f.store);
   try {
     await f.store.registerConsumer(scope, 'credit', false);
     const history = Array.from({ length: 10 }, (_, index) => message(index + 1)); await seed(f, history);
-    for (const item of history) assert.equal((await c.credit.receive(item)).acknowledge, true);
+    for (const item of history) {assert.equal((await c.credit.receive(item)).acknowledge, true);}
     const checkpoints = await consumerCheckpoints(c.credit); assert.equal(checkpoints.length, 10);
     assert.equal((await c.credit.owner.inspect<{ revision: string }>('evidence_projection'))[0]?.revision, '10');
     // Roll back only producer-owned rows; consumer correctness records remain at revision 10.
@@ -76,7 +76,7 @@ test('logical producer-only restore stays fenced below the consumer revision 10 
     await assert.rejects(admin.resume(session.sessionId, session.revision, audit), error => error instanceof PaymentRecoveryBlockedError && error.reasons.includes('unverified_consumer:credit'));
     session = await admin.startConsumerVerification(session.sessionId, session.revision, 'credit', manifest(checkpoints), audit);
     session = await admin.verifyConsumerPage(session.sessionId, session.revision, 'credit', checkpoints, audit);
-    assert.equal(session.consumers['credit']?.status, 'blocked'); assert.equal(session.consumers['credit']?.issue, 'missing_immutable_message');
+    assert.equal(session.consumers['credit']?.status, 'blocked'); assert.equal(session.consumers['credit'].issue, 'missing_immutable_message');
     await assert.rejects(admin.resume(session.sessionId, session.revision, audit), PaymentRecoveryBlockedError);
     await assert.rejects(f.store.setRecoveryFence(scope, false, 'attempt-bypass'), /active recovery session/i);
     assert.deepEqual(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'while-restored' }), { kind: 'rejected', code: 'unavailable' });
@@ -103,7 +103,7 @@ test('logical producer-only restore stays fenced below the consumer revision 10 
   } finally { await context.payments.drain(); await c.close(); await f.close(); }
 });
 
-test('logical consumer-only restore explicitly reopens sender ACKs with original message and effect identities', async () => {
+void test('logical consumer-only restore explicitly reopens sender ACKs with original message and effect identities', async () => {
   const f = await databaseFixture(), before = await consumer(f), restored = await consumer(f);
   try {
     await f.store.registerConsumer(scope, 'credit', false);
@@ -136,7 +136,7 @@ test('logical consumer-only restore explicitly reopens sender ACKs with original
   } finally { await before.close(); await restored.close(); await f.close(); }
 });
 
-test('restore through a dispatch gap quarantines every prepared command including old intents; lane hold survives late settlement', async () => {
+void test('restore through a dispatch gap quarantines every prepared command including old intents; lane hold survives late settlement', async () => {
   const f = await databaseFixture(), context = runtime(f.store);
   try {
     const binding: SubscriptionBinding = { bindingId: 'pinned-lane', buyerId: 'buyer', originatingIntentId: 'old-intent', offer, providerSubscriptionRefs: [], customerRef: null };
@@ -167,7 +167,7 @@ test('restore through a dispatch gap quarantines every prepared command includin
   } finally { await context.payments.drain(); await f.close(); }
 });
 
-test('administrative CAS, immutable audit records and 100-record recovery pages survive restart without skipped work', async () => {
+void test('administrative CAS, immutable audit records and 100-record recovery pages survive restart without skipped work', async () => {
   const f = await databaseFixture();
   try {
     const history = Array.from({ length: 205 }, (_, index) => message(1, `transaction-${String(index).padStart(3, '0')}`)); await seed(f, history);
@@ -196,7 +196,7 @@ test('administrative CAS, immutable audit records and 100-record recovery pages 
     assert.equal(session.uncertaintyScan.processed, 205);
     assert.equal((await f.pool.query(`SELECT 1 FROM "${f.schema}".records WHERE kind='operations' AND body->>'state'='outcome_unknown'`)).rowCount, 205);
     session = await admin.startConsumerVerification(session.sessionId, session.revision, 'credit', manifest(checkpoints), audit);
-    for (let offset = 0; offset < checkpoints.length; offset += 100) session = await admin.verifyConsumerPage(session.sessionId, session.revision, 'credit', checkpoints.slice(offset, offset + 100), audit);
+    for (let offset = 0; offset < checkpoints.length; offset += 100) {session = await admin.verifyConsumerPage(session.sessionId, session.revision, 'credit', checkpoints.slice(offset, offset + 100), audit);}
     for (let page = 0; page < 3; page++) {
       session = await admin.backfillRestoredConsumer(session.sessionId, session.revision, 'credit', 100, audit);
       assert.equal(session.backfills['credit']?.processed, Math.min((page + 1) * 100, 205));

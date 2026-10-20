@@ -1,0 +1,25 @@
+{
+  "commit": "a34ecc6bc9bb165771f3962dccd25970dd5c0d98",
+  "files": [
+    {
+      "path": "docs/engineering-quality-standard.md",
+      "sha256": "a65fb5150837b010a71abe36cefd26c32709eb9b9e89f3938498a647e72f5587",
+      "sameAsPreviouslyRead": true
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "1f950cf696a511dd6599d4127d620e0a62898ef099564b838974129fb8f68504",
+      "sameAsPreviouslyRead": true
+    },
+    {
+      "path": "scripts/merge-owner-pr.mjs",
+      "sha256": "e3a7d45d3e408f3f46c227be72d045a7386551073372b303bd597d179438cbe6",
+      "sameAsPreviouslyRead": true
+    },
+    {
+      "path": "governance/commit-author-identity.json",
+      "sha256": "81287b4d8946364692784c929b0be6fea746b82e574c02cd77531087d3623b18",
+      "sameAsPreviouslyRead": true
+    }
+  ]
+}

@@ -116,10 +116,27 @@ jobs:
           name: package-build
           path: packages
       - run: pnpm test:core
+      - name: Qualify exact Drizzle artifact and strict declarations
+        run: pnpm test:drizzle:admission
       - run: pnpm test:paddle
       - run: pnpm test:modular
       - run: pnpm test:postgres
       - run: pnpm test:e2e
+      - name: Qualify published observation consumer
+        run: pnpm test:observation
+      - name: Qualify production npm consumer and durable financial scenario
+        run: pnpm test:packed:npm
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sdk-consumer-qualification-node-${{ matrix.node }}
+          path: |
+            .artifacts/observation-published-node-*.json
+            .artifacts/observation-published-node-*.log
+            .artifacts/drizzle-admission-node-*.json
+            .artifacts/packed-npm-node-*
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
 
   required:
     name: Required checks

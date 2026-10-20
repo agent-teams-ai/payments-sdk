@@ -1,0 +1,22 @@
+{
+  "recordedAtUtc": "2026-10-20T12:40:49.152200+00:00",
+  "baseCommit": "d303f2a36774555bd885df63e536b97428c200a0",
+  "baseTree": "f4b9187cd04fa4097d0e33a9bd84e49cede0e98a",
+  "currentDocumentationOnlyHead": "36211b455b3574698c600bbb84be93f3bf476620",
+  "archiveCommand": "git archive --format=tar d303f2a36774555bd885df63e536b97428c200a0",
+  "sourceArchiveSha256": "8376e85a89d4e2e8f918946f2624241bfa73eed3ac12e2ae9ed8355e0f2ea22c",
+  "bootstrapDiffSha256": "63cc9b8b6734f960b8734eed1054eadbebf4ee65703cd107561a9767b1a937bc",
+  "overlaidFileHashes": {
+    ".github/workflows/release.yaml": "da5c0278eef01673ab4e6b4fb806ca11a1fac4645a9764b8a852c85340c854cb",
+    "docs/releasing.md": "04a8c1d41fdf5850708d5e27ac5a29f629b792f2df27d510dcc9e918b171184f",
+    "docs/node-or-bun-adoption.md": "ac49cc5b41f25278de6349852a8277838744614b8011877b4aa72bb9cbea59ab"
+  },
+  "unchangedToolHashes": {
+    "tools/package-artifacts.ts": "0506291eb0fe2d900af01fdb71624e89166703257ec2208f50619bf6b7e15a92",
+    "tools/release-candidate.ts": "f2f21ec3a1140ab7d4aeaee0c698d96693dd7c8ac104e5b7fa8269f5d32d6942",
+    "tools/release-policy.ts": "7d48317b277bdf51da8a39870631085053610e27626b8d842bc18687a08d9fda",
+    "package.json": "474edb739290e6c3413acd3719e80b43046c2ea3dd8c21bd92ed9987d8179516",
+    "pnpm-workspace.yaml": "d8305313db73b9feabfcdebba9de486d70977bb7bccaf83115fc53660eab841e",
+    "pnpm-lock.yaml": "48f67891884649613aae4d79ee28eb1ebe113816191502d979e7f15e85af86b8"
+  }
+}

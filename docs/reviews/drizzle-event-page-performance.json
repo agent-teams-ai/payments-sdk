@@ -1,0 +1,186 @@
+{
+  "baselineCommit": "2f706eafa3ae19ebf3539df6a67e1728c135d15a",
+  "scenario": "actual SDK 200-member pages retain every receipt and atomically advance the durable cursor",
+  "node": "24.21.0",
+  "postgres": "18.4",
+  "transactionTimeoutMs": 2500,
+  "pageInputs": 200,
+  "eventIdentities": 200,
+  "oldAndNewRoutes": 400,
+  "method": "Original real-PG integration file; test-process query promise and toSQL timings, no maintained runtime instrumentation. Original five lock phases, writes, late-fault trigger, maximum size and deadlines remain unchanged. Baseline failed before the final fault and its query total is partial. Timings are illustrative, not statistical performance guarantees.",
+  "stages": {
+    "baseline": [
+      {
+        "outcome": "ROLLBACK",
+        "queries": 2013,
+        "elapsedMs": 2538.12,
+        "queryPromiseMs": 2229.591,
+        "toSqlMs": 108.685,
+        "queryCounts": {
+          "advisoryLockPhases": 5,
+          "singleRecordSelects": 723,
+          "recordUpserts": 801,
+          "obligationUpserts": 480
+        },
+        "errors": [
+          {
+            "code": "25P04",
+            "message": "terminating connection due to transaction timeout"
+          },
+          {
+            "message": "Connection terminated unexpectedly"
+          }
+        ]
+      }
+    ],
+    "phasePreloads": [
+      {
+        "outcome": "ROLLBACK",
+        "queries": 2013,
+        "elapsedMs": 1687.276,
+        "queryPromiseMs": 1485.131,
+        "toSqlMs": 88.695,
+        "queryCounts": {
+          "advisoryLockPhases": 5,
+          "singleRecordSelects": 401,
+          "batchedRecordSelects": 2,
+          "recordUpserts": 1001,
+          "obligationUpserts": 600
+        },
+        "errors": [
+          {
+            "code": "P0001",
+            "message": "synthetic large page commit failure"
+          }
+        ]
+      },
+      {
+        "outcome": "COMMIT",
+        "queries": 2014,
+        "elapsedMs": 2056.035,
+        "queryPromiseMs": 1813.369,
+        "toSqlMs": 105.336,
+        "queryCounts": {
+          "advisoryLockPhases": 5,
+          "singleRecordSelects": 401,
+          "batchedRecordSelects": 2,
+          "recordUpserts": 1001,
+          "obligationUpserts": 601
+        },
+        "errors": []
+      }
+    ],
+    "currentInputRouteBatch": [
+      {
+        "outcome": "ROLLBACK",
+        "queries": 1813,
+        "elapsedMs": 1789.653,
+        "queryPromiseMs": 1395.028,
+        "toSqlMs": 80.668,
+        "queryCounts": {
+          "advisoryLockPhases": 5,
+          "singleRecordSelects": 1,
+          "batchedRecordSelects": 202,
+          "recordUpserts": 1001,
+          "obligationUpserts": 600
+        },
+        "errors": [
+          {
+            "code": "P0001",
+            "message": "synthetic large page commit failure"
+          }
+        ]
+      },
+      {
+        "outcome": "COMMIT",
+        "queries": 1814,
+        "elapsedMs": 755.244,
+        "queryPromiseMs": 629.454,
+        "toSqlMs": 54.342,
+        "queryCounts": {
+          "advisoryLockPhases": 5,
+          "singleRecordSelects": 1,
+          "batchedRecordSelects": 202,
+          "recordUpserts": 1001,
+          "obligationUpserts": 601
+        },
+        "errors": []
+      }
+    ],
+    "perInputRecordBatch": [
+      {
+        "outcome": "ROLLBACK",
+        "queries": 1013,
+        "elapsedMs": 1618.761,
+        "queryPromiseMs": 1353.038,
+        "toSqlMs": 94.229,
+        "queryCounts": {
+          "advisoryLockPhases": 5,
+          "singleRecordSelects": 1,
+          "batchedRecordSelects": 202,
+          "recordUpsertStatements": 201,
+          "obligationUpserts": 600
+        },
+        "errors": [
+          {
+            "code": "P0001",
+            "message": "synthetic large page commit failure"
+          }
+        ],
+        "recordStatementShapes": [
+          {
+            "sqlPrefix": "insert into \"schema\".\"records\" (\"kind\", \"id\", \"revision\", \"body\", \"updated_at\") values ($1, $2, $3, $4::jsonb, default), ($5, $6, $7, $8::jsonb, defau",
+            "statements": 200
+          },
+          {
+            "sqlPrefix": "insert into \"schema\".\"records\" (\"kind\", \"id\", \"revision\", \"body\", \"updated_at\") values ($1, $2, $3, $4::jsonb, default) on conflict (\"kind\",\"id\") do u",
+            "statements": 1
+          }
+        ]
+      },
+      {
+        "outcome": "COMMIT",
+        "queries": 1014,
+        "elapsedMs": 774.281,
+        "queryPromiseMs": 585.918,
+        "toSqlMs": 72.085,
+        "queryCounts": {
+          "advisoryLockPhases": 5,
+          "singleRecordSelects": 1,
+          "batchedRecordSelects": 202,
+          "recordUpsertStatements": 201,
+          "obligationUpserts": 601
+        },
+        "errors": [],
+        "recordStatementShapes": [
+          {
+            "sqlPrefix": "insert into \"schema\".\"records\" (\"kind\", \"id\", \"revision\", \"body\", \"updated_at\") values ($1, $2, $3, $4::jsonb, default), ($5, $6, $7, $8::jsonb, defau",
+            "statements": 200
+          },
+          {
+            "sqlPrefix": "insert into \"schema\".\"records\" (\"kind\", \"id\", \"revision\", \"body\", \"updated_at\") values ($1, $2, $3, $4::jsonb, default) on conflict (\"kind\",\"id\") do u",
+            "statements": 1
+          }
+        ]
+      }
+    ]
+  },
+  "readBatchFullGroup": {
+    "node": "24.21.0",
+    "tests": 44,
+    "pass": 42,
+    "fail": 2,
+    "failure": "25P04 before synthetic large-page fault, including parent failure",
+    "defaultFileConcurrencyUnchanged": true
+  },
+  "perInputDiagnosticSha256": "ca570b7c9237da29b6e9fc55a0d2908197e23802581b7fee2d4b415b3c2915c8",
+  "fullGroupAfterPerInputBatch": {
+    "sourceCommit": "623b4db4a729973c3e4947d6624750573acc9fda",
+    "node": "24.21.0",
+    "tests": 45,
+    "pass": 45,
+    "fail": 0,
+    "defaultFileConcurrencyUnchanged": true,
+    "logSha256": "2c24f08bddbae9b322fe3e06c5a50f202600356507a07fa4966f16e43f9097ce"
+  }
+}

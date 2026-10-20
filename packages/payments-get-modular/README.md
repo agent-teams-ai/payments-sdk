@@ -1,15 +1,16 @@
 # @agent-teams/payments-get-modular
 
-Optional Get Modular composition for the provider-neutral payment runtime. The Host supplies the same `PaymentRuntimeOptions` accepted by `createPayments()` from `@agent-teams/payments-core`. This package imports only that core and the published Get Modular composition/resource APIs. It does not create provider connections, database pools, HTTP routes, background workers, or product grants.
+Optional Get Modular composition for the provider-neutral payment runtime. The Host supplies the same `PaymentRuntimeOptions` accepted by `createPayments()` from `@agent-teams/payments-core`. Its main entry imports only that core and the published Get Modular composition/resource APIs; the optional observation subpath also imports the published Observation API. It does not create provider connections, database pools, HTTP routes, background workers, or product grants.
 
 ## Supported composition profile
 
 | Package | Qualified artifact | Role |
 | --- | --- | --- |
-| `@get-modular/core` | `0.5.0` | Host peer |
-| `@get-modular/assembly` | `0.5.0` | Host peer; descriptors, entries, groups, preparation, runs |
-| `@get-modular/resources` | `0.1.0` | Host peer; explicit resource custody and close reports |
-| `@get-modular/conformance` | `0.3.0` | Development tests only |
+| `@get-modular/core` | `0.6.0` | Host peer |
+| `@get-modular/assembly` | `0.6.0` | Host peer; descriptors, entries, groups, preparation, runs |
+| `@get-modular/resources` | `0.2.0` | Host peer; explicit resource custody and close reports |
+| `@get-modular/conformance` | `0.4.0` | Development tests only |
+| `@get-modular/observation` | `0.1.0` | Optional Host peer; required only by `./observation` |
 
 Keep one physical Resources package identity and a compatible Core/Assembly peer set. `scoped` validates the run scope using package-local identity; an independent nested Resources copy is incompatible even if its version matches. The package manifest uses the workspace's exact catalog pins for qualification. The package is ESM and targets Linux Node `>=24.21.0 <25 || >=26.11.1 <27`. Maintained source and tests are ordinary `.ts`, checked with TypeScript `7.0.2`, strict options and `skipLibCheck:false`.
 
@@ -92,22 +93,47 @@ An SDK deadline, an abort signal, or a worker stop timeout does not terminate a 
 
 Assembly returns ordinary promises and a construction journal; it does not roll back or dispose created products. After any failed or cancelled run the Host closes the attempt scope. A failed partial startup uses the same close path. Closing one child does not close a sibling or their shared infrastructure. An exception raised by an optional Host startup step must also lead to attempt cleanup.
 
-## Observation hooks: explicit release gate
+## Optional purchase observation
 
-This published static profile has **no Get Modular observation package**. No `onInit`, `onStart`, `onStop`, `onPaymentCompleted`, watch replacement, or local event bus is shipped here. Required composition and the durable financial path work with observation completely absent.
+The public `@agent-teams/payments-get-modular/observation` subpath supplies one replaceable purchase read projection and an optional Assembly display consumer. Install Observation `0.1.0` when using that subpath. The main package entry remains a static composition surface and can be installed, typechecked and imported without Observation. Its optional peer metadata preserves that boundary; all participating modules must still share one physical Resources identity.
 
-Upstream [ADR #154](https://github.com/agent-teams-ai/get-modular/pull/154), [implementation plan #185](https://github.com/agent-teams-ai/get-modular/pull/185) and [implementation #195](https://github.com/agent-teams-ai/get-modular/pull/195) merged on 2026-10-19. The admitted source is main [`3e595957424ebc8b0211da7ec5926688f0dd41de`](https://github.com/agent-teams-ai/get-modular/commit/3e595957424ebc8b0211da7ec5926688f0dd41de), with [public types](https://github.com/agent-teams-ai/get-modular/blob/3e595957424ebc8b0211da7ec5926688f0dd41de/packages/observation/src/features/store/types.ts), [watch](https://github.com/agent-teams-ai/get-modular/blob/3e595957424ebc8b0211da7ec5926688f0dd41de/packages/observation/src/features/store/watch.ts), [load](https://github.com/agent-teams-ai/get-modular/blob/3e595957424ebc8b0211da7ec5926688f0dd41de/packages/observation/src/features/store/load.ts) and the [ownership contract](https://github.com/agent-teams-ai/get-modular/blob/3e595957424ebc8b0211da7ec5926688f0dd41de/packages/observation/README.md). This is merged implementation source, not this package's released support profile or a hook qualification claim.
+```ts
+import { createScope } from '@get-modular/resources';
+import { createPurchaseProjection } from '@agent-teams/payments-get-modular/observation';
 
-The official registry read-back at **2026-10-19 20:25:36 UTC** still lacked the coordinated Core/Assembly `0.6.0`, Resources `0.2.0`, Conformance `0.4.0` and Observation `0.1.0` train. Release preparation [#199](https://github.com/agent-teams-ai/get-modular/pull/199) remained open. Before optional hooks can ship, read back actual exact registry artifacts and peers, then run strict packed and hook consumers against the coherent released train. Keep the qualified `0.5/0.1` peers until that separate adoption succeeds. The TypeScript prerequisite and merged observation admission do not establish npm publication. The [upstream qualification record](../../docs/upstream-qualification.md) separates source, published artifacts, local checks and remaining gates.
+const projectionScope = createScope({ name: 'authorized-purchase-view' });
+const projection = createPurchaseProjection({
+  read: { readPurchase: payments.readPurchase },
+  initialQuery: { buyerId: authorizedBuyerId, intentId: authorizedIntentId },
+  reportError: (report) => { hostErrors.push(report); },
+}, { resources: projectionScope.resources });
 
-For the admitted source contract, the owner updates a read projection after durable commit or reconstructs it from persistent authority. The subscriber explicitly reads and renders its initial snapshot, then synchronously registers `facet.watch(snapshot, { resources, name, onChange })`. `watch` returns `undefined`, supplies no initial callback, and uses the source snapshot to catch up a change between read and registration. Callbacks are synchronous, return `undefined`, execute in a later task and can coalesce several commits into the newest state. Subscriber child-scope close releases the registration; there is no returned unsubscribe handle. There is no durable acknowledgement, replay or retry contract.
+const snapshot = projection.view.read(['state']);
+render(snapshot.values.state); // Initial rendering is explicit.
+projection.view.watch(snapshot, {
+  resources: projectionScope.resources,
+  name: 'purchase-screen',
+  onChange: ({ values }) => { render(values.state); },
+});
+projection.commands.refresh(); // Explicitly re-read after a durable commit.
+projection.commands.select(undefined); // Synchronously clear the current view.
+await projectionScope.control.close();
+```
 
-The admitted `load` also registers synchronously and returns `undefined`. It allows at most one active run and one latest pending input. A newer input aborts the older run but waits for its actual promise settlement and cleanup before starting another run. A superseded result cannot publish. Each run releases temporary resources before its promise settles; it must not return an open resource that might be discarded. `onLoading` does not prove physical cancellation, and callback failure is not a durable retry.
+The Host authorizes every initial or changed buyer/intent selection and lends an already scoped `readPurchase` port. The projection has no checkout, management, processing, grant or delivery authority. Its single readonly `state` is `idle`, `loading`, `ready` or `failed`. A ready value contains a finite copied purchase summary or `undefined` when absent. Source receipts, provider payloads and historical observation graphs remain with the payment owner. Failures expose only `{ code: 'purchase_read_failed' }`; an explicit refresh may recover them. The projection copies query inputs and nested summary data before Observation freezes its owned values, leaving borrowed public read results unchanged.
 
-Only replaceable read projections or diagnostics belong in these hooks. Checkout, charge, refund, granting rights/credits, consuming credits and publishing durable evidence remain explicit command/delivery operations. Store revisions do not replace provider versions or durable evidence revisions. Before adoption, test read/watch catch-up, deferred coalescing, subscriber/source close, callback error attribution, held-cleanup supersession, no stale publication and no leaked subscriptions against the real released observation runtime and its testing waits. This package's static tests make no observation qualification claim.
+`select` and `refresh` synchronously invalidate the old ready view before returning. A direct read after switching buyer/intent cannot return the previous ready purchase under the new selection. Rendered notifications follow the later-task scheduling contract. There is one active physical read and at most one latest pending query; superseded results cannot publish. The borrowed reader's promise must include all physical work and cleanup. Cancellation does not prove that an uncancellable database read has stopped, and closing the projection waits for its real settlement. Keep the runtime and pool alive until the dependent scope is complete.
+
+`watch` registers synchronously, returns `undefined`, supplies no initial callback and has no returned unsubscribe handle. Pass its actual source snapshot to catch up changes between read and registration. Callbacks run synchronously in later tasks, must return `undefined` and can receive coalesced current state. Subscriber scope close detaches the subscription. `load` retains one active run and one newest pending input, signals supersession and waits for physical settlement and cleanup before the successor starts. Intermediate states and requests may be dropped.
+
+For Assembly composition, the subpath exports declared read/configuration/renderer inputs, `purchaseProjectionModule`, `purchaseProjectionDisplayModule`, `purchaseObservationGroup`, role descriptors and `PurchaseObservationCapabilities`. One prepared template supports independent per-run inputs. A Host can select only the projection root and omit the display module and renderer. The [complete composition and qualification guide](../../qualification/observation/README.md) shows the public API.
+
+Checkout, charge, refund, granting or consuming rights/credits and durable evidence publication remain explicit financial commands and delivery protocols. A hook is a display/diagnostic projection, with no durable acknowledgement, replay or retry. Financial processing works when observation is absent, failing or already closed. No lifecycle event bus or provider retry is installed.
+
+The coordinated official registry release is Core/Assembly `0.6.0`, Resources `0.2.0`, Conformance `0.4.0` and Observation `0.1.0`. [Registry identities](../../qualification/observation/published-artifacts.json) include SHA-512 integrity, SHA-256, publication timestamps and peers. Every published archive is byte-identical to the original retained upstream candidate; the [historical manifest](../../qualification/observation/upstream-artifacts.json) and earlier evidence remain unchanged. The [upstream qualification record](../../docs/upstream-qualification.md) distinguishes this published adoption from those historical prepublication results.
 
 ## Verification
 
 The package tests exercise the real published Assembly, Resources and Conformance runtimes: a hand-written wiring/namespace oracle, module isolation, smoke success/failure/abort injection, two independent runs from one template, sibling ownership, provider promises held past command timeout, admitted storage reads during close, downstream startup failure, cancelled late resource acquisition and invalid configuration. An explicit checkout → verified input → processed fact → durable delivery → acknowledgement scenario verifies that financial processing needs no hook. A public Assembly run also preserves both duplicate initial payments, reads the selection basis, persists an audited support-stream choice, rejects a stale read set and releases only the selected stream's renewal hold. Strict compile-time probes prevent read facets from acquiring checkout or selection mutation methods.
 
-Run the repository's `build`, `typecheck`, `lint`, `foundation:check` and `test:modular` gates. Packed NodeNext and Bundler consumers remain repository release gates; installing this package should preserve exactly one qualified Get Modular peer identity.
+Run the repository's `build`, `typecheck`, `lint`, `foundation:check`, `test:modular` and `test:observation` gates. The observation gate installs all four packed payments packages and exact public Get Modular versions into an isolated consumer, checks strict NodeNext/Bundler resolution, and runs real PostgreSQL read/lifecycle and independent T1/T2/T3 scenarios. Packed NodeNext and Bundler consumers remain repository release gates; installing this package should preserve exactly one qualified Get Modular peer identity.

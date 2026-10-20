@@ -11,6 +11,30 @@ delta changes no package runtime source, CMS or observation contract document;
 direct watch/load/types/values/CMS reads retain the same blobs. The dated source
 and dependency qualification below remains its original reproducible snapshot.
 
+## October 20 published observation adoption
+
+A fresh official registry read-back on **2026-10-20** confirms the coordinated release is published. This supersedes the unpublished-train statements in the historical sections and [earlier continuation record](reviews/upstream-continuation-2026-10-20.md).
+
+| Official package | Version | Published UTC | Packed dependency / peers |
+| --- | --- | --- | --- |
+| [Core](https://registry.npmjs.org/@get-modular%2fcore/0.6.0) | `0.6.0` | 08:18:30.311 | none |
+| [Assembly](https://registry.npmjs.org/@get-modular%2fassembly/0.6.0) | `0.6.0` | 08:15:50.750 | exact Core `0.6.0` dependency |
+| [Resources](https://registry.npmjs.org/@get-modular%2fresources/0.2.0) | `0.2.0` | 08:17:18.249 | none |
+| [Conformance](https://registry.npmjs.org/@get-modular%2fconformance/0.4.0) | `0.4.0` | 08:18:54.515 | Core/Assembly `^0.6.0`, Resources `^0.2.0` peers |
+| [Observation](https://registry.npmjs.org/@get-modular%2fobservation/0.1.0) | `0.1.0` | 08:17:26.586 | Resources `^0.2.0` peer |
+
+All five official archives were downloaded freshly and checked against registry SHA-512 SRI and SHA-1. Their sizes and SHA-256 values exactly match the [original retained manifest](../qualification/observation/upstream-artifacts.json). Packed manifests agree with registry dependencies and peers. The [published artifact record](../qualification/observation/published-artifacts.json) retains exact registry URLs, hashes and read-back time. Archive equality establishes unchanged published runtime/declaration bytes, including `watch`, `load`, values and resource identity semantics; it does not relabel earlier tests as runs against npm.
+
+Official GitHub API read-back confirms [release preparation #199](https://github.com/agent-teams-ai/get-modular/pull/199) merged at **2026-10-19 22:14:37 UTC**, merge `10bb2de2880e38398c836f6660244fd4cb665822`. [Migration fixture correction #200](https://github.com/agent-teams-ai/get-modular/pull/200) merged at **21:16:51 UTC**, merge `f1a81300881eed64ac1d18e2f36423a24e6ecc34`; it changes historical migration test inputs, with no runtime contract change. Publication is established independently through the official registry above.
+
+The SDK adopts the exact coordinated pins and exports an optional public `@agent-teams/payments-get-modular/observation` subpath. Observation is an optional peer; the main static entry has no Observation import. The [maintained isolated consumer](../qualification/observation/README.md) now installs exact public versions beside all four packed payments packages, checks registry/archive identity, strict TypeScript `7.0.2` NodeNext/Bundler declarations and physical peer identity, and exercises the unchanged four scenario oracles against real PostgreSQL. The custom prepublication archive cache and duplicate qualification-source implementation are removed. Original candidate manifests, accepted ADRs and previous review/log evidence remain unchanged.
+
+Paddle.js declaration and Node bundled-transport qualification retain their separately owned gates; this dependency adoption grants no additional production or live-account claim.
+
+## Historical October 19 qualification
+
+The following dated sections record their original source and dependency snapshots. The published adoption above owns current Get Modular status.
+
 ## Qualified dependency change
 
 The workspace pins development-only `@agent-teams/engineering-foundation` to **1.10.1**. Its [official release](https://github.com/agent-teams-ai/engineering-foundation/releases/tag/%40agent-teams/engineering-foundation%401.10.1), published to [npm](https://registry.npmjs.org/%40agent-teams%2Fengineering-foundation) at 2026-10-19 19:36:48.427 UTC, fixes API extraction staging to exclude the generated `.worker-tmp` runtime-profile projection. [The source correction](https://github.com/agent-teams-ai/engineering-foundation/pull/414) prevents duplicated source trees and staged-entry budget exhaustion; it adds no payment runtime capability.
@@ -29,7 +53,7 @@ The dependency diff from `b4048b8` changes only the exact Foundation root develo
 
 The separately published [FMS 0.1.2](https://github.com/agent-teams-ai/engineering-foundation/releases/tag/%40agent-teams/feature-module-standard%400.1.2) corrects its optional Foundation peer to `^1.8.0`. FMS is not used by this workspace and was not added. Package engines, runtime dependencies, Get Modular peers and TypeScript/Node pins are unchanged.
 
-## Get Modular: merged implementation, unpublished release train
+## Historical Get Modular: merged implementation before publication
 
 Official [main `3e595957424ebc8b0211da7ec5926688f0dd41de`](https://github.com/agent-teams-ai/get-modular/commit/3e595957424ebc8b0211da7ec5926688f0dd41de) now includes the observation implementation. The following merges were verified directly through the official GitHub API:
 
@@ -46,7 +70,7 @@ The [current CMS](https://github.com/agent-teams-ai/get-modular/blob/3e595957424
 
 Actual npm publication remains a separate gate. The [Core](https://registry.npmjs.org/%40get-modular%2Fcore) and [Assembly](https://registry.npmjs.org/%40get-modular%2Fassembly) registry tags remain `latest:0.4.0`, `next:0.5.0`; [Resources](https://registry.npmjs.org/%40get-modular%2Fresources) remains `latest:0.1.0`; [Conformance](https://registry.npmjs.org/%40get-modular%2Fconformance) remains `latest:0.2.0`, `next:0.3.0`. The intended Core/Assembly **0.6.0**, Resources **0.2.0**, Conformance **0.4.0** versions are absent and [Observation](https://registry.npmjs.org/%40get-modular%2Fobservation) returns HTTP 404. [Release PR #199](https://github.com/agent-teams-ai/get-modular/pull/199) remained open at `9cabbd3892d2015056e8a83e6886674edb4ac298`.
 
-This SDK qualifies only its installed static profile. Optional observation adoption still requires actual coherent release artifacts, exact peer identities, strict packed consumers and the hook behavior tests in the [integration guide](../packages/payments-get-modular/README.md#observation-hooks-explicit-release-gate). No unpublished version was installed and no peer range was widened.
+This SDK qualifies only its installed static profile. Optional observation adoption still requires actual coherent release artifacts, exact peer identities, strict packed consumers and the hook behavior tests in the [integration guide](../packages/payments-get-modular/README.md#optional-purchase-observation). No unpublished version was installed and no peer range was widened.
 
 ## Paddle.js browser example: blocked strict declarations
 

@@ -1,0 +1,34 @@
+{
+  "commit": "d303f2a36774555bd885df63e536b97428c200a0",
+  "node": "26.11.1",
+  "command": "pnpm check",
+  "freshForcedBuild": true,
+  "serialPostgresLease": true,
+  "database": "payments_sdk_foundation_n26_d303_final",
+  "freshDisposableDatabase": true,
+  "testFileConcurrency": "unchanged Node default within each test group",
+  "started": "2026-10-20T12:22:40.206353+00:00",
+  "stages": [
+    {
+      "name": "frozen-install",
+      "started": "2026-10-20T12:22:40.206436+00:00",
+      "finished": "2026-10-20T12:22:40.640415+00:00",
+      "exitCode": 0
+    },
+    {
+      "name": "forced-build",
+      "started": "2026-10-20T12:22:40.640474+00:00",
+      "finished": "2026-10-20T12:22:48.340056+00:00",
+      "exitCode": 0
+    },
+    {
+      "name": "complete-check",
+      "started": "2026-10-20T12:22:48.340197+00:00",
+      "finished": "2026-10-20T12:25:33.525251+00:00",
+      "exitCode": 0
+    }
+  ],
+  "finished": "2026-10-20T12:25:33.531944+00:00",
+  "exitCode": 0,
+  "logSha256": "d8f47aef07d82852b7d0145ea27ec39025d74322705f47349d8e4d6b0c546a69"
+}

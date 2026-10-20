@@ -1,0 +1,11 @@
+{
+  "commit": "d303f2a36774555bd885df63e536b97428c200a0",
+  "node": "26.11.1",
+  "status": "incomplete; process session lost before final report",
+  "observedAt": "2026-10-20T12:22:25.612809+00:00",
+  "lastStartedGate": "test:packed",
+  "lastCompletedGate": "test:observation",
+  "noCompletionExitCodeAvailable": true,
+  "logSha256": "0f18f6c475f756a4e9c83cbbac52d598fa068db63939e0f22ec7c2ef7dce5f8f",
+  "unrelatedOldReport": "Existing full-check-node-26.11.1.json names fb9baa1 and must not be paired with this transcript."
+}

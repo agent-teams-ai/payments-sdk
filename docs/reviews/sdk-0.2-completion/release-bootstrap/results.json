@@ -1,0 +1,105 @@
+{
+  "testOnly": true,
+  "sourceCommit": "d303f2a36774555bd885df63e536b97428c200a0",
+  "installs": [
+    {
+      "name": "candidate-install",
+      "exitCode": 0,
+      "elapsedSeconds": 4.645,
+      "retainedSuccessfulInstall": true,
+      "inputHashes": {
+        "package.json": "474edb739290e6c3413acd3719e80b43046c2ea3dd8c21bd92ed9987d8179516",
+        "pnpm-workspace.yaml": "d8305313db73b9feabfcdebba9de486d70977bb7bccaf83115fc53660eab841e",
+        "pnpm-lock.yaml": "48f67891884649613aae4d79ee28eb1ebe113816191502d979e7f15e85af86b8"
+      },
+      "afterHashes": {
+        "package.json": "474edb739290e6c3413acd3719e80b43046c2ea3dd8c21bd92ed9987d8179516",
+        "pnpm-workspace.yaml": "d8305313db73b9feabfcdebba9de486d70977bb7bccaf83115fc53660eab841e",
+        "pnpm-lock.yaml": "48f67891884649613aae4d79ee28eb1ebe113816191502d979e7f15e85af86b8"
+      },
+      "nodeOrBunVersion": "0.2.2",
+      "nodeOrBunManifest": "/tmp/payments-release-bootstrap-probe/candidate-online/node_modules/.pnpm/node-or-bun@0.2.2/node_modules/node-or-bun/package.json",
+      "nodeOrBunManifestSha256": "bc16a17f71a162b4b89c305f2d613f3167d140354791c410e9aee3a18a5f0ee9",
+      "sdkDistDirectories": [],
+      "tsbuildinfoFiles": []
+    },
+    {
+      "name": "release-install-shared-store",
+      "exitCode": 0,
+      "elapsedSeconds": 1.8968660440004896,
+      "inputHashes": {
+        "package.json": "474edb739290e6c3413acd3719e80b43046c2ea3dd8c21bd92ed9987d8179516",
+        "pnpm-workspace.yaml": "d8305313db73b9feabfcdebba9de486d70977bb7bccaf83115fc53660eab841e",
+        "pnpm-lock.yaml": "48f67891884649613aae4d79ee28eb1ebe113816191502d979e7f15e85af86b8"
+      },
+      "afterHashes": {
+        "package.json": "474edb739290e6c3413acd3719e80b43046c2ea3dd8c21bd92ed9987d8179516",
+        "pnpm-workspace.yaml": "d8305313db73b9feabfcdebba9de486d70977bb7bccaf83115fc53660eab841e",
+        "pnpm-lock.yaml": "48f67891884649613aae4d79ee28eb1ebe113816191502d979e7f15e85af86b8"
+      },
+      "nodeOrBunVersion": "0.2.2",
+      "nodeOrBunManifest": "/tmp/payments-release-bootstrap-probe/release/node_modules/.pnpm/node-or-bun@0.2.2/node_modules/node-or-bun/package.json",
+      "nodeOrBunManifestSha256": "bc16a17f71a162b4b89c305f2d613f3167d140354791c410e9aee3a18a5f0ee9",
+      "sdkDistDirectories": [],
+      "tsbuildinfoFiles": []
+    }
+  ],
+  "probes": [
+    {
+      "name": "candidate-assemble-node24",
+      "exitCode": 0,
+      "elapsedSeconds": 0.19171838100010063,
+      "outputArchiveSha256": {
+        "agent-teams-payments-core-0.2.0.tgz": "ba561224ac290ecdcd66a20d130abea942ff886c4b7a72bf70731878c6c3b889",
+        "agent-teams-payments-get-modular-0.2.0.tgz": "5c2ed1d2d638c9ac1125bd33fef605ab9efc94e31642be05721fa0f24a3e5d99",
+        "agent-teams-payments-paddle-0.2.0.tgz": "0d2a32ff2203cda85f8cd3277abff7a9b5656b564f0602d8342475b1418bde25",
+        "agent-teams-payments-postgres-0.2.0.tgz": "9ed9aabdb723b1b5df61e20cecf3362dd099f871c5236b28d9eaf5f6b11a4f39"
+      }
+    },
+    {
+      "name": "candidate-assemble-node26",
+      "exitCode": 0,
+      "elapsedSeconds": 0.1757045990016195,
+      "outputArchiveSha256": {
+        "agent-teams-payments-core-0.2.0.tgz": "ba561224ac290ecdcd66a20d130abea942ff886c4b7a72bf70731878c6c3b889",
+        "agent-teams-payments-get-modular-0.2.0.tgz": "5c2ed1d2d638c9ac1125bd33fef605ab9efc94e31642be05721fa0f24a3e5d99",
+        "agent-teams-payments-paddle-0.2.0.tgz": "0d2a32ff2203cda85f8cd3277abff7a9b5656b564f0602d8342475b1418bde25",
+        "agent-teams-payments-postgres-0.2.0.tgz": "9ed9aabdb723b1b5df61e20cecf3362dd099f871c5236b28d9eaf5f6b11a4f39"
+      }
+    },
+    {
+      "name": "release-import-node24",
+      "exitCode": 0,
+      "elapsedSeconds": 0.15889465999862296
+    },
+    {
+      "name": "release-cli-load-node24",
+      "exitCode": 1,
+      "elapsedSeconds": 2.2067445139982738
+    },
+    {
+      "name": "release-import-node26",
+      "exitCode": 0,
+      "elapsedSeconds": 0.25296877499931725
+    },
+    {
+      "name": "release-cli-load-node26",
+      "exitCode": 1,
+      "elapsedSeconds": 0.08306781600185786
+    }
+  ],
+  "sourceArchiveSha256": "8376e85a89d4e2e8f918946f2624241bfa73eed3ac12e2ae9ed8355e0f2ea22c",
+  "bootstrapDiffSha256": "63cc9b8b6734f960b8734eed1054eadbebf4ee65703cd107561a9767b1a937bc",
+  "inputArchives": {
+    "sourceDirectory": "/workspace/scratch/9e36ca3bbd13/implementation/payments-delivery/.artifacts/packages",
+    "sha256": {
+      "agent-teams-payments-core-0.2.0.tgz": "ba561224ac290ecdcd66a20d130abea942ff886c4b7a72bf70731878c6c3b889",
+      "agent-teams-payments-get-modular-0.2.0.tgz": "5c2ed1d2d638c9ac1125bd33fef605ab9efc94e31642be05721fa0f24a3e5d99",
+      "agent-teams-payments-paddle-0.2.0.tgz": "0d2a32ff2203cda85f8cd3277abff7a9b5656b564f0602d8342475b1418bde25",
+      "agent-teams-payments-postgres-0.2.0.tgz": "9ed9aabdb723b1b5df61e20cecf3362dd099f871c5236b28d9eaf5f6b11a4f39"
+    }
+  },
+  "sourceInputArchivesUnchanged": true,
+  "authoritativeGitHubAdmissionTested": false,
+  "githubPublishInvoked": false
+}

@@ -13,9 +13,9 @@ export const unknown = { presence: 'unknown' } as const;
 export const offer: OfferSnapshot = { applicationId: scope.applicationId, offerId: 'monthly', version: '1', policyVersion: '1', profile: 'monthly', currency: 'USD', allowZeroTotal: false, lines: [{ providerPriceRef: 'price', benefitSlotId: 'slot', quantity: 1 }] };
 
 export function deferred<T>(): Readonly<{ promise: Promise<T>; resolve: (value: T) => void }> {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>(done => { resolve = done; });
-  return { promise, resolve };
+  let complete!: (value: T) => void;
+  const promise = new Promise<T>(resolve => { complete = resolve; });
+  return { promise, resolve: complete };
 }
 
 export function receipt(observation: Observation, extra: Partial<VerifiedInput> = {}): VerifiedInput {
@@ -48,7 +48,7 @@ export function runtime(store: PaymentStore, timeoutMs = 1000) {
 
 export async function databaseFixture(options: { maxWorkingSetBytes?: number } = {}) {
   const connectionString = process.env['DATABASE_URL'];
-  assert.ok(connectionString, 'DATABASE_URL is required for PostgreSQL qualification');
+  assert.ok((connectionString !== undefined && connectionString !== ''), 'DATABASE_URL is required for PostgreSQL qualification');
   const schema = `pgproof_${randomUUID().replaceAll('-', '').slice(0, 20)}`;
   const pool = new Pool({ connectionString, max: 10, connectionTimeoutMillis: 1000 });
   await migratePaymentSchema({ pool, schema, scope });
@@ -63,6 +63,5 @@ export async function observe(payments: ReturnType<typeof runtime>['payments'], 
 
 export function success<T>(value: ProviderResult<T> | OperationResult<T>): T {
   assert.equal(value.kind, 'succeeded');
-  if (value.kind !== 'succeeded') throw new Error('Fixture expected provider success');
   return value.value;
 }

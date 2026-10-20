@@ -1,0 +1,2 @@
+$ node tools/toolchain.ts
+Qualified Linux Node 24.21.0, TypeScript 7.0.2, and 78 strictly owned .ts sources

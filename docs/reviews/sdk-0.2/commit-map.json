@@ -1,0 +1,165 @@
+{
+  "base": "1080854be73fc9e61f7a2b3f634c79c661fd1a55",
+  "originalHead": "48efb0ad6ae58c9c861f3c1c06a7f3f26ad86ffd",
+  "deliveryBranch": "feat/sdk-0.2",
+  "deliveryHead": "ddd93cc962f4572aae6a06986b385dcbe565e524",
+  "reason": "Only unpublished owner-authored commits replayed to apply the organization canonical raw author/committer identity. Original branch retained; no remote history changed.",
+  "commits": [
+    {
+      "original": "340641f26e0cd71b049c14cdd8b57a012b7387f3",
+      "delivery": "8be61555f0f6396129ef0d0d4cd82ba1e79a889e",
+      "sameTree": true,
+      "tree": "15fb3158b508109d0644a62cfaff771afb1fee69"
+    },
+    {
+      "original": "1ae8f89f2d6e8f810d7d2edc5be86630a8e46d8b",
+      "delivery": "4b5d90fb36bd695f380e5e62b7eba99fa84638b0",
+      "sameTree": true,
+      "tree": "9dde47267d936be392433d134dc012af07944d39"
+    },
+    {
+      "original": "66011e3c3eb99d65ea30d9c4c02a79ff046ecbbe",
+      "delivery": "77ec291e48c544163ddc8b4e0fd31a6583e562a9",
+      "sameTree": true,
+      "tree": "4634c8c44cdf8e8ec7cd682b02da161ac67e1eb7"
+    },
+    {
+      "original": "820384f9f38c36773bdd94b3432a5412ebb06324",
+      "delivery": "3c91715452716244d000e5b293a3b70bbf138daa",
+      "sameTree": true,
+      "tree": "be9517f63eab279ba20d845ef4994c96f1592248"
+    },
+    {
+      "original": "cb1d240bd00f26ea7f1729518d62749b031da49f",
+      "delivery": "7bffa94387bcaaab762e076a6c0c10dc3d43c359",
+      "sameTree": true,
+      "tree": "b2c8b299bce0f89b1e16c1da6b8970269dd02124"
+    },
+    {
+      "original": "5eb638ea4b6124f04675d4ff45ca85fae94cd6e2",
+      "delivery": "f749e30cea89139de07aa9a934a83948b503a3f9",
+      "sameTree": true,
+      "tree": "59f77546c9630674b2d63d96e5962d3d2d9eedd3"
+    },
+    {
+      "original": "dccddcb2b3dd88cb6a16cffe1c206f5661335038",
+      "delivery": "941b7fe4073d848935302448bc544dd266f9ec97",
+      "sameTree": true,
+      "tree": "9b9f348fe064f18dd690b94a155bcff39bfdab62"
+    },
+    {
+      "original": "a769eded7b190be3a9f0001458eb6e0ffbbda369",
+      "delivery": "fadb00827dca47f000379021b46dd58fbef5da03",
+      "sameTree": true,
+      "tree": "269294bcecf9943cd810722217700b3898dd39d9"
+    },
+    {
+      "original": "5099de77130a6135efa8be17762b2d4b0bfedcef",
+      "delivery": "6df6bf159387d2e3186502ec5cbbcd40de1994e8",
+      "sameTree": true,
+      "tree": "d8b13e7fa84773ca3b2f44a80b6e7dff2d0bd947"
+    },
+    {
+      "original": "60b21f2ba36db1320dc25e6453462f74431feac7",
+      "delivery": "90e423d05a2e6957b754cbc4cf293a0912799d50",
+      "sameTree": true,
+      "tree": "176d7175a05abd94d3c8012cd0333f61688d9ed3"
+    },
+    {
+      "original": "98032c00c5b162a6b74c8b8f03e02cb6ab3a7ad7",
+      "delivery": "2cef5da6e355bfc7f029de2af780923640633c66",
+      "sameTree": true,
+      "tree": "cca8396285b8062c0c19dbb7d11b032bd17a2fb6"
+    },
+    {
+      "original": "0bc65536f5bd59677c29cf452d428730fd505e99",
+      "delivery": "36786ed4ad09d21ec9f5dd29c1c993495151520d",
+      "sameTree": true,
+      "tree": "567ac3b27a7c645e1107f0a055a426e3363d8b03"
+    },
+    {
+      "original": "dd2005fd9ffa91100bc09cf5eb62deb58e2436d8",
+      "delivery": "2901ff443c822c81da1a45743898998f97bf5a67",
+      "sameTree": true,
+      "tree": "4011eb43315dc4e4e98854c5797f814b6a10590d"
+    },
+    {
+      "original": "d49b357fcf4b378396b08ab1627206527cd8c593",
+      "delivery": "df232a2afe69e714b767e8160eb1150a67187176",
+      "sameTree": true,
+      "tree": "69397628a6016e551cd067b32c482359d55758dc"
+    },
+    {
+      "original": "c777e81805f7266cde7b536a7e262084e0a1c355",
+      "delivery": "f3ec5690127c8ec2a44b76ca0fc3ef26cfc624c6",
+      "sameTree": true,
+      "tree": "776d9515a423872414a285a5149563cb44f6afd4"
+    },
+    {
+      "original": "eb220b680d8a5694d2c6ad9fdc7d3f9a9260c5f2",
+      "delivery": "1bdf0d65b5d77e70aa09ba85835ef4cc7b0137ea",
+      "sameTree": true,
+      "tree": "8b6e2660b8bfd19ff3b4f9ad6f85bc45b7bf3305"
+    },
+    {
+      "original": "e497cb63ad80b0153f87bd2f2b28861d188999cc",
+      "delivery": "9a0de3ddb21a2535edafb2213d26bbb6ae7e3fa2",
+      "sameTree": true,
+      "tree": "beefcac7d34df4c97d29245a83b1411f7e39033b"
+    },
+    {
+      "original": "f812218cd9db653b856f730e21302cc7100da24f",
+      "delivery": "56c93c177054bcef0da15d2d2b452bd1900f92d0",
+      "sameTree": true,
+      "tree": "825036b4d42080e94e03bce4b0bd376c03d19689"
+    },
+    {
+      "original": "1328a5b6215d0018fddc1c80e5f86fab69fe96da",
+      "delivery": "db4ec494d8c40a368aab76a309e06258cc611657",
+      "sameTree": true,
+      "tree": "3ec282aefe9ee50f6f503496b95fafdbbbb72ce5"
+    },
+    {
+      "original": "58ce4d84b4267c77b53f257ccac9b067dac63305",
+      "delivery": "0812f1e2991355d1c7977ff3422af0de3d2e19cb",
+      "sameTree": true,
+      "tree": "4615e2452cc02f61c63a71cf6284e26c4e086d8a"
+    },
+    {
+      "original": "ffdcb20c13886151747d7685f5c3fd1e19e62ccc",
+      "delivery": "4cc36bbc394c5f3d05614ed32855c1b758002801",
+      "sameTree": true,
+      "tree": "cf4d5faa4db04d45cc571d0ded3ab2c93231395e"
+    },
+    {
+      "original": "1e3befe0bdaf15c0df8457d3f06926c2b8c1fe00",
+      "delivery": "733d68275db5003010d5fa7ceb2ca1e473994590",
+      "sameTree": true,
+      "tree": "3ced20f30f391ff1c98ae3ad41cc921c96f53e62"
+    },
+    {
+      "original": "5ea371a394845544b72c9c18e3a5f5fa35c5844a",
+      "delivery": "dd51b9ed8a2faa69c641270877a361455f4c994d",
+      "sameTree": true,
+      "tree": "28faaf4703be25a612690635a9264fe59b5bfcb3"
+    },
+    {
+      "original": "be42c359c3051588412488f2f1812ee5d74b290e",
+      "delivery": "2e5d46a4346ad4d075c6913f27f7cc80cb7ae330",
+      "sameTree": true,
+      "tree": "ab01f33666e7d41ce78ca3ffeaa1ca093f3f4593"
+    },
+    {
+      "original": "5c0b4ac79e1a0e16a0d8a3b671da654a6dfe9977",
+      "delivery": "3718cda17b23b8192a6983aa7f56102a16a818dc",
+      "sameTree": true,
+      "tree": "47dd8a98e517ce054aee2ea529649c804aadd6ee"
+    },
+    {
+      "original": "48efb0ad6ae58c9c861f3c1c06a7f3f26ad86ffd",
+      "delivery": "ddd93cc962f4572aae6a06986b385dcbe565e524",
+      "sameTree": true,
+      "tree": "1d4b499cd2c9475b1295cb724e26c8d73074f384"
+    }
+  ]
+}

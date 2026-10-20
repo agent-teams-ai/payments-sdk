@@ -1,0 +1,73 @@
+{
+  "commit": "d303f2a36774555bd885df63e536b97428c200a0",
+  "node": "26.11.1",
+  "groups": {
+    "boundaries": {
+      "tests": 21,
+      "pass": 21,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "core": {
+      "tests": 49,
+      "pass": 49,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "paddle": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "modular": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "postgres": {
+      "tests": 45,
+      "pass": 45,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "e2e": {
+      "tests": 53,
+      "pass": 53,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "archives": {
+    "agent-teams-payments-core-0.2.0.tgz": {
+      "sha256": "ba561224ac290ecdcd66a20d130abea942ff886c4b7a72bf70731878c6c3b889",
+      "bytes": 64695
+    },
+    "agent-teams-payments-get-modular-0.2.0.tgz": {
+      "sha256": "5c2ed1d2d638c9ac1125bd33fef605ab9efc94e31642be05721fa0f24a3e5d99",
+      "bytes": 20855
+    },
+    "agent-teams-payments-paddle-0.2.0.tgz": {
+      "sha256": "0d2a32ff2203cda85f8cd3277abff7a9b5656b564f0602d8342475b1418bde25",
+      "bytes": 26307
+    },
+    "agent-teams-payments-postgres-0.2.0.tgz": {
+      "sha256": "9ed9aabdb723b1b5df61e20cecf3362dd099f871c5236b28d9eaf5f6b11a4f39",
+      "bytes": 67244
+    }
+  },
+  "fullCheckLogSha256": "d8f47aef07d82852b7d0145ea27ec39025d74322705f47349d8e4d6b0c546a69"
+}

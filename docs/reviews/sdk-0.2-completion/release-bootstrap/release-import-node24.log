@@ -1,0 +1,8 @@
+TEST ONLY; no authoritative Checks provenance or release admission.
+Command: ["/tmp/payments-cont-toolchain/node24/bin/node", "--input-type=module", "-e", "const tooling = await import('./tools/package-artifacts.ts'); const result = await tooling.command(process.execPath, ['-e', 'process.stdout.write(\"release-captured-command-ok\")']); if (result !== 'release-captured-command-ok') throw new Error('captured command mismatch'); console.log(result);"]
+Working directory: /tmp/payments-release-bootstrap-probe/release
+
+release-captured-command-ok
+
+Exit: 0
+Elapsed seconds: 0.159

@@ -1,0 +1,12 @@
+✔ packed payments and installed observation: absent, failing and closed screens preserve real T1/T2/T3 delivery and Q100/T25 effects (427.701599ms)
+✔ installed candidate uses one physical GM peer graph without the older static adapter or development tooling (8.105688ms)
+✔ installed observation catches read/watch gaps, coalesces, attributes callback failure and detaches both scope lifetimes (7.829221ms)
+✔ projection supersession and close await actual PostgreSQL reads plus cleanup; obsolete results never publish (85.399993ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 867.502114

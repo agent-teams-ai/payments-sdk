@@ -1,0 +1,73 @@
+diff --git a/.github/workflows/release.yaml b/.github/workflows/release.yaml
+index 922cd2c..99d03b9 100644
+--- a/.github/workflows/release.yaml
++++ b/.github/workflows/release.yaml
+@@ -39,9 +39,13 @@ jobs:
+           ref: main
+           fetch-depth: 0
+           persist-credentials: false
++      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4; exact pnpm from packageManager
+       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+         with:
+           node-version: 24.21.0
++          cache: pnpm
++      - name: Install frozen release tooling without lifecycle scripts
++        run: pnpm install --frozen-lockfile --ignore-scripts
+       - name: Admit exact main commit and successful required CI
+         id: verify
+         env:
+@@ -81,9 +85,13 @@ jobs:
+         with:
+           ref: main
+           persist-credentials: false
++      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4; exact pnpm from packageManager
+       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+         with:
+           node-version: 24.21.0
++          cache: pnpm
++      - name: Install frozen release tooling without lifecycle scripts
++        run: pnpm install --frozen-lockfile --ignore-scripts
+       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+         with:
+           name: payments-${{ needs.candidate.outputs.tag }}-${{ needs.candidate.outputs.commit }}
+diff --git a/docs/node-or-bun-adoption.md b/docs/node-or-bun-adoption.md
+index eff8042..5d2d08e 100644
+--- a/docs/node-or-bun-adoption.md
++++ b/docs/node-or-bun-adoption.md
+@@ -8,6 +8,14 @@ second command abstraction or runtime auto-detection was introduced. Engineering
+ Foundation already carried its own transitive 0.2.1 pin; that dependency remains
+ unchanged, and this adoption adds payments-owned direct use of 0.2.2.
+ 
++The [release workflow](../.github/workflows/release.yaml) installs the trusted
++`main` checkout's frozen workspace dependencies in both jobs before loading
++this helper. It uses the exact `packageManager` pnpm version, the shared pnpm
++store cache and `--ignore-scripts`; release still audits and delivers the
++exact admitted CI archives without rebuilding or repacking them. This explicit
++bootstrap replaces the earlier assumption that release tooling needed only
++Node built-ins and hosted-runner executables.
++
+ This is a tooling adoption. None of the four published SDK packages imports or
+ declares `node-or-bun`. Archive admission rejects it in published dependency or
+ peer dependency declarations, and packed plain-core and production npm consumer
+diff --git a/docs/releasing.md b/docs/releasing.md
+index 6ea09a5..b9e0009 100644
+--- a/docs/releasing.md
++++ b/docs/releasing.md
+@@ -12,13 +12,15 @@ The read-only candidate job:
+ 
+ 1. Loads the maintained release tools from trusted `main` and verifies that the requested exact commit is an ancestor of `origin/main`. Existing local/remote release tags must resolve to that commit.
+ 2. Queries the authoritative repository's `checks.yaml` workflow, requiring the latest exact-SHA **main push** run to be completed/successful and its **Required checks** aggregate job to be completed/successful. Pull-request, fork, feature-branch, skipped and failed runs cannot authorize a release.
+-3. Downloads the unexpired `release-dry-run` artifact from that admitted run ID. It reuses the packages already built, packed and consumed in CI; it does not reinstall dependencies or rebuild different bytes during release.
++3. Downloads the unexpired `release-dry-run` artifact from that admitted run ID. It reuses the packages already built, packed and consumed in CI; release tooling never rebuilds or repacks those archives.
+ 4. Requires exactly the four expected versioned tarballs. The shared archive auditor checks package name/version, ESM entry/declarations, exports/license, safe paths, no source/tests/node_modules, resolved workspace/catalog protocols and no Engineering Foundation runtime dependency.
+ 5. Computes SHA-256 for each tarball and writes `release-manifest.json` with repository, commit, tag, exact Checks URL, package versions/digests and `npmPublished:false`. It uploads the candidate bundle as `payments-<tag>-<commit>` for 90 days.
+ 
+ Only the dependent release job receives `contents:write`. It downloads this workflow's admitted bundle, verifies its manifest/tarball digests, resolves the remote tag again, and creates the GitHub prerelease with the six assets. If the tag is annotated, it resolves the commit through the public GitHub Git API. Existing releases/assets are never overwritten or edited; conflicting identities fail visibly.
+ 
+-No pull-request event triggers this workflow. Default permissions are read-only, checkout credentials are not persisted, all Actions use full commit SHAs, and untrusted inputs enter commands as environment values/argument arrays rather than shell interpolation. The workflow uses the hosted runner's `gh`, Git, tar and Node built-ins; it introduces no publication dependency or npm secret.
++Both jobs first install the maintained `main` checkout's frozen workspace dependencies with `pnpm install --frozen-lockfile --ignore-scripts`. The SHA-pinned pnpm setup action selects the exact `packageManager` version, currently **11.25.0**; Node setup shares the same pnpm store cache as Checks through the root lockfile. This bootstrap supplies the development-only `node-or-bun` adapter used by the shared captured-command helper. Lifecycle scripts stay disabled, and no package build or pack command runs. Installed tooling comes from trusted `main`; the four delivered archive bytes come only from the admitted exact-commit CI artifact. A missing cache changes install cost, not admission or artifact identity.
++
++No pull-request event triggers this workflow. Default permissions are read-only, checkout credentials are not persisted, all Actions use full commit SHAs, and untrusted inputs enter commands as environment values/argument arrays rather than shell interpolation. The workflow uses the hosted runner's `gh`, Git and tar plus the frozen development tooling above; it introduces no npm publication secret. `GH_TOKEN` is provided only to the admission and GitHub prerelease publication steps, not dependency installation.
+ 
+ Protect `main` with Required checks, and restrict creation/update/deletion of `v*` release tags to trusted maintainers/automation. Treat release tags as immutable. GitHub's repository/organization policy must admit the SHA-pinned Actions and the release job's narrowly scoped token. These controls establish who may select a trusted release; they do not add an environment/manual approval step to normal authorized artifact delivery.
+ 

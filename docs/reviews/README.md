@@ -140,6 +140,35 @@ rejects production runtime/security admission until the upstream correction is
 published and qualified. This report/index-only successor preserves that
 decision and still needs its own final main-push CI.
 
+## Observation candidate continuation — October 20
+
+The optional purchase read projection uses the five original retained Get Modular
+candidate archives in a separate installed consumer. Its [implementation guide](../../qualification/observation/README.md)
+and [dated upstream record](upstream-continuation-2026-10-20.md) preserve the
+unpublished-release and production-runtime admission boundaries.
+
+Four additional independent GPT-6.1-sol xhigh critics reviewed implementation
+`340641f26e0cd71b049c14cdd8b57a012b7387f3` and documentation
+`1ae8f89f2d6e8f810d7d2edc5be86630a8e46d8b`:
+
+| Review | Disposition |
+| --- | --- |
+| [Observation contract](observation/contract.md) | No actionable material finding: readonly ownership, finite copied summary, latest-only physical drain, actual watch/load semantics |
+| [E2E evidence](observation/e2e.md) | One accepted validation gap, corrected and independently rechecked at `66011e3c3eb99d65ea30d9c4c02a79ff046ecbbe`: post-close renewal must advance access paidUntil and knownLastPeriod to the exact December endpoint |
+| [Artifact admission and CI](observation/admission.md) | No outstanding material finding: exact archive identity/peers, isolated strict consumer, false publication/production flags, required matrix gate |
+| [Architecture](observation/architecture.md) | No new actionable material finding: real declared composition/resources, separate read capabilities, physical ownership, accurate qualification boundary |
+
+The E2E correction is three precise expectations in the existing connected
+scenario; it introduces no runtime change or additional shallow test suite.
+The [post-correction local gate record](observation/local-qualification.json) confirms
+full `pnpm check` on Node 24.21.0 and 26.11.1 with PostgreSQL 18.4. The retained
+[Node 24](observation/observation-candidate-node-24.21.0.json) and
+[Node 26](observation/observation-candidate-node-26.11.1.json) candidate records
+include exact upstream and payments archive hashes and their scenario log hashes. All four review reports state their evidence and execution limits.
+The required exact-commit remote CI remains a separate admission step; local
+reports and repository administrator rights do not establish a successful push,
+PR or merge.
+
 ## Qualification boundaries
 
 Tests use the real pinned SDK's public HTTP mapping with synthetic responses and
@@ -153,3 +182,21 @@ merges. Main requires the final aggregate CI check and an up-to-date PR; force
 push and deletion are disabled. Independent agent reports are the requested
 review process, without inventing human GitHub approvals.
 
+
+## SDK 0.2 integration review
+
+The [four additional independent reviews](sdk-0.2/README.md) cover published Get
+Modular observation, private Drizzle adoption, provider vocabulary, worker
+diagnostics and package/CI delivery. Their scope and source mapping are separate
+from the completed historical design and implementation waves.
+
+## SDK 0.2 final tooling and delivery qualification
+
+The [completion record](sdk-0.2-completion/README.md) binds full local Node
+24.21.0 and 26.11.1 checks and hosted CI to `d303f2a`, after direct node-or-bun,
+shared typed Foundation presets/lifecycle and the cold-build dependency fix.
+It retains independent source/backend/consumer reviews, raw complete logs,
+matching package hashes, the earlier cold failure and interrupted local run,
+and independently reproduced production logical code counts. These are
+additional scoped reviews, not a replacement or relabeling of the four
+historical design and implementation waves above.

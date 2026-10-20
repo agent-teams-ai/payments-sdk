@@ -20,28 +20,28 @@ export async function postgresFaultProxy(connectionString: string) {
       upstream.write(data);
     });
     upstream.on('data', data => {
-      if (blackhole) return;
+      if (blackhole) {return;}
       if (loseThisCommit && data.includes(Buffer.from('COMMIT\0'))) {
         loseThisCommit = false; client.destroy(); upstream.destroy(); return;
       }
-      if (!loseThisCommit) client.write(data);
+      if (!loseThisCommit) {client.write(data);}
     });
     client.on('error', () => upstream.destroy());
-    upstream.on('error', () => { if (!blackhole) client.destroy(); });
+    upstream.on('error', () => { if (!blackhole) {client.destroy();} });
     client.on('close', () => { sockets.delete(client); upstream.destroy(); });
-    upstream.on('close', () => { sockets.delete(upstream); if (!blackhole) client.destroy(); });
+    upstream.on('close', () => { sockets.delete(upstream); if (!blackhole) {client.destroy();} });
   });
   await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
   const address = server.address();
-  if (!address || typeof address === 'string') throw new Error('Proxy listener has no address');
+  if (address === null || typeof address === 'string') {throw new Error('Proxy listener has no address');}
   target.hostname = '127.0.0.1'; target.port = String(address.port);
   return {
     connectionString: target.toString(),
     loseNextCommit() { dropCommit = true; },
     blackholeReplies(value: boolean) { blackhole = value; },
     async close() {
-      for (const socket of sockets) socket.destroy();
-      await new Promise<void>((resolve, reject) => server.close(error => { if (error) reject(error); else resolve(); }));
+      for (const socket of sockets) {socket.destroy();}
+      await new Promise<void>((resolve, reject) => { server.close(error => { if (error) {reject(error);} else {resolve();} }); });
     },
   };
 }

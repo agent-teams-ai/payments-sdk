@@ -8,7 +8,9 @@ This guide composes the supported profile from the four package boundaries. The 
 
 A plain application can use `payments-core` with its own implementations of the core-owned `PaymentProvider`, `PaymentStore` and `Catalog` ports. For Paddle with PostgreSQL, install the matching core, Paddle and PostgreSQL tarballs from one [release candidate](releasing.md), plus `pg`. Add `payments-get-modular` and its exact qualified peers only when the host uses Get Modular. These packages emit ESM JavaScript and declarations; consume their public exports instead of importing workspace source or private SDK paths.
 
-The qualified static Get Modular set is Core/Assembly `0.5.0`, Resources `0.1.0` and development-only Conformance `0.3.0`. Preserve one physical Resources identity. The [package guide](../packages/payments-get-modular/README.md) owns composition, cleanup and the separate release/consumer gate for the merged, still unpublished Observation implementation. The [current upstream record](upstream-qualification.md) gives the exact source and registry snapshot.
+For SDK `0.2.0`, the qualified published Get Modular set is Core/Assembly `0.6.0`, Resources `0.2.0` and development-only Conformance `0.4.0`. Add Observation `0.1.0` when importing `@agent-teams/payments-get-modular/observation`; the base integration does not require it. Preserve one physical instance of the host's branded peers. The [package guide](../packages/payments-get-modular/README.md) owns Assembly composition, Resources cleanup, `watch` and latest-only `load`. The [current upstream record](upstream-qualification.md) gives the exact artifacts and consumer qualification.
+
+Drizzle is an internal runtime dependency of `payments-postgres`. It does not change the core ports or require applications to adopt an ORM. The PostgreSQL [adapter guide](../packages/payments-postgres/README.md) explains the exact prerelease, transaction ownership and separate maintainer declaration correction; packed npm consumers use the original registry package without that correction.
 
 ## 2. Establish trusted identities and catalog
 

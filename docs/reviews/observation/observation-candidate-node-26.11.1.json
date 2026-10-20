@@ -1,0 +1,72 @@
+{
+  "status": "passed",
+  "qualification": "unpublished-upstream-candidate",
+  "npmPublicationProven": false,
+  "productionAdmission": false,
+  "node": "v26.11.1",
+  "typescript": "7.0.2",
+  "upstreamCommit": "c5c314ab98c57d2c73448f0c3c9860424a993d8a",
+  "manifestSha256": "c2e12d8bf5b6ecf9d92764cc37e23eecc9c01b1e117e8731cdc4cacb8064459c",
+  "paymentsArtifacts": [
+    {
+      "name": "@agent-teams/payments-core",
+      "sha256": "b8f4c059fc61c66dc6ec3d7a2558e8749915d1df1ef3600ccf13f5e13172a51a"
+    },
+    {
+      "name": "@agent-teams/payments-paddle",
+      "sha256": "747043bb631431ab176dff5146f7e4d0051f51b20628b404d8edde0fc30f4271"
+    },
+    {
+      "name": "@agent-teams/payments-postgres",
+      "sha256": "d5d03a2f289efbe1d67420eb473bf8f7d50cf7b21a66b4d7b7822ae05302e03c"
+    }
+  ],
+  "archives": [
+    {
+      "name": "@get-modular/core",
+      "version": "0.6.0",
+      "sha256": "a1a64aeaadf5ae0f9143cf26038853cf42d90b060e083f5ff2f4acf7e2e8d1b0"
+    },
+    {
+      "name": "@get-modular/assembly",
+      "version": "0.6.0",
+      "sha256": "3330afe53ab9615a1dc81273cf9c45b8b9fb68b1d95571af060971e58a9be606"
+    },
+    {
+      "name": "@get-modular/resources",
+      "version": "0.2.0",
+      "sha256": "2d1aaab67b0002a426fda69b01bda9f7697662ea9685a990b33a12d18658f46b"
+    },
+    {
+      "name": "@get-modular/conformance",
+      "version": "0.4.0",
+      "sha256": "2182cf9702879b2ab78928646db59d91d8a7b128ee870c4b0a2283f51e0d352a"
+    },
+    {
+      "name": "@get-modular/observation",
+      "version": "0.1.0",
+      "sha256": "083bed3ca61e586d6ce91c272be4b4d07c3c68ae00aa9b414febee20e60f1915"
+    }
+  ],
+  "resolvers": [
+    {
+      "resolution": "NodeNext",
+      "strict": true,
+      "skipLibCheck": false,
+      "passed": true
+    },
+    {
+      "resolution": "Bundler",
+      "strict": true,
+      "skipLibCheck": false,
+      "passed": true
+    }
+  ],
+  "tests": [
+    "financial.test.ts",
+    "identity.test.ts",
+    "lifecycle.test.ts",
+    "projection-lifecycle.test.ts"
+  ],
+  "scenarioOutputSha256": "94cff1680f76dc79685fd4acb43e88c56818421b5084c36f9a30dd75ecaeecbb"
+}

@@ -4,6 +4,42 @@
 `pg-boss@12.38.0` as a disposable transport. The host owns one `pg.Pool`. Neither the
 store nor the transport opens a hidden pool or calls `pool.end()`.
 
+## Typed SQL and dependency admission
+
+The adapter uses private Drizzle schema bindings and typed PostgreSQL query
+builders for record reads, conditional record upserts, membership guards,
+obligation transitions, configuration updates and bounded keyset scans. The
+connection-free `drizzle.mock()` API only compiles statements with `toSQL()`;
+the existing checked-out `pg` transaction executes them. Drizzle does not own
+transactions, connections, migrations or the pg-boss transport. Ordered advisory
+locks, PostgreSQL-specific JSON operations and repair locking retain explicit SQL.
+No Drizzle schema, inferred record, query or transaction type is part of the public
+SDK contract. Revision columns retain pg's exact int8 text representation until
+the adapter checks the supported integer range. Writes distinguish JSON `null`
+from SQL `NULL`, and equal jsonb bodies preserve both revision and update time.
+
+The physical `schemaVersion: 1` and explicit bootstrap DDL are unchanged. Existing
+databases need no ORM migration metadata or baseline rewrite. `migrations.ts`
+remains the authoritative DDL; the runtime bindings describe its columns and keys.
+
+The exact dependency is the official `drizzle-orm@1.0.0-rc.5-5935859` preview;
+it is explicitly a prerelease snapshot. The official stable `0.45.4` and earlier
+`1.0.0-rc.4` artifacts fail the required TypeScript `7.0.2` declaration profile.
+The selected preview requires a narrow maintainer declaration correction: fifteen
+optional policy/role config fields explicitly admit `undefined`, matching their
+existing runtime classes. The eight ESM/CJS declaration files are the only changed
+package bytes. `tools/qualify-drizzle.ts` verifies the original archive SRI,
+the exact correction, every unchanged runtime file and strict positive/negative
+type probes. It keeps `skipLibCheck:false`, `exactOptionalPropertyTypes:true` and
+the rest of the inherited compiler profile. The [admission record](../../docs/reviews/drizzle-admission.md)
+owns the provenance, maintenance scope and validation limits.
+
+Drizzle's cross-dialect declaration closure also requires `mysql2@3.24.6` for
+maintainer compilation. That driver is a development dependency only. The public
+SDK declaration graph does not expose Drizzle internals, and ordinary npm
+consumers use the official unpatched Drizzle runtime without inheriting the
+workspace's pnpm patch. Packed consumer qualification verifies that boundary.
+
 ## Bootstrap and runtime are separate operations
 
 Run bootstrap explicitly with a migration role before starting application traffic:
@@ -144,6 +180,13 @@ logical attempts, with exponential cooldown from 30 seconds up to one hour.
 Persistent handler/configuration faults become durable quarantine instead of a
 hot loop. Successful scan or backfill cursor progress resets the fault budget, so
 long scans do not become quarantined merely because they require many pages.
+Unexpected handler exceptions also reach the host's `onError` as
+`PaymentJobHandlerError`, with the original `cause`, bounded work kind/identity
+and logical attempt number. The adapter reports after attempting durable
+settlement and does not attach the payment message or persist the exception.
+Keep this diagnostic sink private to the host and apply its logging/redaction
+policy there. A throwing or rejected error listener cannot change retry, ACK or
+quarantine; the host owns monitoring failures of its diagnostic sink.
 Missing read-only reconciliation/scan handlers and unknown outcomes
 needing operator review are quarantined visibly. Unknown outcomes retain their
 dispatch marker and can only acquire evidence or enter audited manual resolution;

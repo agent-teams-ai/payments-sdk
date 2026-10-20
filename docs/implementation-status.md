@@ -30,14 +30,22 @@ feature-branch check cannot authorize the release.
 
 ## Explicit admission boundaries
 
+The SDK 0.2 integration is delivered for review through
+[PR #5](https://github.com/agent-teams-ai/payments-sdk/pull/5). Its
+[final qualification record](reviews/sdk-0.2-completion/README.md) binds complete
+local checks on both supported Node floors and successful exact-source hosted
+CI to private Drizzle, published observation, provider vocabulary, worker
+diagnostics, maximum-page IO corrections, direct node-or-bun tooling and the
+complete selected Foundation profile. The earlier
+[integration qualification](reviews/sdk-0.2/qualification.md) retains its own
+historical subject. PR state and the exact main-push release manifest establish
+subsequent merge and release delivery; a local result does not imply either.
+
 The post-integration [dependency correction and Node runtime investigation](security-qualification.md) are separate from the completed four implementation review waves. The development HTTP harness is qualified on Undici **7.30.1**. Production runtime admission remains blocked by an independently reproduced built-in `fetch` defect in the current Node floors and latest same-major official releases. Functional GitHub prerelease delivery is available; a corrected official runtime and its consumer qualification are required before production deployment.
 
-The required P6 Get Modular host uses the qualified published static peer set.
-The upstream observation implementation has merged, but the coordinated new
-registry train was unpublished at the [recorded read-back](upstream-qualification.md).
-Hooks remain optional read projections; they cannot replace financial delivery,
-consumer transactions or acknowledgements. The future hook consumer admission
-contract is retained without inventing an unavailable runtime API.
+The P6 Get Modular host uses the coherent published Core/Assembly `0.6.0` and Resources `0.2.0` peer set. The optional public `payments-get-modular/observation` subpath now consumes Observation `0.1.0`; Conformance `0.4.0` remains development-only. The [registry record](../qualification/observation/published-artifacts.json) proves all five official artifacts match their original retained candidate bytes. Earlier candidate reports remain historical.
+
+The [public purchase read projection](../qualification/observation/README.md) supplies real Assembly inputs/slots, readonly store facets, scoped display watches and latest-only loads. Its required isolated consumer imports the packed package export, checks strict NodeNext/Bundler declarations and one physical peer graph, and runs real PostgreSQL scenarios on both Node floors. The separate static consumer omits Observation. Hooks remain optional read projections and cannot replace financial delivery, consumer transactions or acknowledgements.
 
 The official Paddle.js 1.6.5 browser example is blocked by its published
 declarations under the required strict compiler profile, reproduced in both
@@ -52,5 +60,5 @@ and real PostgreSQL; logical independent-owner restore tests do not prove a
 physical restore. See [deployment gates](qualification.md#deployment-and-credential-gates).
 
 GitHub prerelease archives are the configured delivery channel. Manifest version
-0.1.0 and a successful dry run do not establish npm publication; registry
+0.2.0 and a successful dry run do not establish npm publication; registry
 ownership and trusted publishing remain the separately documented future setup.

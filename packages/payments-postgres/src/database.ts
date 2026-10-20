@@ -37,13 +37,13 @@ export interface PaymentSqlExecutor {
 
 /** SQL identifiers are configuration, never request data. Limit prevents PostgreSQL name truncation. */
 export function sqlIdentifier(value: string): string {
-  if (!/^[a-z][a-z0-9_]{0,47}$/.test(value)) throw new TypeError('Invalid payment schema or role identifier');
+  if (!/^[a-z][a-z0-9_]{0,47}$/.test(value)) {throw new TypeError('Invalid payment schema or role identifier');}
   return `"${value}"`;
 }
 
 function validateTimeouts(value: DatabaseTimeouts): void {
   for (const timeout of Object.values(value)) {
-    if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 120_000) throw new TypeError('Invalid database timeout');
+    if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 120_000) {throw new TypeError('Invalid database timeout');}
   }
   if (value.acquireMs >= value.deadlineMs || value.transactionMs >= value.deadlineMs) {
     throw new TypeError('Database deadline must include acquisition and transaction cleanup');
@@ -61,17 +61,20 @@ function acquire(pool: Pool, timeoutMs: number): Promise<PoolClient> {
     timer.unref();
     pool.connect((error, client, release) => {
       if (settled) {
-        if (client) release();
+        if (client) {release();}
         return;
       }
       settled = true;
       clearTimeout(timer);
-      if (error) reject(error);
-      else if (!client) reject(new Error('Pool returned no connection'));
-      else resolve(client);
+      if (error) {reject(error);}
+      else if (!client) {reject(new Error('Pool returned no connection'));}
+      else {resolve(client);}
     });
   });
 }
+
+// Query promises carry the observable failure, including during server restarts.
+function onPaymentConnectionError(): void {}
 
 type OwnedConnection = Readonly<{
   sql: PaymentSqlTransaction;
@@ -91,13 +94,12 @@ async function withPaymentConnection<T>(
   let released = false;
   let expired = false;
   const release = (destroy: boolean): void => {
-    if (released) return;
+    if (released) {return;}
     released = true;
     client.release(destroy);
   };
   // A client checked out during a server restart may emit an error before its query rejects.
-  const onError = (): void => { /* Query promises carry the observable failure. */ };
-  client.on('error', onError);
+  client.on('error', onPaymentConnectionError);
   const remaining = (): number => Math.max(1, Math.floor(timeouts.deadlineMs - (performance.now() - startedAt)));
   const timer = setTimeout(() => {
     expired = true;
@@ -106,18 +108,18 @@ async function withPaymentConnection<T>(
   timer.unref();
   const transaction: PaymentSqlTransaction = {
     async query<R extends QueryResultRow = QueryResultRow>(text: string, values?: readonly unknown[]): Promise<QueryResult<R>> {
-      if (expired || released) throw new PaymentDatabaseError('transaction_timeout');
+      if (expired || released) {throw new PaymentDatabaseError('transaction_timeout');}
       // pg 8.23 supports per-query timeout; @types/pg 8.20 omits this documented runtime option.
       const config: QueryConfig & { query_timeout: number } = { text, ...(values === undefined ? {} : { values: [...values] }), query_timeout: remaining() };
       return client.query<R>(config);
     },
   };
   try {
-    return await operation({ sql: transaction, expired: () => expired, destroy: () => release(true) });
+    return await operation({ sql: transaction, expired: () => expired, destroy: () => { release(true); } });
   } finally {
     clearTimeout(timer);
     release(false);
-    client.removeListener('error', onError);
+    client.removeListener('error', onPaymentConnectionError);
   }
 }
 
@@ -144,7 +146,7 @@ export async function withPaymentTransaction<T>(
     const result = await operation(transaction);
     phase = 'commit';
     await transaction.query('COMMIT');
-    if (connection.expired()) throw new PaymentDatabaseError('commit_unknown');
+    if (connection.expired()) {throw new PaymentDatabaseError('commit_unknown');}
     phase = 'done';
     return result;
   } catch (error) {
@@ -156,7 +158,7 @@ export async function withPaymentTransaction<T>(
       try { await transaction.query('ROLLBACK'); }
       catch { connection.destroy(); }
     }
-    if (connection.expired()) throw new PaymentDatabaseError('transaction_timeout', { cause: error });
+    if (connection.expired()) {throw new PaymentDatabaseError('transaction_timeout', { cause: error });}
     throw error;
     }
   }, timeouts);
@@ -178,7 +180,7 @@ export function createPaymentSqlExecutor(pool: Pool, timeouts: DatabaseTimeouts 
           const previous = (await sql.query<{ sync: string; lock: string; statement: string; transaction: string }>(
             "SELECT current_setting('synchronous_commit') AS sync, current_setting('lock_timeout') AS lock, current_setting('statement_timeout') AS statement, current_setting('transaction_timeout') AS transaction",
           )).rows[0];
-          if (!previous) throw new Error('PostgreSQL session settings are unavailable');
+          if (!previous) {throw new Error('PostgreSQL session settings are unavailable');}
           const configure = "SELECT set_config('synchronous_commit', $1, false), set_config('lock_timeout', $2, false), set_config('statement_timeout', $3, false), set_config('transaction_timeout', $4, false)";
           await sql.query(configure, ['on', `${timeouts.lockMs}ms`, `${timeouts.statementMs}ms`, `${timeouts.transactionMs}ms`]);
           const result = await sql.query(text, values);
@@ -186,7 +188,7 @@ export function createPaymentSqlExecutor(pool: Pool, timeouts: DatabaseTimeouts 
           // pg-boss's maintenance and migration scripts inspect rows from multiple statements.
           // Match its documented custom Db behavior and preserve every result row in order.
           const rows: QueryResultRow[] = Array.isArray(result)
-            ? (result as QueryResult[]).flatMap(item => item.rows ?? []) : result.rows;
+            ? (result as { rows?: QueryResultRow[] }[]).flatMap(item => item.rows ?? []) : result.rows;
           return { rows };
         } catch (error) {
           connection.destroy();
@@ -211,7 +213,7 @@ export async function assertPostgresDurability(pool: Pool, schema: string): Prom
       'SELECT c.relname AS relation FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relpersistence <> $2 AND c.relkind IN ($3, $4)',
       [schema, 'p', 'r', 'p'],
     );
-    if (unlogged.rows.length > 0) throw new PaymentDatabaseError('durability_profile');
+    if (unlogged.rows.length > 0) {throw new PaymentDatabaseError('durability_profile');}
     await tx.query(`SELECT 1 FROM ${quoted}.configuration WHERE id = 'owner'`);
   });
 }

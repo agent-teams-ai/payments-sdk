@@ -2,9 +2,9 @@ import type { PaymentProvider, PaymentRuntimeOptions, PaymentScope } from '@agen
 import { MemoryPaymentStore } from '@agent-teams/payments-core/testing';
 
 export function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>(done => { resolve = done; });
-  return { promise, resolve };
+  let fulfill!: (value: T) => void;
+  const promise = new Promise<T>(resolve => { fulfill = resolve; });
+  return { promise, resolve: fulfill };
 }
 
 /** Local consumer-owned provider fixture: real core/store, no provider SDK or database dependency. */

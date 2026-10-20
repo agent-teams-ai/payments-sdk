@@ -38,16 +38,16 @@ boundaries:
     packageExports: ['.']
     allow:
       boundaries: [payments.core]
-      packages: ['@agent-teams/payments-core', pg, pg-boss]
+      packages: ['@agent-teams/payments-core', pg, pg-boss, drizzle-orm]
       builtins: [node:crypto]
       runtimeReferences: []
   - id: payments.get-modular
     roots: [packages/payments-get-modular/src]
-    entrypoints: [packages/payments-get-modular/src/index.ts]
-    packageExports: ['.']
+    entrypoints: [packages/payments-get-modular/src/index.ts, packages/payments-get-modular/src/observation/index.ts]
+    packageExports: ['.', './observation']
     allow:
       boundaries: [payments.core]
-      packages: ['@agent-teams/payments-core', '@get-modular/core', '@get-modular/assembly', '@get-modular/resources']
+      packages: ['@agent-teams/payments-core', '@get-modular/core', '@get-modular/assembly', '@get-modular/resources', '@get-modular/observation']
       builtins: []
       runtimeReferences: []
   - id: payments.core-tests
@@ -83,6 +83,6 @@ boundaries:
     entrypoints: []
     allow:
       boundaries: [payments.core, payments.postgres]
-      packages: ['@agent-teams/payments-core', pg, pg-boss]
+      packages: ['@agent-teams/payments-core', pg, pg-boss, drizzle-orm]
       builtins: [node:assert/strict, node:test, node:crypto, node:net, node:timers/promises]
       runtimeReferences: []

@@ -10,15 +10,16 @@ function receipt(id: string): VerifiedInput {
   const source = { kind: 'authenticated_api' as const, receiptId: id, representationDigest: digest(retainedRepresentation), decoderVersion: 'decoder/1', apiProfile: 'fixture/1', eventId: id, eventType: 'transaction.updated', occurredAt: query.kind === 'events' ? query.from : '' };
   return { scope, inputId: id, source, observation: { kind: 'unsupported', reason: 'future_schema', source }, retainedRepresentation };
 }
+const emptyPage: ReconciliationSource['readPage'] = async () => ({ kind: 'page', inputs: [], hasMore: false });
 function setup() {
   const store = new MemoryPaymentStore(), calls: (string | undefined)[] = [];
-  let read: ReconciliationSource['readPage'] = async () => ({ kind: 'page', inputs: [], hasMore: false });
+  let read: ReconciliationSource['readPage'] = emptyPage;
   const source: ReconciliationSource = { scope, readPage: async (...args) => { calls.push(args[1]); return read(...args); } };
   const reconciler = createPaymentReconciler({ scope, store, source, now: () => '2026-01-02T00:00:00Z' });
   return { store, calls, reconciler, replaceRead: (value: typeof read) => { read = value; } };
 }
 
-test('begin persists the complete immutable query before acquisition; one resume commits all receipt custody and cursor', async () => {
+void test('begin persists the complete immutable query before acquisition; one resume commits all receipt custody and cursor', async () => {
   const context = setup(), input = receipt('event-1');
   const begin = await context.reconciler.beginScan({ scanId: 'scan', epoch: 'epoch', query });
   assert.equal(begin.kind, 'saved'); assert.equal(context.calls.length, 0);
@@ -27,12 +28,12 @@ test('begin persists the complete immutable query before acquisition; one resume
   const page = await context.reconciler.resumeScan('scan'); assert.equal(page.kind, 'saved');
   assert.equal((await context.store.readCheckpoint(scope, 'scan'))?.after, 'event-1');
   const acquired = (await context.store.loadReductionInput(scope, input.inputId))?.state.inbox[input.inputId]?.input;
-  assert.deepEqual(acquired, input); assert.equal(digest(acquired?.retainedRepresentation), acquired?.source.representationDigest);
+  assert.deepEqual(acquired, input); assert.equal(digest(acquired.retainedRepresentation), acquired.source.representationDigest);
   assert.equal((await context.reconciler.beginScan({ scanId: 'scan', epoch: 'other-epoch', query })).kind, 'conflict');
   assert.deepEqual(context.calls, [undefined]);
 });
 
-test('invalid page, changed scope, and broken receipt digest cannot admit a prefix or advance cursor', async () => {
+void test('invalid page, changed scope, and broken receipt digest cannot admit a prefix or advance cursor', async () => {
   for (const bad of [
     { inputs: [], hasMore: true },
     { inputs: [receipt('event-1'), receipt('event-1')], hasMore: false, lastId: 'event-1' },
@@ -48,14 +49,14 @@ test('invalid page, changed scope, and broken receipt digest cannot admit a pref
   }
 });
 
-test('failed acquisition records durable SDK/cursor evidence and explicit redrive reads the original cursor', async () => {
+void test('failed acquisition records durable SDK/cursor evidence and explicit redrive reads the original cursor', async () => {
   const context = setup(); await context.reconciler.beginScan({ scanId: 'scan', epoch: 'epoch', query });
   context.replaceRead(async () => ({ kind: 'page', inputs: [receipt('event-1')], hasMore: true, lastId: 'event-1' }));
   await context.reconciler.resumeScan('scan');
   context.replaceRead(async () => ({ kind: 'failed', reason: 'sdk_mapping_failed', sdkVersion: '3.10.0', code: 'unclassified_external_state' }));
   await context.reconciler.resumeScan('scan');
   const gap = await context.store.readCheckpoint(scope, 'scan'); assert.equal(gap?.after, 'event-1'); assert.equal(gap.status, 'gap');
-  assert.equal(gap.lastFailure?.sdkVersion, '3.10.0'); assert.equal(gap.lastFailure?.after, 'event-1');
+  assert.equal(gap.lastFailure?.sdkVersion, '3.10.0'); assert.equal(gap.lastFailure.after, 'event-1');
   await context.reconciler.resumeScan('scan'); assert.equal(context.calls.length, 2);
   context.replaceRead(async () => ({ kind: 'page', inputs: [receipt('event-2')], hasMore: false, lastId: 'event-2' }));
   await context.reconciler.retryScan('scan'); await context.reconciler.resumeScan('scan');
@@ -63,19 +64,19 @@ test('failed acquisition records durable SDK/cursor evidence and explicit redriv
   const done = await context.store.readCheckpoint(scope, 'scan'); assert.equal(done?.after, 'event-2'); assert.equal(done.status, 'complete'); assert.equal(done.failureCount, 1);
 });
 
-test('concurrent page reads use CAS so a stale page never admits inputs', async () => {
+void test('concurrent page reads use CAS so a stale page never admits inputs', async () => {
   const context = setup(); await context.reconciler.beginScan({ scanId: 'scan', epoch: 'epoch', query });
   const readers: ((page: ReconciliationPage) => void)[] = [];
   context.replaceRead(async () => new Promise(resolve => { readers.push(resolve); }));
   const first = context.reconciler.resumeScan('scan'), second = context.reconciler.resumeScan('scan');
-  while (readers.length < 2) await new Promise<void>(resolve => setImmediate(resolve));
+  while (readers.length < 2) {await new Promise<void>(resolve => { setImmediate(resolve); });}
   readers[0]!({ kind: 'page', inputs: [receipt('event-1')], hasMore: true, lastId: 'event-1' }); assert.equal((await first).kind, 'saved');
   readers[1]!({ kind: 'page', inputs: [receipt('event-2')], hasMore: false, lastId: 'event-2' }); assert.equal((await second).kind, 'conflict');
   assert.equal(await context.store.loadReductionInput(scope, 'event-2'), undefined);
   assert.equal((await context.store.readCheckpoint(scope, 'scan'))?.after, 'event-1');
 });
 
-test('coverage requires independent mandatory types, overlapping exclusive windows, retained history and adjustment scans', async () => {
+void test('coverage requires independent mandatory types, overlapping exclusive windows, retained history and adjustment scans', async () => {
   const context = setup();
   for (const [scanId, eventType] of [['transactions', 'transaction.updated'], ['adjustments', 'adjustment.updated']] as const) {
     await context.reconciler.beginScan({ scanId, epoch: 'epoch', query: { ...query, eventType } });

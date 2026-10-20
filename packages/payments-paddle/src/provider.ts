@@ -18,12 +18,16 @@ export type PaddleEventScanQuery = Readonly<{ from: string; to: string; after?: 
 export type PaddleEventScanResult = Readonly<{ kind: 'page'; inputs: readonly VerifiedInput[]; hasMore: boolean; lastEventId?: string }> | Readonly<{ kind: 'gap'; reason: string; query: PaddleEventScanQuery; sdkVersion: string; code?: string }>;
 export type PaddleAdjustmentPage = Readonly<{ inputs: readonly VerifiedInput[]; adjustmentIds: readonly string[]; hasMore: boolean; lastAdjustmentId?: string }>;
 type ObjectValue = Record<string, unknown>;
-function object(value: unknown): ObjectValue { if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new TypeError('Expected object'); return value as ObjectValue; }
-function string(value: unknown): string { if (typeof value !== 'string' || value.length === 0) throw new TypeError('Expected string'); return value; }
-function providerId(value: unknown, prefix: string): string { const result = string(value); if (!new RegExp(`^${prefix}_[0-9a-z]{26}$`, 'u').test(result)) throw new TypeError('Invalid Paddle identifier'); return result; }
+function object(value: unknown): ObjectValue { if (typeof value !== 'object' || value === null || Array.isArray(value)) {throw new TypeError('Expected object');} return value as ObjectValue; }
+function string(value: unknown): string { if (typeof value !== 'string' || value.length === 0) {throw new TypeError('Expected string');} return value; }
+function providerId(value: unknown, prefix: string): string { const result = string(value); if (!new RegExp(`^${prefix}_[0-9a-z]{26}$`, 'u').test(result)) {throw new TypeError('Invalid Paddle identifier');} return result; }
 function json(value: unknown): JsonValue { return JSON.parse(canonicalJson(value)) as JsonValue; }
 function rawDigest(value: string): string { return createHash('sha256').update(value, 'utf8').digest('hex'); }
-function httpsUrl(value: unknown): string { const result = string(value), parsed = new URL(result); if (parsed.protocol !== 'https:' || parsed.username || parsed.password) throw new TypeError('Invalid provider URL'); return result; }
+function httpsUrl(value: unknown): string { const result = string(value), parsed = new URL(result); if (parsed.protocol !== 'https:' || parsed.username || parsed.password) {throw new TypeError('Invalid provider URL');} return result; }
+function checkoutInstructions(value: unknown): Readonly<{ url?: string }> {
+  const hasUrl = Boolean(value);
+  return hasUrl ? { url: httpsUrl(value) } : {};
+}
 function placeholderSource(query?: JsonValue): EvidenceSource {
   return { kind: 'authenticated_api', receiptId: '', representationDigest: '', decoderVersion: PADDLE_DECODER_VERSION, sdkVersion: SDK_VERSION, apiProfile: PADDLE_API_PROFILE, ...(query === undefined ? {} : { query }) };
 }
@@ -41,14 +45,14 @@ function apiReceipt(observation: Observation, scope: PaymentScope, mappedDiagnos
 }
 function envelope(value: unknown): Readonly<{ eventId: string; eventType: string; occurredAt: string; data: unknown }> {
   const result = object(value), eventId = providerId(result['event_id'], 'evt'), eventType = string(result['event_type']), occurredAt = string(result['occurred_at']);
-  if (!/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/u.test(eventType) || eventType.length > 128) throw new TypeError('Invalid event type');
+  if (!/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/u.test(eventType) || eventType.length > 128) {throw new TypeError('Invalid event type');}
   exactTime(occurredAt); object(result['data']);
   return { eventId, eventType, occurredAt, data: result['data'] };
 }
 function validateOffer(offer: OfferSnapshot, scope: PaymentScope): void {
-  if (offer.applicationId !== scope.applicationId || offer.lines.length !== 1 || !['one_time', 'monthly'].includes(offer.profile) || !/^[A-Z]{3}$/u.test(offer.currency)) throw new TypeError('Unsupported offer');
+  if (offer.applicationId !== scope.applicationId || offer.lines.length !== 1 || !['one_time', 'monthly'].includes(offer.profile) || !/^[A-Z]{3}$/u.test(offer.currency)) {throw new TypeError('Unsupported offer');}
   const line = offer.lines[0];
-  if (line === undefined || line.quantity !== 1) throw new TypeError('Unsupported quantity');
+  if (line === undefined || object(line)['quantity'] !== 1) {throw new TypeError('Unsupported quantity');}
   providerId(line.providerPriceRef, 'pri'); assertIdentifier(line.benefitSlotId); assertIdentifier(offer.offerId); assertIdentifier(offer.version);
 }
 
@@ -60,9 +64,10 @@ export class PaddlePaymentProvider implements PaymentProvider {
 
   constructor(options: PaddleProviderOptions) {
     assertScope(options.scope);
-    if (options.scope.provider !== 'paddle' || options.apiVersion !== 1 || (options.webhook !== undefined && options.webhook.apiVersion !== 1)) throw new TypeError('Unsupported Paddle API profile');
-    if (!options.apiKey) throw new TypeError('Paddle API key is required');
-    if (options.webhook !== undefined) { assertIdentifier(options.webhook.endpointId); if (!options.webhook.secret) throw new TypeError('Webhook secret is required'); }
+    const configuration = object(options), webhook = configuration['webhook'];
+    if (options.scope.provider !== 'paddle' || configuration['apiVersion'] !== 1 || (webhook !== undefined && object(webhook)['apiVersion'] !== 1)) {throw new TypeError('Unsupported Paddle API profile');}
+    if (!options.apiKey) {throw new TypeError('Paddle API key is required');}
+    if (options.webhook !== undefined) { assertIdentifier(options.webhook.endpointId); if (!options.webhook.secret) {throw new TypeError('Webhook secret is required');} }
     this.scope = Object.freeze({ ...options.scope }); this.#options = options;
     this.capabilities = Object.freeze({ checkout: true, transactionRead: true, subscriptionRead: true, cancellation: ['now', 'period_end'] as const, paymentUpdate: true, customerManagement: options.authorizeCustomerManagement !== undefined });
     this.#sdk = new Paddle(options.apiKey, { environment: options.scope.environment === 'sandbox' ? Environment.sandbox : Environment.production, logLevel: LogLevel.none, customHeaders: { 'Paddle-Version': '1' } });
@@ -74,7 +79,7 @@ export class PaddlePaymentProvider implements PaymentProvider {
       const result = await this.#sdk.transactions.create({ items: input.offer.lines.map(line => ({ priceId: line.providerPriceRef, quantity: 1 })), currencyCode: input.offer.currency as CurrencyCode, collectionMode: 'automatic',
         customData: { payments: { applicationId: this.scope.applicationId, paymentAccountId: this.scope.paymentAccountId, environment: this.scope.environment, intentId: input.intentId, attemptId: input.attemptId } } });
       const transactionRef = providerId(result.id, 'txn');
-      return { kind: 'succeeded', value: { intentId: input.intentId, transactionRef, checkout: result.checkout?.url ? { url: httpsUrl(result.checkout.url) } : {} } };
+      return { kind: 'succeeded', value: { intentId: input.intentId, transactionRef, checkout: checkoutInstructions(result.checkout?.url) } };
     } catch (error) { return translatePaddleError(error, true); }
   }
 
@@ -88,7 +93,7 @@ export class PaddlePaymentProvider implements PaymentProvider {
     try { providerId(transactionRef, 'txn'); } catch { return { kind: 'rejected', code: 'validation' }; }
     try {
       const result = await this.#sdk.transactions.get(transactionRef);
-      if (result.id !== transactionRef) return { kind: 'rejected', code: 'ownership_mismatch' };
+      if (result.id !== transactionRef) {return { kind: 'rejected', code: 'ownership_mismatch' };}
       const receipt = apiReceipt(transactionObservation(result, 'mapped', placeholderSource(), this.scope), this.scope, result);
       return { kind: 'succeeded', value: receipt };
     } catch (error) { return translatePaddleError(error, false); }
@@ -103,19 +108,20 @@ export class PaddlePaymentProvider implements PaymentProvider {
     try { providerId(subscriptionRef, 'sub'); } catch { return { kind: 'rejected', code: 'validation' }; }
     try {
       const result = await this.#sdk.subscriptions.get(subscriptionRef);
-      if (result.id !== subscriptionRef) return { kind: 'rejected', code: 'ownership_mismatch' };
+      if (result.id !== subscriptionRef) {return { kind: 'rejected', code: 'ownership_mismatch' };}
       return { kind: 'succeeded', value: apiReceipt(subscriptionObservation(result, 'mapped', placeholderSource()), this.scope, result) };
     } catch (error) { return translatePaddleError(error, false); }
   }
 
   async cancelSubscription(input: Readonly<{ subscriptionRef: string; timing: 'now' | 'period_end'; attemptId: string }>): Promise<ProviderResult<CancellationOutcome>> {
     try { providerId(input.subscriptionRef, 'sub'); assertIdentifier(input.attemptId); } catch { return { kind: 'rejected', code: 'validation' }; }
-    if (input.timing !== 'now' && input.timing !== 'period_end') return { kind: 'unsupported', capability: 'cancellation_timing' };
+    const timing = object(input)['timing'];
+    if (timing !== 'now' && timing !== 'period_end') {return { kind: 'unsupported', capability: 'cancellation_timing' };}
     try {
-      const result = await this.#sdk.subscriptions.cancel(input.subscriptionRef, { effectiveFrom: input.timing === 'now' ? 'immediately' : 'next_billing_period' });
-      if (result.id !== input.subscriptionRef) return { kind: 'outcome_unknown' };
-      if (input.timing === 'now' && result.status === 'canceled') return { kind: 'succeeded', value: { kind: 'applied', observedStatus: result.status } };
-      if (input.timing === 'period_end' && result.status !== 'canceled' && result.scheduledChange?.action === 'cancel') {
+      const result = await this.#sdk.subscriptions.cancel(input.subscriptionRef, { effectiveFrom: timing === 'now' ? 'immediately' : 'next_billing_period' });
+      if (result.id !== input.subscriptionRef) {return { kind: 'outcome_unknown' };}
+      if (timing === 'now' && result.status === 'canceled') {return { kind: 'succeeded', value: { kind: 'applied', observedStatus: result.status } };}
+      if (timing === 'period_end' && result.status !== 'canceled' && result.scheduledChange?.action === 'cancel') {
         exactTime(result.scheduledChange.effectiveAt);
         return { kind: 'succeeded', value: { kind: 'scheduled', effectiveAt: result.scheduledChange.effectiveAt } };
       }
@@ -128,29 +134,29 @@ export class PaddlePaymentProvider implements PaymentProvider {
     try {
       // This GET can create a transaction. It deliberately shares mutation uncertainty handling.
       const result = await this.#sdk.subscriptions.getPaymentMethodChangeTransaction(input.subscriptionRef);
-      if (result.subscriptionId !== input.subscriptionRef || !['subscription_payment_method_change', 'subscription_recurring'].includes(result.origin)) return { kind: 'outcome_unknown' };
-      return { kind: 'succeeded', value: { intentId: input.intentId, transactionRef: providerId(result.id, 'txn'), purpose: result.origin === 'subscription_recurring' ? 'recovery' : 'payment_method', checkout: result.checkout?.url ? { url: httpsUrl(result.checkout.url) } : {} } };
+      if (result.subscriptionId !== input.subscriptionRef || !['subscription_payment_method_change', 'subscription_recurring'].includes(result.origin)) {return { kind: 'outcome_unknown' };}
+      return { kind: 'succeeded', value: { intentId: input.intentId, transactionRef: providerId(result.id, 'txn'), purpose: result.origin === 'subscription_recurring' ? 'recovery' : 'payment_method', checkout: checkoutInstructions(result.checkout?.url) } };
     } catch (error) { return translatePaddleError(error, true); }
   }
 
   async createManagementLink(input: Readonly<{ customerRef: string; subscriptionRefs: readonly string[] }>): Promise<ProviderResult<Readonly<{ url: string }>>> {
     const authorize = this.#options.authorizeCustomerManagement;
-    if (authorize === undefined) return { kind: 'unsupported', capability: 'customer_wide_management' };
-    try { providerId(input.customerRef, 'ctm'); if (input.subscriptionRefs.length > 25) throw new TypeError('Too many links'); input.subscriptionRefs.forEach(ref => providerId(ref, 'sub')); } catch { return { kind: 'rejected', code: 'validation' }; }
-    if (!(await authorize({ scope: this.scope, ...input }))) return { kind: 'rejected', code: 'permission_denied' };
+    if (authorize === undefined) {return { kind: 'unsupported', capability: 'customer_wide_management' };}
+    try { providerId(input.customerRef, 'ctm'); if (input.subscriptionRefs.length > 25) {throw new TypeError('Too many links');} input.subscriptionRefs.forEach(ref => providerId(ref, 'sub')); } catch { return { kind: 'rejected', code: 'validation' }; }
+    if (!(await authorize({ scope: this.scope, ...input }))) {return { kind: 'rejected', code: 'permission_denied' };}
     try {
       const result = await this.#sdk.customerPortalSessions.create(input.customerRef, [...input.subscriptionRefs]);
-      if (result.customerId !== input.customerRef) return { kind: 'rejected', code: 'ownership_mismatch' };
+      if (result.customerId !== input.customerRef) {return { kind: 'rejected', code: 'ownership_mismatch' };}
       return { kind: 'succeeded', value: { url: httpsUrl(result.urls.general.overview) } };
     } catch (error) { return translatePaddleError(error, false); }
   }
 
   async verifyWebhook(rawBody: string | Uint8Array, signature: string): Promise<ProviderResult<VerifiedInput>> {
     const config = this.#options.webhook;
-    if (config === undefined) return { kind: 'unsupported', capability: 'webhook_verification' };
+    if (config === undefined) {return { kind: 'unsupported', capability: 'webhook_verification' };}
     let body: string;
     try { body = typeof rawBody === 'string' ? rawBody : new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(rawBody); } catch { return { kind: 'rejected', code: 'validation' }; }
-    try { if (!(await this.#sdk.webhooks.isSignatureValid(body, config.secret, signature))) return { kind: 'rejected', code: 'permission_denied' }; } catch { return { kind: 'rejected', code: 'permission_denied' }; }
+    try { if (!(await this.#sdk.webhooks.isSignatureValid(body, config.secret, signature))) {return { kind: 'rejected', code: 'permission_denied' };} } catch { return { kind: 'rejected', code: 'permission_denied' }; }
     try {
       const parsed: unknown = JSON.parse(body), event = envelope(parsed);
       const stableEnvelope = json({ event_id: event.eventId, event_type: event.eventType, occurred_at: event.occurredAt, data: event.data });
@@ -171,11 +177,11 @@ export class PaddlePaymentProvider implements PaymentProvider {
 
   /** Only call for an input read from trusted durable storage after initial verification. */
   normalizeVerifiedWebhook(input: VerifiedInput): VerifiedInput {
-    if (!sameScope(input.scope, this.scope) || input.source.kind !== 'verified_webhook' || input.source.verification === undefined || input.source.apiProfile !== PADDLE_API_PROFILE) throw new TypeError('Untrusted durable input');
+    if (!sameScope(input.scope, this.scope) || input.source.kind !== 'verified_webhook' || input.source.verification === undefined || input.source.apiProfile !== PADDLE_API_PROFILE) {throw new TypeError('Untrusted durable input');}
     const body = string(object(input.retainedRepresentation)['rawBody']);
-    if (rawDigest(body) !== input.source.verification.rawBodyDigest) throw new TypeError('Retained body digest mismatch');
+    if (rawDigest(body) !== input.source.verification.rawBodyDigest) {throw new TypeError('Retained body digest mismatch');}
     const event = envelope(JSON.parse(body) as unknown);
-    if (event.eventId !== input.source.eventId || event.eventType !== input.source.eventType || event.occurredAt !== input.source.occurredAt || rawDigest(body) !== input.source.representationDigest) throw new TypeError('Retained event mismatch');
+    if (event.eventId !== input.source.eventId || event.eventType !== input.source.eventType || event.occurredAt !== input.source.occurredAt || rawDigest(body) !== input.source.representationDigest) {throw new TypeError('Retained event mismatch');}
     return this.#webhookInput(body, event, { ...input.source, decoderVersion: PADDLE_DECODER_VERSION });
   }
 
@@ -183,17 +189,17 @@ export class PaddlePaymentProvider implements PaymentProvider {
     const gap = (reason: string): PaddleEventScanResult => ({ kind: 'gap', reason, query, sdkVersion: SDK_VERSION });
     try {
       exactTime(query.from); exactTime(query.to); assertIdentifier(query.epoch); assertIdentifier(query.queryVersion);
-      if (compareTime(query.from, query.to) >= 0 || (query.perPage !== undefined && (!Number.isInteger(query.perPage) || query.perPage < 1 || query.perPage > 200))) return gap('invalid_query');
-      if (query.after !== undefined) providerId(query.after, 'evt');
+      if (compareTime(query.from, query.to) >= 0 || (query.perPage !== undefined && (!Number.isInteger(query.perPage) || query.perPage < 1 || query.perPage > 200))) {return gap('invalid_query');}
+      if (query.after !== undefined) {providerId(query.after, 'evt');}
       const parameters: NonNullable<Parameters<Paddle['events']['list']>[0]> & { from: string; to: string } = { from: query.from, to: query.to, orderBy: 'id[ASC]', ...(query.after === undefined ? {} : { after: query.after }), ...(query.perPage === undefined ? {} : { perPage: query.perPage }), ...(query.eventTypes === undefined ? {} : { eventType: [...query.eventTypes] as IEventName[] }) };
       // Recreate from the caller's durable pre-page cursor on every call. Never reuse a failed collection.
       const collection = this.#sdk.events.list(parameters), events = await collection.next();
-      if (events.length === 0 && collection.hasMore) return gap('empty_nonterminal_page');
+      if (events.length === 0 && collection.hasMore) {return gap('empty_nonterminal_page');}
       let previous = query.after;
       const inputs: VerifiedInput[] = [];
       for (const event of events) {
         const eventId = providerId(event.eventId, 'evt');
-        if (previous !== undefined && eventId <= previous) return gap('nonprogressing_event_page');
+        if (previous !== undefined && eventId <= previous) {return gap('nonprogressing_event_page');}
         previous = eventId; exactTime(event.occurredAt);
         const source: EvidenceSource = { ...placeholderSource(json(query)), eventId, eventType: event.eventType, occurredAt: event.occurredAt };
         const input = apiReceipt(normalizeObservation(event.data, event.eventType, 'mapped', source, this.scope), this.scope, event);
@@ -209,15 +215,15 @@ export class PaddlePaymentProvider implements PaymentProvider {
   }
 
   async readAdjustmentPage(transactionRef: string, after?: string): Promise<ProviderResult<PaddleAdjustmentPage>> {
-    try { providerId(transactionRef, 'txn'); if (after !== undefined) providerId(after, 'adj'); } catch { return { kind: 'rejected', code: 'validation' }; }
+    try { providerId(transactionRef, 'txn'); if (after !== undefined) {providerId(after, 'adj');} } catch { return { kind: 'rejected', code: 'validation' }; }
     try {
       const collection = this.#sdk.adjustments.list({ transactionId: [transactionRef], orderBy: 'id[ASC]', ...(after === undefined ? {} : { after }) }), values = await collection.next();
-      if (values.length === 0 && collection.hasMore) return { kind: 'rejected', code: 'unclassified_external_state' };
+      if (values.length === 0 && collection.hasMore) {return { kind: 'rejected', code: 'unclassified_external_state' };}
       let previous = after;
       const adjustmentIds: string[] = [];
       const inputs = values.map(value => {
         const ref = providerId(value.id, 'adj');
-        if ((previous !== undefined && ref <= previous) || value.transactionId !== transactionRef) throw new TypeError('Invalid adjustment page');
+        if ((previous !== undefined && ref <= previous) || value.transactionId !== transactionRef) {throw new TypeError('Invalid adjustment page');}
         previous = ref; adjustmentIds.push(ref);
         return { ...apiReceipt(normalizeObservation(value, 'adjustment.snapshot', 'mapped', placeholderSource(json({ transactionRef, after: after ?? null })), this.scope), this.scope, value), adverseTransactionRef: transactionRef };
       });
