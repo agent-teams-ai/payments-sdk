@@ -134,6 +134,7 @@ jobs:
             .artifacts/observation-published-node-*.log
             .artifacts/drizzle-admission-node-*.json
             .artifacts/packed-npm-node-*
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
 

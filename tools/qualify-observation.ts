@@ -47,7 +47,7 @@ function pin(name: string): string {
 // metadata and bytes, then let the ordinary package manager install those exact public versions.
 for (const archive of manifest.archives) {
   assert.equal(archive.version, pin(archive.name));
-  assert.equal(archive.registry, `https://registry.npmjs.org/${archive.name.replace('/', '%2f')}/${archive.version}`);
+  assert.equal(archive.registry, `https://registry.npmjs.org/${archive.name.replaceAll('/', '%2f')}/${archive.version}`);
   assert.equal(archive.tarball, `https://registry.npmjs.org/${archive.name}/-/${archive.name.slice('@get-modular/'.length)}-${archive.version}.tgz`);
   const response = await fetch(archive.registry, { signal: AbortSignal.timeout(30_000) });
   assert.equal(response.status, 200, `${archive.name}: official published version is unavailable`);
