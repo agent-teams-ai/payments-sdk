@@ -1,7 +1,9 @@
 import { canonicalJson } from '@agent-teams/payments-core';
 import type { PaymentReadVersion, PaymentScope } from '@agent-teams/payments-core';
+import { and, eq, gt, sql } from 'drizzle-orm';
 import type { PaymentSqlTransaction } from './database.js';
 import { sqlIdentifier } from './database.js';
+import { executePaymentStatement, paymentQueries, paymentTables, selectPaymentRows } from './schema.js';
 
 export type OwnerConfiguration = {
   schemaVersion: number;
@@ -20,21 +22,23 @@ export type DurableWork = Readonly<{ kind: 'inbox' | 'publication' | 'reclassifi
 export class PaymentRecords {
   readonly sql: string;
   readonly schema: string;
+  readonly tables: ReturnType<typeof paymentTables>;
 
   constructor(schema: string) {
     this.sql = sqlIdentifier(schema);
     this.schema = schema;
+    this.tables = paymentTables(schema);
   }
 
   async configuration(tx: PaymentSqlTransaction, scope: PaymentScope, exclusive = false): Promise<StoredRecord<OwnerConfiguration>> {
-    const result = await tx.query<{ revision: string; body: OwnerConfiguration }>(
-      `SELECT revision, body FROM ${this.sql}.configuration WHERE id = 'owner' ${exclusive ? 'FOR UPDATE' : 'FOR SHARE'}`,
-    );
-    const row = result.rows[0];
-    if (!row || row.body.schemaVersion !== 1 || canonicalJson(row.body.scope) !== canonicalJson(scope)) {
+    const table = this.tables.configuration;
+    const [row] = await selectPaymentRows(tx, paymentQueries.select({ revision: table.revision, body: table.body })
+      .from(table).where(eq(table.id, 'owner')).for(exclusive ? 'update' : 'share'));
+    const body = row?.body as OwnerConfiguration | undefined;
+    if (!row || !body || body.schemaVersion !== 1 || canonicalJson(body.scope) !== canonicalJson(scope)) {
       throw new Error('Payment scope does not own this schema');
     }
-    return { revision: safeRevision(row.revision), body: row.body };
+    return { revision: safeRevision(row.revision), body };
   }
 
   /** Missing records also have a lock, so unique creation and membership reads have no phantom gap. */
@@ -53,39 +57,73 @@ export class PaymentRecords {
   }
 
   async read<T>(tx: PaymentSqlTransaction, kind: string, id: string): Promise<StoredRecord<T> | undefined> {
-    const result = await tx.query<{ revision: string; body: T }>(
-      `SELECT revision, body FROM ${this.sql}.records WHERE kind = $1 AND id = $2`, [kind, id],
-    );
-    const row = result.rows[0];
-    return row ? { revision: safeRevision(row.revision), body: row.body } : undefined;
+    const table = this.tables.records;
+    const [row] = await selectPaymentRows(tx, paymentQueries.select({ revision: table.revision, body: table.body })
+      .from(table).where(and(eq(table.kind, kind), eq(table.id, id))));
+    return row ? { revision: safeRevision(row.revision), body: row.body as T } : undefined;
   }
 
   async write(tx: PaymentSqlTransaction, kind: string, id: string, body: unknown): Promise<void> {
-    await tx.query(`INSERT INTO ${this.sql}.records (kind, id, revision, body) VALUES ($1, $2, 1, $3)
-      ON CONFLICT (kind, id) DO UPDATE SET revision = ${this.sql}.records.revision + 1, body = EXCLUDED.body, updated_at = clock_timestamp()
-      WHERE ${this.sql}.records.body IS DISTINCT FROM EXCLUDED.body`, [kind, id, JSON.stringify(body)]);
+    const table = this.tables.records;
+    await executePaymentStatement(tx, paymentQueries.insert(table)
+      // An explicit jsonb parameter preserves JSON null, rather than inserting SQL NULL.
+      .values({ kind, id, revision: '1', body: sql`${JSON.stringify(body)}::jsonb` })
+      .onConflictDoUpdate({
+        target: [table.kind, table.id],
+        set: { revision: sql`${table.revision} + 1`, body: sql`excluded.body`, updatedAt: sql`clock_timestamp()` },
+        setWhere: sql`${table.body} IS DISTINCT FROM excluded.body`,
+      }));
   }
 
   async guard(tx: PaymentSqlTransaction, id: string): Promise<void> {
-    await tx.query(`INSERT INTO ${this.sql}.records (kind, id, revision, body) VALUES ('guards', $1, 1, '{}')
-      ON CONFLICT (kind, id) DO UPDATE SET revision = ${this.sql}.records.revision + 1, updated_at = clock_timestamp()`, [id]);
+    const table = this.tables.records;
+    await executePaymentStatement(tx, paymentQueries.insert(table).values({ kind: 'guards', id, revision: '1', body: {} })
+      .onConflictDoUpdate({ target: [table.kind, table.id], set: { revision: sql`${table.revision} + 1`, updatedAt: sql`clock_timestamp()` } }));
   }
 
   async version(tx: PaymentSqlTransaction, item: PaymentReadVersion): Promise<number | null> {
     if (item.table === 'configuration') {
-      const result = await tx.query<{ revision: string }>(`SELECT revision FROM ${this.sql}.configuration WHERE id = 'owner'`);
-      return result.rows[0] ? safeRevision(result.rows[0].revision) : null;
+      const table = this.tables.configuration;
+      const [row] = await selectPaymentRows(tx, paymentQueries.select({ revision: table.revision }).from(table).where(eq(table.id, 'owner')));
+      return row ? safeRevision(row.revision) : null;
     }
     return (await this.read(tx, item.table, item.id))?.revision ?? null;
   }
 
   async obligation(tx: PaymentSqlTransaction, work: DurableWork, state: 'pending' | 'quarantined' | 'complete' = 'pending', reset = false): Promise<void> {
-    await tx.query(`INSERT INTO ${this.sql}.obligations (kind, id, state) VALUES ($1, $2, $3)
-      ON CONFLICT (kind, id) DO UPDATE SET state = EXCLUDED.state, revision = ${this.sql}.obligations.revision + CASE WHEN $4 OR ${this.sql}.obligations.state <> EXCLUDED.state THEN 1 ELSE 0 END,
-      attempts = CASE WHEN $4 THEN 0 ELSE ${this.sql}.obligations.attempts END,
-      issue = CASE WHEN $4 THEN NULL ELSE ${this.sql}.obligations.issue END,
-      next_attempt_at = CASE WHEN $4 THEN clock_timestamp() WHEN EXCLUDED.state = 'pending' THEN LEAST(${this.sql}.obligations.next_attempt_at, clock_timestamp()) ELSE ${this.sql}.obligations.next_attempt_at END`,
-    [work.kind, work.id, state, reset]);
+    const table = this.tables.obligations;
+    await executePaymentStatement(tx, paymentQueries.insert(table).values({ kind: work.kind, id: work.id, state })
+      .onConflictDoUpdate({
+        target: [table.kind, table.id],
+        set: {
+          state: sql`excluded.state`,
+          revision: sql`${table.revision} + CASE WHEN ${reset} OR ${table.state} <> excluded.state THEN 1 ELSE 0 END`,
+          attempts: sql`CASE WHEN ${reset} THEN 0 ELSE ${table.attempts} END`,
+          issue: sql`CASE WHEN ${reset} THEN NULL ELSE ${table.issue} END`,
+          nextAttemptAt: sql`CASE WHEN ${reset} THEN clock_timestamp() WHEN excluded.state = 'pending' THEN LEAST(${table.nextAttemptAt}, clock_timestamp()) ELSE ${table.nextAttemptAt} END`,
+        },
+      }));
+  }
+
+  /** Configuration changes share the same owner lock and checked-out transaction. */
+  async writeConfiguration(tx: PaymentSqlTransaction, body: OwnerConfiguration): Promise<void> {
+    const table = this.tables.configuration;
+    await executePaymentStatement(tx, paymentQueries.update(table)
+      .set({ revision: sql`${table.revision} + 1`, body: sql`${JSON.stringify(body)}::jsonb` }).where(eq(table.id, 'owner')));
+  }
+
+  /** Bounded stable keyset shared by recovery scans and delivery backfills. */
+  async listKeys(tx: PaymentSqlTransaction, kind: string, after: string | null, limit: number): Promise<readonly { id: string }[]> {
+    const table = this.tables.records;
+    return selectPaymentRows(tx, paymentQueries.select({ id: table.id }).from(table)
+      .where(and(eq(table.kind, kind), after === null ? undefined : gt(table.id, after))).orderBy(table.id).limit(limit));
+  }
+
+  async pendingWork(tx: PaymentSqlTransaction, kind: DurableWork['kind'], limit: number): Promise<readonly string[]> {
+    const table = this.tables.obligations;
+    const rows = await selectPaymentRows(tx, paymentQueries.select({ id: table.id }).from(table)
+      .where(and(eq(table.kind, kind), eq(table.state, 'pending'))).orderBy(table.nextAttemptAt, table.id).limit(limit));
+    return rows.map(row => row.id);
   }
 }
 

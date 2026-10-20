@@ -627,9 +627,7 @@ class PostgresPaymentStore implements PaymentStore {
     return this.tx(scope, async tx => {
       await this.records.configuration(tx, scope);
       // Completed pg-boss jobs are disposable. These obligations outlive all job retention.
-      const result = await tx.query<{ id: string }>(`SELECT id FROM ${this.records.sql}.obligations
-        WHERE kind = $1 AND state = 'pending' ORDER BY next_attempt_at, id LIMIT $2`, [kind, limit]);
-      return result.rows.map(row => row.id);
+      return this.records.pendingWork(tx, kind, limit);
     });
   }
 
@@ -640,7 +638,7 @@ class PostgresPaymentStore implements PaymentStore {
       if (!config.body.consumers.includes(consumerId)) {
         if (config.body.consumers.length >= 32) throw new RangeError('Consumer target bound exceeded');
         config.body.consumers.push(consumerId);
-        await tx.query(`UPDATE ${this.records.sql}.configuration SET revision = revision + 1, body = $1 WHERE id = 'owner'`, [JSON.stringify(config.body)]);
+        await this.records.writeConfiguration(tx, config.body);
       }
       if (backfill) {
         // Bounded batches are resumed by a durable cursor, never a single unbounded transaction.
@@ -657,17 +655,16 @@ class PostgresPaymentStore implements PaymentStore {
       await this.records.lock(tx, [{ kind: 'backfills', id: consumerId }]);
       const cursor = (await this.records.read<{ consumerId: string; after: string | null; state: string }>(tx, 'backfills', consumerId))?.body;
       if (!cursor || cursor.state === 'complete') return;
-      const messages = await tx.query<{ id: string }>(`SELECT id FROM ${this.records.sql}.records
-        WHERE kind = 'evidence' AND ($1::text IS NULL OR id > $1) ORDER BY id LIMIT 100`, [cursor.after]);
-      for (const row of messages.rows) {
+      const messages = await this.records.listKeys(tx, 'evidence', cursor.after, 100);
+      for (const row of messages) {
         const id = canonicalJson([row.id, consumerId]);
         const existing = await this.records.read<Delivery>(tx, 'deliveries', id);
         if (!existing) await this.records.write(tx, 'deliveries', id, { consumerId, messageId: row.id, acknowledged: false, attempts: 0 });
         await this.work(tx, { kind: 'delivery', id }, existing?.body.acknowledged ? 'complete' : 'pending');
       }
-      const last = messages.rows.at(-1)?.id;
-      await this.records.write(tx, 'backfills', consumerId, { consumerId, after: last ?? cursor.after, state: messages.rows.length < 100 ? 'complete' : 'pending' });
-      await this.records.obligation(tx, { kind: 'delivery', id: `backfill:${consumerId}` }, messages.rows.length < 100 ? 'complete' : 'pending');
+      const last = messages.at(-1)?.id;
+      await this.records.write(tx, 'backfills', consumerId, { consumerId, after: last ?? cursor.after, state: messages.length < 100 ? 'complete' : 'pending' });
+      await this.records.obligation(tx, { kind: 'delivery', id: `backfill:${consumerId}` }, messages.length < 100 ? 'complete' : 'pending');
     });
   }
 
@@ -708,7 +705,7 @@ class PostgresPaymentStore implements PaymentStore {
       if (!recoveryFenced && config.body.activeRecoverySessionId) throw new Error('An active recovery session must pass its resume gate');
       config.body.recoveryFenced = recoveryFenced;
       config.body.fenceAudits.push({ fenced: recoveryFenced, auditRef, at: new Date().toISOString() });
-      await tx.query(`UPDATE ${this.records.sql}.configuration SET revision = revision + 1, body = $1 WHERE id = 'owner'`, [JSON.stringify(config.body)]);
+      await this.records.writeConfiguration(tx, config.body);
     });
   }
 

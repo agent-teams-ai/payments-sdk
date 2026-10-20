@@ -98,7 +98,7 @@ export class PostgresPaymentRecovery {
       };
       body.activeRecoverySessionId = session.sessionId; body.recoveryFenced = true;
       body.fenceAudits.push({ fenced: true, auditRef: input.audit.auditRef, at: new Date().toISOString() });
-      await tx.query(`UPDATE ${this.records.sql}.configuration SET revision = revision + 1, body = $1 WHERE id = 'owner'`, [JSON.stringify(body)]);
+      await this.records.writeConfiguration(tx, body);
       await this.save(tx, session, input.audit, 'begin');
       return session;
     });
@@ -176,8 +176,8 @@ export class PostgresPaymentRecovery {
     return this.change(sessionId, expectedRevision, audit, 'scan_producer_history', async (tx, session) => {
       const scan = session.producerScan;
       if (scan.status === 'complete') return;
-      const rows = await tx.query<{ id: string }>(`SELECT id FROM ${this.records.sql}.records WHERE kind = 'evidence' AND ($1::text IS NULL OR id > $1) ORDER BY id LIMIT $2`, [scan.after, limit]);
-      for (const row of rows.rows) {
+      const rows = await this.records.listKeys(tx, 'evidence', scan.after, limit);
+      for (const row of rows) {
         let message: EvidenceMessage | undefined;
         try { message = await this.evidence(tx, row.id); }
         catch (error) {
@@ -188,8 +188,8 @@ export class PostgresPaymentRecovery {
         const issue = await this.checkpointIssue(tx, message);
         if (issue) { scan.status = 'blocked'; scan.issue = issue; return; }
       }
-      scan.after = rows.rows.at(-1)?.id ?? scan.after; scan.processed += rows.rows.length;
-      scan.status = rows.rows.length < limit ? 'complete' : 'pending'; delete scan.issue;
+      scan.after = rows.at(-1)?.id ?? scan.after; scan.processed += rows.length;
+      scan.status = rows.length < limit ? 'complete' : 'pending'; delete scan.issue;
     });
   }
 
@@ -256,14 +256,14 @@ export class PostgresPaymentRecovery {
     assertBatchLimit(limit);
     return this.change(sessionId, expectedRevision, audit, 'backfill_restored_consumer', async (tx, session) => {
       const scan = session.backfills[consumerId]; if (!scan) throw new TypeError('Consumer was not declared restored'); if (scan.status === 'complete') return;
-      const rows = await tx.query<{ id: string }>(`SELECT id FROM ${this.records.sql}.records WHERE kind = 'evidence' AND ($1::text IS NULL OR id > $1) ORDER BY id LIMIT $2`, [scan.after, limit]);
-      await this.records.lock(tx, rows.rows.map(row => ({ kind: 'deliveries', id: canonicalJson([row.id, consumerId]) })));
-      for (const row of rows.rows) {
+      const rows = await this.records.listKeys(tx, 'evidence', scan.after, limit);
+      await this.records.lock(tx, rows.map(row => ({ kind: 'deliveries', id: canonicalJson([row.id, consumerId]) })));
+      for (const row of rows) {
         const id = canonicalJson([row.id, consumerId]), previous = (await this.records.read<Delivery>(tx, 'deliveries', id))?.body;
         await this.records.write(tx, 'deliveries', id, { consumerId, messageId: row.id, acknowledged: false, attempts: previous?.attempts ?? 0 });
         await this.records.obligation(tx, { kind: 'delivery', id });
       }
-      scan.after = rows.rows.at(-1)?.id ?? scan.after; scan.processed += rows.rows.length; scan.status = rows.rows.length < limit ? 'complete' : 'pending';
+      scan.after = rows.at(-1)?.id ?? scan.after; scan.processed += rows.length; scan.status = rows.length < limit ? 'complete' : 'pending';
     });
   }
 
@@ -285,7 +285,7 @@ export class PostgresPaymentRecovery {
       if (reasons.length > 0) throw new PaymentRecoveryBlockedError(reasons);
       body.recoveryFenced = false; delete body.activeRecoverySessionId;
       body.fenceAudits.push({ fenced: false, auditRef: audit.auditRef, at: new Date().toISOString() });
-      await tx.query(`UPDATE ${this.records.sql}.configuration SET revision = revision + 1, body = $1 WHERE id = 'owner'`, [JSON.stringify(body)]);
+      await this.records.writeConfiguration(tx, body);
       session.status = 'resumed';
     });
   }
