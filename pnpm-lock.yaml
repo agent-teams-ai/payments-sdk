@@ -7,17 +7,17 @@ settings:
 catalogs:
   default:
     '@get-modular/assembly':
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.6.0
+      version: 0.6.0
     '@get-modular/conformance':
-      specifier: 0.3.0
-      version: 0.3.0
+      specifier: 0.4.0
+      version: 0.4.0
     '@get-modular/core':
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.6.0
+      version: 0.6.0
     '@get-modular/resources':
-      specifier: 0.1.0
-      version: 0.1.0
+      specifier: 0.2.0
+      version: 0.2.0
     '@paddle/paddle-node-sdk':
       specifier: 3.10.0
       version: 3.10.0
@@ -67,13 +67,13 @@ importers:
         version: link:packages/payments-postgres
       '@get-modular/assembly':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.6.0
       '@get-modular/core':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.6.0
       '@get-modular/resources':
         specifier: 'catalog:'
-        version: 0.1.0
+        version: 0.2.0
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3
@@ -106,16 +106,16 @@ importers:
     devDependencies:
       '@get-modular/assembly':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.6.0
       '@get-modular/conformance':
         specifier: 'catalog:'
-        version: 0.3.0(@get-modular/assembly@0.5.0)(@get-modular/core@0.5.0)(@get-modular/resources@0.1.0)
+        version: 0.4.0(@get-modular/assembly@0.6.0)(@get-modular/core@0.6.0)(@get-modular/resources@0.2.0)
       '@get-modular/core':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.6.0
       '@get-modular/resources':
         specifier: 'catalog:'
-        version: 0.1.0
+        version: 0.2.0
 
   packages/payments-paddle:
     dependencies:
@@ -169,24 +169,24 @@ packages:
   '@emnapi/wasi-threads@1.2.2':
     resolution: {integrity: sha512-c95qOXkHdydNKhscBTebqEC1CVAZpyqOfVfBzQ1qgzyl3gfeldUjIggDbIZgDKsHLgnsM+igH7TJ/eAasaVuMA==}
 
-  '@get-modular/assembly@0.5.0':
-    resolution: {integrity: sha512-9huRWsDE7TZAWA4AV5D2kbC3eWjoyQrKGi0DTum9LcmuFrjDd4XR9hOYEDaq4H/9OCcOByyiJCmxCtd4DTqM5w==}
+  '@get-modular/assembly@0.6.0':
+    resolution: {integrity: sha512-y7H5RQpwQnKPXoqj/SnUIiOnWMbg/CI4USIUIlL+arkl3+eJncDyLUSikBG0k85vNuv9QuKt3XztpUJK1GvF9Q==}
     engines: {node: '>=24.18.0 <25 || >=26.10.0 <27'}
 
-  '@get-modular/conformance@0.3.0':
-    resolution: {integrity: sha512-IyWvkkIhIbWtDyiL4OIHcO3hSEh4Uz2SVnI3vaeEeh46dM9bFYhwyIa1B0MxIwC5Jkm01FDB1MgGGUnLqv5UuQ==}
+  '@get-modular/conformance@0.4.0':
+    resolution: {integrity: sha512-Ienld3tq0+XASpCGnd3fwvZbNxLTrViYspGzYGyu9mJAKnvBQLLoopyj2uumDeo4SJVzTI8Sl2oSFotr+BDslg==}
     engines: {node: '>=24.18.0 <25 || >=26.10.0 <27'}
     peerDependencies:
-      '@get-modular/assembly': ^0.5.0
-      '@get-modular/core': ^0.5.0
-      '@get-modular/resources': ^0.1.0
+      '@get-modular/assembly': ^0.6.0
+      '@get-modular/core': ^0.6.0
+      '@get-modular/resources': ^0.2.0
 
-  '@get-modular/core@0.5.0':
-    resolution: {integrity: sha512-B7DuUnplex2C67g5OUj5e/AbgrVndH+cEPb74foNMaVWw4qdMmUt8c9pcvlrHVpcTvHBMraA0JIXYO2NI2Q+wA==}
+  '@get-modular/core@0.6.0':
+    resolution: {integrity: sha512-s7HmZAkQtioOAbUxBbeVgLCpmplDB7J36GdugMU0XkGWOEmNvUeSaLhKZWJ0uB49QDqCPPiXjcDf6EGlSFSXDA==}
     engines: {node: '>=24.18.0 <25 || >=26.10.0 <27'}
 
-  '@get-modular/resources@0.1.0':
-    resolution: {integrity: sha512-sIC+ZYI196qK11Dmz9s9U/Va4UAOU5G8m9beCp3zIIbEK0fKLAWGssd4l72aS0ycRBi5AhsbKFysKS9EVVax8g==}
+  '@get-modular/resources@0.2.0':
+    resolution: {integrity: sha512-G8PYU8o/DJTFBQcs9N12CgwxC9PJ+gOqFjariwYCbw+w7vGE+11lU2JiX2QrHBog6VpchKIenIinb7mBJtu/4g==}
     engines: {node: '>=24.18.0 <25 || >=26.10.0 <27'}
 
   '@microsoft/api-extractor-model@7.33.10':
@@ -885,19 +885,19 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@get-modular/assembly@0.5.0':
+  '@get-modular/assembly@0.6.0':
     dependencies:
-      '@get-modular/core': 0.5.0
+      '@get-modular/core': 0.6.0
 
-  '@get-modular/conformance@0.3.0(@get-modular/assembly@0.5.0)(@get-modular/core@0.5.0)(@get-modular/resources@0.1.0)':
+  '@get-modular/conformance@0.4.0(@get-modular/assembly@0.6.0)(@get-modular/core@0.6.0)(@get-modular/resources@0.2.0)':
     dependencies:
-      '@get-modular/assembly': 0.5.0
-      '@get-modular/core': 0.5.0
-      '@get-modular/resources': 0.1.0
+      '@get-modular/assembly': 0.6.0
+      '@get-modular/core': 0.6.0
+      '@get-modular/resources': 0.2.0
 
-  '@get-modular/core@0.5.0': {}
+  '@get-modular/core@0.6.0': {}
 
-  '@get-modular/resources@0.1.0': {}
+  '@get-modular/resources@0.2.0': {}
 
   '@microsoft/api-extractor-model@7.33.10(@types/node@24.13.3)':
     dependencies:
