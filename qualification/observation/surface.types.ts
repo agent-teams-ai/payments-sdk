@@ -1,6 +1,6 @@
 import type { ListenerError, ReadonlyStore, Snapshot } from '@get-modular/observation';
 import type { Resources } from '@get-modular/resources';
-import type { PurchaseProjection, PurchaseProjectionRecord, PurchaseProjectionState, PurchaseReadPort } from './projection.ts';
+import type { PurchaseProjection, PurchaseProjectionRecord, PurchaseProjectionState, PurchaseReadPort } from '@agent-teams/payments-get-modular/observation';
 
 /** Strict compiler probes only: never invoke this function at run time. */
 export function observationSurface(

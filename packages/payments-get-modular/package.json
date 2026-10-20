@@ -4,19 +4,42 @@
   "type": "module",
   "description": "Optional Get Modular composition and explicit resource ownership for payments",
   "license": "Apache-2.0",
-  "engines": { "node": ">=24.21.0 <25 || >=26.11.1 <27" },
-  "files": ["dist", "README.md"],
-  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
-  "dependencies": { "@agent-teams/payments-core": "workspace:^" },
+  "engines": {
+    "node": ">=24.21.0 <25 || >=26.11.1 <27"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./observation": {
+      "types": "./dist/observation/index.d.ts",
+      "import": "./dist/observation/index.js"
+    }
+  },
+  "dependencies": {
+    "@agent-teams/payments-core": "workspace:^"
+  },
   "peerDependencies": {
     "@get-modular/core": "catalog:",
     "@get-modular/assembly": "catalog:",
-    "@get-modular/resources": "catalog:"
+    "@get-modular/resources": "catalog:",
+    "@get-modular/observation": "catalog:"
   },
   "devDependencies": {
     "@get-modular/core": "catalog:",
     "@get-modular/assembly": "catalog:",
     "@get-modular/resources": "catalog:",
-    "@get-modular/conformance": "catalog:"
+    "@get-modular/conformance": "catalog:",
+    "@get-modular/observation": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@get-modular/observation": {
+      "optional": true
+    }
   }
 }

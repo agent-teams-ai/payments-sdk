@@ -3,8 +3,8 @@ import test from 'node:test';
 import { createScope } from '@get-modular/resources';
 import type { ListenerError } from '@get-modular/observation';
 import { delivered, liveSubscriptions, settled } from '@get-modular/observation/testing';
-import { createPurchaseProjection } from './projection.ts';
-import type { PurchaseProjectionState } from './projection.ts';
+import { createPurchaseProjection } from '@agent-teams/payments-get-modular/observation';
+import type { PurchaseProjectionState } from '@agent-teams/payments-get-modular/observation';
 import { durableWorld } from './test-support.ts';
 
 test('projection supersession and close await actual PostgreSQL reads plus cleanup; obsolete results never publish', { timeout: 30_000 }, async () => {

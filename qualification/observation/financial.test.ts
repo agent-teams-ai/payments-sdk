@@ -8,9 +8,9 @@ import { delivered, liveSubscriptions, settled } from '@get-modular/observation/
 import { CreditFixture } from '../../tests/fixtures/consumers/index.ts';
 import { fixturePeriod, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '../../packages/payments-paddle/test/fixtures.ts';
 import { deliver, durableWorld, emulatePaddle, producerNamespace, scope, success } from './test-support.ts';
-import { PurchaseReader, ProjectionConfiguration, ProjectionRenderer, observationCandidateGroup, purchaseProjectionModule, purchaseProjectionDisplayModule, purchaseProjectionDisplayDeclaration, purchaseReadInput, projectionConfigurationInput, projectionRendererInput } from './composition.ts';
-import type { ObservationCandidateCapabilities } from './composition.ts';
-import type { PurchaseProjectionState, PurchaseReadPort } from './projection.ts';
+import { PurchaseReader, ProjectionConfiguration, ProjectionRenderer, purchaseObservationGroup, purchaseProjectionModule, purchaseProjectionDisplayModule, purchaseProjectionDisplayDeclaration, purchaseReadInput, projectionConfigurationInput, projectionRendererInput } from '@agent-teams/payments-get-modular/observation';
+import type { PurchaseObservationCapabilities } from '@agent-teams/payments-get-modular/observation';
+import type { PurchaseProjectionState, PurchaseReadPort } from '@agent-teams/payments-get-modular/observation';
 
 test('packed payments and installed observation: absent, failing and closed screens preserve real T1/T2/T3 delivery and Q100/T25 effects', { timeout: 60_000 }, async t => {
   const transport = emulatePaddle();
@@ -50,8 +50,8 @@ test('packed payments and installed observation: absent, failing and closed scre
     assert.deepEqual(await world.payments.readDeliveries('access', 100), []);
     assert.equal((await world.access.decisions())[0]?.body.newAction, true);
 
-    const compose = (api = assemblyFor<ObservationCandidateCapabilities>()) => api.prepare({
-      profileId: 'qualification/payments-observation', modules: [observationCandidateGroup],
+    const compose = (api = assemblyFor<PurchaseObservationCapabilities>()) => api.prepare({
+      profileId: 'qualification/payments-observation', modules: [purchaseObservationGroup],
       inputs: { read: purchaseReadInput, configuration: projectionConfigurationInput, renderer: projectionRendererInput },
       roots: { projection: purchaseProjectionModule, display: purchaseProjectionDisplayModule },
     });
@@ -69,7 +69,7 @@ test('packed payments and installed observation: absent, failing and closed scre
       configuration: { [ProjectionConfiguration.id]: { initialQuery: query, reportError: (report: ListenerError): undefined => { reports.push(report); } } },
       renderer: { [ProjectionRenderer.id]: { render } },
     });
-    const construction = await smoke({ api: assemblyFor<ObservationCandidateCapabilities>(), compose,
+    const construction = await smoke({ api: assemblyFor<PurchaseObservationCapabilities>(), compose,
       inputs: input(originalQuery, () => undefined), at: [purchaseProjectionDisplayDeclaration.implementationId] });
     assert.deepEqual(construction.map(step => step.outcome), ['succeeded', 'failed', 'cancelled']);
     for (const step of construction) { assert.equal(step.problem, undefined); assert.equal(step.report.complete, true); }
