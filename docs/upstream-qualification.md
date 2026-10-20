@@ -11,21 +11,29 @@ delta changes no package runtime source, CMS or observation contract document;
 direct watch/load/types/values/CMS reads retain the same blobs. The dated source
 and dependency qualification below remains its original reproducible snapshot.
 
-## October 20 continuation
+## October 20 published observation adoption
 
-The [dated continuation record](reviews/upstream-continuation-2026-10-20.md) supersedes
-current PR-state statements in the original sections below. Get Modular release
-preparation #199 and migration correction #200 are merged; the five exact
-candidate archives are retained publicly. The coordinated npm train remains
-unpublished. The [candidate consumer](../qualification/observation/README.md)
-implements the optional read-projection integration under that explicit boundary.
-The original supported package pins and lockfile are unchanged.
+A fresh official registry read-back on **2026-10-20** confirms the coordinated release is published. This supersedes the unpublished-train statements in the historical sections and [earlier continuation record](reviews/upstream-continuation-2026-10-20.md).
 
-Paddle.js 1.6.5 still fails TS2430 in both strict resolver modes on both supported
-Node floors. Node 24 staging now includes the fixed Undici 7.30.1, but no corrected
-official Node release is published at this read-back. Production runtime admission
-therefore remains blocked. Historical reports and the accepted plan retain their
-original source snapshots.
+| Official package | Version | Published UTC | Packed dependency / peers |
+| --- | --- | --- | --- |
+| [Core](https://registry.npmjs.org/@get-modular%2fcore/0.6.0) | `0.6.0` | 08:18:30.311 | none |
+| [Assembly](https://registry.npmjs.org/@get-modular%2fassembly/0.6.0) | `0.6.0` | 08:15:50.750 | exact Core `0.6.0` dependency |
+| [Resources](https://registry.npmjs.org/@get-modular%2fresources/0.2.0) | `0.2.0` | 08:17:18.249 | none |
+| [Conformance](https://registry.npmjs.org/@get-modular%2fconformance/0.4.0) | `0.4.0` | 08:18:54.515 | Core/Assembly `^0.6.0`, Resources `^0.2.0` peers |
+| [Observation](https://registry.npmjs.org/@get-modular%2fobservation/0.1.0) | `0.1.0` | 08:17:26.586 | Resources `^0.2.0` peer |
+
+All five official archives were downloaded freshly and checked against registry SHA-512 SRI and SHA-1. Their sizes and SHA-256 values exactly match the [original retained manifest](../qualification/observation/upstream-artifacts.json). Packed manifests agree with registry dependencies and peers. The [published artifact record](../qualification/observation/published-artifacts.json) retains exact registry URLs, hashes and read-back time. Archive equality establishes unchanged published runtime/declaration bytes, including `watch`, `load`, values and resource identity semantics; it does not relabel earlier tests as runs against npm.
+
+Official GitHub API read-back confirms [release preparation #199](https://github.com/agent-teams-ai/get-modular/pull/199) merged at **2026-10-19 22:14:37 UTC**, merge `10bb2de2880e38398c836f6660244fd4cb665822`. [Migration fixture correction #200](https://github.com/agent-teams-ai/get-modular/pull/200) merged at **21:16:51 UTC**, merge `f1a81300881eed64ac1d18e2f36423a24e6ecc34`; it changes historical migration test inputs, with no runtime contract change. Publication is established independently through the official registry above.
+
+The SDK adopts the exact coordinated pins and exports an optional public `@agent-teams/payments-get-modular/observation` subpath. Observation is an optional peer; the main static entry has no Observation import. The [maintained isolated consumer](../qualification/observation/README.md) now installs exact public versions beside all four packed payments packages, checks registry/archive identity, strict TypeScript `7.0.2` NodeNext/Bundler declarations and physical peer identity, and exercises the unchanged four scenario oracles against real PostgreSQL. The custom prepublication archive cache and duplicate qualification-source implementation are removed. Original candidate manifests, accepted ADRs and previous review/log evidence remain unchanged.
+
+Paddle.js declaration and Node bundled-transport qualification retain their separately owned gates; this dependency adoption grants no additional production or live-account claim.
+
+## Historical October 19 qualification
+
+The following dated sections record their original source and dependency snapshots. The published adoption above owns current Get Modular status.
 
 ## Qualified dependency change
 

@@ -120,14 +120,14 @@ jobs:
       - run: pnpm test:modular
       - run: pnpm test:postgres
       - run: pnpm test:e2e
-      - name: Qualify retained observation candidate
-        run: pnpm test:observation:candidate
+      - name: Qualify published observation consumer
+        run: pnpm test:observation
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: observation-candidate-node-${{ matrix.node }}
+          name: observation-published-node-${{ matrix.node }}
           path: |
-            .artifacts/observation-candidate-node-*.json
-            .artifacts/observation-candidate-node-*.log
+            .artifacts/observation-published-node-*.json
+            .artifacts/observation-published-node-*.log
           if-no-files-found: error
           retention-days: 7
 

@@ -1,14 +1,16 @@
-# Candidate purchase read projection
+# Published purchase observation consumer
 
-This is an implemented optional Get Modular hooks consumer qualified separately from the supported SDK package profile. It uses the five exact original candidate archives retained by upstream at `c5c314ab98c57d2c73448f0c3c9860424a993d8a`: Core/Assembly 0.6.0, Resources 0.2.0, Conformance 0.4.0 and Observation 0.1.0. Their source and checksums are recorded in `upstream-artifacts.json` and upstream's [release handoff](https://github.com/agent-teams-ai/get-modular/blob/c5c314ab98c57d2c73448f0c3c9860424a993d8a/research/releases/observation-0.1.0/release-intent.md).
+This required qualification suite consumes `@agent-teams/payments-get-modular/observation` from the packed SDK archive. It installs the exact official registry releases Core/Assembly `0.6.0`, Resources `0.2.0`, Conformance `0.4.0` and Observation `0.1.0`. The [published artifact record](published-artifacts.json) binds official version metadata, SHA-512 integrity, SHA-256, archive sizes and packed peer/dependency contracts. The runner checks those official bytes and metadata before ordinary public-version installation.
 
-These archives were still unpublished at the official registry read-back on 2026-10-20. Candidate qualification does not change the SDK's supported static Get Modular peers or establish a published hooks release. Accepted upstream ADR-0038 permits testing exact unpublished candidates. The accepted payments plan's published-release adoption gate remains in force.
+All five published archives are byte-identical to the original upstream candidates retained at `c5c314ab98c57d2c73448f0c3c9860424a993d8a`. The original [candidate manifest](upstream-artifacts.json) and [prepublication review/evidence files](../../docs/reviews/observation) remain immutable historical records. They are not relabeled as published runs. Current qualification replaces the earlier custom candidate download/cache pathway; there is one delivered projection implementation and one maintained isolated consumer gate.
 
 ## API and ownership
 
-`projection.ts` owns one selected purchase view and its explicit view commands:
+The public `createPurchaseProjection` owns one selected purchase view and its explicit view commands:
 
 ```ts
+import { createPurchaseProjection } from '@agent-teams/payments-get-modular/observation';
+
 const projection = createPurchaseProjection({
   read: { readPurchase: payments.readPurchase },
   initialQuery: { buyerId: authorizedBuyerId, intentId: authorizedIntentId },
@@ -30,12 +32,21 @@ The Host owns the existing `createPayments()` runtime, provider, storage adapter
 
 ## Real Assembly composition
 
-`composition.ts` exports declared inputs, required slots, a projection module and a display module. Definitions are inert. One prepared template can be run with independent per-run inputs:
+The public observation subpath exports declared inputs, required slots, a projection module and a display module. Definitions are inert. One prepared template can be run with independent per-run inputs:
 
 ```ts
-const preparation = await assemblyFor<ObservationCandidateCapabilities>().prepare({
-  profileId: 'my-host/payments-observation-candidate',
-  modules: [observationCandidateGroup],
+import { assemblyFor } from '@get-modular/assembly';
+import { createScope } from '@get-modular/resources';
+import {
+  PurchaseReader, ProjectionConfiguration, ProjectionRenderer,
+  purchaseObservationGroup, purchaseProjectionModule, purchaseProjectionDisplayModule,
+  purchaseReadInput, projectionConfigurationInput, projectionRendererInput,
+  type PurchaseObservationCapabilities,
+} from '@agent-teams/payments-get-modular/observation';
+
+const preparation = await assemblyFor<PurchaseObservationCapabilities>().prepare({
+  profileId: 'my-host/payments-observation',
+  modules: [purchaseObservationGroup],
   roots: { projection: purchaseProjectionModule, display: purchaseProjectionDisplayModule },
   inputs: {
     read: purchaseReadInput,
@@ -77,8 +88,8 @@ Observation reports callback failures with source, subscription, revision and ca
 
 ## Qualification boundary
 
-The maintained candidate runner installs real payments archives and the five verified GM archives into a separate consumer, preserving one physical peer identity. Strict TS 7.0.2 NodeNext/Bundler checks use `skipLibCheck:false`. The suite uses real Assembly/Resources/Observation and public packed payment APIs with real PostgreSQL and test-process emulation of the official Paddle SDK transport. It exercises initial purchase, renewal, top-up, lost-ACK replay and independent credit/access delivery beside view refresh, listener failures, coalescing, stale-load suppression, retained cleanup, source/subscriber close and sibling isolation. Existing SDK suites retain their separate adverse-evidence/correction coverage.
+`pnpm test:observation` installs all four real payments archives and the five exact published Get Modular releases into a separate consumer, preserving one physical peer identity. Strict TS 7.0.2 NodeNext/Bundler checks use `skipLibCheck:false`. The suite uses real Assembly/Resources/Observation and public packed payment APIs with real PostgreSQL and test-process emulation of the official Paddle SDK transport. It exercises initial purchase, renewal, top-up, lost-ACK replay and independent credit/access delivery beside view refresh, listener failures, coalescing, stale-load suppression, retained cleanup, source/subscriber close and sibling isolation. Existing SDK suites retain their separate adverse-evidence/correction coverage.
 
 `surface.types.ts` contains strict negative probes for readonly ownership, financial capability isolation, authentic snapshots, callback return types and future union narrowing. It is typechecked and never executed. Only tests import `@get-modular/observation/testing`; tests use its waits and explicit barriers, never fixed sleeps.
 
-The runner's actual evidence owns the pass/fail claim. Final supported adoption still requires downloading the exact published registry bytes, checking all five archive identities and peers, rerunning the consumer on those bytes and making a coherent SDK dependency adoption change. These files do not perform npm publication, tag promotion or an accepted ADR change.
+The runner's actual `.artifacts/observation-published-node-*.json` and `.log` files own the current pass/fail claim on both supported Node floors. It imports the public packed subpath for all projection/composition behavior; no source implementation or tests from inside the SDK package enter that archive. Test-only independently owned credit/access fixtures remain in this external consumer harness. A separate static packed consumer verifies that the main integration entry needs no Observation installation. This bounded consumer qualification does not establish live Paddle sandbox behavior or production runtime admission.

@@ -6,125 +6,112 @@ import { join } from 'node:path';
 import { parse } from 'yaml';
 import { command, packPackages, pnpm, repository } from './package-artifacts.ts';
 
-type CandidateArchive = Readonly<{
-  name: string; version: string; filename: string; bytes: number; sha256: string;
+type PublishedArchive = Readonly<{
+  name: string; version: string; bytes: number; sha256: string; registry: string; tarball: string; integrity: string;
   dependencies: Readonly<Record<string, string>>;
   peerDependencies: Readonly<Record<string, string>>;
 }>;
-type CandidateManifest = Readonly<{
-  schemaVersion: number; status: string; upstreamCommit: string; source: string;
-  archives: readonly CandidateArchive[];
+type PublishedManifest = Readonly<{
+  schemaVersion: number; status: string; archives: readonly PublishedArchive[];
 }>;
-type ArchiveManifest = Readonly<{
-  name: string; version: string; license: string; exports?: unknown;
+type RegistryVersion = Readonly<{
+  name: string; version: string;
   dependencies?: Readonly<Record<string, string>>;
   peerDependencies?: Readonly<Record<string, string>>;
+  dist: Readonly<{ tarball: string; integrity: string }>;
 }>;
 
 const source = join(repository, 'qualification/observation');
-const reportBase = join(repository, `.artifacts/observation-candidate-node-${process.versions.node}`);
+const reportBase = join(repository, `.artifacts/observation-published-node-${process.versions.node}`);
 await rm(`${reportBase}.json`, { force: true });
 await rm(`${reportBase}.log`, { force: true });
-const manifestBytes = await readFile(join(source, 'upstream-artifacts.json'));
-const manifest = JSON.parse(manifestBytes.toString('utf8')) as CandidateManifest;
+const manifestBytes = await readFile(join(source, 'published-artifacts.json'));
+const manifest = JSON.parse(manifestBytes.toString('utf8')) as PublishedManifest;
 assert.equal(manifest.schemaVersion, 1);
-assert.equal(manifest.status, 'unpublished-upstream-candidate');
-assert.equal(manifest.source, 'https://github.com/agent-teams-ai/get-modular');
-assert.match(manifest.upstreamCommit, /^[a-f0-9]{40}$/u);
+assert.equal(manifest.status, 'published-registry-release');
 assert.deepEqual(manifest.archives.map(item => item.name).sort(), [
   '@get-modular/assembly', '@get-modular/conformance', '@get-modular/core',
   '@get-modular/observation', '@get-modular/resources',
 ]);
-assert.ok(process.env['DATABASE_URL'], 'DATABASE_URL is required: candidate qualification includes real PostgreSQL');
+assert.ok(process.env['DATABASE_URL'], 'DATABASE_URL is required: published observation qualification includes real PostgreSQL');
 command(process.execPath, ['tools/toolchain.ts']);
 
 const digest = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
-const cache = join(repository, '.artifacts/observation-upstream', digest(manifestBytes));
-await mkdir(cache, { recursive: true });
-const upstream = new Map<string, string>();
-for (const archive of manifest.archives) {
-  assert.match(archive.filename, /^get-modular-[a-z]+-\d+\.\d+\.\d+\.tgz$/u);
-  assert.match(archive.sha256, /^[a-f0-9]{64}$/u);
-  assert.ok(Number.isSafeInteger(archive.bytes) && archive.bytes > 0 && archive.bytes < 1_000_000);
-  const target = join(cache, archive.filename);
-  let bytes: Buffer;
-  try {
-    bytes = await readFile(target);
-  } catch (error) {
-    if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') throw error;
-    const url = `https://raw.githubusercontent.com/agent-teams-ai/get-modular/${manifest.upstreamCommit}/research/releases/observation-0.1.0/${archive.filename}`;
-    // Download only pinned public archives; no lifecycle script runs before digest admission.
-    command('curl', ['--fail', '--silent', '--show-error', '--location', '--max-time', '30', '--max-filesize', '1000000', '--output', target, url]);
-    bytes = await readFile(target);
-  }
-  assert.equal(bytes.length, archive.bytes, `${archive.name}: archive size differs from the retained candidate`);
-  assert.equal(digest(bytes), archive.sha256, `${archive.name}: archive digest differs from the retained candidate`);
-  const entries = command('tar', ['-tzf', target]).trim().split('\n');
-  assert.ok(entries.every(entry => entry.startsWith('package/') && !entry.split('/').includes('..')));
-  const packed = JSON.parse(command('tar', ['-xOf', target, 'package/package.json'])) as ArchiveManifest;
-  assert.equal(packed.name, archive.name);
-  assert.equal(packed.version, archive.version);
-  assert.equal(packed.license, 'Apache-2.0');
-  assert.ok(packed.exports, `${archive.name}: missing public exports`);
-  assert.deepEqual(packed.dependencies ?? {}, archive.dependencies);
-  assert.deepEqual(packed.peerDependencies ?? {}, archive.peerDependencies);
-  upstream.set(archive.name, target);
-}
-
 const catalog = (parse(await readFile(join(repository, 'pnpm-workspace.yaml'), 'utf8')) as { catalog: Record<string, string> }).catalog;
 function pin(name: string): string {
   const value = catalog[name];
   assert.ok(value && /^\d+\.\d+\.\d+$/u.test(value), `Expected qualified exact catalog pin for ${name}`);
   return value;
 }
+// Registry packages replace the prepublication download/cache path. Verify public immutable
+// metadata and bytes, then let the ordinary package manager install those exact public versions.
+for (const archive of manifest.archives) {
+  assert.equal(archive.version, pin(archive.name));
+  assert.equal(archive.registry, `https://registry.npmjs.org/${archive.name.replace('/', '%2f')}/${archive.version}`);
+  assert.equal(archive.tarball, `https://registry.npmjs.org/${archive.name}/-/${archive.name.slice('@get-modular/'.length)}-${archive.version}.tgz`);
+  const response = await fetch(archive.registry, { signal: AbortSignal.timeout(30_000) });
+  assert.equal(response.status, 200, `${archive.name}: official published version is unavailable`);
+  const metadata = await response.json() as RegistryVersion;
+  assert.equal(metadata.name, archive.name);
+  assert.equal(metadata.version, archive.version);
+  assert.deepEqual(metadata.dependencies ?? {}, archive.dependencies);
+  assert.deepEqual(metadata.peerDependencies ?? {}, archive.peerDependencies);
+  assert.equal(metadata.dist.tarball, archive.tarball);
+  assert.equal(metadata.dist.integrity, archive.integrity);
+  const download = await fetch(archive.tarball, { signal: AbortSignal.timeout(30_000) });
+  assert.equal(download.status, 200);
+  const bytes = new Uint8Array(await download.arrayBuffer());
+  assert.equal(bytes.length, archive.bytes);
+  assert.equal(digest(bytes), archive.sha256, `${archive.name}: published archive identity changed`);
+  assert.equal(`sha512-${createHash('sha512').update(bytes).digest('base64')}`, archive.integrity);
+}
+
 const tarballs = await packPackages();
 const paymentsArtifacts = [];
-for (const [name, path] of tarballs) {
-  if (name !== '@agent-teams/payments-get-modular') paymentsArtifacts.push({ name, sha256: digest(await readFile(path)) });
-}
-const root = await mkdtemp(join(tmpdir(), 'payments-observation-'));
+for (const [name, path] of tarballs) paymentsArtifacts.push({ name, sha256: digest(await readFile(path)) });
+const root = await mkdtemp(join(tmpdir(), 'payments-observation-published-'));
 try {
   const dependencies: Record<string, string> = {};
-  for (const name of ['core', 'paddle', 'postgres']) {
-    const packageName = `@agent-teams/payments-${name}`;
-    const tarball = tarballs.get(packageName);
-    assert.ok(tarball);
-    dependencies[packageName] = `file:${tarball}`;
-  }
-  for (const [name, path] of upstream) dependencies[name] = `file:${path}`;
+  for (const [name, path] of tarballs) dependencies[name] = `file:${path}`;
+  for (const archive of manifest.archives) dependencies[archive.name] = archive.version;
   for (const name of ['pg', '@types/pg', '@types/node', 'undici']) dependencies[name] = pin(name);
   const rootManifest = JSON.parse(await readFile(join(repository, 'package.json'), 'utf8')) as { packageManager: string };
   await writeFile(join(root, 'package.json'), JSON.stringify({ private: true, type: 'module', packageManager: rootManifest.packageManager, dependencies }, null, 2));
-  // Exact archives also override transitive references. No workspace symlink or old GM peer enters this graph.
   const overrides = Object.entries(dependencies).filter(([name]) => name.startsWith('@get-modular/') || name.startsWith('@agent-teams/payments-') || name === '@types/node');
   await writeFile(join(root, 'pnpm-workspace.yaml'), `engineStrict: true\nstrictPeerDependencies: true\noverrides:\n${overrides.map(([name, value]) => `  ${JSON.stringify(name)}: ${JSON.stringify(value)}`).join('\n')}\n`);
   pnpm(['install', '--prefer-offline', '--ignore-scripts', '--lockfile=false', '--strict-peer-dependencies'], root);
+  for (const archive of manifest.archives) {
+    const installed = JSON.parse(await readFile(join(root, 'node_modules', archive.name, 'package.json'), 'utf8')) as RegistryVersion;
+    assert.equal(installed.version, archive.version);
+    assert.deepEqual(installed.dependencies ?? {}, archive.dependencies);
+    assert.deepEqual(installed.peerDependencies ?? {}, archive.peerDependencies);
+  }
   for (const path of ['qualification/observation', 'tests/fixtures/consumers', 'packages/payments-paddle/test/fixtures.ts']) {
     await cp(join(repository, path), join(root, path), { recursive: true });
   }
-  const candidate = join(root, 'qualification/observation');
+  const consumer = join(root, 'qualification/observation');
   const compiler = join(repository, 'node_modules/typescript/bin/tsc');
   const profiles = ['NodeNext', 'Bundler'] as const;
   for (const profile of profiles) {
     const config = `tsconfig.${profile.toLowerCase()}.json`;
-    await writeFile(join(candidate, config), JSON.stringify({ extends: './tsconfig.json', compilerOptions: {
+    await writeFile(join(consumer, config), JSON.stringify({ extends: './tsconfig.json', compilerOptions: {
       module: profile === 'Bundler' ? 'ESNext' : 'NodeNext', moduleResolution: profile,
     } }));
-    command(process.execPath, [compiler, '-p', join(candidate, config)], root);
+    command(process.execPath, [compiler, '-p', join(consumer, config)], root);
   }
-  const tests = (await readdir(candidate)).filter(name => name.endsWith('.test.ts')).sort();
-  assert.ok(tests.length > 0, 'Candidate cannot qualify without scenarios');
-  const output = command(process.execPath, ['--test', '--test-reporter=spec', ...tests.map(name => join(candidate, name))], root);
+  const tests = (await readdir(consumer)).filter(name => name.endsWith('.test.ts')).sort();
+  assert.ok(tests.length > 0, 'Published observation cannot qualify without scenarios');
+  const output = command(process.execPath, ['--test', '--test-reporter=spec', ...tests.map(name => join(consumer, name))], root);
   console.log(output);
   const report = {
-    status: 'passed', qualification: 'unpublished-upstream-candidate', npmPublicationProven: false,
-    productionAdmission: false, node: process.version, typescript: pin('typescript'),
-    upstreamCommit: manifest.upstreamCommit, manifestSha256: digest(manifestBytes),
-    paymentsArtifacts,
-    archives: manifest.archives.map(({ name, version, sha256 }) => ({ name, version, sha256 })),
+    status: 'passed', qualification: 'published-registry-release', npmPublicationProven: true,
+    node: process.version, typescript: pin('typescript'), publicSurface: '@agent-teams/payments-get-modular/observation',
+    manifestSha256: digest(manifestBytes), paymentsArtifacts,
+    archives: manifest.archives.map(({ name, version, sha256, integrity, tarball }) => ({ name, version, sha256, integrity, tarball })),
     resolvers: profiles.map(resolution => ({ resolution, strict: true, skipLibCheck: false, passed: true })),
     tests, scenarioOutputSha256: digest(Buffer.from(output)),
   };
+  await mkdir(join(repository, '.artifacts'), { recursive: true });
   await writeFile(`${reportBase}.json`, `${JSON.stringify(report, null, 2)}\n`);
   await writeFile(`${reportBase}.log`, output);
   console.log(JSON.stringify(report, null, 2));

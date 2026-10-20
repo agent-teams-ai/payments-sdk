@@ -32,15 +32,9 @@ feature-branch check cannot authorize the release.
 
 The post-integration [dependency correction and Node runtime investigation](security-qualification.md) are separate from the completed four implementation review waves. The development HTTP harness is qualified on Undici **7.30.1**. Production runtime admission remains blocked by an independently reproduced built-in `fetch` defect in the current Node floors and latest same-major official releases. Functional GitHub prerelease delivery is available; a corrected official runtime and its consumer qualification are required before production deployment.
 
-The required P6 Get Modular host uses the qualified published static peer set.
-The upstream observation implementation has merged, but the coordinated new
-registry train was unpublished at the [recorded read-back](upstream-qualification.md).
-Hooks remain optional read projections; they cannot replace financial delivery,
-consumer transactions or acknowledgements. The [candidate read projection](../qualification/observation/README.md) now implements
-real Assembly inputs/slots, readonly store facets, scoped display watches and
-latest-only loads against the retained upstream archives. Its required isolated
-consumer gate runs on both Node floors with real PostgreSQL; supported package
-adoption still requires the actual coherent registry release.
+The P6 Get Modular host uses the coherent published Core/Assembly `0.6.0` and Resources `0.2.0` peer set. The optional public `payments-get-modular/observation` subpath now consumes Observation `0.1.0`; Conformance `0.4.0` remains development-only. The [registry record](../qualification/observation/published-artifacts.json) proves all five official artifacts match their original retained candidate bytes. Earlier candidate reports remain historical.
+
+The [public purchase read projection](../qualification/observation/README.md) supplies real Assembly inputs/slots, readonly store facets, scoped display watches and latest-only loads. Its required isolated consumer imports the packed package export, checks strict NodeNext/Bundler declarations and one physical peer graph, and runs real PostgreSQL scenarios on both Node floors. The separate static consumer omits Observation. Hooks remain optional read projections and cannot replace financial delivery, consumer transactions or acknowledgements.
 
 The official Paddle.js 1.6.5 browser example is blocked by its published
 declarations under the required strict compiler profile, reproduced in both

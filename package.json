@@ -26,8 +26,8 @@
     "test:packed": "node tools/packed-consumers.ts",
     "release:dry-run": "node tools/release-dry-run.ts",
     "check:fast": "pnpm toolchain:check && pnpm typecheck && pnpm lint && pnpm foundation:check",
-    "check": "pnpm check:fast && pnpm foundation:assert-dev-only && pnpm foundation:assert-registry && pnpm test:boundaries && pnpm test:core && pnpm test:paddle && pnpm test:modular && pnpm test:postgres && pnpm test:e2e && pnpm test:observation:candidate && pnpm test:packed && pnpm release:dry-run",
-    "test:observation:candidate": "node tools/qualify-observation.ts"
+    "check": "pnpm check:fast && pnpm foundation:assert-dev-only && pnpm foundation:assert-registry && pnpm test:boundaries && pnpm test:core && pnpm test:paddle && pnpm test:modular && pnpm test:postgres && pnpm test:e2e && pnpm test:observation && pnpm test:packed && pnpm release:dry-run",
+    "test:observation": "node tools/qualify-observation.ts"
   },
   "devDependencies": {
     "@agent-teams/engineering-foundation": "1.10.1",

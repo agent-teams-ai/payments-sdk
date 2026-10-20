@@ -13,7 +13,7 @@ The first supported commercial profile is **one no-trial monthly price, quantity
 | `@agent-teams/payments-core` | Operations, evidence reduction, immutable delivery protocol, reconciliation contracts | Node built-ins; no Paddle, database or framework |
 | `@agent-teams/payments-paddle` | Official Paddle SDK adapter, signature verification, normalized source-aware evidence | Core and `@paddle/paddle-node-sdk` 3.10.0 |
 | `@agent-teams/payments-postgres` | Owner-local durable transactions, migrations, bounded repair, pg-boss transport and recovery administration | Core, `pg`, `pg-boss` |
-| `@agent-teams/payments-get-modular` | Static composition, segregated capability facets and explicit resource lifecycle | Core and qualified Get Modular peers |
+| `@agent-teams/payments-get-modular` | Static composition, optional purchase read projections, capability facets and explicit resource lifecycle | Core and qualified Get Modular peers |
 
 The four packages currently declare version `0.1.0`. A version in a manifest does not establish npm publication. Use the [release candidate artifacts and verification instructions](docs/releasing.md) or build this checkout until a registry release is explicitly announced.
 
@@ -25,8 +25,8 @@ The four packages currently declare version `0.1.0`. A version in a manifest doe
 - [Qualification and deployment gates](docs/qualification.md): what the automated suites prove and what needs a real deployment or Paddle sandbox.
 - [Dependency and Node runtime security](docs/security-qualification.md): the qualified development dependency correction and the separate blocked production runtime admission.
 - [Implementation and review status](docs/implementation-status.md): P0–P7 plan traceability, independent review reports and correction evidence.
-- [Observation candidate](qualification/observation/README.md): implemented read projection, real Assembly/Resources/watch/load, and isolated qualification against the retained upstream archives.
-- [Current upstream qualification](docs/upstream-qualification.md): exact dependency pins, merged Get Modular observation source and its unpublished train, and the official browser declaration blocker.
+- [Purchase observation](qualification/observation/README.md): optional public read projection, real Assembly/Resources/watch/load, and isolated packed qualification against the published registry train.
+- [Current upstream qualification](docs/upstream-qualification.md): exact dependency pins, published Get Modular observation train and artifact identities, and the official browser declaration blocker.
 - [Release process](docs/releasing.md): audited tarballs, checksums, exact-commit CI and GitHub prereleases.
 
 Adapter-specific details stay in the [Paddle](packages/payments-paddle/README.md), [PostgreSQL](packages/payments-postgres/README.md) and [Get Modular](packages/payments-get-modular/README.md) package guides. The [accepted implementation plan](docs/implementation-plan.md) records design decisions and source provenance; current public signatures live in package exports and the compiled examples.

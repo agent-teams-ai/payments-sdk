@@ -18,9 +18,9 @@ try {
       if (!plain || name === '@agent-teams/payments-core') dependencies[name] = `file:${tarball}`;
     }
     if (!plain) Object.assign(dependencies, {
-      '@get-modular/core': '0.5.0',
-      '@get-modular/assembly': '0.5.0',
-      '@get-modular/resources': '0.1.0',
+      '@get-modular/core': '0.6.0',
+      '@get-modular/assembly': '0.6.0',
+      '@get-modular/resources': '0.2.0',
     });
     await writeFile(join(target, 'package.json'), JSON.stringify({ private: true, type: 'module', dependencies, packageManager: 'pnpm@11.25.0' }));
     // Every internal transitive dependency must resolve to this build, before these versions
@@ -50,6 +50,8 @@ try {
       assert.equal(packageManifest.name, '@agent-teams/payments-get-modular');
       const observed = command(process.execPath, ['--input-type=module', '-e', "import {createRequire} from 'node:module'; import {realpathSync} from 'node:fs'; const require=createRequire(import.meta.resolve('@agent-teams/payments-get-modular')); console.log(realpathSync(require.resolve('@get-modular/resources')));"], target).trim();
       assert.equal(observed, expected, 'GM integration and host must share the same physical Resources package');
+      // The optional subpath must not make the static runtime or declarations require Observation.
+      command(process.execPath, ['--input-type=module', '-e', "try { import.meta.resolve('@get-modular/observation'); throw new Error('Unexpected optional Observation'); } catch (error) { if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error; }"], target);
     }
   }
   await mkdir(join(repository, '.artifacts'), { recursive: true });
