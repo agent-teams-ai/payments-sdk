@@ -1,0 +1,65 @@
+{
+  "observedAt": "2026-10-20T08:28:08.988772+00:00",
+  "executionSubject": "66011e3c3eb99d65ea30d9c4c02a79ff046ecbbe",
+  "scope": "local qualification; subsequent commit adds review records only",
+  "runs": [
+    {
+      "node": "24.21.0",
+      "command": "pnpm check",
+      "exitCode": 0,
+      "typescript": "7.0.2",
+      "pnpm": "11.25.0"
+    },
+    {
+      "node": "26.11.1",
+      "command": "pnpm check",
+      "exitCode": 0,
+      "typescript": "7.0.2",
+      "pnpm": "11.25.0"
+    }
+  ],
+  "postgres": {
+    "version": "18.4",
+    "fsync": "on",
+    "synchronous_commit": "on",
+    "full_page_writes": "on",
+    "dataChecksums": true,
+    "testOnly": true
+  },
+  "testRunnerCountsPerNode": {
+    "boundariesAndReleasePolicy": 14,
+    "core": 48,
+    "paddle": 18,
+    "staticGetModular": 11,
+    "postgresAndReconciliationRecovery": 39,
+    "e2e": 52,
+    "observationCandidate": 4
+  },
+  "countMeaning": "Node test runner counts include nested tests; these are not counts of independent E2E scenarios.",
+  "strictPackedConsumers": {
+    "resolutions": [
+      "NodeNext",
+      "Bundler"
+    ],
+    "profiles": [
+      "plain-core",
+      "all-adapters"
+    ],
+    "skipLibCheck": false,
+    "passed": true
+  },
+  "releaseDryRun": {
+    "packageCount": 4,
+    "passed": true,
+    "published": false
+  },
+  "npmObservationPublicationProven": false,
+  "productionAdmission": false,
+  "remoteContinuation": {
+    "pushed": false,
+    "pullRequestCreated": false,
+    "merged": false,
+    "ciRun": null,
+    "blocker": "GitHub create_tree returned HTTP403 Resource not accessible by integration; local GitHub credentials unavailable."
+  }
+}
