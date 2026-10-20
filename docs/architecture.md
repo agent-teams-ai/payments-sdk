@@ -117,15 +117,20 @@ remains evidence.
 The origin interpreter distinguishes checkout, initial subscription, recurring
 subscription, payment-method maintenance and explicitly unsupported profiles.
 It does not authorize a purchase without the existing saved binding and full
-offer/profile checks. Open string fields also retain unknown codes as opaque
-unsupported evidence, preserving their exact representation and fail-closed
-behavior. Paddle's explicit origin mapping preserves every previous token and
+offer/profile checks. Canonical strings are reserved for deliberate adapter
+mapping. An unrecognized provider code can happen to equal `api` or
+`subscription_recurring`; a raw string fallback would incorrectly assign the
+core meaning. Use `Field` unknown for an uninterpreted field and preserve the
+exact provider code in retained receipt evidence. Open strings can carry opaque
+unsupported values only when they cannot collide with a canonical token.
+Paddle's explicit origin mapping preserves every previous token and
 the decoder version; no evidence bytes, identity scheme, DTO shape or schema
 version changes here. New or renamed canonical tokens require protocol/replay
 review rather than an implicit provider-specific core branch.
 
 The foreign-provider E2E fixture maps different wire origins and statuses, then
-checks public completion, renewal, noncommercial maintenance, unknown holds and
+checks public completion, renewal, noncommercial maintenance, unknown holds
+(including both canonical-string collisions), raw custody and
 independent durable consumer replay. It is portability evidence for this
 contract, not qualification of another production provider.
 

@@ -19,13 +19,13 @@ const firstPeriod = { startsAt: '2026-10-01T00:00:00Z', endsAt: '2026-11-01T00:0
 const secondPeriod = { startsAt: firstPeriod.endsAt, endsAt: '2026-12-01T00:00:00Z' };
 const firstVersion = '2026-10-01T00:00:00.000001Z';
 
-function foreignOrigin(code: string): string {
+function foreignOrigin(code: string): Field<string> {
   switch (code) {
-    case 'ORDER_CHECKOUT': return transactionOrigins.checkoutApi;
-    case 'PLAN_ACTIVATION': return transactionOrigins.initialSubscription;
-    case 'CYCLE_INVOICE': return transactionOrigins.recurringSubscription;
-    case 'CARD_PROFILE_WRITE': return transactionOrigins.paymentMethodChange;
-    default: return code; // Retained opaque evidence, never a successful fallback.
+    case 'ORDER_CHECKOUT': return known(transactionOrigins.checkoutApi);
+    case 'PLAN_ACTIVATION': return known(transactionOrigins.initialSubscription);
+    case 'CYCLE_INVOICE': return known(transactionOrigins.recurringSubscription);
+    case 'CARD_PROFILE_WRITE': return known(transactionOrigins.paymentMethodChange);
+    default: return { presence: 'unknown' }; // Exact raw code remains in the retained receipt.
   }
 }
 
@@ -40,7 +40,7 @@ function foreignProvider(scope: PaymentScope) {
     const observation: TransactionObservation = {
       kind: 'transaction', transactionRef: raw.reference, version: raw.changedAt,
       status: raw.stateCode, statusMeaning: raw.stateCode === 'SETTLED_OK' ? { kind: 'completed' } : { kind: 'unsupported' },
-      origin: known(foreignOrigin(raw.originCode)), customerRef: known('foreign-payer'), subscriptionRef: known(raw.subscription),
+      origin: foreignOrigin(raw.originCode), customerRef: known('foreign-payer'), subscriptionRef: known(raw.subscription),
       intentCorrelation: { presence: 'unknown' }, currency: known('USD'), total: known({ currency: 'USD', minorUnits: raw.amount }),
       lines: known([{
         providerLineRef: `line-${raw.reference}`, providerPriceRef: `foreign-${raw.plan}`, quantity: 1,
@@ -155,6 +155,22 @@ test('foreign provider vocabulary preserves public completion, renewal and manag
     foreign.transactions.set(unknown.transactionRef, { ...unknownRaw, originCode: 'UNRECOGNIZED_UPGRADE' });
     await runtime.refreshPurchase('buyer', unknown.intentId);
     await deliver();
+    // A provider's unrecognized wire code may exactly equal a reserved core token.
+    // Only deliberate mapping grants meaning; preserving raw custody does not require
+    // presenting that code as a known canonical origin to the reducer.
+    const collidingCheckout = { ...unknownRaw, originCode: 'api', changedAt: '2026-10-02T00:00:00.000001Z' };
+    foreign.transactions.set(unknown.transactionRef, collidingCheckout);
+    await runtime.refreshPurchase('buyer', unknown.intentId);
+    await deliver();
+    const collidingRenewal = foreign.receipt({ ...renewal, reference: 'foreign-unrecognized-renewal', originCode: 'subscription_recurring', changedAt: '2026-11-02T00:00:00.000001Z' });
+    assert.equal((await runtime.ingestVerifiedInput(collidingRenewal)).kind, 'succeeded');
+    assert.equal(await runtime.processInbox(collidingRenewal.inputId), 'processed');
+    await deliver();
+    const rejectedRenewal = await store.loadReductionInput(scope, collidingRenewal.inputId);
+    assert.equal(rejectedRenewal?.state.bindings['foreign-unrecognized-renewal'], undefined);
+    assert.equal(rejectedRenewal?.state.transactions['foreign-unrecognized-renewal']?.completion, undefined);
+    assert.deepEqual(rejectedRenewal?.state.transactions['foreign-unrecognized-renewal']?.current?.origin, { presence: 'unknown' });
+    assert.deepEqual(rejectedRenewal?.state.inbox[collidingRenewal.inputId]?.input.retainedRepresentation, collidingRenewal.retainedRepresentation);
 
     const facts = [...delivered.values()].flatMap(message => message.kind === 'complete' && message.completion ? [message.completion] : []);
     assert.deepEqual(facts.map(fact => [fact.transactionRef, fact.classification, fact.total.minorUnits]).sort(), [
@@ -169,8 +185,10 @@ test('foreign provider vocabulary preserves public completion, renewal and manag
     assert.deepEqual(maintenance.current?.statusMeaning, { kind: 'completed' });
     const unknownRead = await runtime.readPurchase('buyer', unknown.intentId);
     assert.equal(unknownRead?.transactions[0]?.completion, undefined);
-    assert.ok(unknownRead?.transactions[0]?.flags.includes('unsupported'));
-    assert.deepEqual(unknownRead?.transactions[0]?.current?.origin, known('UNRECOGNIZED_UPGRADE'));
+    assert.ok(unknownRead?.transactions[0]?.flags.includes('incomplete'));
+    assert.deepEqual(unknownRead?.transactions[0]?.current?.origin, { presence: 'unknown' });
+    const rejectedCheckout = await store.loadReductionInput(scope, foreign.receipt(collidingCheckout).inputId);
+    assert.deepEqual(rejectedCheckout?.state.inbox[foreign.receipt(collidingCheckout).inputId]?.input.retainedRepresentation, collidingCheckout);
     const savedRenewal = await store.loadReductionInput(scope, renewalInput.inputId);
     assert.deepEqual(savedRenewal?.state.inbox[renewalInput.inputId]?.input.retainedRepresentation, renewal);
     assert.equal(savedRenewal?.state.inbox[renewalInput.inputId]?.input.source.representationDigest, digest(renewal));

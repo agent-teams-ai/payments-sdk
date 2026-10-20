@@ -15,8 +15,10 @@ export type EvidenceSource = Readonly<{ kind: 'verified_webhook' | 'authenticate
 export type BillingCycle = Readonly<{ interval: string; frequency: number }>;
 /** Observation origin, subscription status/scheduled action and adjustment action/status use the
  * core-owned canonical vocabulary exported by vocabulary.ts. Adapters translate supported vendor
- * values before admission. String fields remain open to retain opaque unsupported values; such
- * values never become authority by resemblance. Original provider data remains receipt evidence.
+ * values before admission. Canonical token strings are reserved for deliberate mapping: an
+ * unrecognized wire value must not become known canonical evidence through a string fallback.
+ * Use Field unknown for an uninterpreted field and retain the exact raw value in the receipt.
+ * Open string fields may retain unsupported values only when they cannot collide with a token.
  * Canonical token spellings and observation DTO shapes are part of the durable replay protocol. */
 /** Closed adapter interpretation; the original status remains evidence, never a fallback classifier. */
 export type TransactionStatusMeaning = Readonly<{ kind: 'completed' }> | Readonly<{ kind: 'not_completed' }> | Readonly<{ kind: 'unsupported' }>;

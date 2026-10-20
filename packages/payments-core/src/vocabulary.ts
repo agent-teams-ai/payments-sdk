@@ -18,7 +18,7 @@ export const transactionOrigins = Object.freeze({
 export type CanonicalTransactionOrigin = typeof transactionOrigins[keyof typeof transactionOrigins];
 export type TransactionOriginMeaning = 'checkout' | 'initial_subscription' | 'recurring_subscription' | 'payment_method' | 'unsupported_profile' | 'unrecognized';
 
-/** Interpret only canonical values. A raw provider code never acquires meaning by similarity. */
+/** Interpret exact protocol tokens; the adapter owns deliberate mapping from its wire values. */
 export function transactionOriginMeaning(origin: string): TransactionOriginMeaning {
   switch (origin) {
     case transactionOrigins.checkoutWeb:
