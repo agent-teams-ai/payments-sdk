@@ -9,7 +9,7 @@ const Q = 100n, T = 25n;
 async function onlyCredit(credit: CreditFixture): Promise<CreditDecision> { const rows = await credit.decisions(); assert.equal(rows.length, 1); return rows[0]!.body; }
 async function effects(credit: CreditFixture): Promise<Effect[]> { return (await credit.owner.inspect<{ body: Effect }>('effects')).map(row => row.body); }
 
-test('independent credit owner preserves causal history across full-refund delivery permutations', async t => {
+void test('independent credit owner preserves causal history across full-refund delivery permutations', async t => {
   for (const order of [[4, 3, 4], [3, 4, 4]]) {
     await t.test(`producer revisions ${order.join('→')}`, async () => {
       const fixture = await consumers();
@@ -38,7 +38,7 @@ test('independent credit owner preserves causal history across full-refund deliv
   }
 });
 
-test('T3 is atomic before ACK, duplicate deliveries/restart preserve one effect and both owners are independent', async () => {
+void test('T3 is atomic before ACK, duplicate deliveries/restart preserve one effect and both owners are independent', async () => {
   const fixture = await consumers();
   try {
     assert.equal((await fixture.pool.query<{ synchronous_commit: string }>('SHOW synchronous_commit')).rows[0]?.synchronous_commit, 'off');
@@ -62,7 +62,7 @@ test('T3 is atomic before ACK, duplicate deliveries/restart preserve one effect 
   } finally { await fixture.close(); }
 });
 
-test('duplicate paid support is held in either order, resolved locally with whole-readset CAS and immutable issuance', async t => {
+void test('duplicate paid support is held in either order, resolved locally with whole-readset CAS and immutable issuance', async t => {
   for (const order of ['refunded-A-first', 'paid-B-first'] as const) {
     await t.test(order, async () => {
       const fixture = await consumers();
@@ -95,7 +95,7 @@ test('duplicate paid support is held in either order, resolved locally with whol
   }
 });
 
-test('control overflow, unknown schema and conflicts hold monotonically; unknown/untrusted envelopes remain unacked', async () => {
+void test('control overflow, unknown schema and conflicts hold monotonically; unknown/untrusted envelopes remain unacked', async () => {
   const fixture = await consumers();
   try {
     const paid = message(3); await fixture.credit.receive(paid);
@@ -122,7 +122,7 @@ test('control overflow, unknown schema and conflicts hold monotonically; unknown
   } finally { await fixture.close(); }
 });
 
-test('a first unrouted held or unknown-schema source fences older complete evidence across restart in both owners', async t => {
+void test('a first unrouted held or unknown-schema source fences older complete evidence across restart in both owners', async t => {
   for (const controlKind of ['held', 'unknown-schema'] as const) {
     await t.test(controlKind, async () => {
       const fixture = await consumers();
@@ -164,7 +164,7 @@ test('a first unrouted held or unknown-schema source fences older complete evide
   }
 });
 
-test('initial stream guard, distinct renewal periods and intentional top-ups preserve separate stable benefit identities', async () => {
+void test('initial stream guard, distinct renewal periods and intentional top-ups preserve separate stable benefit identities', async () => {
   const fixture = await consumers();
   try {
     const initial = message(1); await fixture.credit.receive(initial);
@@ -183,15 +183,15 @@ test('initial stream guard, distinct renewal periods and intentional top-ups pre
     decisions = await fixture.credit.decisions();
     assert.ok(decisions.filter(row => row.body.bucket === 'included').every(row => row.body.eligible === '0'), 'initial guard holds both initial and stream-dependent renewal periods');
     const guard = (await fixture.credit.initialGuards())[0]!.body;
-    assert.equal(guard.status, 'held'); assert.ok(guard.originalGrant);
+    assert.equal(guard.status, 'held'); assert.ok((guard.originalGrant !== undefined && guard.originalGrant !== ''));
     assert.equal((await effects(fixture.credit)).filter(effect => effect.effectKey === guard.originalGrant && effect.kind === 'grant').length, 1);
     const legitimate = fact({ factId: 'legitimate-initial', transactionRef: 'initial-C', intentId: 'intent-legitimate', subscriptionBasisId: 'binding-c', providerSubscriptionRef: 'subscription-C' });
     await fixture.credit.receive(message(1, legitimate));
-    assert.equal((await fixture.credit.decisions()).find(row => row.body.initialGuardKey?.includes('intent-legitimate'))?.body.eligible, Q.toString());
+    assert.equal((await fixture.credit.decisions()).find(row => row.body.initialGuardKey?.includes('intent-legitimate') === true)?.body.eligible, Q.toString());
   } finally { await fixture.close(); }
 });
 
-test('initial, renewal and recovery share one exact paid-period decision in either order across restart', async t => {
+void test('initial, renewal and recovery share one exact paid-period decision in either order across restart', async t => {
   for (const classification of ['renewal', 'recovery'] as const) {for (const initialFirst of [true, false]) {for (const alias of [false, true]) {
     await t.test(`${classification}, ${initialFirst ? 'initial first' : 'recurring first'}, ${alias ? 'equivalent RFC3339 spellings' : 'identical spellings'}`, async () => {
       const fixture = await consumers();
@@ -234,7 +234,7 @@ test('initial, renewal and recovery share one exact paid-period decision in eith
   }}}
 });
 
-test('reentrant initial support A→B→A→B conserves one allocation across restart, replay and partial adverse evidence', async () => {
+void test('reentrant initial support A→B→A→B conserves one allocation across restart, replay and partial adverse evidence', async () => {
   const fixture = await consumers();
   try {
     const a = message(1), bFact = fact({ factId: 'initial-B', transactionRef: 'initial-B', providerSubscriptionRef: 'subscription-B', lines: [{ ...fact().lines[0]!, providerLineRef: 'initial-B-line', period: nextPeriod }] }), b = message(1, bFact);
@@ -272,7 +272,7 @@ test('reentrant initial support A→B→A→B conserves one allocation across re
   } finally { await fixture.close(); }
 });
 
-test('a resolution of one initial period invalidates a stale competing period decision through their shared guard', async () => {
+void test('a resolution of one initial period invalidates a stale competing period decision through their shared guard', async () => {
   const fixture = await consumers();
   try {
     const a = message(1), b = message(1, fact({ factId: 'initial-B', transactionRef: 'initial-B', providerSubscriptionRef: 'subscription-B', lines: [{ ...fact().lines[0]!, providerLineRef: 'initial-B-line', period: nextPeriod }] }));
@@ -280,13 +280,13 @@ test('a resolution of one initial period invalidates a stale competing period de
     const rows = await fixture.credit.decisions();
     const commands = rows.map(row => ({ basisKey: row.basis_key, expectedDecisionRevision: Number(row.revision), expectedReadSet: row.body.readSet, selectedSource: sourceIdentity(row.body.period?.startsAt === nextPeriod.startsAt ? b : a), actorId: 'authorized-initial-owner', approvalRef: `concurrent-${row.body.period?.startsAt}`, policyVersion: 'fixture-credit-policy-v1' }));
     const outcomes = await Promise.all(commands.map(command => fixture.credit.resolveHeldDecision(command)));
-    assert.deepEqual(outcomes.sort(), ['conflict', 'resolved']);
+    assert.deepEqual(outcomes.toSorted(), ['conflict', 'resolved']);
     assert.equal((await fixture.credit.decisions()).reduce((sum, row) => sum + BigInt(row.body.eligible), 0n), Q);
     assert.equal((await effects(fixture.credit)).filter(effect => effect.kind === 'grant').length, 1);
   } finally { await fixture.close(); }
 });
 
-test('access lifecycle serializes with paid evidence, preserves known periods and never paywalls read/export/cancel', async () => {
+void test('access lifecycle serializes with paid evidence, preserves known periods and never paywalls read/export/cancel', async () => {
   const fixture = await consumers();
   try {
     await fixture.access.receive(message(1)); await fixture.access.receive(subscription(1));
@@ -315,7 +315,7 @@ test('access lifecycle serializes with paid evidence, preserves known periods an
   } finally { await fixture.close(); }
 });
 
-test('partial and unqualified reversal evidence stays held; authorized owner policy redrives after ACK/restart without a fake payment revision', async () => {
+void test('partial and unqualified reversal evidence stays held; authorized owner policy redrives after ACK/restart without a fake payment revision', async () => {
   const fixture = await consumers();
   try {
     const partial = adjustment({ type: 'partial', amount: { currency: 'USD', minorUnits: '333' }, allocations: [{ providerLineRef: 'line-A', type: 'partial', amount: { currency: 'USD', minorUnits: '333' } }] });
@@ -339,7 +339,7 @@ test('partial and unqualified reversal evidence stays held; authorized owner pol
   } finally { await fixture.close(); }
 });
 
-test('a buyer membership guard covers phantom contributions without serializing independent beneficiaries', { timeout: 5000 }, async () => {
+void test('a buyer membership guard covers phantom contributions without serializing independent beneficiaries', { timeout: 5000 }, async () => {
   const fixture = await consumers(), blocker = await fixture.pool.connect();
   let waiting: Promise<unknown> | undefined;
   try {
@@ -351,10 +351,10 @@ test('a buyer membership guard covers phantom contributions without serializing 
     await blocker.query('COMMIT'); await waiting;
     assert.equal((await fixture.credit.decisions()).length, 2);
     assert.equal((await fixture.credit.decisions()).reduce((sum, row) => sum + BigInt(row.body.eligible), 0n), 2n * Q);
-  } finally { await blocker.query('ROLLBACK'); blocker.release(); await waiting?.catch(() => undefined); await fixture.close(); }
+  } finally { await blocker.query('ROLLBACK'); blocker.release(); await waiting?.catch(() => {}); await fixture.close(); }
 });
 
-test('new higher revision with malformed payload or changed beneficiary holds the original contribution without routing it elsewhere', async () => {
+void test('new higher revision with malformed payload or changed beneficiary holds the original contribution without routing it elsewhere', async () => {
   const fixture = await consumers();
   try {
     const paid = message(1); await fixture.credit.receive(paid);

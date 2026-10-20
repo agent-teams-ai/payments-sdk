@@ -13,11 +13,12 @@ export type CreditDecision = Readonly<{ basisKey: string; buyerId: string; slot:
 export type HeldResolution = Readonly<{ basisKey: string; expectedDecisionRevision: number; expectedReadSet: ReadSet; selectedSource: string; actorId: string; approvalRef: string; policyVersion: string; reviewedPartialPolicy?: 'retain_full_symbolic_benefit' }>;
 type InitialGuard = { guardKey: string; status: 'selected' | 'held'; selectedSource?: string; selectedPeriod?: string; selectedStream?: string; selectedByResolution?: string; originalGrant?: string; originalSource?: string; allocationOwner?: string; allocationRevision: number; readSet: ReadSet };
 
+const instant = (value: string) => { const { seconds, fraction } = exactTime(value); return { seconds, fraction }; };
+
 function basis(contribution: Contribution): string {
   const { fact, slot, period } = contribution;
   if (fact.classification === 'one_time') {return canonical(['purchase', fact.scope.applicationId, fact.buyerId, fact.intentId, slot]);}
   if (!period) {throw new Error('Recurring contribution requires an exact paid period');}
-  const instant = (value: string) => { const { seconds, fraction } = exactTime(value); return { seconds, fraction }; };
   // Identity follows instants, not provider spelling. All guard/allocation/effect references use
   // this same basis; the original timestamp strings remain in the immutable source and decision.
   return canonical(['period', fact.scope.applicationId, fact.buyerId, fact.subscriptionBasisId, slot, { startsAt: instant(period.startsAt), endsAt: instant(period.endsAt) }]);
@@ -41,8 +42,8 @@ function condition(contribution: Contribution): Condition {
 }
 
 export class CreditFixture {
-  readonly owner: ConsumerOwner;
-  constructor(options: OwnerOptions) { this.owner = new ConsumerOwner(options); }
+  readonly owner: ConsumerOwner<CreditDecision>;
+  constructor(options: OwnerOptions) { this.owner = new ConsumerOwner<CreditDecision>(options); }
   async migrate(): Promise<void> {
     await this.owner.migrate();
     await this.owner.options.pool.query(`CREATE TABLE ${this.owner.sql}.initial_guards(guard_key text PRIMARY KEY,revision bigint NOT NULL,body jsonb NOT NULL)`);
@@ -62,31 +63,31 @@ export class CreditFixture {
       if (row) {previousGuards.set(guardKey, { revision: Number(row.revision), body: row.body });}
       const resolvedInitial = resolution ? items.find(item => basis(item) === resolution.basisKey && item.source.sourceKey === resolution.selectedSource) : undefined;
       const selectedByResolution = resolvedInitial?.source.sourceKey ?? old?.selectedByResolution;
-      const chosen = selectedByResolution ? items.find(item => item.source.sourceKey === selectedByResolution) : items.length === 1 ? items[0] : undefined;
-      const selectedDecision = chosen ? await this.owner.decision<CreditDecision>(client, basis(chosen)) : undefined;
-      const reviewedPartial = chosen && reviewablePartial(chosen) && ((resolvedInitial && resolution?.reviewedPartialPolicy) || selectedDecision?.body.reviewedPartialDigest === chosen.source.digest);
+      const chosen = (selectedByResolution !== undefined && selectedByResolution !== '') ? items.find(item => item.source.sourceKey === selectedByResolution) : items.length === 1 ? items[0] : undefined;
+      const selectedDecision = chosen ? await this.owner.decision(client, basis(chosen)) : undefined;
+      const reviewedPartial = chosen !== undefined && reviewablePartial(chosen) && ((resolvedInitial !== undefined && resolution?.reviewedPartialPolicy === 'retain_full_symbolic_benefit') || selectedDecision?.body.reviewedPartialDigest === chosen.source.digest);
       const status = chosen && (condition(chosen) !== 'held' || reviewedPartial) ? 'selected' : 'held';
-      const guard: InitialGuard = { guardKey, status, ...(chosen ? { selectedSource: chosen.source.sourceKey, selectedPeriod: basis(chosen) } : {}), ...(chosen?.fact.providerSubscriptionRef ? { selectedStream: chosen.fact.providerSubscriptionRef } : {}), ...(selectedByResolution ? { selectedByResolution } : {}), ...(old?.originalGrant ? { originalGrant: old.originalGrant } : {}), ...(old?.originalSource ? { originalSource: old.originalSource } : {}), ...(old?.allocationOwner ? { allocationOwner: old.allocationOwner } : {}), allocationRevision: old?.allocationRevision ?? 0, readSet: evidenceReadSet(sources) };
+      const guard: InitialGuard = { guardKey, status, ...(chosen ? { selectedSource: chosen.source.sourceKey, selectedPeriod: basis(chosen) } : {}), ...((chosen?.fact.providerSubscriptionRef !== undefined && chosen.fact.providerSubscriptionRef !== '') ? { selectedStream: chosen.fact.providerSubscriptionRef } : {}), ...((selectedByResolution !== undefined && selectedByResolution !== '') ? { selectedByResolution } : {}), ...((old?.originalGrant !== undefined && old.originalGrant !== '') ? { originalGrant: old.originalGrant } : {}), ...((old?.originalSource !== undefined && old.originalSource !== '') ? { originalSource: old.originalSource } : {}), ...((old?.allocationOwner !== undefined && old.allocationOwner !== '') ? { allocationOwner: old.allocationOwner } : {}), allocationRevision: old?.allocationRevision ?? 0, readSet: evidenceReadSet(sources) };
       guards.set(guardKey, guard);
-      if (status === 'selected' && chosen?.fact.subscriptionBasisId && chosen.fact.providerSubscriptionRef) {selectedStreams.set(chosen.fact.subscriptionBasisId, chosen.fact.providerSubscriptionRef);}
+      if (status === 'selected' && (chosen?.fact.subscriptionBasisId !== undefined && chosen.fact.subscriptionBasisId !== '') && (chosen.fact.providerSubscriptionRef !== undefined && chosen.fact.providerSubscriptionRef !== '')) {selectedStreams.set(chosen.fact.subscriptionBasisId, chosen.fact.providerSubscriptionRef);}
     }
     const selectedInitialPeriods = new Set([...guards.values()].filter(guard => guard.status === 'selected').map(guard => guard.selectedPeriod));
-    const entries = [...groups.entries()].sort(([a], [b]) => Number(!selectedInitialPeriods.has(a)) - Number(!selectedInitialPeriods.has(b)) || a.localeCompare(b));
+    const entries = [...groups.entries()].toSorted(([a], [b]) => Number(!selectedInitialPeriods.has(a)) - Number(!selectedInitialPeriods.has(b)) || a.localeCompare(b));
     for (const [basisKey, items] of entries) {
       const first = items[0]; if (!first) {continue;}
-      const stored = await this.owner.decision<CreditDecision>(client, basisKey), old = stored?.body;
+      const stored = await this.owner.decision(client, basisKey), old = stored?.body;
       const initial = items.find(item => item.fact.classification === 'initial');
       const guard = initial ? guards.get(initialGuardKey(initial)) : undefined;
       // Include the additional decision read in this period's revision. A resolution of another
       // candidate period must invalidate a stale operator command even when this period stays held.
       const initialGuardDigest = guard ? hash([guard.guardKey, guard.status, guard.selectedSource ?? null, guard.selectedPeriod ?? null, guard.selectedStream ?? null, guard.selectedByResolution ?? null]) : undefined;
       const selected = resolution?.basisKey === basisKey ? resolution.selectedSource : old?.selectedByResolution;
-      const chosen = selected ? items.find(item => item.source.sourceKey === selected) : items.length === 1 ? first : undefined;
+      const chosen = (selected !== undefined && selected !== '') ? items.find(item => item.source.sourceKey === selected) : items.length === 1 ? first : undefined;
       let reason: string | undefined = !chosen ? 'duplicate_payment_review' : undefined;
       if (guard && (guard.status !== 'selected' || guard.selectedPeriod !== basisKey)) {reason = 'initial_intent_review';}
       if (chosen && chosen.fact.classification !== 'one_time') {
-        const stream = chosen.fact.subscriptionBasisId ? selectedStreams.get(chosen.fact.subscriptionBasisId) : undefined;
-        if (!stream || stream !== chosen.fact.providerSubscriptionRef) {reason ??= 'unselected_subscription_stream';}
+        const stream = (chosen.fact.subscriptionBasisId !== undefined && chosen.fact.subscriptionBasisId !== '') ? selectedStreams.get(chosen.fact.subscriptionBasisId) : undefined;
+        if (!(stream !== undefined && stream !== '') || stream !== chosen.fact.providerSubscriptionRef) {reason ??= 'unselected_subscription_stream';}
       }
       const reviewedPartialDigest = resolution?.basisKey === basisKey && resolution.reviewedPartialPolicy && chosen ? chosen.source.digest : old?.reviewedPartialDigest;
       const chosenCondition = chosen && reviewedPartialDigest === chosen.source.digest && reviewablePartial(chosen) ? 'paid' : chosen ? condition(chosen) : 'held';
@@ -97,8 +98,8 @@ export class CreditFixture {
       // Selecting a competing initial in a different period may move an already issued symbolic
       // allocation. Historical originalGrant metadata is NOT current allocation ownership: A may
       // remember its issuance after A→B and must receive a transfer, not restoration, on B→A.
-      if (!reason && chosenCondition === 'paid' && guard?.originalGrant && guard.allocationOwner !== basisKey) {
-        const previous = guard.allocationOwner ? await this.owner.decision<CreditDecision>(client, guard.allocationOwner) : undefined;
+      if (!(reason !== undefined && reason !== '') && chosenCondition === 'paid' && (guard?.originalGrant !== undefined && guard.originalGrant !== '') && guard.allocationOwner !== basisKey) {
+        const previous = (guard.allocationOwner !== undefined && guard.allocationOwner !== '') ? await this.owner.decision(client, guard.allocationOwner) : undefined;
         const nextAllocationRevision = guard.allocationRevision + 1;
         if (previous && BigInt(previous.body.allocated) > 0n && allocated > 0n) {reason = 'conflicting_initial_allocations';}
         else if (previous && BigInt(previous.body.allocated) > 0n) {
@@ -109,7 +110,7 @@ export class CreditFixture {
           await this.owner.putDecision(client, previous.body.basisKey, previous.revision + 1, { ...previous.body, allocated: '0', eligible: '0', held: '0', status: 'held', applied: 'reassigned', readSet: evidenceReadSet(sources) } satisfies CreditDecision);
           allocated = amount; applied = 'reassigned';
         }
-        if (!reason) {
+        if (!(reason !== undefined && reason !== '')) {
           originalGrant ??= guard.originalGrant; originalSource ??= guard.originalSource;
           guard.allocationOwner = basisKey; guard.allocationRevision = nextAllocationRevision;
         }
@@ -117,14 +118,14 @@ export class CreditFixture {
       const supportSource = chosen?.source.sourceKey ?? old?.supportSource;
       // A policy hold never pretends to be a provider reversal. Correct only the causal support.
       const causal = items.find(item => item.source.sourceKey === (old?.supportSource ?? old?.originalSource));
-      if (allocated > 0n && ((causal && condition(causal) === 'adverse' && (!chosen || causal.source.sourceKey === chosen.source.sourceKey)) || (!reason && chosenCondition === 'adverse'))) {
+      if (allocated > 0n && ((causal && condition(causal) === 'adverse' && (!chosen || causal.source.sourceKey === chosen.source.sourceKey)) || (!(reason !== undefined && reason !== '') && chosenCondition === 'adverse'))) {
         const cause = (causal ?? chosen)?.message.adjustments.find(item => item.status === 'approved' && ['refund', 'credit', 'chargeback'].includes(item.action));
         const causalSource = (causal ?? chosen)?.source.sourceKey;
-        await this.owner.effect(client, { effectKey: hash(['correction', originalGrant, cause?.adjustmentRef, cause?.version]), basisKey, kind: 'correction', amount: (-allocated).toString(), ...(causalSource ? { sourceKey: causalSource } : {}), ...(originalGrant ? { causeEffectKey: originalGrant } : {}), policyVersion: old?.policyVersion ?? POLICY });
+        await this.owner.effect(client, { effectKey: hash(['correction', originalGrant, cause?.adjustmentRef, cause?.version]), basisKey, kind: 'correction', amount: (-allocated).toString(), ...((causalSource !== undefined && causalSource !== '') ? { sourceKey: causalSource } : {}), ...((originalGrant !== undefined && originalGrant !== '') ? { causeEffectKey: originalGrant } : {}), policyVersion: old?.policyVersion ?? POLICY });
         allocated = 0n; applied = 'reduced';
       }
-      if (!reason && chosenCondition === 'paid' && allocated === 0n && chosen) {
-        if (!originalGrant) {
+      if (!(reason !== undefined && reason !== '') && chosenCondition === 'paid' && allocated === 0n && chosen) {
+        if (!(originalGrant !== undefined && originalGrant !== '')) {
           originalGrant = hash(['original-grant', basisKey]); originalSource = chosen.source.sourceKey;
           await this.owner.effect(client, { effectKey: originalGrant, basisKey, kind: 'grant', amount: quantity.toString(), sourceKey: originalSource, policyVersion: POLICY });
           applied = 'issued';
@@ -134,11 +135,11 @@ export class CreditFixture {
         }
         allocated = quantity;
       }
-      const status = reason ? 'held' : chosenCondition === 'adverse' ? 'withheld' : 'issued';
-      const decision: CreditDecision = { basisKey, buyerId: first.fact.buyerId, slot: first.slot, ...(first.period ? { period: first.period } : {}), bucket: first.fact.classification === 'one_time' ? 'purchased' : 'included', amount: quantity.toString(), allocated: allocated.toString(), eligible: status === 'issued' ? allocated.toString() : '0', held: status === 'held' ? allocated.toString() : '0', status, applied, ...(guard && initialGuardDigest ? { initialGuardKey: guard.guardKey, initialGuardDigest } : {}), ...(originalGrant ? { originalGrant } : {}), ...(originalSource ? { originalSource } : {}), ...(supportSource ? { supportSource } : {}), ...(selected ? { selectedByResolution: selected } : {}), ...(reviewedPartialDigest ? { reviewedPartialDigest } : {}), ...(chosen?.fact.providerSubscriptionRef ? { selectedStream: chosen.fact.providerSubscriptionRef } : {}), policyVersion: old?.policyVersion ?? POLICY, readSet: evidenceReadSet(sources) };
+      const status = (reason !== undefined && reason !== '') ? 'held' : chosenCondition === 'adverse' ? 'withheld' : 'issued';
+      const decision: CreditDecision = { basisKey, buyerId: first.fact.buyerId, slot: first.slot, ...(first.period ? { period: first.period } : {}), bucket: first.fact.classification === 'one_time' ? 'purchased' : 'included', amount: quantity.toString(), allocated: allocated.toString(), eligible: status === 'issued' ? allocated.toString() : '0', held: status === 'held' ? allocated.toString() : '0', status, applied, ...(guard && (initialGuardDigest !== undefined && initialGuardDigest !== '') ? { initialGuardKey: guard.guardKey, initialGuardDigest } : {}), ...((originalGrant !== undefined && originalGrant !== '') ? { originalGrant } : {}), ...((originalSource !== undefined && originalSource !== '') ? { originalSource } : {}), ...((supportSource !== undefined && supportSource !== '') ? { supportSource } : {}), ...((selected !== undefined && selected !== '') ? { selectedByResolution: selected } : {}), ...((reviewedPartialDigest !== undefined && reviewedPartialDigest !== '') ? { reviewedPartialDigest } : {}), ...((chosen?.fact.providerSubscriptionRef !== undefined && chosen.fact.providerSubscriptionRef !== '') ? { selectedStream: chosen.fact.providerSubscriptionRef } : {}), policyVersion: old?.policyVersion ?? POLICY, readSet: evidenceReadSet(sources) };
       if (canonical(old ?? null) !== canonical(decision)) {await this.owner.putDecision(client, basisKey, (stored?.revision ?? 0) + 1, decision);}
-      await this.owner.obligation(client, hash(['credit-decision', basisKey]), basisKey, reason ?? 'none', sources, reason ? 'pending' : 'resolved');
-      if (guard && originalGrant && !guard.originalGrant) { guard.originalGrant = originalGrant; if (originalSource) {guard.originalSource = originalSource;} guard.allocationOwner = basisKey; }
+      await this.owner.obligation(client, hash(['credit-decision', basisKey]), basisKey, reason ?? 'none', sources, (reason !== undefined && reason !== '') ? 'pending' : 'resolved');
+      if (guard && (originalGrant !== undefined && originalGrant !== '') && !(guard.originalGrant !== undefined && guard.originalGrant !== '')) { guard.originalGrant = originalGrant; if ((originalSource !== undefined && originalSource !== '')) {guard.originalSource = originalSource;} guard.allocationOwner = basisKey; }
     }
     for (const [guardKey, guard] of guards) {
       const previous = previousGuards.get(guardKey);
@@ -158,7 +159,7 @@ export class CreditFixture {
       await this.owner.lockBuyer(client, buyerId);
       const audits = await client.query<{ body: HeldResolution }>(`SELECT body FROM ${this.owner.sql}.audits WHERE audit_id=$1`, [command.approvalRef]);
       if (audits.rows[0]) {return canonical(audits.rows[0].body) === canonical(command) ? 'duplicate' : 'conflict';}
-      const current = await this.owner.decision<CreditDecision>(client, command.basisKey), sources = await this.owner.sources(client, buyerId);
+      const current = await this.owner.decision(client, command.basisKey), sources = await this.owner.sources(client, buyerId);
       if (!current || current.revision !== command.expectedDecisionRevision || canonical(command.expectedReadSet) !== canonical(evidenceReadSet(sources))) {return 'conflict';}
       if (!contributions(sources).some(item => basis(item) === command.basisKey && item.source.sourceKey === command.selectedSource && (condition(item) === 'paid' || (command.reviewedPartialPolicy === 'retain_full_symbolic_benefit' && reviewablePartial(item))))) {return 'rejected';}
       await client.query(`INSERT INTO ${this.owner.sql}.audits VALUES($1,$2)`, [command.approvalRef, command]);

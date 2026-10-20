@@ -19,15 +19,25 @@ import { nextPeriod, offer, producerNamespace, scope } from './consumer-support.
 const SECRET = 'synthetic-e2e-destination-secret';
 const Q = 100n, T = 25n;
 function sign(body: string): string { const ts = Math.floor(Date.now() / 1000); return `ts=${ts};h1=${createHmac('sha256', SECRET).update(`${ts}:${body}`).digest('hex')}`; }
-function success<T>(result: OperationResult<T>): T { assert.equal(result.kind, 'succeeded', JSON.stringify(result)); if (result.kind !== 'succeeded') {throw new Error('Expected success');} return result.value; }
+function success<T>(result: OperationResult<T>): T { assert.equal(result.kind, 'succeeded', JSON.stringify(result)); return result.value; }
 async function deliver(payments: HostedPayments, consumerId: string, consumer: CreditFixture | AccessFixture, ack = true): Promise<readonly EvidenceMessage[]> {
   const messages = await payments.readDeliveries(consumerId, 100);
   for (const message of messages) { const receipt = await consumer.receive(message); assert.equal(receipt.acknowledge, true); if (ack) {assert.equal(await payments.acknowledgeDelivery(consumerId, message.messageId, message.bodyDigest), 'acknowledged');} }
   return messages;
 }
+async function authenticate(request: Request): Promise<string | undefined> { return request.headers.get('x-fixture-auth') === 'buyer-a-token' ? 'buyer-a' : undefined; }
+async function authenticateBuyer(): Promise<string> { return 'buyer-a'; }
 async function postHttp(url: string, path: string, body: string, headers: Record<string, string>): Promise<Readonly<{ status: number; body: string }>> {
   return new Promise((resolve, reject) => {
-    const request = httpRequest(new URL(path, url), { method: 'POST', headers: { 'content-type': 'application/json', ...headers } }, response => { const chunks: Buffer[] = []; response.on('data', chunk => chunks.push(Buffer.from(chunk))); response.on('end', () => resolve({ status: response.statusCode ?? 500, body: Buffer.concat(chunks).toString('utf8') })); });
+    const request = httpRequest(new URL(path, url), { method: 'POST', headers: { 'content-type': 'application/json', ...headers } }, response => {
+      const chunks: Uint8Array[] = [];
+      response.on('data', (chunk: unknown) => {
+        if (typeof chunk === 'string') {chunks.push(Buffer.from(chunk));}
+        else if (chunk instanceof Uint8Array) {chunks.push(Buffer.from(chunk));}
+        else {reject(new TypeError('Unexpected HTTP response chunk'));}
+      });
+      response.on('end', () => { resolve({ status: response.statusCode ?? 500, body: Buffer.concat(chunks).toString('utf8') }); });
+    });
     request.on('error', reject); request.end(body);
   });
 }
@@ -42,12 +52,12 @@ function paddleEmulation() {
   } };
 }
 
-test('full public payments system: real Paddle SDK, durable PostgreSQL and two independent host environments', { timeout: 60_000 }, async t => {
+void test('full public payments system: real Paddle SDK, durable PostgreSQL and two independent host environments', { timeout: 60_000 }, async t => {
   const emulation = paddleEmulation(), { agent, api } = emulation;
   try {
     for (const kind of ['node-http-factory', 'fetch-static-gm'] as const) {
       await t.test(kind, async () => {
-        const connectionString = process.env['DATABASE_URL']; if (!connectionString) {throw new Error('DATABASE_URL is required for the mandatory full-system suite');}
+        const connectionString = process.env['DATABASE_URL']; if (!(connectionString !== undefined && connectionString !== '')) {throw new Error('DATABASE_URL is required for the mandatory full-system suite');}
         const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
         const prefix = `system_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
         const trust = { producerNamespace, scope };
@@ -61,7 +71,6 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
         const topup: OfferSnapshot = { ...offer, offerId: 'topup', profile: 'one_time', lines: [{ providerPriceRef: paddleIds.price, benefitSlotId: 'purchased', quantity: 1 }] };
         const zero: OfferSnapshot = { ...topup, offerId: 'free', allowZeroTotal: true };
         const runtimeOptions: PaymentRuntimeOptions = { scope, producerNamespace, provider, store, catalog: { resolveOffer: async (_scope, offerId) => ({ monthly: offer, topup, free: zero } as Record<string, OfferSnapshot>)[offerId] }, now: () => now, newId: () => `host-${++id}`, operationTimeoutMs: 15_000 };
-        const authenticate = async (request: Request): Promise<string | undefined> => request.headers.get('x-fixture-auth') === 'buyer-a-token' ? 'buyer-a' : undefined;
         const verify = provider.verifyWebhook.bind(provider);
         const host = kind === 'node-http-factory' ? await createNodeHttpHost(runtimeOptions, verify, authenticate) : await createFetchModularHost(runtimeOptions, verify, authenticate);
         const payments = host.payments;
@@ -88,7 +97,7 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
           let createCalls = 0;
           api.intercept({ path: /^\/transactions\??$/u, method: 'POST', headers: { 'paddle-version': '1' } }).reply(201, options => {
             sdkEntered.resolve();
-            createCalls += 1; const body = JSON.parse(String(options.body)) as { custom_data: { payments: { intentId: string } } };
+            createCalls += 1; assert.ok(typeof options.body === 'string'); const body = JSON.parse(options.body) as { custom_data: { payments: { intentId: string } } };
             assert.equal(body.custom_data.payments.intentId, 'host-1');
             return checkoutReply.promise.then(() => responseFixture(transactionFixture({ intentId: 'host-1', status: 'ready', customerRef: null })));
           });
@@ -101,7 +110,7 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
           const responses = await Promise.all(Array.from({ length: 7 }, () => post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'initial', buyerId: 'victim-ignored' }), { 'x-fixture-auth': 'buyer-a-token' })));
           const values = responses.map(response => JSON.parse(response.body) as OperationResult<CheckoutReady>);
           assert.ok(values.every(value => value.kind === 'pending'), JSON.stringify(values));
-          const pendingIds = values.flatMap(value => value.kind === 'pending' ? [value.operationId] : []);
+          const pendingIds = values.map(value => value.operationId);
           assert.equal(new Set(pendingIds).size, 1); assert.equal(createCalls, 1);
           checkoutReply.resolve();
           const created = await creatorRequest;
@@ -114,7 +123,7 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
           assert.equal(await payments.flushPublication({ type: 'transaction', id: paddleIds.transaction }), 'committed');
           await payments.repair(100);
           const beforeAck = await deliver(payments, 'credit', credit, false);
-          assert.ok(beforeAck.some(body => body.kind === 'complete' && body.completion));
+          assert.ok(beforeAck.some(body => body.kind === 'complete' && Boolean(body.completion)));
           assert.equal((await credit.decisions())[0]?.body.eligible, Q.toString());
           assert.ok((await payments.readDeliveries('credit', 100)).length > 0, 'sender still owns target after T3 commit and lost ACK');
           const restartedCredit = new CreditFixture({ pool, schema: credit.owner.options.schema, trust });
@@ -124,7 +133,7 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
           assert.equal((await ingress('subscription.activated', subscriptionFixture())).status, 200); await flush();
           assert.equal((await access.decisions())[0]?.body.newAction, true);
           const purchase = await payments.readPurchase('buyer-a', checkout.intentId); assert.ok(purchase);
-          const basisId = purchase.intent.subscriptionBasisId; assert.ok(basisId);
+          const basisId = purchase.intent.subscriptionBasisId; assert.ok((basisId !== undefined && basisId !== ''));
           assert.equal((await payments.readPurchase('victim-ignored', checkout.intentId)), undefined);
 
           // Failed renewal does not create Q; recovery pays the ORIGINAL exact November period.
@@ -146,7 +155,7 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
           // API-only top-up and permitted zero commercial completion recover absent webhooks.
           for (const [index, offerId, total] of [[3, 'topup', '1000'], [4, 'free', '0']] as const) {
             const ref = `txn_${String(index).padStart(26, '0')}`; let intent = '';
-            api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, options => { const body = JSON.parse(String(options.body)) as { custom_data: { payments: { intentId: string } } }; intent = body.custom_data.payments.intentId; return responseFixture(transactionFixture({ id: ref, intentId: intent, monthly: false, status: 'ready', customerRef: null })); });
+            api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, options => { assert.ok(typeof options.body === 'string'); const body = JSON.parse(options.body) as { custom_data: { payments: { intentId: string } } }; intent = body.custom_data.payments.intentId; return responseFixture(transactionFixture({ id: ref, intentId: intent, monthly: false, status: 'ready', customerRef: null })); });
             const result = await post('/purchases', JSON.stringify({ offerId, requestKey: offerId }), { 'x-fixture-auth': 'buyer-a-token' }); const ready = success(JSON.parse(result.body) as OperationResult<CheckoutReady>);
             api.intercept({ path: path => path.split('?')[0] === `/transactions/${ref}`, method: 'GET' }).reply(200, responseFixture(transactionFixture({ id: ref, intentId: intent, monthly: false, total })));
             assert.equal(success(await payments.refreshPurchase('buyer-a', ready.intentId)), 1); await flush();
@@ -157,7 +166,7 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
           // No webhook/raw representation has ever supplied either of these commercial facts.
           const apiInitialRef = 'txn_00000000000000000000000005', apiRenewalRef = 'txn_00000000000000000000000006', apiSubscriptionRef = 'sub_00000000000000000000000005';
           let apiIntent = '';
-          api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, options => { const body = JSON.parse(String(options.body)) as { custom_data: { payments: { intentId: string } } }; apiIntent = body.custom_data.payments.intentId; return responseFixture(transactionFixture({ id: apiInitialRef, intentId: apiIntent, status: 'ready', customerRef: null, subscriptionRef: null })); });
+          api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, options => { assert.ok(typeof options.body === 'string'); const body = JSON.parse(options.body) as { custom_data: { payments: { intentId: string } } }; apiIntent = body.custom_data.payments.intentId; return responseFixture(transactionFixture({ id: apiInitialRef, intentId: apiIntent, status: 'ready', customerRef: null, subscriptionRef: null })); });
           const apiCreated = await post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'api-only-monthly' }), { 'x-fixture-auth': 'buyer-a-token' });
           const apiCheckout = success(JSON.parse(apiCreated.body) as OperationResult<CheckoutReady>);
           const apiInitial = transactionFixture({ id: apiInitialRef, intentId: apiIntent, subscriptionRef: apiSubscriptionRef });
@@ -197,15 +206,15 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
 
           // Pending→full approved refund after ACK is a new evidence revision and one correction.
           assert.equal((await ingress('adjustment.created', adjustmentFixture({ status: 'pending_approval' }))).status, 200); await flush();
-          let initialDecision = (await credit.decisions()).find(row => row.body.initialGuardKey?.includes(`"${checkout.intentId}"`))!.body;
+          let initialDecision = (await credit.decisions()).find(row => row.body.initialGuardKey?.includes(`"${checkout.intentId}"`) === true)!.body;
           assert.equal(initialDecision.eligible, '0'); assert.equal(initialDecision.held, Q.toString());
           assert.equal((await ingress('adjustment.updated', adjustmentFixture({ version: '2026-11-02T00:00:00.000001Z' }))).status, 200); await flush();
-          initialDecision = (await credit.decisions()).find(row => row.body.initialGuardKey?.includes(`"${checkout.intentId}"`))!.body;
+          initialDecision = (await credit.decisions()).find(row => row.body.initialGuardKey?.includes(`"${checkout.intentId}"`) === true)!.body;
           assert.equal(initialDecision.eligible, '0'); assert.equal(initialDecision.allocated, '0');
           const originalGrant = initialDecision.originalGrant;
           assert.equal((await ingress('adjustment.updated', adjustmentFixture({ version: '2026-11-02T00:00:00.000001Z' }))).status, 200); await flush();
           const effects = await credit.owner.inspect<{ body: Effect }>('effects'); assert.equal(effects.filter(row => row.body.kind === 'correction' && row.body.causeEffectKey === originalGrant).length, 1);
-          const history = await payments.readPurchase('buyer-a', checkout.intentId); assert.ok(history?.transactions.some(transaction => transaction.completion && Object.keys(transaction.adjustments).length > 0));
+          const history = await payments.readPurchase('buyer-a', checkout.intentId); assert.ok(history?.transactions.some(transaction => Boolean(transaction.completion) && Object.keys(transaction.adjustments).length > 0) === true);
 
           // A subscription-only cancellation travels independently while access is offline.
           assert.equal((await ingress('subscription.canceled', subscriptionFixture({ status: 'canceled', version: '2026-11-03T00:00:00.000001Z' }))).status, 200);
@@ -221,18 +230,18 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
           // Public SDK remains the actual adapter; no production fetch seam or credentials exist.
           await assert.rejects(fetch('https://sandbox-api.paddle.com/unmatched-network-probe'), /fetch failed/u);
           agent.assertNoPendingInterceptors();
-        } finally { checkoutReply.resolve(); await creatorRequest?.catch(() => undefined); await host.close(); await pool.query(`DROP SCHEMA "${schema}" CASCADE; DROP SCHEMA ${credit.owner.sql} CASCADE; DROP SCHEMA ${access.owner.sql} CASCADE`); await pool.end(); }
+        } finally { checkoutReply.resolve(); await creatorRequest?.catch(() => {}); await host.close(); await pool.query(`DROP SCHEMA "${schema}" CASCADE; DROP SCHEMA ${credit.owner.sql} CASCADE; DROP SCHEMA ${access.owner.sql} CASCADE`); await pool.end(); }
       });
     }
   } finally { await emulation.restore(); }
 });
 
-test('both public hosts hold distinct initial and renewal transactions for equivalent RFC3339 paid periods in either delivery order', { timeout: 60_000 }, async t => {
+void test('both public hosts hold distinct initial and renewal transactions for equivalent RFC3339 paid periods in either delivery order', { timeout: 60_000 }, async t => {
   const emulation = paddleEmulation(), { agent, api } = emulation;
   try {
     for (const kind of ['node-http-factory', 'fetch-static-gm'] as const) {for (const initialFirst of [true, false]) {
       await t.test(`${kind}, ${initialFirst ? 'initial first' : 'renewal first'}`, async () => {
-        const connectionString = process.env['DATABASE_URL']; if (!connectionString) {throw new Error('DATABASE_URL is required');}
+        const connectionString = process.env['DATABASE_URL']; if (!(connectionString !== undefined && connectionString !== '')) {throw new Error('DATABASE_URL is required');}
         const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
         const prefix = `period_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
         const trust = { producerNamespace, scope }, credit = new CreditFixture({ pool, schema: `${prefix}_credit`, trust });
@@ -240,8 +249,8 @@ test('both public hosts hold distinct initial and renewal transactions for equiv
         const store = await createPostgresPaymentStore({ pool, schema, scope });
         const provider = createPaddleProvider({ scope, apiKey: 'synthetic-never-valid-key', apiVersion: 1, webhook: { endpointId: 'period-destination', secret: SECRET, apiVersion: 1 } });
         const runtimeOptions: PaymentRuntimeOptions = { scope, producerNamespace, provider, store, catalog: { resolveOffer: async () => offer } };
-        const verify = provider.verifyWebhook.bind(provider), authenticate = async (): Promise<string> => 'buyer-a';
-        const host = kind === 'node-http-factory' ? await createNodeHttpHost(runtimeOptions, verify, authenticate) : await createFetchModularHost(runtimeOptions, verify, authenticate);
+        const verify = provider.verifyWebhook.bind(provider);
+        const host = kind === 'node-http-factory' ? await createNodeHttpHost(runtimeOptions, verify, authenticateBuyer) : await createFetchModularHost(runtimeOptions, verify, authenticateBuyer);
         const payments = host.payments;
         const post = async (path: string, body: string, headers: Record<string, string> = {}) => {
           if ('url' in host) {return postHttp(host.url, path, body, headers);}
@@ -257,7 +266,7 @@ test('both public hosts hold distinct initial and renewal transactions for equiv
         try {
           await payments.registerConsumer('credit'); let intentId = '';
           api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, options => {
-            const body = JSON.parse(String(options.body)) as { custom_data: { payments: { intentId: string } } }; intentId = body.custom_data.payments.intentId;
+            assert.ok(typeof options.body === 'string'); const body = JSON.parse(options.body) as { custom_data: { payments: { intentId: string } } }; intentId = body.custom_data.payments.intentId;
             return responseFixture(transactionFixture({ intentId, status: 'ready', customerRef: null }));
           });
           const response = await post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'same-period' }));
@@ -306,9 +315,9 @@ test('both public hosts hold distinct initial and renewal transactions for equiv
   } finally { await emulation.restore(); }
 });
 
-test('actual SDK unknown outcome and approved duplicate-risk retry retain one reentrant initial allocation', { timeout: 15_000 }, async () => {
+void test('actual SDK unknown outcome and approved duplicate-risk retry retain one reentrant initial allocation', { timeout: 15_000 }, async () => {
   const emulation = paddleEmulation(), { api, agent } = emulation;
-  const connectionString = process.env['DATABASE_URL']; if (!connectionString) {throw new Error('DATABASE_URL is required');}
+  const connectionString = process.env['DATABASE_URL']; if (!(connectionString !== undefined && connectionString !== '')) {throw new Error('DATABASE_URL is required');}
   const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
   const prefix = `transfer_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
   const trust = { producerNamespace, scope }, credit = new CreditFixture({ pool, schema: `${prefix}_credit`, trust });
@@ -316,16 +325,17 @@ test('actual SDK unknown outcome and approved duplicate-risk retry retain one re
   const provider = createPaddleProvider({ scope, apiKey: 'synthetic-never-valid-key', apiVersion: 1, webhook: { endpointId: 'transfer-destination', secret: SECRET, apiVersion: 1 } });
   const store = await createPostgresPaymentStore({ pool, schema, scope });
   const payments = createPayments({ scope, producerNamespace, provider, store, catalog: { resolveOffer: async () => offer }, operationTimeoutMs: 100 });
-  let release: () => void = () => undefined, intentId = '';
+  let release!: () => void;
+  let intentId = '';
   const firstBarrier = new Promise<void>(resolve => { release = resolve; });
   try {
     await payments.registerConsumer('credit');
     api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, options => {
-      const body = JSON.parse(String(options.body)) as { custom_data: { payments: { intentId: string } } }; intentId = body.custom_data.payments.intentId;
+      assert.ok(typeof options.body === 'string'); const body = JSON.parse(options.body) as { custom_data: { payments: { intentId: string } } }; intentId = body.custom_data.payments.intentId;
       return firstBarrier.then(() => responseFixture(transactionFixture({ intentId, status: 'ready', customerRef: null })));
     });
     const unknown = await payments.startPurchase({ buyerId: 'buyer-a', offerId: 'monthly', requestKey: 'transfer-initial' });
-    assert.equal(unknown.kind, 'outcome_unknown'); if (unknown.kind !== 'outcome_unknown') {throw new Error('Expected unresolved create behind the barrier');}
+    assert.equal(unknown.kind, 'outcome_unknown');
     const operation = await payments.readOperation(unknown.operationId); assert.ok(operation);
     success(await payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'authorized-risk-owner', auditRef: 'explicit-duplicate-risk', reason: 'reviewed missing first create', action: 'retry', acceptedDuplicateRisk: true }));
     api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, responseFixture(transactionFixture({ id: paddleIds.secondTransaction, intentId, status: 'ready', customerRef: null })));
@@ -367,12 +377,12 @@ test('actual SDK unknown outcome and approved duplicate-risk retry retain one re
   } finally { release(); payments.stop(); await payments.drain(); await pool.query(`DROP SCHEMA "${schema}" CASCADE; DROP SCHEMA ${credit.owner.sql} CASCADE`); await pool.end(); await emulation.restore(); }
 });
 
-test('both public hosts qualify the whole reversal snapshot for independent credit and access owners across restart', { timeout: 60_000 }, async t => {
+void test('both public hosts qualify the whole reversal snapshot for independent credit and access owners across restart', { timeout: 60_000 }, async t => {
   const emulation = paddleEmulation(), { agent, api } = emulation;
   try {
     for (const kind of ['node-http-factory', 'fetch-static-gm'] as const) {for (const orphanFirst of [true, false]) {
       await t.test(`${kind}, unmatched reverse ${orphanFirst ? 'before' : 'after'} matching pair`, async () => {
-        const connectionString = process.env['DATABASE_URL']; if (!connectionString) {throw new Error('DATABASE_URL is required');}
+        const connectionString = process.env['DATABASE_URL']; if (!(connectionString !== undefined && connectionString !== '')) {throw new Error('DATABASE_URL is required');}
         const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
         const prefix = `reverse_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
         const trust = { producerNamespace, scope }, credit = new CreditFixture({ pool, schema: `${prefix}_credit`, trust });
@@ -381,8 +391,8 @@ test('both public hosts qualify the whole reversal snapshot for independent cred
         const store = await createPostgresPaymentStore({ pool, schema, scope });
         const provider = createPaddleProvider({ scope, apiKey: 'synthetic-never-valid-key', apiVersion: 1, webhook: { endpointId: 'reverse-destination', secret: SECRET, apiVersion: 1 } });
         const options: PaymentRuntimeOptions = { scope, producerNamespace, provider, store, catalog: { resolveOffer: async () => offer }, now: () => now };
-        const verify = provider.verifyWebhook.bind(provider), authenticate = async (): Promise<string> => 'buyer-a';
-        const host = kind === 'node-http-factory' ? await createNodeHttpHost(options, verify, authenticate) : await createFetchModularHost(options, verify, authenticate);
+        const verify = provider.verifyWebhook.bind(provider);
+        const host = kind === 'node-http-factory' ? await createNodeHttpHost(options, verify, authenticateBuyer) : await createFetchModularHost(options, verify, authenticateBuyer);
         const payments = host.payments;
         const post = async (path: string, body: string, headers: Record<string, string> = {}) => {
           if ('url' in host) {return postHttp(host.url, path, body, headers);}
@@ -398,7 +408,7 @@ test('both public hosts qualify the whole reversal snapshot for independent cred
         try {
           await payments.registerConsumer('credit'); await payments.registerConsumer('access');
           api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, request => {
-            const body = JSON.parse(String(request.body)) as { custom_data: { payments: { intentId: string } } }; intentId = body.custom_data.payments.intentId;
+            assert.ok(typeof request.body === 'string'); const body = JSON.parse(request.body) as { custom_data: { payments: { intentId: string } } }; intentId = body.custom_data.payments.intentId;
             return responseFixture(transactionFixture({ intentId, status: 'ready', customerRef: null }));
           });
           const response = await post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'unmatched-reverse' }));
@@ -406,7 +416,7 @@ test('both public hosts qualify the whole reversal snapshot for independent cred
           await ingress('transaction.completed', transactionFixture({ intentId }));
           await ingress('subscription.activated', subscriptionFixture());
           assert.deepEqual([(await access.decisions())[0]!.body.newAction, (await access.decisions())[0]!.body.expand], [true, true]);
-          const originalGrant = (await credit.decisions())[0]!.body.originalGrant; assert.ok(originalGrant);
+          const originalGrant = (await credit.decisions())[0]!.body.originalGrant; assert.ok((originalGrant !== undefined && originalGrant !== ''));
           await ingress('adjustment.created', adjustmentFixture({ action: 'credit' }));
           const afterCredit = (await credit.decisions())[0]!;
           assert.deepEqual([afterCredit.body.status, afterCredit.body.allocated, afterCredit.body.eligible, afterCredit.body.held], ['withheld', '0', '0', '0']);
@@ -445,7 +455,7 @@ test('both public hosts qualify the whole reversal snapshot for independent cred
           const purchase = await payments.readPurchase('buyer-a', intentId); assert.ok(purchase);
           const aggregate = purchase.transactions.find(transaction => transaction.transactionRef === paddleIds.transaction)!;
           assert.equal(Object.keys(aggregate.adjustments).length, 3); assert.deepEqual(aggregate.flags, []);
-          assert.deepEqual(Object.values(aggregate.adjustments).map(adjustment => adjustment.action).sort(), ['chargeback_reverse', 'credit', 'credit_reverse']);
+          assert.deepEqual(Object.values(aggregate.adjustments).map(adjustment => adjustment.action).toSorted(), ['chargeback_reverse', 'credit', 'credit_reverse']);
           const restarted = new CreditFixture({ pool, schema: credit.owner.options.schema, trust });
           const latest = (await restarted.owner.inspect<{ body: EvidenceMessage }>('evidence_projection')).find(source => source.body.aggregate.id === paddleIds.transaction)!.body;
           assert.equal((await restarted.receive(latest)).outcome, 'duplicate'); assert.equal((await restarted.receive(latest)).outcome, 'duplicate');

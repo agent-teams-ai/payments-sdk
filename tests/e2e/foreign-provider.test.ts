@@ -91,9 +91,14 @@ function foreignProvider(scope: PaymentScope) {
   return { provider, transactions, receipt, calls: () => ({ creates, updates }) };
 }
 
-test('foreign provider vocabulary preserves public completion, renewal and management semantics with durable replay and one grant per cause', { timeout: 30_000 }, async () => {
+function compareFactRows(a: readonly string[], b: readonly string[]): number {
+  const left = a.join(','), right = b.join(',');
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+void test('foreign provider vocabulary preserves public completion, renewal and management semantics with durable replay and one grant per cause', { timeout: 30_000 }, async () => {
   const databaseUrl = process.env['DATABASE_URL'];
-  assert.ok(databaseUrl, 'Foreign-provider E2E requires disposable PostgreSQL18');
+  assert.ok((databaseUrl !== undefined && databaseUrl !== ''), 'Foreign-provider E2E requires disposable PostgreSQL18');
   const pool = new Pool({ connectionString: databaseUrl, max: 8, connectionTimeoutMillis: 1000 });
   const suffix = randomUUID().replaceAll('-', '').slice(0, 16), schema = `foreign_${suffix}`, consumerSchema = `foreign_credit_${suffix}`;
   const scope: PaymentScope = { applicationId: 'foreign-contract', provider: 'foreign-fixture', paymentAccountId: 'foreign-account', environment: 'sandbox' };
@@ -125,7 +130,6 @@ test('foreign provider vocabulary preserves public completion, renewal and manag
     async function purchase(profile: 'one_time' | 'monthly', requestKey: string) {
       const result = await runtime.startPurchase({ buyerId: 'buyer', offerId: profile, requestKey });
       assert.equal(result.kind, 'succeeded');
-      if (result.kind !== 'succeeded') {throw new Error('Expected foreign checkout');}
       return result.value;
     }
     const oneTime = await purchase('one_time', 'topup');
@@ -140,7 +144,7 @@ test('foreign provider vocabulary preserves public completion, renewal and manag
     assert.equal(await runtime.processInbox(renewalInput.inputId), 'processed');
     await deliver();
     const bindingId = (await runtime.readPurchase('buyer', monthly.intentId))?.intent.subscriptionBasisId;
-    assert.ok(bindingId);
+    assert.ok((bindingId !== undefined && bindingId !== ''));
     const management = await runtime.openPaymentUpdate({ buyerId: 'buyer', bindingId, requestKey: 'card-update' });
     assert.equal(management.kind, 'succeeded');
     const maintenanceRaw = foreign.transactions.get('foreign-card-maintenance');
@@ -170,28 +174,28 @@ test('foreign provider vocabulary preserves public completion, renewal and manag
     assert.equal(rejectedRenewal?.state.bindings['foreign-unrecognized-renewal'], undefined);
     assert.equal(rejectedRenewal?.state.transactions['foreign-unrecognized-renewal']?.completion, undefined);
     assert.deepEqual(rejectedRenewal?.state.transactions['foreign-unrecognized-renewal']?.current?.origin, { presence: 'unknown' });
-    assert.deepEqual(rejectedRenewal?.state.inbox[collidingRenewal.inputId]?.input.retainedRepresentation, collidingRenewal.retainedRepresentation);
+    assert.deepEqual(rejectedRenewal.state.inbox[collidingRenewal.inputId]?.input.retainedRepresentation, collidingRenewal.retainedRepresentation);
 
     const facts = [...delivered.values()].flatMap(message => message.kind === 'complete' && message.completion ? [message.completion] : []);
-    assert.deepEqual(facts.map(fact => [fact.transactionRef, fact.classification, fact.total.minorUnits]).sort(), [
+    assert.deepEqual(facts.map(fact => [fact.transactionRef, fact.classification, fact.total.minorUnits]).toSorted(compareFactRows), [
       [oneTime.transactionRef, 'one_time', '1000'], [monthly.transactionRef, 'initial', '1000'], ['foreign-renewal', 'renewal', '1000'],
-    ].sort());
+    ].toSorted(compareFactRows));
     assert.ok(facts.every(fact => fact.scope.provider === 'foreign-fixture'));
     const monthlyRead = await runtime.readPurchase('buyer', monthly.intentId);
     const maintenance = monthlyRead?.transactions.find(transaction => transaction.transactionRef === 'foreign-card-maintenance');
     assert.ok(maintenance);
     assert.equal(maintenance.completion, undefined);
     assert.deepEqual(maintenance.current?.origin, known('subscription_payment_method_change'));
-    assert.deepEqual(maintenance.current?.statusMeaning, { kind: 'completed' });
+    assert.deepEqual(maintenance.current.statusMeaning, { kind: 'completed' });
     const unknownRead = await runtime.readPurchase('buyer', unknown.intentId);
     assert.equal(unknownRead?.transactions[0]?.completion, undefined);
-    assert.ok(unknownRead?.transactions[0]?.flags.includes('incomplete'));
-    assert.deepEqual(unknownRead?.transactions[0]?.current?.origin, { presence: 'unknown' });
+    assert.ok((unknownRead?.transactions[0]?.flags.includes('incomplete') === true));
+    assert.deepEqual(unknownRead.transactions[0].current?.origin, { presence: 'unknown' });
     const rejectedCheckout = await store.loadReductionInput(scope, foreign.receipt(collidingCheckout).inputId);
     assert.deepEqual(rejectedCheckout?.state.inbox[foreign.receipt(collidingCheckout).inputId]?.input.retainedRepresentation, collidingCheckout);
     const savedRenewal = await store.loadReductionInput(scope, renewalInput.inputId);
     assert.deepEqual(savedRenewal?.state.inbox[renewalInput.inputId]?.input.retainedRepresentation, renewal);
-    assert.equal(savedRenewal?.state.inbox[renewalInput.inputId]?.input.source.representationDigest, digest(renewal));
+    assert.equal(savedRenewal.state.inbox[renewalInput.inputId]?.input.source.representationDigest, digest(renewal));
     assert.equal(await runtime.processInbox(renewalInput.inputId), 'duplicate');
     await runtime.repair(); await deliver();
     const restartedCredit = new CreditFixture({ pool, schema: consumerSchema, trust: { scope, producerNamespace } });
