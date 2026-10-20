@@ -55,15 +55,22 @@ test('launch failures preserve the native ProcessRuntimeError and original cause
   });
 });
 
-test('capture overflow remains a bounded runtime failure instead of a partial success', async () => {
-  await assert.rejects(() => command(process.execPath, ['-e', 'process.stdout.end(Buffer.alloc(4 * 1024 * 1024 + 1, 97));']), error => {
-    assert.ok(isProcessRuntimeError(error));
-    assert.equal(error.code, 'output-limit');
-    assert.equal(error.facts.initiatingCause, 'capture');
-    assert.equal(error.facts.outputBounded, true);
-    assert.equal(error.facts.incompleteCustody, false);
-    assert.ok(error.output !== null);
-    assert.ok(Buffer.byteLength(error.output.stdout) <= 4 * 1024 * 1024);
-    return true;
-  });
+test('independent stream budgets accept 3 MiB stdout plus 3 MiB stderr', async () => {
+  const output = await command(process.execPath, ['-e', 'process.stdout.end(Buffer.alloc(3 * 1024 * 1024, 97)); process.stderr.end(Buffer.alloc(3 * 1024 * 1024, 98));']);
+  assert.equal(output, 'a'.repeat(3 * 1024 * 1024));
 });
+
+for (const stream of ['stdout', 'stderr'] as const) {
+  test(`${stream} overflow remains a bounded runtime failure instead of a partial success`, async () => {
+    await assert.rejects(() => command(process.execPath, ['-e', `process.${stream}.end(Buffer.alloc(4 * 1024 * 1024 + 1, 97));`]), error => {
+      assert.ok(isProcessRuntimeError(error));
+      assert.equal(error.code, 'output-limit');
+      assert.equal(error.facts.initiatingCause, 'capture');
+      assert.equal(error.facts.outputBounded, true);
+      assert.equal(error.facts.incompleteCustody, false);
+      assert.ok(error.output !== null);
+      assert.ok(Buffer.byteLength(error.output[stream]) <= 4 * 1024 * 1024);
+      return true;
+    });
+  });
+}

@@ -45,10 +45,19 @@ at this read-back; npm publication is established separately above.
 The helper retains the existing command policy: an executable plus literal argv,
 current environment and explicit working directory; no shell; captured stdout
 returned only after a successful zero exit; nonzero and signaled exits rejected;
-**120,000 ms** deadline; **4 MiB per stream** capture bounds; no automatic retries.
+**120,000 ms** deadline; no automatic retries.
 The library's replacement UTF-8 decoding matches the previous helper policy.
 Successful stderr remains separate from returned stdout. Nonzero exit assertions
 retain both bounded streams and the observed signal for diagnostics.
+
+The capture budget changes deliberately: the previous `spawnSync` helper's
+**4 MiB combined stdout + stderr** limit becomes the official library's
+independent **4 MiB per stream** limits, allowing at most **8 MiB of captured
+payload** across the pair. Thus 3 MiB on each stream succeeds, while exceeding
+4 MiB on either stream fails. The tooling adopts this finite per-stream
+contract to reuse the library's capture and cleanup implementation without
+adding a separate aggregate-budget mechanism. Capture remains bounded; the
+deadline, exit/error checks and no-retry policy above remain in force.
 
 The [upstream process contract](https://github.com/agent-teams-ai/node-or-bun/blob/2a0bbac6f80705e0b06e7eaeddf47439465b5646/docs/process-contract.md)
 owns lifecycle coordination and bounded capture. Native `ProcessRuntimeError`
@@ -74,8 +83,9 @@ new CLI surface, supervisor or platform abstraction is added.
 
 The native fixture suite exercises literal shell metacharacters, cwd and
 inherited environment, separate captured streams, numeric nonzero exit, signal
-termination, missing-executable cause preservation and bounded overflow. Archive
-fixtures also reject development tooling in public runtime declarations.
+termination, missing-executable cause preservation, combined 3 MiB + 3 MiB
+acceptance and separate stdout/stderr overflow rejection. Archive fixtures also
+reject development tooling in public runtime declarations.
 
 The strict `.ts` tooling project compiles with **TypeScript 7.0.2** and
 `skipLibCheck:false`. Focused local evidence and actual packaging results are
