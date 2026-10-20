@@ -96,6 +96,7 @@ try {
     const config = `tsconfig.${profile.toLowerCase()}.json`;
     await writeFile(join(consumer, config), JSON.stringify({ extends: './tsconfig.json', compilerOptions: {
       module: profile === 'Bundler' ? 'ESNext' : 'NodeNext', moduleResolution: profile,
+      exactOptionalPropertyTypes: true, noUncheckedIndexedAccess: true,
     } }));
     command(process.execPath, [compiler, '-p', join(consumer, config)], root);
   }
@@ -108,7 +109,7 @@ try {
     node: process.version, typescript: pin('typescript'), publicSurface: '@agent-teams/payments-get-modular/observation',
     manifestSha256: digest(manifestBytes), paymentsArtifacts,
     archives: manifest.archives.map(({ name, version, sha256, integrity, tarball }) => ({ name, version, sha256, integrity, tarball })),
-    resolvers: profiles.map(resolution => ({ resolution, strict: true, skipLibCheck: false, passed: true })),
+    resolvers: profiles.map(resolution => ({ resolution, strict: true, exactOptionalPropertyTypes: true, noUncheckedIndexedAccess: true, skipLibCheck: false, passed: true })),
     tests, scenarioOutputSha256: digest(Buffer.from(output)),
   };
   await mkdir(join(repository, '.artifacts'), { recursive: true });
