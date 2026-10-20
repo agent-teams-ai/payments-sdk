@@ -15,7 +15,7 @@ flowchart TD
   GM --> Core
   Paddle --> SDK["Official Paddle SDK"]
   SQL --> PG["pg and pg-boss"]
-  GM --> Modular["Published Assembly and Resources"]
+  GM --> Modular["Published Assembly, Resources and optional Observation"]
 ```
 
 | Owner | Authoritative data and decisions |
@@ -41,6 +41,37 @@ The first provider/profile supports one monthly recurring price, quantity one, n
 HTTP 200 follows confirmed T1. Producer delivery ACK follows confirmed T3. Both can be replayed after a lost response. Each record owner must retain durable logged data and a crash-safe local commit profile. A lost COMMIT reply is uncertainty, not proof of rollback.
 
 Adverse input admitted before a successful T2 commit contributes to that revision's barrier/read-set validation. An adjustment admitted after T2 can reach a consumer after a paid-only revision and requires eventual correction. A last-moment read before send cannot close this cross-owner interval. Product owners decide whether provisional grants or spendability holds are appropriate.
+
+## Storage and queue boundaries
+
+`PaymentStore` belongs to core; the host supplies its implementation. PostgreSQL
+is the first durable adapter, not a core dependency or a requirement to create a
+separate database server. A different adapter must preserve the port's confirmed
+commit, concurrency, uncertainty and replay contract. The [developer stack](developer-stack.md)
+owns the approved adapter-local query toolkit; ORM objects never cross this port.
+
+The existing PostgreSQL worker uses `pg-boss` for replaceable wake-ups. Payment
+records and obligations remain authoritative after every queue job is deleted;
+bounded repair recreates runnable work. Queue enqueue may share the existing
+payment transaction through pg-boss's public `db` seam. Workers re-read saved
+authority before execution, and a queue retry never authorizes an unknown
+external mutation. [The adapter guide](../packages/payments-postgres/README.md)
+owns its operational configuration and recovery procedure.
+
+| Mechanism | Contract and owner |
+| --- | --- |
+| `watch` / `load` | Optional, replaceable read projections with Resources lifetime; no durable financial delivery |
+| Payment evidence and deliveries | Core-owned immutable identity/digest, revisions, pending delivery and acknowledgement after consumer T3 |
+| Queue or broker | Infrastructure scheduling/transport; successful enqueue or broker acknowledgement does not prove consumer T3 |
+
+An application can drive the public processing and delivery methods without
+using the PostgreSQL job runner. No generic EventBus, shared ORM transaction or
+mandatory external broker is exposed by core. A future broker integration must
+relay durable obligations, tolerate duplicate/out-of-order delivery, preserve
+the consumer receipt boundary and recover from crashes between send and receipt.
+It must not dual-write PostgreSQL and a remote broker as if they shared one
+transaction. That broker adapter and cross-process receipt path are not currently
+implemented or qualified; a TypeScript port alone would not prove them.
 
 ## Mutation uncertainty and local concurrency
 
@@ -70,12 +101,20 @@ Scope comes from trusted endpoint/connection configuration. Buyer identity comes
 
 Management portal sessions require explicit authorization over the entire provider customer. Subscription links only affect navigation. URLs are ephemeral sensitive data and should not be logged or retained as durable evidence. A capability facet limits exposed methods but is not a tenant/security sandbox.
 
-Verified webhooks retain original bytes and authentication context. Authenticated API evidence is the official SDK's mapped representation. API1/SDK3.10.0/decoder1 permits documented required nullable fields to have `schema_assumed_null` provenance; optional/dropped fields remain unknown. This is a declared trust assumption, not original-wire custody. The [Paddle guide](../packages/payments-paddle/README.md) owns the detailed decoder and pagination contract.
+Verified webhooks retain original bytes and authentication context. Authenticated API evidence is the official SDK's mapped representation. API1/SDK3.10.0/decoder2 permits documented required nullable fields to have `schema_assumed_null` provenance; optional/dropped fields remain unknown. This is a declared trust assumption, not original-wire custody. The [Paddle guide](../packages/payments-paddle/README.md) owns the detailed decoder and pagination contract.
 
 ## Get Modular and extension boundaries
 
 The integration uses real published static modules, Assembly preparation/run inputs and Resources ownership. It creates the same plain core runtime and borrows provider/store/pool dependencies. Frozen checkout/read/management/processing/delivery facets segregate consumers' needs without inventing another payment service or authorization layer.
 
-The qualified published train has no Observation package. Upstream ADR #154, plan #185 and implementation #195 merged on 2026-10-19; the coordinated Core/Assembly `0.6.0`, Resources `0.2.0`, Conformance `0.4.0`, Observation `0.1.0` train was still unpublished at the [current read-back](upstream-qualification.md#get-modular-merged-implementation-unpublished-release-train). The [integration guide](../packages/payments-get-modular/README.md#observation-hooks-explicit-release-gate) records the admitted `watch`/`load` source semantics and the separate artifact/peer/hook qualification gate. The SDK retains its qualified static peers and financial delivery contract.
+The coordinated Observation release train was published on 2026-10-20. The
+[public registry record](../qualification/observation/published-artifacts.json)
+binds exact versions, integrity and archive identity; the published bytes match
+the previously reviewed original candidates. The optional
+`@agent-teams/payments-get-modular/observation` entrypoint delivers one shared
+purchase projection and Assembly composition. Static consumers can omit the
+Observation peer. The [integration guide](../packages/payments-get-modular/README.md)
+owns setup and `watch`/`load` semantics; `pnpm test:observation` checks the actual
+packed public entrypoint, coherent peers and real financial/lifecycle scenarios.
 
-Any future hook observes replaceable read projections after durable commit. It cannot create checkout, publish financial evidence, grant/consume credits or replace T3/ACK. New providers implement the existing semantic ports and declare capabilities; new storage adapters must preserve the durable commit, read-set, uncertainty and replay guarantees. Foundation's [source-dependency policy](../architecture/foundation/source-dependencies.yaml) checks source import direction; scenario suites check the observable contract.
+Hooks observe replaceable read projections of durably stored state. They cannot create checkout, publish financial evidence, grant/consume credits or replace T3/ACK. New providers implement the existing semantic ports and declare capabilities; new storage adapters must preserve the durable commit, read-set, uncertainty and replay guarantees. Foundation's [source-dependency policy](../architecture/foundation/source-dependencies.yaml) checks source import direction; scenario suites check the observable contract.
