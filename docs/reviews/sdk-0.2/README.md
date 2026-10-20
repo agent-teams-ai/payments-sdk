@@ -28,3 +28,21 @@ to name the code actually inspected instead of pretending that reviews ran again
 The full integrated source requires its own fresh forced build and serial Node
 24.21.0/26.11.1 `pnpm check` runs. Author checks and narrow review probes do not
 substitute for those final gates or the later exact-commit remote CI.
+
+## Maximum-page integration remediation
+
+Complete integration attempts exposed timeout pressure in two original 200-input
+fixtures. The initial correction removed repeated locked receipt/route reads;
+its [independent review](custody-reads.md) preserves the scope of that change.
+The larger official-SDK page with contradictory prior events still exceeded
+the unchanged transaction budget, including an isolated reproduction.
+
+The subsequent correction batches reads only after their owning lock phase
+and groups distinct record writes within each input. It preserves fresh
+aggregate reads between inputs, all obligation writes and queue enqueues,
+conditional revisions, JSON null, chunk rollback and original test oracles.
+Its [separate independent review](custody-batching.md) records the exact source,
+a corrected trace counter and the author-run 45/45 PostgreSQL gate.
+[Measurements and retained intermediate failures](../drizzle-event-page-performance.md)
+explain why read batching alone was insufficient. These scoped reports do not
+replace final complete checks or establish a production latency guarantee.
