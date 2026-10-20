@@ -29,6 +29,7 @@ test('one locked admission page retains sequential duplicate/conflict identity a
       assert.ok(aggregate);
       assert.ok(aggregate.flags.includes('conflict'), `both old/new observations and the explicit adverse route retain custody: ${id}`);
       assert.equal(new Set(aggregate.pendingAdverse).size, aggregate.pendingAdverse.length);
+      if (id === 'adverse-parent') assert.deepEqual(aggregate.pendingAdverse, ['same-page'], 'later page inputs must read the preceding aggregate write');
     }
     assert.equal(await context.payments.processInbox('same-page'), 'quarantined');
     const completed = (await f.pool.query<{ body: InboxRecord }>(`SELECT body FROM "${f.schema}".records WHERE kind = 'inbox' AND id = 'processed-receipt'`)).rows[0]?.body;

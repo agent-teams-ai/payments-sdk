@@ -1,6 +1,6 @@
 import { canonicalJson } from '@agent-teams/payments-core';
 import type { PaymentReadVersion, PaymentScope } from '@agent-teams/payments-core';
-import { and, eq, gt, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, sql } from 'drizzle-orm';
 import type { PaymentSqlTransaction } from './database.js';
 import { sqlIdentifier } from './database.js';
 import { executePaymentStatement, paymentQueries, paymentTables, selectPaymentRows } from './schema.js';
@@ -17,6 +17,7 @@ export type OwnerConfiguration = {
 export type StoredRecord<T> = Readonly<{ revision: number; body: T }>;
 export type RecordKey = Readonly<{ kind: string; id: string }>;
 export type DurableWork = Readonly<{ kind: 'inbox' | 'publication' | 'reclassification' | 'prepared' | 'unknown' | 'delivery' | 'scan'; id: string }>;
+const maximumRecordSet = 512;
 
 /** Storage details stay in the outer adapter; core sees named atomic methods and revision tokens. */
 export class PaymentRecords {
@@ -50,7 +51,7 @@ export class PaymentRecords {
     };
     const ordered = [...keys].sort((a, b) => rank(a.kind) - rank(b.kind) || compareKeys(a, b));
     const names = [...new Set(ordered.map(key => canonicalJson([this.schema, key.kind, key.id])))];
-    if (names.length > 512) throw new RangeError('Payment transaction lock set exceeds its bound');
+    if (names.length > maximumRecordSet) throw new RangeError('Payment transaction lock set exceeds its bound');
     // Exact-version certification must be stable before T1 discovers its retained parent.
     // T2 uses this same inbox/version/aggregate order, avoiding an inverse parent/version wait.
     await tx.query('SELECT pg_advisory_xact_lock(hashtextextended(key, 0)) FROM (SELECT key FROM unnest($1::text[]) WITH ORDINALITY AS keys(key, position) ORDER BY position) ordered', [names]);
@@ -61,6 +62,17 @@ export class PaymentRecords {
     const [row] = await selectPaymentRows(tx, paymentQueries.select({ revision: table.revision, body: table.body })
       .from(table).where(and(eq(table.kind, kind), eq(table.id, id))));
     return row ? { revision: safeRevision(row.revision), body: row.body as T } : undefined;
+  }
+
+  /** Bounded lookups for identities whose existing transaction lock phase has completed. */
+  async readMany<T>(tx: PaymentSqlTransaction, kind: string, ids: readonly string[]): Promise<ReadonlyMap<string, StoredRecord<T>>> {
+    const unique = [...new Set(ids)];
+    if (unique.length > maximumRecordSet) throw new RangeError('Payment record lookup set exceeds its bound');
+    if (unique.length === 0) return new Map();
+    const table = this.tables.records;
+    const rows = await selectPaymentRows(tx, paymentQueries.select({ id: table.id, revision: table.revision, body: table.body })
+      .from(table).where(and(eq(table.kind, kind), inArray(table.id, unique))));
+    return new Map(rows.map(row => [row.id, { revision: safeRevision(row.revision), body: row.body as T }]));
   }
 
   async write(tx: PaymentSqlTransaction, kind: string, id: string, body: unknown): Promise<void> {

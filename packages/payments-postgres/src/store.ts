@@ -247,16 +247,10 @@ class PostgresPaymentStore implements PaymentStore {
     const events = new Map<string, StoredEventIdentity>();
     const eventIds = [...new Set(inputs.flatMap(input => input.source.eventId ? [input.source.eventId] : []))];
     await this.records.lock(tx, eventIds.map(id => ({ kind: 'eventIdentity', id })));
-    for (const id of eventIds) {
-      const value = (await this.records.read<StoredEventIdentity>(tx, 'eventIdentity', id))?.body;
-      if (value) events.set(id, value);
-    }
+    for (const [id, record] of await this.records.readMany<StoredEventIdentity>(tx, 'eventIdentity', eventIds)) events.set(id, record.body);
     await this.records.lock(tx, inputs.map(input => ({ kind: 'inbox', id: input.inputId })));
     const existingReceipts = new Map<string, InboxRecord>();
-    for (const input of inputs) {
-      const prior = (await this.records.read<InboxRecord>(tx, 'inbox', input.inputId))?.body;
-      if (prior) existingReceipts.set(input.inputId, prior);
-    }
+    for (const [id, record] of await this.records.readMany<InboxRecord>(tx, 'inbox', inputs.map(input => input.inputId))) existingReceipts.set(id, record.body);
     // The shared lock order places certification before aggregates in T1 and T2. Read it only
     // after locking, so a concurrent first certification cannot introduce an unfenced old parent.
     const versions = new Map<string, ObjectVersionEvidence>();
@@ -268,10 +262,7 @@ class PostgresPaymentStore implements PaymentStore {
       const key = versionKey(input); return key === undefined ? [] : [key];
     }))];
     await this.records.lock(tx, versionKeys.map(id => ({ kind: 'versionEvidence', id })));
-    for (const id of versionKeys) {
-      const record = await this.records.read<ObjectVersionEvidence>(tx, 'versionEvidence', id);
-      if (record) versions.set(id, record.body);
-    }
+    for (const [id, record] of await this.records.readMany<ObjectVersionEvidence>(tx, 'versionEvidence', versionKeys)) versions.set(id, record.body);
     const knownRoutes = (input: VerifiedInput): readonly AggregateIdentity[] => [
       ...inputRoutes(input), ...objectVersionDependentRoutes(input.observation, versions.get(versionKey(input) ?? '')),
     ];
@@ -297,13 +288,15 @@ class PostgresPaymentStore implements PaymentStore {
       const affected = [...new Map([
         ...knownRoutes(input), ...(existing ? knownRoutes(existing.input) : []), ...(identity?.evidence.routes ?? []),
       ].map(route => [canonicalJson([route.type, route.id]), route])).values()];
+      // Read only this input's locked routes, after every prior input has finished
+      // writing. A page-wide aggregate snapshot would miss those preceding writes.
+      const transactions = await this.records.readMany<TransactionAggregate>(tx, 'transactions', affected.filter(route => route.type === 'transaction').map(route => route.id));
+      const subscriptions = await this.records.readMany<SubscriptionAggregate>(tx, 'subscriptions', affected.filter(route => route.type === 'subscription').map(route => route.id));
       for (const route of affected) {
         if (route.type === 'transaction') {
-          const aggregate = (await this.records.read<TransactionAggregate>(tx, 'transactions', route.id))?.body;
-          if (aggregate) state.transactions[route.id] = aggregate;
+          const record = transactions.get(route.id); if (record) state.transactions[route.id] = record.body;
         } else {
-          const aggregate = (await this.records.read<SubscriptionAggregate>(tx, 'subscriptions', route.id))?.body;
-          if (aggregate) state.subscriptions[route.id] = aggregate;
+          const record = subscriptions.get(route.id); if (record) state.subscriptions[route.id] = record.body;
         }
       }
       let kind = admitInput(state, input);

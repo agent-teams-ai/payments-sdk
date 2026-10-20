@@ -38,6 +38,14 @@ test('typed queries preserve existing schemaVersion 1 JSON bodies, no-op revisio
         await records.write(tx, 'codecs', id, value);
         assert.deepEqual((await records.read(tx, 'codecs', id))?.body, value);
       }
+      const grouped = await records.readMany(tx, 'codecs', ['string', 'missing', 'null', 'string']);
+      assert.deepEqual([...grouped.keys()].sort(), ['null', 'string']);
+      assert.deepEqual(grouped.get('null'), { revision: 1, body: null });
+      assert.deepEqual(grouped.get('string'), { revision: 1, body: 'opaque' });
+      assert.equal((await records.readMany(tx, 'codecs', [])).size, 0);
+      assert.equal((await records.readMany(tx, 'missing', Array.from({ length: 400 }, (_, index) => `key-${index}`))).size, 0,
+        'incoming and retained exact-version identities can exceed one 200-input page');
+      await assert.rejects(records.readMany(tx, 'missing', Array.from({ length: 513 }, (_, index) => `key-${index}`)), RangeError);
       await records.guard(tx, 'membership');
       await records.guard(tx, 'membership');
       assert.equal((await records.read(tx, 'guards', 'membership'))?.revision, 2, 'membership guards advance even when their body is unchanged');
@@ -45,7 +53,9 @@ test('typed queries preserve existing schemaVersion 1 JSON bodies, no-op revisio
     await f.pool.query(`INSERT INTO "${f.schema}".records (kind, id, revision, body) VALUES ('range', 'max', 9007199254740991, '{}'), ('range', 'overflow', 9007199254740992, '{}')`);
     await withPaymentTransaction(f.pool, async tx => {
       assert.equal((await records.read(tx, 'range', 'max'))?.revision, Number.MAX_SAFE_INTEGER);
+      assert.equal((await records.readMany(tx, 'range', ['max'])).get('max')?.revision, Number.MAX_SAFE_INTEGER);
       await assert.rejects(records.read(tx, 'range', 'overflow'), RangeError);
+      await assert.rejects(records.readMany(tx, 'range', ['max', 'overflow']), RangeError);
     });
   } finally { await f.close(); }
 });
