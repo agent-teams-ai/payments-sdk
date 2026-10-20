@@ -1,6 +1,6 @@
 # Payments SDK
 
-An embeddable TypeScript SDK for payment operations and durable payment evidence. Paddle Billing is the first provider. PostgreSQL supplies durable storage and background work; Get Modular composition is optional. The payment owner, commercial access, credit accounting and operational usage keep independent data and transaction boundaries.
+An embeddable TypeScript SDK for payment operations and durable payment evidence. Paddle Billing is the first provider. An optional PostgreSQL adapter supplies durable storage and background work; the core depends on its own storage contract. Get Modular composition is optional. The payment owner, commercial access, credit accounting and operational usage keep independent data and transaction boundaries.
 
 **Prerelease deployment status, 2026-10-19:** integration and fixture qualification are available; production deployment remains blocked by an upstream Node runtime security issue. A bounded malformed-response probe terminates the tested Node processes through built-in `fetch`, including the latest published same-major releases. The development-only Undici correction does not patch production transport. The [security qualification record](docs/security-qualification.md#node-bundled-transport-scope) gives the evidence, its Paddle applicability limits and the admission requirements for a corrected official runtime.
 
@@ -25,6 +25,7 @@ The four packages currently declare version `0.1.0`. A version in a manifest doe
 - [Qualification and deployment gates](docs/qualification.md): what the automated suites prove and what needs a real deployment or Paddle sandbox.
 - [Dependency and Node runtime security](docs/security-qualification.md): the qualified development dependency correction and the separate blocked production runtime admission.
 - [Implementation and review status](docs/implementation-status.md): P0–P7 plan traceability, independent review reports and correction evidence.
+- [Observation candidate](qualification/observation/README.md): implemented read projection, real Assembly/Resources/watch/load, and isolated qualification against the retained upstream archives.
 - [Current upstream qualification](docs/upstream-qualification.md): exact dependency pins, merged Get Modular observation source and its unpublished train, and the official browser declaration blocker.
 - [Release process](docs/releasing.md): audited tarballs, checksums, exact-commit CI and GitHub prereleases.
 

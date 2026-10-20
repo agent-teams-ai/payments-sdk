@@ -36,8 +36,11 @@ The required P6 Get Modular host uses the qualified published static peer set.
 The upstream observation implementation has merged, but the coordinated new
 registry train was unpublished at the [recorded read-back](upstream-qualification.md).
 Hooks remain optional read projections; they cannot replace financial delivery,
-consumer transactions or acknowledgements. The future hook consumer admission
-contract is retained without inventing an unavailable runtime API.
+consumer transactions or acknowledgements. The [candidate read projection](../qualification/observation/README.md) now implements
+real Assembly inputs/slots, readonly store facets, scoped display watches and
+latest-only loads against the retained upstream archives. Its required isolated
+consumer gate runs on both Node floors with real PostgreSQL; supported package
+adoption still requires the actual coherent registry release.
 
 The official Paddle.js 1.6.5 browser example is blocked by its published
 declarations under the required strict compiler profile, reproduced in both

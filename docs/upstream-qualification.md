@@ -11,6 +11,22 @@ delta changes no package runtime source, CMS or observation contract document;
 direct watch/load/types/values/CMS reads retain the same blobs. The dated source
 and dependency qualification below remains its original reproducible snapshot.
 
+## October 20 continuation
+
+The [dated continuation record](reviews/upstream-continuation-2026-10-20.md) supersedes
+current PR-state statements in the original sections below. Get Modular release
+preparation #199 and migration correction #200 are merged; the five exact
+candidate archives are retained publicly. The coordinated npm train remains
+unpublished. The [candidate consumer](../qualification/observation/README.md)
+implements the optional read-projection integration under that explicit boundary.
+The original supported package pins and lockfile are unchanged.
+
+Paddle.js 1.6.5 still fails TS2430 in both strict resolver modes on both supported
+Node floors. Node 24 staging now includes the fixed Undici 7.30.1, but no corrected
+official Node release is published at this read-back. Production runtime admission
+therefore remains blocked. Historical reports and the accepted plan retain their
+original source snapshots.
+
 ## Qualified dependency change
 
 The workspace pins development-only `@agent-teams/engineering-foundation` to **1.10.1**. Its [official release](https://github.com/agent-teams-ai/engineering-foundation/releases/tag/%40agent-teams/engineering-foundation%401.10.1), published to [npm](https://registry.npmjs.org/%40agent-teams%2Fengineering-foundation) at 2026-10-19 19:36:48.427 UTC, fixes API extraction staging to exclude the generated `.worker-tmp` runtime-profile projection. [The source correction](https://github.com/agent-teams-ai/engineering-foundation/pull/414) prevents duplicated source trees and staged-entry budget exhaustion; it adds no payment runtime capability.
