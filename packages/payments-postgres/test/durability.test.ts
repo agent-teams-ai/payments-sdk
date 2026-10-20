@@ -2,11 +2,41 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Pool } from 'pg';
 import { canonicalJson, digest, money, processInput, publishEvidence } from '@agent-teams/payments-core';
-import type { AdjustmentObservation, CheckoutReady, EvidenceSource, PaymentOperation, ProviderResult, TransactionAggregate, VerifiedInput } from '@agent-teams/payments-core';
+import type { AdjustmentObservation, CheckoutReady, EvidenceSource, InboxRecord, PaymentOperation, ProviderResult, TransactionAggregate, VerifiedInput } from '@agent-teams/payments-core';
 import { assertPostgresDurability, createPostgresPaymentStore, migratePaymentSchema, PaymentDatabaseError } from '../dist/index.js';
 import { createPaymentSqlExecutor, withPaymentTransaction } from '../dist/database.js';
 import { at, databaseFixture, deferred, known, observe, receipt, runtime, scope, subscription, success, transaction } from './helpers.ts';
 import { postgresFaultProxy } from './fault-proxy.ts';
+
+test('one locked admission page retains sequential duplicate/conflict identity and processed receipts', async () => {
+  const f = await databaseFixture(), context = runtime(f.store);
+  try {
+    const processed = receipt(transaction('already-processed', 'processed-receipt'));
+    await observe(context.payments, processed);
+    const original = receipt(transaction('first-parent', 'same-page'), { adverseTransactionRef: 'adverse-parent' });
+    const contradictory = receipt(transaction('second-parent', 'same-page'), { adverseTransactionRef: 'adverse-parent' });
+    assert.deepEqual(await f.store.admitVerifiedInputs(scope, [original, original, contradictory, processed, processed]), [
+      { inputId: 'same-page', kind: 'admitted' }, { inputId: 'same-page', kind: 'duplicate' }, { inputId: 'same-page', kind: 'conflict' },
+      { inputId: 'processed-receipt', kind: 'duplicate' }, { inputId: 'processed-receipt', kind: 'duplicate' },
+    ]);
+    const saved = (await f.pool.query<{ body: InboxRecord }>(`SELECT body FROM "${f.schema}".records WHERE kind = 'inbox' AND id = 'same-page'`)).rows[0]?.body;
+    assert.deepEqual(saved?.input, original, 'a later representation cannot replace the first durable receipt');
+    assert.equal(saved?.conflict, true);
+    const conflicts = await f.pool.query<{ body: VerifiedInput }>(`SELECT body FROM "${f.schema}".records WHERE kind = 'conflictingInputs'`);
+    assert.deepEqual(conflicts.rows.map(row => row.body), [contradictory]);
+    for (const id of ['adverse-parent', 'first-parent', 'second-parent']) {
+      const aggregate = (await f.pool.query<{ body: TransactionAggregate }>(`SELECT body FROM "${f.schema}".records WHERE kind = 'transactions' AND id = $1`, [id])).rows[0]?.body;
+      assert.ok(aggregate);
+      assert.ok(aggregate.flags.includes('conflict'), `both old/new observations and the explicit adverse route retain custody: ${id}`);
+      assert.equal(new Set(aggregate.pendingAdverse).size, aggregate.pendingAdverse.length);
+    }
+    assert.equal(await context.payments.processInbox('same-page'), 'quarantined');
+    const completed = (await f.pool.query<{ body: InboxRecord }>(`SELECT body FROM "${f.schema}".records WHERE kind = 'inbox' AND id = 'processed-receipt'`)).rows[0]?.body;
+    assert.equal(completed?.state, 'processed'); assert.equal(completed?.attempts, 1);
+    const work = (await f.pool.query<{ state: string }>(`SELECT state FROM "${f.schema}".obligations WHERE kind = 'inbox' AND id = 'processed-receipt'`)).rows[0];
+    assert.equal(work?.state, 'complete', 'same-page replays do not reopen completed processing');
+  } finally { await context.payments.drain(); await f.close(); }
+});
 
 test('PostgreSQL ownership and durability are qualified without changing a borrowed host session', async () => {
   const f = await databaseFixture();

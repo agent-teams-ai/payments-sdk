@@ -1,0 +1,85 @@
+{
+  "baselineCommit": "1eb7a94",
+  "scenario": "reconciliation T1 fences both historical adjustment parents before stale publication T2; cleanup and page rollback stay atomic",
+  "node": "24.21.0",
+  "postgres": "18.4",
+  "transactionTimeoutMs": 2500,
+  "pageInputs": 200,
+  "method": "Test-process pg Client.query promise timing and transaction-local counts; toSQL-only timing in generated dist during diagnostic run. No runtime instrumentation is included in maintained code. Runs use the original pg_locks row trigger. Timing samples are illustrative, not a statistical speedup claim.",
+  "measurements": {
+    "before": [
+      {
+        "outcome": "ROLLBACK",
+        "queries": 1215,
+        "elapsedMs": 581.886,
+        "queryPromiseMs": 484.69,
+        "toSqlMs": 40.955,
+        "compiledStatements": 1207,
+        "queryCounts": {
+          "advisoryLockPhases": 5,
+          "recordSelects": 803,
+          "recordUpserts": 202,
+          "obligationUpserts": 201
+        },
+        "errors": [
+          {
+            "code": "P0001",
+            "message": "injected custody rollback"
+          }
+        ]
+      },
+      {
+        "outcome": "COMMIT",
+        "queries": 1218,
+        "elapsedMs": 693.806,
+        "queryPromiseMs": 599.191,
+        "toSqlMs": 39.494,
+        "compiledStatements": 1210,
+        "queryCounts": {
+          "advisoryLockPhases": 5,
+          "recordSelects": 803,
+          "recordUpserts": 203,
+          "obligationUpserts": 203
+        },
+        "errors": []
+      }
+    ],
+    "after": [
+      {
+        "outcome": "ROLLBACK",
+        "queries": 815,
+        "elapsedMs": 736.224,
+        "queryPromiseMs": 616.478,
+        "toSqlMs": 48.568,
+        "compiledStatements": 807,
+        "queryCounts": {
+          "advisoryLockPhases": 5,
+          "recordSelects": 403,
+          "recordUpserts": 202,
+          "obligationUpserts": 201
+        },
+        "errors": [
+          {
+            "code": "P0001",
+            "message": "injected custody rollback"
+          }
+        ]
+      },
+      {
+        "outcome": "COMMIT",
+        "queries": 818,
+        "elapsedMs": 524.337,
+        "queryPromiseMs": 421.64,
+        "toSqlMs": 41.983,
+        "compiledStatements": 810,
+        "queryCounts": {
+          "advisoryLockPhases": 5,
+          "recordSelects": 403,
+          "recordUpserts": 203,
+          "obligationUpserts": 203
+        },
+        "errors": []
+      }
+    ]
+  }
+}

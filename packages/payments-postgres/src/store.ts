@@ -286,13 +286,17 @@ class PostgresPaymentStore implements PaymentStore {
       const state = createEmptyPaymentState();
       const key = versionKey(input), evidence = key === undefined ? undefined : versions.get(key);
       if (key !== undefined && evidence) state.versionEvidence[key] = evidence;
-      const existing = (await this.records.read<InboxRecord>(tx, 'inbox', input.inputId))?.body;
+      // The receipt lock is still held. Include each preceding write in this page so
+      // repeated identities retain the same sequential duplicate/conflict semantics.
+      const existing = existingReceipts.get(input.inputId);
       if (existing) state.inbox[input.inputId] = existing;
       const eventId = input.source.eventId;
       const incomingIdentity = eventIdentityEvidence(input);
       const identity = eventId ? events.get(eventId) : undefined;
       const eventConflict = identity !== undefined && (identity.conflict || compareEventIdentity(identity.evidence, incomingIdentity) === 'conflict');
-      const affected = [...knownRoutes(input), ...(existing ? knownRoutes(existing.input) : []), ...(identity?.evidence.routes ?? [])];
+      const affected = [...new Map([
+        ...knownRoutes(input), ...(existing ? knownRoutes(existing.input) : []), ...(identity?.evidence.routes ?? []),
+      ].map(route => [canonicalJson([route.type, route.id]), route])).values()];
       for (const route of affected) {
         if (route.type === 'transaction') {
           const aggregate = (await this.records.read<TransactionAggregate>(tx, 'transactions', route.id))?.body;
@@ -327,6 +331,7 @@ class PostgresPaymentStore implements PaymentStore {
       const receipt = state.inbox[input.inputId];
       if (!receipt) throw new Error('Admission lost its durable receipt');
       await this.records.write(tx, 'inbox', input.inputId, receipt);
+      existingReceipts.set(input.inputId, receipt);
       // Conflicting representations are retained separately, without replacing the first receipt.
       if (kind === 'conflict') await this.records.write(tx, 'conflictingInputs', digest([input.inputId, input.source.representationDigest]), input);
       for (const [id, aggregate] of Object.entries(state.transactions)) {
