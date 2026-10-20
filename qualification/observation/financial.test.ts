@@ -9,10 +9,15 @@ import { CreditFixture } from '../../tests/fixtures/consumers/index.ts';
 import { fixturePeriod, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '../../packages/payments-paddle/test/fixtures.ts';
 import { deliver, durableWorld, emulatePaddle, producerNamespace, scope, success } from './test-support.ts';
 import { PurchaseReader, ProjectionConfiguration, ProjectionRenderer, purchaseObservationGroup, purchaseProjectionModule, purchaseProjectionDisplayModule, purchaseProjectionDisplayDeclaration, purchaseReadInput, projectionConfigurationInput, projectionRendererInput } from '@agent-teams/payments-get-modular/observation';
-import type { PurchaseObservationCapabilities } from '@agent-teams/payments-get-modular/observation';
-import type { PurchaseProjectionState, PurchaseReadPort } from '@agent-teams/payments-get-modular/observation';
+import type { PurchaseObservationCapabilities, PurchaseProjectionState, PurchaseReadPort } from '@agent-teams/payments-get-modular/observation';
 
-test('packed payments and installed observation: absent, failing and closed screens preserve real T1/T2/T3 delivery and Q100/T25 effects', { timeout: 60_000 }, async t => {
+const compose = (api = assemblyFor<PurchaseObservationCapabilities>()) => api.prepare({
+  profileId: 'qualification/payments-observation', modules: [purchaseObservationGroup],
+  inputs: { read: purchaseReadInput, configuration: projectionConfigurationInput, renderer: projectionRendererInput },
+  roots: { projection: purchaseProjectionModule, display: purchaseProjectionDisplayModule },
+});
+
+void test('packed payments and installed observation: absent, failing and closed screens preserve real T1/T2/T3 delivery and Q100/T25 effects', { timeout: 60_000 }, async t => {
   const transport = emulatePaddle();
   t.after(() => transport.close());
   const world = await durableWorld();
@@ -27,7 +32,8 @@ test('packed payments and installed observation: absent, failing and closed scre
     await world.payments.registerConsumer('access');
     transport.api.intercept({ path: /^\/transactions\??$/u, method: 'POST', headers: { 'paddle-version': '1' } }).reply(201, options => {
       createCalls += 1;
-      const body = JSON.parse(String(options.body)) as { custom_data: { payments: { intentId: string } } };
+      if (typeof options.body !== 'string') {throw new TypeError('Expected serialized SDK JSON body');}
+      const body = JSON.parse(options.body) as { custom_data: { payments: { intentId: string } } };
       return responseFixture(transactionFixture({ intentId: body.custom_data.payments.intentId, status: 'ready', customerRef: null, subscriptionRef: null }));
     });
     const initial = success(await world.payments.startPurchase({ buyerId: 'buyer-a', offerId: 'monthly', requestKey: 'initial' }));
@@ -50,14 +56,9 @@ test('packed payments and installed observation: absent, failing and closed scre
     assert.deepEqual(await world.payments.readDeliveries('access', 100), []);
     assert.equal((await world.access.decisions())[0]?.body.newAction, true);
 
-    const compose = (api = assemblyFor<PurchaseObservationCapabilities>()) => api.prepare({
-      profileId: 'qualification/payments-observation', modules: [purchaseObservationGroup],
-      inputs: { read: purchaseReadInput, configuration: projectionConfigurationInput, renderer: projectionRendererInput },
-      roots: { projection: purchaseProjectionModule, display: purchaseProjectionDisplayModule },
-    });
     const prepared = await compose();
     assert.equal(prepared.status, 'prepared');
-    if (prepared.status !== 'prepared') {throw new Error('Expected a prepared actual Assembly template');}
+
     const a = owner.resources.child({ name: 'screen-a' }), b = owner.resources.child({ name: 'screen-b' });
     const originalQuery = { buyerId: 'buyer-a', intentId: initial.intentId };
     const input = (query: { buyerId: string; intentId: string }, render: (state: PurchaseProjectionState) => undefined) => ({
@@ -70,7 +71,7 @@ test('packed payments and installed observation: absent, failing and closed scre
       renderer: { [ProjectionRenderer.id]: { render } },
     });
     const construction = await smoke({ api: assemblyFor<PurchaseObservationCapabilities>(), compose,
-      inputs: input(originalQuery, () => undefined), at: [purchaseProjectionDisplayDeclaration.implementationId] });
+      inputs: input(originalQuery, () => {}), at: [purchaseProjectionDisplayDeclaration.implementationId] });
     assert.deepEqual(construction.map(step => step.outcome), ['succeeded', 'failed', 'cancelled']);
     for (const step of construction) { assert.equal(step.problem, undefined); assert.equal(step.report.complete, true); }
     assert.equal(createCalls, 1, 'normal, failed and cancelled projection construction cannot dispatch a provider mutation');
@@ -79,18 +80,18 @@ test('packed payments and installed observation: absent, failing and closed scre
       prepared.prepared.run({ scope: b.resources, inputs: input({ buyerId: 'other-buyer', intentId: initial.intentId }, state => { screensB.push(state); }) }),
     ]);
     assert.equal(runA.status, 'succeeded'); assert.equal(runB.status, 'succeeded');
-    if (runA.status !== 'succeeded' || runB.status !== 'succeeded') {throw new Error('Expected two independent actual Assembly runs');}
+
     const first = runA.roots.projection, second = runB.roots.projection;
     assert.notEqual(first, second);
     await settled();
     const readyA = runA.roots.display.current(), readyB = runB.roots.display.current();
     assert.equal(readyA.status, 'ready'); assert.equal(readyB.status, 'ready');
-    if (readyA.status !== 'ready' || readyB.status !== 'ready') {throw new Error('Expected settled read projections');}
+
     assert.equal(readyA.purchase?.intent.intentId, initial.intentId);
-    assert.equal(readyA.purchase?.transactions.find(item => item.transactionRef === initial.transactionRef)?.completion?.total.minorUnits, '1000');
+    assert.equal(readyA.purchase.transactions.find(item => item.transactionRef === initial.transactionRef)?.completion?.total.minorUnits, '1000');
     assert.equal(readyB.purchase, undefined, 'the other buyer does not see the first root purchase');
     const borrowed = borrowedReads.get('buyer-a');
-    assert.ok(borrowed); assert.ok(readyA.purchase);
+    assert.ok(borrowed); assert.notEqual(readyA.purchase, undefined);
     assert.equal(Object.isFrozen(originalQuery), false);
     assert.equal(Object.isFrozen(borrowed.intent), false, 'the projection never takes ownership of the borrowed public read result');
     assert.equal(Object.isFrozen(readyA.purchase.intent), true);
@@ -110,7 +111,8 @@ test('packed payments and installed observation: absent, failing and closed scre
     let topupIntent = '';
     transport.api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, options => {
       createCalls += 1;
-      const body = JSON.parse(String(options.body)) as { custom_data: { payments: { intentId: string } } };
+      if (typeof options.body !== 'string') {throw new TypeError('Expected serialized SDK JSON body');}
+      const body = JSON.parse(options.body) as { custom_data: { payments: { intentId: string } } };
       topupIntent = body.custom_data.payments.intentId;
       return responseFixture(transactionFixture({ id: paddleIds.secondTransaction, intentId: topupIntent, monthly: false, status: 'ready', customerRef: null }));
     });
@@ -118,7 +120,7 @@ test('packed payments and installed observation: absent, failing and closed scre
     await world.ingest('transaction.completed', transactionFixture({ id: topup.transactionRef, intentId: topup.intentId, monthly: false }));
     await deliver(world.payments, 'credits', restartedCredit);
     await deliver(world.payments, 'access', world.access);
-    assert.deepEqual((await restartedCredit.decisions()).map(row => [row.body.bucket, row.body.eligible, row.body.held]).sort(), [['included', '100', '0'], ['purchased', '25', '0']]);
+    assert.deepEqual((await restartedCredit.decisions()).map(row => [row.body.bucket, row.body.eligible, row.body.held]).toSorted((left, right) => left.toString().localeCompare(right.toString())), [['included', '100', '0'], ['purchased', '25', '0']]);
     assert.equal(createCalls, 2, 'one initial and one intentional top-up, despite repeated projection reads and callback failures');
     first.commands.select({ buyerId: 'buyer-a', intentId: topup.intentId });
     const invalidated = first.view.read(['state']).values.state;
@@ -126,7 +128,7 @@ test('packed payments and installed observation: absent, failing and closed scre
     await settled();
     const refreshed = first.view.read(['state']).values.state;
     assert.equal(refreshed.status, 'ready');
-    if (refreshed.status !== 'ready') {throw new Error('Expected explicitly refreshed completed top-up');}
+
     const completedTopup = refreshed.purchase?.transactions.find(item => item.transactionRef === paddleIds.secondTransaction);
     assert.deepEqual({ intentId: refreshed.purchase?.intent.intentId, buyerId: refreshed.purchase?.intent.buyerId,
       transactionRef: completedTopup?.transactionRef, classification: completedTopup?.completion?.classification, total: completedTopup?.completion?.total },
@@ -160,8 +162,8 @@ test('packed payments and installed observation: absent, failing and closed scre
     assert.equal(effects.reduce((total, effect) => total + BigInt(effect.amount), 0n), 225n);
     const renewedAccess = (await world.access.decisions())[0]?.body;
     assert.equal(renewedAccess?.newAction, true);
-    assert.equal(renewedAccess?.paidUntil, '2026-12-01T00:00:00.123456Z', 'renewal extends access after every projection has closed');
-    assert.equal(renewedAccess?.knownLastPeriod?.endsAt, '2026-12-01T00:00:00.123456Z', 'the access owner persists the newly paid period');
+    assert.equal(renewedAccess.paidUntil, '2026-12-01T00:00:00.123456Z', 'renewal extends access after every projection has closed');
+    assert.equal(renewedAccess.knownLastPeriod?.endsAt, '2026-12-01T00:00:00.123456Z', 'the access owner persists the newly paid period');
     assert.equal(success(await world.payments.startPurchase({ buyerId: 'buyer-a', offerId: 'monthly', requestKey: 'initial' })).intentId, initial.intentId);
     assert.equal(createCalls, 2, 'closed optional observation never retries or dispatches financial work');
     assert.deepEqual(await world.payments.readDeliveries('credits', 100), []);

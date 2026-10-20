@@ -47,8 +47,8 @@ function proration(value: unknown, mode: Mode): Field<boolean> {
   });
 }
 function billingCycle(value: unknown, mode: Mode): Field<BillingCycle | null> {
-  return nullable(value, mode, true, value => {
-    const cycle = record(value); return { interval: text(cycle['interval']), frequency: positiveInteger(cycle['frequency']) };
+  return nullable(value, mode, true, current => {
+    const cycle = record(current); return { interval: text(cycle['interval']), frequency: positiveInteger(cycle['frequency']) };
   });
 }
 function nonTrial(value: unknown, mode: Mode): Field<boolean> {
@@ -161,13 +161,13 @@ export function subscriptionObservation(value: unknown, mode: Mode, source: Evid
   return {
     kind: 'subscription', subscriptionRef: id(data['id']), version: timestamp(get(data, mode, 'updated_at', 'updatedAt')),
     status: field(() => text(data['status'])), customerRef: nullable(get(data, mode, 'customer_id', 'customerId'), mode, false, id),
-    scheduledChange: nullable(get(data, mode, 'scheduled_change', 'scheduledChange'), mode, true, value => {
-      const current = record(value); return { action: text(current['action']), effectiveAt: timestamp(get(current, mode, 'effective_at', 'effectiveAt')) };
+    scheduledChange: nullable(get(data, mode, 'scheduled_change', 'scheduledChange'), mode, true, scheduled => {
+      const current = record(scheduled); return { action: text(current['action']), effectiveAt: timestamp(get(current, mode, 'effective_at', 'effectiveAt')) };
     }),
-    currentPeriod: nullable(get(data, mode, 'current_billing_period', 'currentBillingPeriod'), mode, false, value => period(value, mode)),
+    currentPeriod: nullable(get(data, mode, 'current_billing_period', 'currentBillingPeriod'), mode, false, current => period(current, mode)),
     collection: field(() => collectionMethod(get(data, mode, 'collection_mode', 'collectionMode'))),
-    items: field(() => array(data['items']).map(value => {
-      const item = record(value), price = record(item['price']);
+    items: field(() => array(data['items']).map(current => {
+      const item = record(current), price = record(item['price']);
       return { providerPriceRef: id(price['id']), quantity: field(() => positiveInteger(item['quantity'])),
         billingCycle: billingCycle(get(price, mode, 'billing_cycle', 'billingCycle'), mode),
         trial: nonTrial(get(price, mode, 'trial_period', 'trialPeriod'), mode) };
@@ -179,8 +179,8 @@ export function adjustmentObservation(value: unknown, mode: Mode, source: Eviden
   const data = record(value), code = currency(get(data, mode, 'currency_code', 'currencyCode')), totals = record(data['totals']);
   if (currency(get(totals, mode, 'currency_code', 'currencyCode')) !== code) {throw new TypeError('Adjustment currency mismatch');}
   const allocationIds = new Set<string>();
-  const allocations = array(data['items']).map(value => {
-    const item = record(value), allocationId = id(item['id']);
+  const allocations = array(data['items']).map(current => {
+    const item = record(current), allocationId = id(item['id']);
     if (allocationIds.has(allocationId)) {throw new TypeError('Duplicate adjustment item');}
     allocationIds.add(allocationId);
     return { providerLineRef: id(get(item, mode, 'item_id', 'itemId')), providerAllocationRef: allocationId, type: text(item['type']),

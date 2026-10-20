@@ -24,6 +24,10 @@ function providerId(value: unknown, prefix: string): string { const result = str
 function json(value: unknown): JsonValue { return JSON.parse(canonicalJson(value)) as JsonValue; }
 function rawDigest(value: string): string { return createHash('sha256').update(value, 'utf8').digest('hex'); }
 function httpsUrl(value: unknown): string { const result = string(value), parsed = new URL(result); if (parsed.protocol !== 'https:' || parsed.username || parsed.password) {throw new TypeError('Invalid provider URL');} return result; }
+function checkoutInstructions(value: unknown): Readonly<{ url?: string }> {
+  const hasUrl = Boolean(value);
+  return hasUrl ? { url: httpsUrl(value) } : {};
+}
 function placeholderSource(query?: JsonValue): EvidenceSource {
   return { kind: 'authenticated_api', receiptId: '', representationDigest: '', decoderVersion: PADDLE_DECODER_VERSION, sdkVersion: SDK_VERSION, apiProfile: PADDLE_API_PROFILE, ...(query === undefined ? {} : { query }) };
 }
@@ -48,7 +52,7 @@ function envelope(value: unknown): Readonly<{ eventId: string; eventType: string
 function validateOffer(offer: OfferSnapshot, scope: PaymentScope): void {
   if (offer.applicationId !== scope.applicationId || offer.lines.length !== 1 || !['one_time', 'monthly'].includes(offer.profile) || !/^[A-Z]{3}$/u.test(offer.currency)) {throw new TypeError('Unsupported offer');}
   const line = offer.lines[0];
-  if (line === undefined || line.quantity !== 1) {throw new TypeError('Unsupported quantity');}
+  if (line === undefined || object(line)['quantity'] !== 1) {throw new TypeError('Unsupported quantity');}
   providerId(line.providerPriceRef, 'pri'); assertIdentifier(line.benefitSlotId); assertIdentifier(offer.offerId); assertIdentifier(offer.version);
 }
 
@@ -60,7 +64,8 @@ export class PaddlePaymentProvider implements PaymentProvider {
 
   constructor(options: PaddleProviderOptions) {
     assertScope(options.scope);
-    if (options.scope.provider !== 'paddle' || options.apiVersion !== 1 || (options.webhook !== undefined && options.webhook.apiVersion !== 1)) {throw new TypeError('Unsupported Paddle API profile');}
+    const configuration = object(options), webhook = configuration['webhook'];
+    if (options.scope.provider !== 'paddle' || configuration['apiVersion'] !== 1 || (webhook !== undefined && object(webhook)['apiVersion'] !== 1)) {throw new TypeError('Unsupported Paddle API profile');}
     if (!options.apiKey) {throw new TypeError('Paddle API key is required');}
     if (options.webhook !== undefined) { assertIdentifier(options.webhook.endpointId); if (!options.webhook.secret) {throw new TypeError('Webhook secret is required');} }
     this.scope = Object.freeze({ ...options.scope }); this.#options = options;
@@ -74,7 +79,7 @@ export class PaddlePaymentProvider implements PaymentProvider {
       const result = await this.#sdk.transactions.create({ items: input.offer.lines.map(line => ({ priceId: line.providerPriceRef, quantity: 1 })), currencyCode: input.offer.currency as CurrencyCode, collectionMode: 'automatic',
         customData: { payments: { applicationId: this.scope.applicationId, paymentAccountId: this.scope.paymentAccountId, environment: this.scope.environment, intentId: input.intentId, attemptId: input.attemptId } } });
       const transactionRef = providerId(result.id, 'txn');
-      return { kind: 'succeeded', value: { intentId: input.intentId, transactionRef, checkout: result.checkout?.url ? { url: httpsUrl(result.checkout.url) } : {} } };
+      return { kind: 'succeeded', value: { intentId: input.intentId, transactionRef, checkout: checkoutInstructions(result.checkout?.url) } };
     } catch (error) { return translatePaddleError(error, true); }
   }
 
@@ -110,12 +115,13 @@ export class PaddlePaymentProvider implements PaymentProvider {
 
   async cancelSubscription(input: Readonly<{ subscriptionRef: string; timing: 'now' | 'period_end'; attemptId: string }>): Promise<ProviderResult<CancellationOutcome>> {
     try { providerId(input.subscriptionRef, 'sub'); assertIdentifier(input.attemptId); } catch { return { kind: 'rejected', code: 'validation' }; }
-    if (input.timing !== 'now' && input.timing !== 'period_end') {return { kind: 'unsupported', capability: 'cancellation_timing' };}
+    const timing = object(input)['timing'];
+    if (timing !== 'now' && timing !== 'period_end') {return { kind: 'unsupported', capability: 'cancellation_timing' };}
     try {
-      const result = await this.#sdk.subscriptions.cancel(input.subscriptionRef, { effectiveFrom: input.timing === 'now' ? 'immediately' : 'next_billing_period' });
+      const result = await this.#sdk.subscriptions.cancel(input.subscriptionRef, { effectiveFrom: timing === 'now' ? 'immediately' : 'next_billing_period' });
       if (result.id !== input.subscriptionRef) {return { kind: 'outcome_unknown' };}
-      if (input.timing === 'now' && result.status === 'canceled') {return { kind: 'succeeded', value: { kind: 'applied', observedStatus: result.status } };}
-      if (input.timing === 'period_end' && result.status !== 'canceled' && result.scheduledChange?.action === 'cancel') {
+      if (timing === 'now' && result.status === 'canceled') {return { kind: 'succeeded', value: { kind: 'applied', observedStatus: result.status } };}
+      if (timing === 'period_end' && result.status !== 'canceled' && result.scheduledChange?.action === 'cancel') {
         exactTime(result.scheduledChange.effectiveAt);
         return { kind: 'succeeded', value: { kind: 'scheduled', effectiveAt: result.scheduledChange.effectiveAt } };
       }
@@ -129,7 +135,7 @@ export class PaddlePaymentProvider implements PaymentProvider {
       // This GET can create a transaction. It deliberately shares mutation uncertainty handling.
       const result = await this.#sdk.subscriptions.getPaymentMethodChangeTransaction(input.subscriptionRef);
       if (result.subscriptionId !== input.subscriptionRef || !['subscription_payment_method_change', 'subscription_recurring'].includes(result.origin)) {return { kind: 'outcome_unknown' };}
-      return { kind: 'succeeded', value: { intentId: input.intentId, transactionRef: providerId(result.id, 'txn'), purpose: result.origin === 'subscription_recurring' ? 'recovery' : 'payment_method', checkout: result.checkout?.url ? { url: httpsUrl(result.checkout.url) } : {} } };
+      return { kind: 'succeeded', value: { intentId: input.intentId, transactionRef: providerId(result.id, 'txn'), purpose: result.origin === 'subscription_recurring' ? 'recovery' : 'payment_method', checkout: checkoutInstructions(result.checkout?.url) } };
     } catch (error) { return translatePaddleError(error, true); }
   }
 

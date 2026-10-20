@@ -46,17 +46,17 @@ export function subscriptionFixture(options: Readonly<{ status?: string; schedul
     currency_code: 'USD', created_at: fixtureTime, updated_at: options.version ?? fixtureTime, started_at: fixtureTime, first_billed_at: fixtureTime, next_billed_at: fixturePeriod.ends_at,
     paused_at: null, canceled_at: options.status === 'canceled' ? fixtureTime : null, discount: null, collection_mode: options.collectionMode ?? 'automatic', billing_details: options.collectionMode === 'manual' ? { enable_checkout: false, purchase_order_number: '', additional_information: null, payment_terms: { interval: 'day', frequency: 14 } } : null,
     current_billing_period: options.status === 'canceled' ? null : { ...fixturePeriod }, billing_cycle: { interval: 'month', frequency: 1 },
-    scheduled_change: options.scheduled ? { action: 'cancel', effective_at: fixturePeriod.ends_at, resume_at: null } : null, management_urls: null,
-    items: [{ status: 'active', ...(options.omitQuantity ? {} : { quantity: options.quantity ?? 1 }), recurring: true, created_at: fixtureTime, updated_at: fixtureTime, previously_billed_at: fixtureTime, next_billed_at: fixturePeriod.ends_at, trial_dates: null, price: priceFixture(options.monthly, options.trial, options.maximumQuantity), product: productFixture() }],
+    scheduled_change: options.scheduled === true ? { action: 'cancel', effective_at: fixturePeriod.ends_at, resume_at: null } : null, management_urls: null,
+    items: [{ status: 'active', ...(options.omitQuantity === true ? {} : { quantity: options.quantity ?? 1 }), recurring: true, created_at: fixtureTime, updated_at: fixtureTime, previously_billed_at: fixtureTime, next_billed_at: fixturePeriod.ends_at, trial_dates: null, price: priceFixture(options.monthly, options.trial, options.maximumQuantity), product: productFixture() }],
     custom_data: null, import_meta: null,
   };
 }
 
 export function adjustmentFixture(options: Readonly<{ id?: string; transactionRef?: string; status?: string; action?: string; total?: string; version?: string; partial?: boolean }> = {}): FixtureObject {
   const total = options.total ?? '1000';
-  return { id: options.id ?? paddleIds.adjustment, action: options.action ?? 'refund', type: options.partial ? 'partial' : 'full', transaction_id: options.transactionRef ?? paddleIds.transaction,
+  return { id: options.id ?? paddleIds.adjustment, action: options.action ?? 'refund', type: options.partial === true ? 'partial' : 'full', transaction_id: options.transactionRef ?? paddleIds.transaction,
     subscription_id: paddleIds.subscription, customer_id: paddleIds.customer, reason: 'Synthetic fixture adjustment', credit_applied_to_balance: false, currency_code: 'USD', status: options.status ?? 'approved',
-    items: [{ id: paddleIds.allocation, item_id: paddleIds.line, type: options.partial ? 'partial' : 'full', amount: options.partial ? total : null, proration: null, totals: { subtotal: total, tax: '0', total } }],
+    items: [{ id: paddleIds.allocation, item_id: paddleIds.line, type: options.partial === true ? 'partial' : 'full', amount: options.partial === true ? total : null, proration: null, totals: { subtotal: total, tax: '0', total } }],
     totals: { subtotal: total, tax: '0', total, fee: '0', earnings: total, currency_code: 'USD', retained_fee: '0' }, payout_totals: null,
     created_at: fixtureTime, updated_at: options.version ?? fixtureTime,
   };

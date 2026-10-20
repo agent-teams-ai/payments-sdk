@@ -4,10 +4,10 @@ import { createScope } from '@get-modular/resources';
 import type { ListenerError } from '@get-modular/observation';
 import { delivered, liveSubscriptions, settled } from '@get-modular/observation/testing';
 import { createPurchaseProjection } from '@agent-teams/payments-get-modular/observation';
-import type { PurchaseProjectionState } from '@agent-teams/payments-get-modular/observation';
+import type { PurchaseProjectionState, PurchaseQuery } from '@agent-teams/payments-get-modular/observation';
 import { durableWorld } from './test-support.ts';
 
-test('projection supersession and close await actual PostgreSQL reads plus cleanup; obsolete results never publish', { timeout: 30_000 }, async () => {
+void test('projection supersession and close await actual PostgreSQL reads plus cleanup; obsolete results never publish', { timeout: 30_000 }, async () => {
   const world = await durableWorld();
   const owner = createScope({ name: 'projection-read-lifetime' });
   const physicalRead = Promise.withResolvers<void>(), releaseRead = Promise.withResolvers<void>();
@@ -58,11 +58,12 @@ test('projection supersession and close await actual PostgreSQL reads plus clean
     assert.equal(maximumConcurrent, 1, 'abort is not treated as physical cancellation');
     const ready = projection.view.read(['state']).values.state;
     assert.equal(ready.status, 'ready');
-    if (ready.status !== 'ready') {throw new Error('Expected the newest real read to settle');}
+
     assert.deepEqual(ready.query, { buyerId: 'other-buyer', intentId: 'newest' });
     assert.equal(ready.purchase, undefined);
     assert.deepEqual(states.flatMap(state => state.status === 'ready' ? [state.query.intentId] : []), ['newest'], 'a newer query committed before old publication suppresses every obsolete ready state');
-    projection.commands.select(undefined);
+    const clearedQuery: PurchaseQuery | undefined = undefined;
+    projection.commands.select(clearedQuery);
     assert.deepEqual(projection.view.read(['state']).values.state, { status: 'idle' }, 'clearing a selection synchronously removes the prior buyer/intent value');
     await settled();
     assert.deepEqual(calls, ['old', 'newest'], 'an idle projection does not dispatch an invented read');

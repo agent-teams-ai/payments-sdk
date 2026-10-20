@@ -1,6 +1,8 @@
 import type { ListenerError, ReadonlyStore, Snapshot } from '@get-modular/observation';
 import type { Resources } from '@get-modular/resources';
-import type { PurchaseProjection, PurchaseProjectionRecord, PurchaseProjectionState, PurchaseReadPort } from '@agent-teams/payments-get-modular/observation';
+import type { PurchaseProjection, PurchaseProjectionRecord, PurchaseProjectionState, PurchaseQuery, PurchaseReadPort } from '@agent-teams/payments-get-modular/observation';
+
+const voidHandler = (_next: Snapshot<PurchaseProjectionRecord, 'state'>): void => {};
 
 /** Strict compiler probes only: never invoke this function at run time. */
 export function observationSurface(
@@ -14,22 +16,22 @@ export function observationSurface(
   view.watch(snapshot, { resources, name: 'surface/state', onChange: ({ values }) => { void values.state.status; } });
   projection.commands.select({ buyerId: 'buyer', intentId: 'intent' });
   projection.commands.refresh();
-  projection.commands.select(undefined);
+  const clearedQuery: PurchaseQuery | undefined = undefined;
+  projection.commands.select(clearedQuery);
   void reader.readPurchase('buyer', 'intent');
   // @ts-expect-error Only observation creates branded callback error reports.
   reportError({ source: 'source', subscription: 'subscriber', revision: 0, cause: 'failure' });
 
   // @ts-expect-error A subscriber cannot become the store's writer.
-  view.set({ state: { status: 'idle' } });
+  void ('set' satisfies keyof typeof view);
   // @ts-expect-error A subscriber has no source lifetime control.
-  view.close();
+  void ('close' satisfies keyof typeof view);
   // @ts-expect-error Read-only composition cannot dispatch a checkout.
-  reader.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'key' });
+  void ('startPurchase' satisfies keyof PurchaseReadPort);
   // @ts-expect-error A projection has no durable financial acknowledgement authority.
-  projection.commands.acknowledgeDelivery('consumer', 'message', 'digest');
+  void ('acknowledgeDelivery' satisfies keyof PurchaseProjection['commands']);
   // @ts-expect-error Observation handlers must synchronously return undefined, never a promise.
   view.watch(snapshot, { resources, name: 'surface/async', onChange: async () => {} });
-  const voidHandler = (_next: Snapshot<PurchaseProjectionRecord, 'state'>): void => {};
   // @ts-expect-error A void-returning callback is not the explicit undefined-return contract.
   view.watch(snapshot, { resources, name: 'surface/void', onChange: voidHandler });
   // @ts-expect-error Snapshots must come from the real facet, not a hand-built record.
@@ -42,7 +44,7 @@ export function observationSurface(
     // @ts-expect-error Projected read values are deeply readonly copies.
     snapshot.values.state.purchase.intent.buyerId = 'other';
     // @ts-expect-error A readonly purchase cannot acquire additional transactions.
-    snapshot.values.state.purchase.transactions.push(snapshot.values.state.purchase.transactions[0]);
+    void ('push' satisfies keyof typeof snapshot.values.state.purchase.transactions);
   }
   if (snapshot.values.state.status === 'ready') {
     view.watch(snapshot, {

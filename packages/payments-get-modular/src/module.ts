@@ -29,7 +29,7 @@ export const paymentsModule = implement<PaymentsCapabilities>()(paymentsDeclarat
       if (resources.signal.aborted) {return Promise.reject(resources.signal.reason);}
       const task = call(...args);
       active.add(task);
-      void task.finally(() => active.delete(task)).catch(() => undefined);
+      void task.finally(() => active.delete(task)).catch(() => {});
       return task;
     };
   }

@@ -103,7 +103,7 @@ export function createPurchaseProjection(
     loader: async ({ values }, { signal }) => {
       signal.throwIfAborted();
       const query = values.request.query;
-      if (query === undefined) {return undefined;}
+      if (query === undefined) {return;}
       // readPurchase has no cancellation contract. Await its physical settlement, including the
       // reader's cleanup, even when superseded. Never race it against the observation signal.
       const purchase = await configuration.read.readPurchase(query.buyerId, query.intentId);
