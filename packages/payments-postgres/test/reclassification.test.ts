@@ -3,7 +3,7 @@ import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { canonicalJson, createPayments, money, objectVersionKey, processInput, publishEvidence, reduceObservation } from '@agent-teams/payments-core';
 import type { AdjustmentObservation, CheckoutReady, EvidenceMessage, PaymentReadVersion, PaymentStore, ProviderResult, SubscriptionReclassification, TransactionAggregate, VerifiedInput } from '@agent-teams/payments-core';
-import { bootstrapPostgresPaymentJobs, createPostgresPaymentJobs, createPostgresPaymentStore } from '../dist/index.js';
+import { bootstrapPostgresPaymentJobs, createPostgresPaymentJobs, createPostgresPaymentStore, PaymentJobHandlerError } from '../dist/index.js';
 import { at, databaseFixture, deferred, known, observe, offer, receipt, runtime, scope, success, transaction } from './helpers.ts';
 
 type Context = ReturnType<typeof runtime>;
@@ -228,7 +228,8 @@ for (const maxAttempts of [1, 2]) test(`ordinary renewal preserves exact reclass
     const bindingId = await selectedInitial(context), decision = await cursor(f, bindingId);
     await bootstrapPostgresPaymentJobs(namespace);
     let attempts = 0;
-    f.store.processReclassification = async () => { attempts += 1; throw new Error('persistent fault'); };
+    const persistentFault = new Error('persistent fault');
+    f.store.processReclassification = async () => { attempts += 1; throw persistentFault; };
     jobs = createPostgresPaymentJobs({ ...namespace, maxAttempts, cooldownSeconds: 30, maxCooldownSeconds: 30, pollingIntervalSeconds: 0.5 });
     await jobs.start({ payments: context.payments, store: f.store });
     await untilPersisted(async () => (await workDisposition(f, bindingId))?.issue === 'handler_failed', 'worker must persist its fault');
@@ -246,7 +247,12 @@ for (const maxAttempts of [1, 2]) test(`ordinary renewal preserves exact reclass
     await select(context, bindingId, 'sub-a');
     const replacement = await workDisposition(f, bindingId); assert.ok(replacement); assert.equal(replacement.state, 'pending'); assert.equal(replacement.attempts, 0); assert.equal(replacement.issue, null);
     assert.equal((await cursor(f, bindingId))?.decisionRevision, (decision?.decisionRevision ?? 0) + 1);
-    assert.ok(BigInt(replacement.revision) > BigInt(redriven.revision)); assert.deepEqual(errors, []);
+    assert.ok(BigInt(replacement.revision) > BigInt(redriven.revision));
+    assert.equal(errors.length, 1);
+    const diagnostic = errors[0]; assert.ok(diagnostic instanceof PaymentJobHandlerError);
+    assert.equal(diagnostic.cause, persistentFault);
+    assert.deepEqual(diagnostic.work, { kind: 'reclassification', id: bindingId });
+    assert.equal(diagnostic.attempt, 1);
   } finally { await jobs?.stop(); await jobs?.drain(); await context.payments.drain(); await f.pool.query(`DROP SCHEMA IF EXISTS "${jobSchema}" CASCADE`); await f.close(); }
 });
 
@@ -259,7 +265,12 @@ test('an old failed claimant cannot quarantine replacement work claimed again at
     const bindingId = await selectedInitial(context);
     await bootstrapPostgresPaymentJobs(namespace);
     let calls = 0;
-    f.store.processReclassification = async () => { calls += 1; if (calls === 1) { enteredOld.resolve(); await releaseOld.promise; } else { enteredNew.resolve(); await releaseNew.promise; } throw new Error('generation fault'); };
+    const oldFault = new Error('old generation fault'), replacementFault = new Error('replacement generation fault');
+    f.store.processReclassification = async () => {
+      calls += 1;
+      if (calls === 1) { enteredOld.resolve(); await releaseOld.promise; throw oldFault; }
+      enteredNew.resolve(); await releaseNew.promise; throw replacementFault;
+    };
     jobs = createPostgresPaymentJobs({ ...namespace, concurrency: 2, maxAttempts: 1, cooldownSeconds: 30, maxCooldownSeconds: 30, pollingIntervalSeconds: 0.5 });
     await jobs.repair(100);
     const oldId = (await f.pool.query<{ id: string }>(`SELECT id FROM "${jobSchema}".job WHERE data ->> 'kind' = 'reclassification'`)).rows[0]?.id; assert.ok(oldId);
@@ -279,7 +290,13 @@ test('an old failed claimant cannot quarantine replacement work claimed again at
     const replacedFault = await workDisposition(f, bindingId); assert.ok(replacedFault);
     assert.equal(replacedFault.state, 'pending'); assert.equal(replacedFault.attempts, 0); assert.equal(replacedFault.issue, null);
     assert.equal((await cursor(f, bindingId))?.decisionRevision, 3, 'a genuine new decision directly replaces the prior quarantined generation');
-    assert.deepEqual(errors, []);
+    assert.equal(errors.length, 2);
+    for (const [index, cause] of [oldFault, replacementFault].entries()) {
+      const diagnostic = errors[index]; assert.ok(diagnostic instanceof PaymentJobHandlerError);
+      assert.equal(diagnostic.cause, cause);
+      assert.deepEqual(diagnostic.work, { kind: 'reclassification', id: bindingId });
+      assert.equal(diagnostic.attempt, 1, 'each generation owns its first logical attempt');
+    }
   } finally { releaseOld.resolve(); releaseNew.resolve(); await jobs?.stop(); await jobs?.drain(); await context.payments.drain(); await f.pool.query(`DROP SCHEMA IF EXISTS "${jobSchema}" CASCADE`); await f.close(); }
 });
 
