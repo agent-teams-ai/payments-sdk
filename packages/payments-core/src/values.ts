@@ -1,24 +1,25 @@
 import { createHash } from 'node:crypto';
 import type { ExactTime, Money, Observation, PaymentOperation, PaymentScope, PaymentState } from './contracts.js';
 
+function canonicalValue(input: unknown): unknown {
+  if (input === null || typeof input === 'string' || typeof input === 'boolean') {return input;}
+  if (typeof input === 'number' && Number.isFinite(input)) {return input;}
+  if (Array.isArray(input)) {return input.map(canonicalValue);}
+  if (typeof input === 'object') {return Object.fromEntries(Object.entries(input).filter(([, item]) => item !== undefined).toSorted(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, item]) => [key, canonicalValue(item)]));}
+  throw new TypeError('Value is not canonical JSON');
+}
 export function canonicalJson(value: unknown): string {
-  const visit = (input: unknown): unknown => {
-    if (input === null || typeof input === 'string' || typeof input === 'boolean') {return input;}
-    if (typeof input === 'number' && Number.isFinite(input)) {return input;}
-    if (Array.isArray(input)) {return input.map(visit);}
-    if (typeof input === 'object' && input !== null) {return Object.fromEntries(Object.entries(input).filter(([, item]) => item !== undefined).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, item]) => [key, visit(item)]));}
-    throw new TypeError('Value is not canonical JSON');
-  };
-  return JSON.stringify(visit(value));
+  return JSON.stringify(canonicalValue(value));
 }
 export function digest(value: unknown): string { return createHash('sha256').update(canonicalJson(value)).digest('hex'); }
 export function scopeKey(scope: PaymentScope): string { return canonicalJson([scope.applicationId, scope.provider, scope.paymentAccountId, scope.environment]); }
 export function sameScope(a: PaymentScope, b: PaymentScope): boolean { return scopeKey(a) === scopeKey(b); }
-export function assertScope(scope: PaymentScope): void {
+export function assertScope(scope: unknown): asserts scope is PaymentScope {
+  if (scope === null || typeof scope !== 'object' || !('applicationId' in scope) || !('provider' in scope) || !('paymentAccountId' in scope) || !('environment' in scope)) {throw new TypeError('Invalid payment scope');}
   for (const field of [scope.applicationId, scope.provider, scope.paymentAccountId]) {assertIdentifier(field);}
   if (scope.environment !== 'sandbox' && scope.environment !== 'production') {throw new TypeError('Invalid environment');}
 }
-export function assertIdentifier(value: string): void { if (typeof value !== 'string' || value.length === 0 || value.length > 256 || [...value].some(character => character.charCodeAt(0) < 32)) {throw new TypeError('Invalid bounded identifier');} }
+export function assertIdentifier(value: unknown): asserts value is string { if (typeof value !== 'string' || value.length === 0 || value.length > 256 || Array.from(value).some(character => character.charCodeAt(0) < 32)) {throw new TypeError('Invalid bounded identifier');} }
 export function money(currency: string, minorUnits: string): Money {
   if (!/^[A-Z]{3}$/u.test(currency) || !/^-?(0|[1-9][0-9]{0,77})$/u.test(minorUnits) || minorUnits === '-0') {throw new TypeError('Invalid exact money');}
   return Object.freeze({ currency, minorUnits });
@@ -54,10 +55,10 @@ export function createEmptyPaymentState(): PaymentState {
   return { revision: 0, recoveryFenced: false, intents: {}, operations: {}, requestKeys: {}, bindings: {}, subscriptionBindings: {}, reclassifications: {}, transactions: {}, subscriptions: {}, versionEvidence: {}, inbox: {}, evidence: {}, deliveries: {}, consumers: [], scans: {}, issues: [] };
 }
 
+function operationCommand(operation: PaymentOperation) { return { operationId: operation.operationId, kind: operation.kind, buyerId: operation.buyerId, requestKey: operation.requestKey, fingerprint: operation.fingerprint, intentId: operation.intentId, subscriptionBindingId: operation.subscriptionBindingId, providerSubscriptionRef: operation.providerSubscriptionRef, timing: operation.timing }; }
 /** Mutable lifecycle commits cannot change the immutable command or its external subject. */
 export function sameOperationCommand(a: PaymentOperation, b: PaymentOperation): boolean {
-  const command = (operation: PaymentOperation) => ({ operationId: operation.operationId, kind: operation.kind, buyerId: operation.buyerId, requestKey: operation.requestKey, fingerprint: operation.fingerprint, intentId: operation.intentId, subscriptionBindingId: operation.subscriptionBindingId, providerSubscriptionRef: operation.providerSubscriptionRef, timing: operation.timing });
-  return canonicalJson(command(a)) === canonicalJson(command(b));
+  return canonicalJson(operationCommand(a)) === canonicalJson(operationCommand(b));
 }
 
 /** Per-version certified summary bound; immutable receipts remain separately retained in custody. */

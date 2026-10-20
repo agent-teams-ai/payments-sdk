@@ -21,14 +21,15 @@ export type PaymentReconcilerOptions = Readonly<{ scope: PaymentScope; store: Pa
 export function reconciliationFingerprint(scope: PaymentScope, epoch: string, query: ReconciliationQuery): string { return digest([scope, epoch, query]); }
 function validateQuery(query: ReconciliationQuery, maxWindow: number): void {
   assertIdentifier(query.queryVersion);
+  const kind: unknown = query.kind;
+  if (kind !== 'events' && kind !== 'adjustments') {throw new TypeError('Unsupported reconciliation query');}
   if (query.kind === 'events') {
     exactTime(query.from); exactTime(query.to);
     if (compareTime(query.from, query.to) >= 0 || Date.parse(query.to) - Date.parse(query.from) > maxWindow) {throw new RangeError('Invalid bounded event window');}
     if (query.eventType !== undefined) {assertIdentifier(query.eventType);}
     if (!['catch_up', 'retention_sweep'].includes(query.purpose)) {throw new TypeError('Invalid scan purpose');}
     if (!Number.isInteger(query.perPage) || query.perPage < 1 || query.perPage > 200) {throw new RangeError('Invalid page bound');}
-  } else if (query.kind === 'adjustments') {assertIdentifier(query.transactionRef);}
-  else {throw new TypeError('Unsupported reconciliation query');}
+  } else {assertIdentifier(query.transactionRef);}
 }
 function validateInput(scope: PaymentScope, input: VerifiedInput): void {
   assertIdentifier(input.inputId);
@@ -47,7 +48,7 @@ function validatePage(scope: PaymentScope, checkpoint: ScanCheckpoint, page: Ext
     const observationId = query.kind === 'events' ? input.source.eventId : input.observation.kind === 'adjustment' ? input.observation.adjustmentRef : undefined;
     const id = page.ids?.[index] ?? observationId;
     if (observationId !== undefined && id !== observationId) {throw new TypeError('Page ID contradicts observation');}
-    if (!id || previous !== undefined && id <= previous) {throw new TypeError('Nonprogressing page');}
+    if (!(typeof id === 'string' && id.length > 0) || previous !== undefined && id <= previous) {throw new TypeError('Nonprogressing page');}
     assertIdentifier(id); previous = id;
     if (query.kind === 'events' && (input.source.eventType === undefined || query.eventType !== undefined && input.source.eventType !== query.eventType)) {throw new TypeError('Event type mismatch');}
     if (query.kind === 'adjustments' && ((input.observation.kind !== 'adjustment' && input.observation.kind !== 'unsupported') || input.observation.transactionRef !== query.transactionRef || input.adverseTransactionRef !== query.transactionRef)) {throw new TypeError('Adjustment subject mismatch');}
@@ -75,7 +76,7 @@ export function createPaymentReconciler(options: PaymentReconcilerOptions) {
     const id = typeof scan === 'string' ? scan : scan.scanId; assertIdentifier(id);
     const current = await store.readCheckpoint(scope, id);
     // A caller holding an old epoch/query/cursor cannot accidentally resume a replacement scan.
-    if (current && typeof scan !== 'string' && canonicalJson(current) !== canonicalJson(scan)) {return undefined;}
+    if (current && typeof scan !== 'string' && canonicalJson(current) !== canonicalJson(scan)) {return;}
     return current;
   }
   async function beginScan(input: Readonly<{ scanId: string; epoch: string; query: ReconciliationQuery }>): Promise<ScanResult> {
@@ -124,7 +125,7 @@ export function createPaymentReconciler(options: PaymentReconcilerOptions) {
     let exhausted = checkpoints.every(checkpoint => checkpoint?.status === 'complete');
     for (const eventType of input.requiredEventTypes ?? []) {
       assertIdentifier(eventType);
-      const windows = checkpoints.flatMap(checkpoint => checkpoint?.status === 'complete' && checkpoint.query?.kind === 'events' && checkpoint.query.eventType === eventType ? [checkpoint.query] : []).sort((a, b) => compareTime(a.from, b.from));
+      const windows = checkpoints.flatMap(checkpoint => checkpoint?.status === 'complete' && checkpoint.query?.kind === 'events' && checkpoint.query.eventType === eventType ? [checkpoint.query] : []).toSorted((a, b) => compareTime(a.from, b.from));
       if (input.from === undefined || input.to === undefined) {throw new TypeError('Required event coverage needs a fixed window');}
       let through = input.from, started = false;
       for (const window of windows) {
@@ -138,7 +139,7 @@ export function createPaymentReconciler(options: PaymentReconcilerOptions) {
       exactTime(input.historyAvailableFrom);
       if (input.from !== undefined && compareTime(input.from, input.historyAvailableFrom) < 0) { exhausted = false; limitations.push('requested_history_precedes_provider_availability'); }
     }
-    return { status: exhausted ? 'queries_exhausted' : 'incomplete', historyComplete: false, limitations, scans: input.scanIds.map((scanId, index) => ({ scanId, status: checkpoints[index]?.status ?? 'missing', ...(checkpoints[index]?.issue === undefined ? {} : { issue: checkpoints[index]!.issue! }) })) };
+    return { status: exhausted ? 'queries_exhausted' : 'incomplete', historyComplete: false, limitations, scans: input.scanIds.map((scanId, index) => { const checkpoint = checkpoints[index]; return { scanId, status: checkpoint?.status ?? 'missing', ...(checkpoint?.issue === undefined ? {} : { issue: checkpoint.issue }) }; }) };
   }
   return { beginScan, resumeScan, retryScan, coverage };
 }

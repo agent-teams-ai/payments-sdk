@@ -10,20 +10,20 @@ function flag(target: FlaggedEvidence, value: EvidenceFlag): void {
 }
 function removeFlag(target: FlaggedEvidence, value: EvidenceFlag): void {
   if (target.retainedFlags) {target.retainedFlags = target.retainedFlags.filter(item => item !== value);}
-  target.flags = target.flags.filter(item => item !== value || target.currentProfileFlags?.includes(item));
+  target.flags = target.flags.filter(item => item !== value || target.currentProfileFlags?.includes(item) === true);
 }
 function setCurrentProfileFlags(target: FlaggedEvidence, flags: EvidenceFlag[]): void {
   // Existing persisted flags and independently added controls remain historical. A matching
   // historical flag must survive even when a current profile hold with the same name resolves.
-  target.retainedFlags = [...new Set([...(target.retainedFlags ?? []), ...target.flags.filter(item => !target.currentProfileFlags?.includes(item))])];
+  target.retainedFlags = [...new Set([...(target.retainedFlags ?? []), ...target.flags.filter(item => !(target.currentProfileFlags?.includes(item) === true))])];
   target.currentProfileFlags = [...new Set(flags)];
   target.flags = [...new Set([...target.retainedFlags, ...target.currentProfileFlags])];
 }
-function transactionStatusFlags(observation: TransactionObservation): EvidenceFlag[] {
+function transactionStatusFlags(observation: Readonly<{ statusMeaning?: TransactionObservation['statusMeaning'] }>): EvidenceFlag[] {
   switch (observation.statusMeaning?.kind) {
     case 'completed': case 'not_completed': return [];
     case 'unsupported': return ['unsupported'];
-    default: return ['incomplete'];
+    case undefined: default: return ['incomplete'];
   }
 }
 export function transactionAggregate(state: PaymentState, ref: string): TransactionAggregate {
@@ -37,6 +37,9 @@ function semantic(value: unknown): unknown {
   if (value !== null && typeof value === 'object') {return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'provenance' && key !== 'source').map(([key, item]) => [key, ((key === 'version' && 'kind' in value) || ['startsAt', 'endsAt', 'effectiveAt'].includes(key)) && typeof item === 'string' ? { seconds: exactTime(item).seconds, fraction: exactTime(item).fraction } : semantic(item)]));}
   return value;
 }
+function sortedCompatibleValues(values: readonly unknown[]): readonly unknown[] {
+  return values.toSorted((x, y) => canonicalJson(x !== null && typeof x === 'object' && 'providerLineRef' in x ? x.providerLineRef : x).localeCompare(canonicalJson(y !== null && typeof y === 'object' && 'providerLineRef' in y ? y.providerLineRef : y)));
+}
 function compatible(a: unknown, b: unknown): boolean {
   if (a === undefined || b === undefined) {return true;}
   if (a !== null && b !== null && typeof a === 'object' && typeof b === 'object' && 'presence' in a && 'presence' in b) {
@@ -45,8 +48,7 @@ function compatible(a: unknown, b: unknown): boolean {
   }
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) {return false;}
-    const sort = (values: unknown[]): unknown[] => [...values].sort((x, y) => canonicalJson(x !== null && typeof x === 'object' && 'providerLineRef' in x ? x.providerLineRef : x).localeCompare(canonicalJson(y !== null && typeof y === 'object' && 'providerLineRef' in y ? y.providerLineRef : y)));
-    return sort(a).every((item, index) => compatible(item, sort(b)[index]));
+    return sortedCompatibleValues(a).every((item, index) => compatible(item, sortedCompatibleValues(b)[index]));
   }
   if (a !== null && b !== null && typeof a === 'object' && typeof b === 'object') {
     const aa = a as Record<string, unknown>, bb = b as Record<string, unknown>;
@@ -63,8 +65,9 @@ function mergeFields<T>(oldValue: T, newValue: T): T {
       if (oldValue.presence === 'unknown') {return newValue;}
     }
     if (Array.isArray(oldValue) && Array.isArray(newValue)) {
-      return newValue.map((item, index) => {
-        const previous = item !== null && typeof item === 'object' && 'providerLineRef' in item ? oldValue.find((entry: unknown) => entry !== null && typeof entry === 'object' && 'providerLineRef' in entry && entry.providerLineRef === item.providerLineRef) : oldValue[index];
+      const oldItems: readonly unknown[] = oldValue, newItems: readonly unknown[] = newValue;
+      return newItems.map((item, index) => {
+        const previous = item !== null && typeof item === 'object' && 'providerLineRef' in item ? oldItems.find(entry => entry !== null && typeof entry === 'object' && 'providerLineRef' in entry && entry.providerLineRef === item.providerLineRef) : oldItems[index];
         return previous === undefined ? item : mergeFields(previous, item);
       }) as T;
     }
@@ -74,7 +77,7 @@ function mergeFields<T>(oldValue: T, newValue: T): T {
 }
 type VersionedObservation = Exclude<Observation, { kind: 'unsupported' }>;
 function certifyObjectVersion(state: PaymentState, observation: VersionedObservation): Readonly<{ kind: 'certified'; observation: VersionedObservation }> | Readonly<{ kind: 'conflict' | 'held' }> {
-  const key = objectVersionKey(observation); if (!key) {throw new Error('Versioned observation has no identity');}
+  const key = objectVersionKey(observation); if (!(typeof key === 'string' && key.length > 0)) {throw new Error('Versioned observation has no identity');}
   const time = exactTime(observation.version), entityRef = observation.kind === 'transaction' ? observation.transactionRef : observation.kind === 'subscription' ? observation.subscriptionRef : observation.adjustmentRef;
   const original = state.versionEvidence[key];
   if (original?.kind === 'held') {return { kind: 'held' };}
@@ -99,7 +102,7 @@ export function validateOffer(offer: OfferSnapshot, scope: PaymentScope): void {
   for (const id of [offer.offerId, offer.version, offer.policyVersion, offer.applicationId]) {assertIdentifier(id);}
   if (offer.applicationId !== scope.applicationId || !['one_time', 'monthly'].includes(offer.profile) || offer.lines.length !== 1 || typeof offer.allowZeroTotal !== 'boolean') {throw new TypeError('Unsupported or foreign offer');}
   money(offer.currency, '0');
-  for (const line of offer.lines) { assertIdentifier(line.benefitSlotId); assertIdentifier(line.providerPriceRef); if (line.quantity !== 1) {throw new TypeError('Unsupported offer quantity');} }
+  for (const line of offer.lines) { assertIdentifier(line.benefitSlotId); assertIdentifier(line.providerPriceRef); const quantity: unknown = line.quantity; if (quantity !== 1) {throw new TypeError('Unsupported offer quantity');} }
 }
 function validLine(line: ProviderLine, offer: OfferSnapshot): boolean {
   const expected = offer.lines[0];
@@ -139,7 +142,7 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
   let holdReason: EvidenceFlag | undefined;
   if (offer.profile === 'monthly') {
     const subRef = known(observation.subscriptionRef) ? observation.subscriptionRef.value : null;
-    if (!subRef || !intent.subscriptionBasisId) {return { kind: 'held', reason: 'incomplete' };}
+    if (!(typeof subRef === 'string' && subRef.length > 0) || !(typeof intent.subscriptionBasisId === 'string' && intent.subscriptionBasisId.length > 0)) {return { kind: 'held', reason: 'incomplete' };}
     sub = state.subscriptionBindings[intent.subscriptionBasisId];
     if (!sub) {return { kind: 'held', reason: 'unresolved_binding' };}
     classification = originMeaning === 'recurring_subscription' ? (binding.purpose === 'recovery' ? 'recovery' : 'renewal') : 'initial';
@@ -147,7 +150,7 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
     if (!sub.providerSubscriptionRefs.includes(subRef)) {sub.providerSubscriptionRefs.push(subRef);}
     if (sub.customerRef !== null && sub.customerRef !== observation.customerRef.value) {return { kind: 'held', reason: 'ownership_mismatch' };}
     sub.customerRef ??= observation.customerRef.value;
-    if (!sub.selectedSubscriptionRef) {sub.selectedSubscriptionRef = subRef;}
+    if (!(typeof sub.selectedSubscriptionRef === 'string' && sub.selectedSubscriptionRef.length > 0)) {sub.selectedSubscriptionRef = subRef;}
     if (classification === 'renewal' || classification === 'recovery') {
       const duplicateInitial = sub.classificationDecision?.duplicateInitialPurchase ?? Object.values(state.transactions).some(candidate => candidate.completion?.intentId === intent.intentId && candidate.flags.includes('duplicate_initial_purchase'));
       if (sub.selectedSubscriptionRef !== subRef || (duplicateInitial && !sub.streamSelection)) {holdReason = 'duplicate_initial_purchase';}
@@ -158,14 +161,14 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
   binding.customerRef ??= observation.customerRef.value;
   const lines = observation.lines.value.map(line => {
     const benefitSlotId = offer.lines.find(expected => expected.providerPriceRef === line.providerPriceRef)?.benefitSlotId;
-    if (!benefitSlotId) {throw new Error('Validated line has no benefit');}
+    if (!(typeof benefitSlotId === 'string' && benefitSlotId.length > 0)) {throw new Error('Validated line has no benefit');}
     const period = known(line.period) ? line.period.value : null;
     return { providerLineRef: line.providerLineRef, benefitSlotId, amount: line.amount, quantity: 1 as const, ...(period === null ? {} : { period }) };
   });
   return { kind: 'commercial', ...(holdReason ? { holdReason } : {}), fact: { factId: digest([scope.provider, scope.paymentAccountId, scope.environment, observation.transactionRef, 'completion']), scope, transactionRef: observation.transactionRef, intentId: intent.intentId, buyerId: intent.buyerId, ...(sub ? { subscriptionBasisId: sub.bindingId, providerSubscriptionRef: known(observation.subscriptionRef) ? observation.subscriptionRef.value as string : '' } : {}), classification, offer, total: observation.total.value, lines, source: observation.source } };
 }
 function bindRenewal(state: PaymentState, observation: TransactionObservation): void {
-  if (state.bindings[observation.transactionRef] || !known(observation.subscriptionRef) || !observation.subscriptionRef.value || !known(observation.origin) || transactionOriginMeaning(observation.origin.value) !== 'recurring_subscription') {return;}
+  if (state.bindings[observation.transactionRef] || !known(observation.subscriptionRef) || !(typeof observation.subscriptionRef.value === 'string' && observation.subscriptionRef.value.length > 0) || !known(observation.origin) || transactionOriginMeaning(observation.origin.value) !== 'recurring_subscription') {return;}
   const matches = Object.values(state.subscriptionBindings).filter(binding => binding.providerSubscriptionRefs.includes(observation.subscriptionRef.presence === 'known' ? observation.subscriptionRef.value ?? '' : ''));
   if (matches.length !== 1) {return;}
   const binding = matches[0]; if (!binding) {return;}
@@ -183,8 +186,8 @@ function markDuplicates(state: PaymentState, fact: CompletionFact): void {
   if (candidates.length < 2) {return;}
   const duplicateFlag = fact.classification === 'initial' ? 'duplicate_initial_purchase' : 'duplicate_payment';
   for (const aggregate of candidates) {if (!aggregate.flags.includes(duplicateFlag)) { flag(aggregate, duplicateFlag); aggregate.publicationRequired = true; aggregate.revision += 1; }}
-  const binding = fact.subscriptionBasisId ? state.subscriptionBindings[fact.subscriptionBasisId] : undefined;
-  if (fact.classification === 'initial' && binding && !binding.classificationDecision?.duplicateInitialPurchase) {
+  const binding = (typeof fact.subscriptionBasisId === 'string' && fact.subscriptionBasisId.length > 0) ? state.subscriptionBindings[fact.subscriptionBasisId] : undefined;
+  if (fact.classification === 'initial' && binding && !(binding.classificationDecision?.duplicateInitialPurchase === true)) {
     binding.classificationDecision = { revision: binding.classificationDecision?.revision ?? 0, duplicateInitialPurchase: true };
     requireSubscriptionReclassification(state, binding);
   }
@@ -214,7 +217,7 @@ function reduceTransaction(state: PaymentState, scope: PaymentScope, observation
     else if (['renewal', 'recovery'].includes(classification.fact.classification)) {removeFlag(aggregate, 'duplicate_initial_purchase');}
     markDuplicates(state, classification.fact);
     const subRef = classification.fact.providerSubscriptionRef;
-    const subscription = subRef ? state.subscriptions[subRef]?.current : undefined;
+    const subscription = (typeof subRef === 'string' && subRef.length > 0) ? state.subscriptions[subRef]?.current : undefined;
     if (subscription) {reduceSubscription(state, subscription);}
   } else if (classification.kind === 'held' && transactionStatusFlags(effective).length === 0) {flag(aggregate, classification.reason);}
   else if (classification.kind === 'management') {removeFlag(aggregate, 'unresolved_binding');}
@@ -237,10 +240,11 @@ function reduceSubscription(state: PaymentState, observation: SubscriptionObserv
   }
   aggregate.current = observation;
   const profileFlags: EvidenceFlag[] = [];
-  if ((known(observation.status) && !isSupportedSubscriptionStatus(observation.status.value)) || (known(observation.scheduledChange) && observation.scheduledChange.value && observation.scheduledChange.value.action !== supportedScheduledChangeAction) || (observation.collection?.presence === 'known' && observation.collection.value.kind !== 'automatic')) {profileFlags.push('unsupported');}
-  if (!known(observation.status) || !known(observation.scheduledChange) || !known(observation.currentPeriod) || !known(observation.customerRef) || observation.collection?.presence !== 'known' || observation.items?.presence !== 'known') {profileFlags.push('incomplete');}
-  if (observation.items?.presence === 'known') {
-    for (const item of observation.items.value) {
+  const profileFields: Partial<Pick<SubscriptionObservation, 'collection' | 'items'>> = observation;
+  if ((known(observation.status) && !isSupportedSubscriptionStatus(observation.status.value)) || (known(observation.scheduledChange) && observation.scheduledChange.value && observation.scheduledChange.value.action !== supportedScheduledChangeAction) || (profileFields.collection?.presence === 'known' && profileFields.collection.value.kind !== 'automatic')) {profileFlags.push('unsupported');}
+  if (!known(observation.status) || !known(observation.scheduledChange) || !known(observation.currentPeriod) || !known(observation.customerRef) || profileFields.collection?.presence !== 'known' || profileFields.items?.presence !== 'known') {profileFlags.push('incomplete');}
+  if (profileFields.items?.presence === 'known') {
+    for (const item of profileFields.items.value) {
       if (!known(item.quantity) || !known(item.billingCycle) || !known(item.trial)) {profileFlags.push('incomplete');}
       if ((known(item.quantity) && item.quantity.value !== 1) || (known(item.billingCycle) && (item.billingCycle.value?.interval !== 'month' || item.billingCycle.value.frequency !== 1)) || (known(item.trial) && item.trial.value)) {profileFlags.push('unsupported');}
     }
@@ -251,7 +255,7 @@ function reduceSubscription(state: PaymentState, observation: SubscriptionObserv
     removeFlag(aggregate, 'unresolved_binding');
     const binding = bindings[0];
     if (binding && known(observation.customerRef) && binding.customerRef !== null && observation.customerRef.value !== binding.customerRef) {flag(aggregate, 'ownership_mismatch');}
-    if (binding && observation.items?.presence === 'known' && canonicalJson(observation.items.value.map(item => item.providerPriceRef).sort()) !== canonicalJson(binding.offer.lines.map(line => line.providerPriceRef).sort())) {profileFlags.push('catalog_mismatch');}
+    if (binding && profileFields.items?.presence === 'known' && canonicalJson(profileFields.items.value.map(item => item.providerPriceRef).toSorted()) !== canonicalJson(binding.offer.lines.map(line => line.providerPriceRef).toSorted())) {profileFlags.push('catalog_mismatch');}
   }
   setCurrentProfileFlags(aggregate, profileFlags);
   aggregate.revision += 1; aggregate.publicationRequired = true;
@@ -289,8 +293,8 @@ export function reduceObservation(state: PaymentState, scope: PaymentScope, obse
     case 'subscription': reduceSubscription(state, observation); break;
     case 'adjustment': reduceAdjustment(state, observation); break;
     case 'unsupported': {
-      if (observation.transactionRef) { const target = transactionAggregate(state, observation.transactionRef); flag(target, 'unsupported'); target.revision += 1; target.publicationRequired = true; }
-      else if (observation.subscriptionRef) { const target = subscriptionAggregate(state, observation.subscriptionRef); flag(target, 'unsupported'); target.revision += 1; target.publicationRequired = true; }
+      if ((typeof observation.transactionRef === 'string' && observation.transactionRef.length > 0)) { const target = transactionAggregate(state, observation.transactionRef); flag(target, 'unsupported'); target.revision += 1; target.publicationRequired = true; }
+      else if ((typeof observation.subscriptionRef === 'string' && observation.subscriptionRef.length > 0)) { const target = subscriptionAggregate(state, observation.subscriptionRef); flag(target, 'unsupported'); target.revision += 1; target.publicationRequired = true; }
       else {state.issues.push(`unresolved-routing:${observation.source.receiptId}`);}
     }
   }
@@ -300,7 +304,7 @@ export function reduceObservation(state: PaymentState, scope: PaymentScope, obse
 export function inputRoutes(input: Pick<VerifiedInput, 'observation' | 'adverseTransactionRef'>): readonly AggregateIdentity[] {
   const routes: AggregateIdentity[] = [], observation = input.observation;
   const transactionRef = input.adverseTransactionRef ?? ('transactionRef' in observation ? observation.transactionRef : undefined);
-  if (transactionRef) {routes.push({ type: 'transaction', id: transactionRef });}
+  if ((typeof transactionRef === 'string' && transactionRef.length > 0)) {routes.push({ type: 'transaction', id: transactionRef });}
   if ('transactionRef' in observation && observation.transactionRef && observation.transactionRef !== transactionRef) {routes.push({ type: 'transaction', id: observation.transactionRef });}
   if ('subscriptionRef' in observation && typeof observation.subscriptionRef === 'string' && observation.subscriptionRef) {routes.push({ type: 'subscription', id: observation.subscriptionRef });}
   return routes;
@@ -328,17 +332,17 @@ function eventSubject(evidence: EventIdentityEvidence): Readonly<{ kind: string;
   if (projection.kind === 'transaction') {return { kind: projection.kind, id: projection.transactionRef };}
   if (projection.kind === 'subscription') {return { kind: projection.kind, id: projection.subscriptionRef };}
   if (projection.kind === 'adjustment') {return { kind: projection.kind, id: projection.adjustmentRef };}
-  if (evidence.eventType?.startsWith('transaction.') && projection.transactionRef) {return { kind: 'transaction', id: projection.transactionRef };}
-  if (evidence.eventType?.startsWith('subscription.') && projection.subscriptionRef) {return { kind: 'subscription', id: projection.subscriptionRef };}
-  return undefined;
+  if ((evidence.eventType?.startsWith('transaction.') === true) && (typeof projection.transactionRef === 'string' && projection.transactionRef.length > 0)) {return { kind: 'transaction', id: projection.transactionRef };}
+  if ((evidence.eventType?.startsWith('subscription.') === true) && (typeof projection.subscriptionRef === 'string' && projection.subscriptionRef.length > 0)) {return { kind: 'subscription', id: projection.subscriptionRef };}
+  return;
 }
 function eventParent(evidence: EventIdentityEvidence): string | undefined {
   const projection = evidence.projection;
-  return projection.kind === 'adjustment' || (projection.kind === 'unsupported' && evidence.eventType?.startsWith('adjustment.')) ? projection.transactionRef : undefined;
+  return projection.kind === 'adjustment' || (projection.kind === 'unsupported' && (evidence.eventType?.startsWith('adjustment.') === true)) ? projection.transactionRef : undefined;
 }
 /** Pairwise compatibility is not transitive: compare every receipt, or merge all compatible certified fields. */
 export function compareEventIdentity(a: EventIdentityEvidence, b: EventIdentityEvidence): 'unrelated' | 'compatible' | 'conflict' {
-  if (!a.eventId || a.eventId !== b.eventId || a.provider !== b.provider || a.paymentAccountId !== b.paymentAccountId || a.environment !== b.environment) {return 'unrelated';}
+  if (!(typeof a.eventId === 'string' && a.eventId.length > 0) || a.eventId !== b.eventId || a.provider !== b.provider || a.paymentAccountId !== b.paymentAccountId || a.environment !== b.environment) {return 'unrelated';}
   if (a.eventType !== undefined && b.eventType !== undefined && a.eventType !== b.eventType) {return 'conflict';}
   if (a.occurredAt !== undefined && b.occurredAt !== undefined) { try { if (compareTime(a.occurredAt, b.occurredAt) !== 0) {return 'conflict';} } catch { return 'conflict'; } }
   if (a.rawStableEnvelopeDigest !== undefined && b.rawStableEnvelopeDigest !== undefined && a.rawStableEnvelopeDigest !== b.rawStableEnvelopeDigest) {return 'conflict';}
@@ -359,7 +363,7 @@ export function mergeEventIdentityEvidence(a: EventIdentityEvidence, b: EventIde
  * retained exact-version parent. Invalid versions still retain custody on their incoming route. */
 function adverseTransactionRefs(state: PaymentState, input: VerifiedInput): readonly string[] {
   const direct = input.adverseTransactionRef ?? (input.observation.kind === 'adjustment' ? input.observation.transactionRef : undefined);
-  const refs = new Set<string>(direct ? [direct] : []);
+  const refs = new Set<string>((typeof direct === 'string' && direct.length > 0) ? [direct] : []);
   if (input.observation.kind === 'adjustment') {
     let key: string | undefined;
     try { key = objectVersionKey(input.observation); } catch { return [...refs]; }
@@ -395,7 +399,7 @@ export function admitInput(state: PaymentState, input: VerifiedInput): 'admitted
   }
   let conflict = false;
   const incomingIdentity = eventIdentityEvidence(input);
-  if (input.source.eventId) {for (const receipt of Object.values(state.inbox)) {
+  if ((typeof input.source.eventId === 'string' && input.source.eventId.length > 0)) {for (const receipt of Object.values(state.inbox)) {
     if (compareEventIdentity(eventIdentityEvidence(receipt.input), incomingIdentity) === 'conflict') {
       conflict = true; flagInputConflict(state, receipt.input);
     }
@@ -428,7 +432,7 @@ export function publishEvidence(state: PaymentState, scope: PaymentScope, produc
   for (const aggregate of Object.values(state.transactions)) {if (aggregate.publicationRequired) {
     const flags = [...aggregate.flags]; if (aggregate.pendingAdverse.length > 0 && !flags.includes('pending_adverse')) {flags.push('pending_adverse');}
     aggregate.evidenceRevision += 1;
-    const payload = flags.includes('incomplete_history') ? { kind: 'held', reason: 'object_version_history_incomplete', resolutionRef: aggregate.transactionRef } : { kind: 'complete', ...(aggregate.completion ? { completion: aggregate.completion } : {}), adjustments: Object.values(aggregate.adjustments).sort((a, b) => a.adjustmentRef.localeCompare(b.adjustmentRef)), flags };
+    const payload = flags.includes('incomplete_history') ? { kind: 'held', reason: 'object_version_history_incomplete', resolutionRef: aggregate.transactionRef } : { kind: 'complete', ...(aggregate.completion ? { completion: aggregate.completion } : {}), adjustments: Object.values(aggregate.adjustments).toSorted((a, b) => a.adjustmentRef.localeCompare(b.adjustmentRef)), flags };
     messages.push(storeMessage(state, scope, producerNamespace, { type: 'transaction', id: aggregate.transactionRef }, aggregate.evidenceRevision, payload, maxBytes));
     aggregate.publicationRequired = false;
   }}
@@ -459,7 +463,7 @@ export function processInput(state: PaymentState, scope: PaymentScope, inputId: 
   catch (error) {
     record.state = 'quarantined'; record.issue = error instanceof Error ? error.name : 'decoder_failure';
     const ref = record.input.adverseTransactionRef ?? ('transactionRef' in record.input.observation ? record.input.observation.transactionRef : undefined);
-    if (ref) { const aggregate = transactionAggregate(state, ref); flag(aggregate, 'incomplete'); aggregate.publicationRequired = true; }
+    if ((typeof ref === 'string' && ref.length > 0)) { const aggregate = transactionAggregate(state, ref); flag(aggregate, 'incomplete'); aggregate.publicationRequired = true; }
     else if ('subscriptionRef' in record.input.observation && typeof record.input.observation.subscriptionRef === 'string' && record.input.observation.subscriptionRef) { const aggregate = subscriptionAggregate(state, record.input.observation.subscriptionRef); flag(aggregate, 'incomplete'); aggregate.publicationRequired = true; }
     else {state.issues.push(`quarantine-unresolved:${inputId}`);}
     return 'quarantined';
