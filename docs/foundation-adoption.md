@@ -37,6 +37,10 @@ The checks project owns tools, root tests, examples and package tests; the
 observation project owns its packed consumer sources. Source projects retain
 their own declaration emission. TypeScript build mode accepts the two no-emit
 projects, and the ordinary typecheck remains an independent required gate.
+Both no-emit projects explicitly reference the four runtime projects they
+consume, so build mode produces package declarations before checking their
+consumers on a cold install. Listing the projects together in the root solution
+does not establish those dependency edges.
 
 This reference graph is also available to the typed linter's project discovery.
 The lint command covers `packages tests tools examples qualification`; it does

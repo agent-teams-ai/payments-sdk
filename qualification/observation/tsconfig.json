@@ -21,5 +21,11 @@
   },
   "include": [
     "*.ts"
+  ],
+  "references": [
+    { "path": "../../packages/payments-core" },
+    { "path": "../../packages/payments-paddle" },
+    { "path": "../../packages/payments-postgres" },
+    { "path": "../../packages/payments-get-modular" }
   ]
 }
