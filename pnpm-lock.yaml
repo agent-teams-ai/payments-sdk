@@ -15,6 +15,9 @@ catalogs:
     '@get-modular/core':
       specifier: 0.6.0
       version: 0.6.0
+    '@get-modular/observation':
+      specifier: 0.1.0
+      version: 0.1.0
     '@get-modular/resources':
       specifier: 0.2.0
       version: 0.2.0
@@ -113,6 +116,9 @@ importers:
       '@get-modular/core':
         specifier: 'catalog:'
         version: 0.6.0
+      '@get-modular/observation':
+        specifier: 'catalog:'
+        version: 0.1.0(@get-modular/resources@0.2.0)
       '@get-modular/resources':
         specifier: 'catalog:'
         version: 0.2.0
@@ -184,6 +190,12 @@ packages:
   '@get-modular/core@0.6.0':
     resolution: {integrity: sha512-s7HmZAkQtioOAbUxBbeVgLCpmplDB7J36GdugMU0XkGWOEmNvUeSaLhKZWJ0uB49QDqCPPiXjcDf6EGlSFSXDA==}
     engines: {node: '>=24.18.0 <25 || >=26.10.0 <27'}
+
+  '@get-modular/observation@0.1.0':
+    resolution: {integrity: sha512-df9ki8A5Yi8rKR3SCpNeFwpnXLzSzEeawld8J24IYmxy98xVVr8a7xJCDyV37PBuOJJ10JltyVpmRJDJVsZhyg==}
+    engines: {node: '>=24.18.0 <25 || >=26.10.0 <27'}
+    peerDependencies:
+      '@get-modular/resources': ^0.2.0
 
   '@get-modular/resources@0.2.0':
     resolution: {integrity: sha512-G8PYU8o/DJTFBQcs9N12CgwxC9PJ+gOqFjariwYCbw+w7vGE+11lU2JiX2QrHBog6VpchKIenIinb7mBJtu/4g==}
@@ -896,6 +908,10 @@ snapshots:
       '@get-modular/resources': 0.2.0
 
   '@get-modular/core@0.6.0': {}
+
+  '@get-modular/observation@0.1.0(@get-modular/resources@0.2.0)':
+    dependencies:
+      '@get-modular/resources': 0.2.0
 
   '@get-modular/resources@0.2.0': {}
 
