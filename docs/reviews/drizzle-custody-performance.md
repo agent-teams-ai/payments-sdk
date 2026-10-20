@@ -20,7 +20,7 @@ an isolated timing sample does not stand in for the full-group gate.
 | Late injected custody rollback | 1,215 | 815 | 803 | 403 | 5 → 5 |
 | Complete page commit | 1,218 | 818 | 803 | 403 | 5 → 5 |
 
-Each 200-input page eliminates exactly 400 roundtrips. Drizzle compilation alone
+This 200-input fixture eliminates exactly 400 roundtrips. Drizzle compilation alone
 took about 40 ms in the baseline; it was not the dominant measured cost. The
 baseline isolated transaction timings were 582/694 ms for rollback/commit; the
 corresponding changed run took 736/524 ms. Those samples show substantial timing
