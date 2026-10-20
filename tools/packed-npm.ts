@@ -106,7 +106,7 @@ export async function qualifyNpmConsumer(target: string, packages: readonly Cons
     }, include: ['index.ts', 'qualification/observation/*.ts', 'tests/fixtures/consumers/*.ts', 'packages/payments-paddle/test/fixtures.ts'] }));
     const files = command(process.execPath, [compiler, '-p', 'tsconfig.json', '--listFiles'], target);
     const paths = files.trim().split('\n');
-    assert.ok(paths.some(path => path.endsWith('/index.ts')), 'The public export consumer must be checked');
+    assert.ok(paths.includes(join(target, 'index.ts')), 'The actual all-export consumer must appear in the compiler file graph');
     for (const path of paths) assert.equal(forbiddenTypePath.test(path), false, `ORM or MySQL declarations leaked through a public SDK export: ${path}`);
     await writeFile(`${reportBase}.${resolution.toLowerCase()}.files.txt`, files);
     resolvers.push({ resolution, strict: true, exactOptionalPropertyTypes: true, noUncheckedIndexedAccess: true, skipLibCheck: false, ormDeclarationsReachable: false, listFilesSha256: digest(files), passed: true });
@@ -115,7 +115,7 @@ export async function qualifyNpmConsumer(target: string, packages: readonly Cons
   const output = command(process.execPath, ['--test', '--test-reporter=spec', 'qualification/observation/financial.test.ts'], target);
   console.log(output);
   const report = {
-    status: 'passed', consumer: 'production-only-npm', node: process.version, npm: npmVersion,
+    status: 'passed', consumer: 'production-only-npm', node: process.version, npm: npmVersion, typescript: command(process.execPath, [compiler, '--version'], target).trim(),
     install: { omitDev: true, ignoreScripts: true, strictPeerDependencies: true, maintainerPatchConfiguration: false, mysql2Present: false },
     packages, publicEntrypoints: packages.flatMap(item => item.entrypoints),
     drizzle: { version: artifact.version, integrity: installed.integrity, manifestSha256: digest(installedManifest), correctedDeclarationTargetsUnpatched: artifact.patch.files.length, declarationFilesUnpatched: declaration.files, declarationManifestSha256: declaration.sha256, runtimeFiles: runtime.files, runtimeManifestSha256: runtime.sha256 },
