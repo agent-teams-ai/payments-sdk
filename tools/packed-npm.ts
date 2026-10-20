@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cp, glob, mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
+import { cp, glob, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { parse } from 'yaml';
@@ -19,6 +19,8 @@ const forbiddenTypePath = /(?:^|[/\\])(?:drizzle-orm|mysql2|mysql)(?:[/\\]|$)/u;
 
 /** A fresh npm installation proves the maintainer-only declaration repair is not a consumer input. */
 export async function qualifyNpmConsumer(target: string, packages: readonly ConsumerPackage[], compiler: string): Promise<void> {
+  const reportBase = join(repository, `.artifacts/packed-npm-node-${process.versions.node}`);
+  for (const suffix of ['json', 'log', 'package-lock.json', 'nodenext.files.txt', 'bundler.files.txt']) await rm(`${reportBase}.${suffix}`, { force: true });
   assert.ok(process.env['DATABASE_URL'], 'DATABASE_URL is required: the npm consumer runs the existing real PostgreSQL financial oracle');
   await mkdir(target);
   const artifact = JSON.parse(await readFile(join(repository, 'qualification/drizzle/artifact.json'), 'utf8')) as DrizzleArtifact;
@@ -93,7 +95,6 @@ export async function qualifyNpmConsumer(target: string, packages: readonly Cons
   }
   const source = packages.flatMap(item => item.entrypoints).map((specifier, index) => `import * as api${index} from '${specifier}';\nvoid api${index};`).join('\n');
   await writeFile(join(target, 'index.ts'), source);
-  const reportBase = join(repository, `.artifacts/packed-npm-node-${process.versions.node}`);
   await mkdir(join(repository, '.artifacts'), { recursive: true });
   const resolvers = [];
   for (const resolution of ['NodeNext', 'Bundler'] as const) {
