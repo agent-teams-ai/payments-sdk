@@ -15,6 +15,21 @@ remain unchanged; this entry describes the next source release.
 - Qualify the actual packed public entrypoint with real PostgreSQL payment and
   lifecycle scenarios. Remove the duplicate prepublication implementation.
 
+### Storage and provider contracts
+
+- Compile private PostgreSQL schema/query operations with exact
+  `drizzle-orm@1.0.0-rc.5-5935859`, preserving the existing transaction owner,
+  physical schema version, recovery protocol and explicit concurrency SQL.
+- Keep the small declaration correction in the maintainer workspace. Required
+  artifact checks prove its scope; fresh npm consumers execute the original
+  package without the patch, MySQL or ORM types in the SDK declaration graph.
+- Own the existing canonical observation vocabulary in core and map Paddle
+  values explicitly. A distinct synthetic provider verifies supported and
+  unsupported semantics without changing serialized evidence or decoder versions.
+- Report unexpected background handler failures with their original cause and
+  bounded work identity/attempt through `PaymentJobHandlerError`. Failed error
+  listeners cannot alter durable retry, quarantine or acknowledgement.
+
 ### Migration from 0.1.0
 
 The Get Modular adapter's peer compatibility changes, so this is a minor

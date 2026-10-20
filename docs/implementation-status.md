@@ -49,5 +49,5 @@ and real PostgreSQL; logical independent-owner restore tests do not prove a
 physical restore. See [deployment gates](qualification.md#deployment-and-credential-gates).
 
 GitHub prerelease archives are the configured delivery channel. Manifest version
-0.1.0 and a successful dry run do not establish npm publication; registry
+0.2.0 and a successful dry run do not establish npm publication; registry
 ownership and trusted publishing remain the separately documented future setup.

@@ -9,9 +9,10 @@ This page describes reproducible evidence and its limits. A test file is not a r
 | Platform | Linux; Node `24.21.0` and `26.11.1` |
 | Tooling | TypeScript `7.0.2`, strict projects, `skipLibCheck:false`, maintained `.ts` sources; pnpm `11.25.0` |
 | Durable storage | PostgreSQL `18`, logged correctness tables, `fsync=on`, local `synchronous_commit=on` |
+| Private storage query toolkit | Drizzle `1.0.0-rc.5-5935859`; exact [artifact and declaration correction](../qualification/drizzle/artifact.json), with original unpatched npm consumer qualification |
 | Provider | Official `@paddle/paddle-node-sdk` `3.10.0`, API version 1 and separately versioned notification destination |
 | Background transport | `pg-boss` `12.38.0`; one borrowed host pool, explicit bootstrap, qualified runtime role |
-| Get Modular | Core/Assembly `0.5.0`, Resources `0.1.0`, Conformance `0.3.0` in tests; one coherent physical peer set |
+| Get Modular | Core/Assembly `0.6.0`, Resources `0.2.0`, optional Observation `0.1.0`, Conformance `0.4.0` in tests; one coherent physical peer set |
 | Engineering Foundation | `1.10.1`, development-only |
 | Package consumers | ESM NodeNext and Bundler resolution, packed tarballs, strict declarations |
 
@@ -31,11 +32,15 @@ The development-only Undici **7.30.1** correction and clean npm scans do not pat
 | Foundation checks and `test:boundaries` | Inward package dependencies, source ownership/exports, forbidden runtime imports and development-only tooling closure | Boundary checks complement behavioral tests |
 | `test:core` | Request idempotency, exact values, evidence ordering/conflicts, commercial classification, immutable delivery, duplicate initial streams and unknown mutation handling | Memory store is a test fixture, not production durability |
 | `test:paddle` | Actual SDK serializer/resources/entity mapping, error translation, exact-byte official signature verification, source-aware normalization and mapped pagination | Network-disabled synthetic API schema fixtures; no Paddle account behavior or charges |
-| `test:modular` | Actual published Assembly/Resources/Conformance, static wiring, isolated runs, lifecycle/partial-startup cleanup, late provider settlement and hook-free delivery | No published Observation runtime is qualified |
+| `test:modular` | Actual published Assembly/Resources/Conformance, static wiring, isolated runs, lifecycle/partial-startup cleanup and late provider settlement | Optional Observation has its own packed consumer gate |
+| `test:drizzle:admission` | Official archive SRI, exact declaration-only maintainer patch, byte-identical runtime, positive and negative strict compiler contracts | Does not qualify another Drizzle version or relax the public SDK type boundary |
 | `test:postgres` | Real PostgreSQL migrations/concurrency, durable WAL settings, read-set conflicts, SQL fault/deadline cleanup, lost COMMIT replies, actual pg-boss work/repair and runtime grants | Logical recovery and transport fault probes do not establish physical PITR or HA RPO0 |
 | `test:e2e` | Node HTTP plain factory and Fetch static Get Modular hosts; actual Paddle SDK synthetic transport; durable payment owner plus independent credit/access fixture owners | Test entitlement/credit policies are intentionally nonproduction, with no AI consumption model |
+| Foreign-provider scenario within `test:e2e` | Distinct raw provider vocabulary, canonical normalization, initial/renewal/top-up, noncommercial method update, unknown evidence and durable grant replay | A disposable contract fixture does not establish another production provider adapter |
 | Reconciliation scenarios within `test:e2e` | Fixed durable queries/cursors, positive missed-payment recovery, adjustment pages, API nullable trust and explicit gaps | SDK mapping/retention/visibility limits remain explicit |
 | `test:packed`, `release:dry-run` | Real packed NodeNext/Bundler consumers; exports/declarations; no unresolved workspace/catalog dependency protocol; license/runtime-closure/archive checks | Does not publish to npm or perform an installed production deployment |
+| `test:observation` | Published artifact integrity and peer identity; packed public projection, real `watch`/`load`, lifecycle and PostgreSQL financial oracles | Read projections do not replace durable delivery or grant product authorization |
+| `test:packed:npm` | Fresh production-only npm installation of all six public exports, complete strict compiler flags, original unpatched Drizzle, absent MySQL, and the real PostgreSQL financial oracle | Fixture-only consumer; no npm publication, live credentials or deployment qualification |
 
 The Paddle harness disables unapproved network connections and restores its test dispatcher/globals in cleanup. Production uses the official SDK directly without a global fetch patch, private SDK seam or custom raw API client. Fixture coverage must include successful supported initial/renewal/top-up/API-only recovery, rather than declaring success because everything was conservatively held. Negative cases retain explicit uncertainty/hold and preserve financial facts.
 
@@ -62,6 +67,6 @@ The core/Paddle server adapter remain independent of Paddle.js. Hosts can naviga
 
 ## Observation release and consumer admission
 
-The upstream observation ADR #154, plan #185 and implementation #195 are merged. Their coordinated Core/Assembly `0.6.0`, Resources `0.2.0`, Conformance `0.4.0` and Observation `0.1.0` train remained unpublished at **2026-10-19 20:25:36 UTC**. These versions are not this SDK's installed static support profile. The [upstream record](upstream-qualification.md#get-modular-merged-implementation-unpublished-release-train) distinguishes admitted source from registry artifacts. Publication, exact peer compatibility and hook behavior still require a separate coherent-train consumer qualification; the [integration guide](../packages/payments-get-modular/README.md#observation-hooks-explicit-release-gate) owns those tests.
+The coordinated Core/Assembly `0.6.0`, Resources `0.2.0`, Conformance `0.4.0` and Observation `0.1.0` train is published. The [registry artifact record](../qualification/observation/published-artifacts.json) binds the exact official archives and confirms their byte identity with the retained upstream candidates. SDK `0.2.0` consumes those versions through ordinary registry dependencies and exposes its optional public `/observation` entrypoint. Each release must pass `test:observation` on both Node floors; historical candidate results do not qualify a new SDK archive. The [integration guide](../packages/payments-get-modular/README.md#optional-purchase-observation) owns composition, lifecycle and read-only hook contracts.
 
 The [accepted plan's review journal](implementation-plan.md#16-журнал-независимого-ревью) concerns the design snapshot. It does not establish a completed implementation review, a successful current CI run or completion of a new four-wave implementation review.

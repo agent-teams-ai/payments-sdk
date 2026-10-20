@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Explicit version tag matching all four manifests, for example v0.1.0'
+        description: 'Explicit version tag matching all four manifests, for example v0.2.0'
         type: string
         required: true
       commit:
