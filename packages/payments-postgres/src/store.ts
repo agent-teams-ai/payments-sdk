@@ -14,7 +14,7 @@ import type { PgBoss } from 'pg-boss';
 import { assertPostgresDurability, withPaymentTransaction } from './database.js';
 import type { DatabaseTimeouts, PaymentSqlTransaction } from './database.js';
 import { assertBatchLimit, PaymentRecords } from './records.js';
-import type { DurableWork, RecordKey } from './records.js';
+import type { DurableWork, RecordKey, RecordWrite } from './records.js';
 
 export type PostgresPaymentStoreOptions = Readonly<{
   pool: Pool;
@@ -313,26 +313,29 @@ class PostgresPaymentStore implements PaymentStore {
           }
         }
       }
+      const writes: RecordWrite[] = [];
+      let nextIdentity: StoredEventIdentity | undefined;
       if (eventId) {
         // Keep the merged certified facts: pairwise compatible partial receipts are not transitive.
         // After a contradiction the original summary remains fenced; previously flagged routes
         // need no unbounded replay list. Every new contradictory route is fenced in this T1.
-        const next = identity ? { evidence: eventConflict ? identity.evidence : mergeEventIdentityEvidence(identity.evidence, incomingIdentity), conflict: eventConflict } : { evidence: incomingIdentity, conflict: false };
-        events.set(eventId, next);
-        await this.records.write(tx, 'eventIdentity', eventId, next);
+        nextIdentity = identity ? { evidence: eventConflict ? identity.evidence : mergeEventIdentityEvidence(identity.evidence, incomingIdentity), conflict: eventConflict } : { evidence: incomingIdentity, conflict: false };
+        writes.push({ kind: 'eventIdentity', id: eventId, body: nextIdentity });
       }
       const receipt = state.inbox[input.inputId];
       if (!receipt) throw new Error('Admission lost its durable receipt');
-      await this.records.write(tx, 'inbox', input.inputId, receipt);
-      existingReceipts.set(input.inputId, receipt);
+      writes.push({ kind: 'inbox', id: input.inputId, body: receipt });
       // Conflicting representations are retained separately, without replacing the first receipt.
-      if (kind === 'conflict') await this.records.write(tx, 'conflictingInputs', digest([input.inputId, input.source.representationDigest]), input);
+      if (kind === 'conflict') writes.push({ kind: 'conflictingInputs', id: digest([input.inputId, input.source.representationDigest]), body: input });
+      for (const [id, aggregate] of Object.entries(state.transactions)) writes.push({ kind: 'transactions', id, body: aggregate });
+      for (const [id, aggregate] of Object.entries(state.subscriptions)) writes.push({ kind: 'subscriptions', id, body: aggregate });
+      await this.records.writeMany(tx, writes);
+      existingReceipts.set(input.inputId, receipt);
+      if (eventId && nextIdentity) events.set(eventId, nextIdentity);
       for (const [id, aggregate] of Object.entries(state.transactions)) {
-        await this.records.write(tx, 'transactions', id, aggregate);
         if (aggregate.publicationRequired) await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'transaction', id }) });
       }
       for (const [id, aggregate] of Object.entries(state.subscriptions)) {
-        await this.records.write(tx, 'subscriptions', id, aggregate);
         if (aggregate.publicationRequired) await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'subscription', id }) });
       }
       await this.work(tx, { kind: 'inbox', id: input.inputId }, receipt.state === 'processed' ? 'complete' : 'pending');

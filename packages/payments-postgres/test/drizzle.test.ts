@@ -6,6 +6,51 @@ import { PaymentRecords } from '../dist/records.js';
 import { paymentQueries, paymentTables } from '../dist/schema.js';
 import { databaseFixture, scope } from './helpers.ts';
 
+test('per-input record batches retain per-key revisions, JSON null and atomic rollback across chunks', async () => {
+  const f = await databaseFixture(), records = new PaymentRecords(f.schema);
+  try {
+    await f.pool.query(`INSERT INTO "${f.schema}".records (kind, id, revision, body, updated_at) VALUES
+      ('batch', 'unchanged', 5, '{"amount":"42","nullable":null}', '2020-01-01T00:00:00Z'),
+      ('batch', 'changed', 9, '{"before":true}', '2020-01-01T00:00:00Z')`);
+    await withPaymentTransaction(f.pool, tx => records.writeMany(tx, [
+      { kind: 'batch', id: 'unchanged', body: { nullable: null, amount: '42' } },
+      { kind: 'batch', id: 'changed', body: { after: true } },
+      { kind: 'batch', id: 'null', body: null },
+    ]));
+    const rows = (await f.pool.query<{ id: string; revision: string; body: unknown; unchanged: boolean }>(
+      `SELECT id, revision::text, body, updated_at = '2020-01-01T00:00:00Z'::timestamptz AS unchanged FROM "${f.schema}".records WHERE kind = 'batch' ORDER BY id`,
+    )).rows;
+    assert.deepEqual(rows, [
+      { id: 'changed', revision: '10', body: { after: true }, unchanged: false },
+      { id: 'null', revision: '1', body: null, unchanged: false },
+      { id: 'unchanged', revision: '5', body: { amount: '42', nullable: null }, unchanged: true },
+    ]);
+    const chunked = Array.from({ length: 515 }, (_, index) => ({ kind: 'chunked', id: `row-${index}`, body: { position: index } }));
+    await withPaymentTransaction(f.pool, async tx => {
+      await records.writeMany(tx, []);
+      await assert.rejects(records.writeMany(tx, [...chunked, { kind: 'chunked', id: 'too-many', body: {} }]), RangeError);
+      await assert.rejects(records.writeMany(tx, [...chunked.slice(0, 101), chunked[0]!]), /cannot repeat an identity/u);
+      assert.equal((await tx.query<{ count: string }>(`SELECT count(*) FROM "${f.schema}".records WHERE kind = 'chunked'`)).rows[0]?.count, '0',
+        'duplicate preflight spans every prospective chunk before the first write');
+      await records.writeMany(tx, chunked);
+    });
+    assert.deepEqual((await f.pool.query(`SELECT count(*)::text AS count, min(revision)::text AS minimum, max(revision)::text AS maximum FROM "${f.schema}".records WHERE kind = 'chunked'`)).rows,
+      [{ count: '515', minimum: '1', maximum: '1' }]);
+    const large = 'x'.repeat(2_097_153);
+    await withPaymentTransaction(f.pool, tx => records.writeMany(tx, [
+      { kind: 'large-batch', id: 'single', body: large }, { kind: 'large-batch', id: 'following', body: null },
+    ]));
+    assert.equal((await f.pool.query<{ length: number }>(`SELECT length(body #>> '{}') AS length FROM "${f.schema}".records WHERE kind = 'large-batch' AND id = 'single'`)).rows[0]?.length, large.length,
+      'an individually oversized serialized body retains the prior single-write behavior');
+    await f.pool.query(`CREATE FUNCTION "${f.schema}".reject_late_batch() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+      IF NEW.kind = 'rollback-batch' AND NEW.id = 'row-514' THEN RAISE EXCEPTION 'injected late record batch failure'; END IF; RETURN NEW; END $$`);
+    await f.pool.query(`CREATE TRIGGER reject_late_batch BEFORE INSERT OR UPDATE ON "${f.schema}".records FOR EACH ROW EXECUTE FUNCTION "${f.schema}".reject_late_batch()`);
+    await assert.rejects(withPaymentTransaction(f.pool, tx => records.writeMany(tx, chunked.map(row => ({ ...row, kind: 'rollback-batch' })))), /injected late record batch failure/u);
+    assert.equal((await f.pool.query<{ count: string }>(`SELECT count(*) FROM "${f.schema}".records WHERE kind = 'rollback-batch'`)).rows[0]?.count, '0',
+      'a failure in the final chunk rolls back every preceding chunk');
+  } finally { await f.close(); }
+});
+
 test('typed queries preserve existing schemaVersion 1 JSON bodies, no-op revisions and exact int8 range checks', async () => {
   const publicRecords = paymentTables('public').records;
   assert.match(paymentQueries.select({ id: publicRecords.id }).from(publicRecords).toSQL().sql, /from "public"\."records"/u,

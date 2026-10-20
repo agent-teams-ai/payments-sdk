@@ -16,6 +16,7 @@ export type OwnerConfiguration = {
 };
 export type StoredRecord<T> = Readonly<{ revision: number; body: T }>;
 export type RecordKey = Readonly<{ kind: string; id: string }>;
+export type RecordWrite = RecordKey & Readonly<{ body: unknown }>;
 export type DurableWork = Readonly<{ kind: 'inbox' | 'publication' | 'reclassification' | 'prepared' | 'unknown' | 'delivery' | 'scan'; id: string }>;
 const maximumRecordSet = 512;
 
@@ -76,15 +77,37 @@ export class PaymentRecords {
   }
 
   async write(tx: PaymentSqlTransaction, kind: string, id: string, body: unknown): Promise<void> {
+    await this.writeMany(tx, [{ kind, id, body }]);
+  }
+
+  /** Group one input's distinct transitions; never coalesce revisions across inputs. */
+  async writeMany(tx: PaymentSqlTransaction, writes: readonly RecordWrite[]): Promise<void> {
+    // One locked route set plus event identity, inbox and conflicting representation.
+    if (writes.length > maximumRecordSet + 3) throw new RangeError('Payment record write set exceeds its bound');
+    if (new Set(writes.map(item => canonicalJson([item.kind, item.id]))).size !== writes.length) {
+      throw new TypeError('A payment record write set cannot repeat an identity');
+    }
     const table = this.tables.records;
-    await executePaymentStatement(tx, paymentQueries.insert(table)
-      // An explicit jsonb parameter preserves JSON null, rather than inserting SQL NULL.
-      .values({ kind, id, revision: '1', body: sql`${JSON.stringify(body)}::jsonb` })
-      .onConflictDoUpdate({
+    let rows: (typeof table.$inferInsert)[] = [];
+    let batchBytes = 0;
+    const flush = async (): Promise<void> => {
+      if (rows.length === 0) return;
+      await executePaymentStatement(tx, paymentQueries.insert(table).values(rows).onConflictDoUpdate({
         target: [table.kind, table.id],
         set: { revision: sql`${table.revision} + 1`, body: sql`excluded.body`, updatedAt: sql`clock_timestamp()` },
         setWhere: sql`${table.body} IS DISTINCT FROM excluded.body`,
       }));
+      rows = []; batchBytes = 0;
+    };
+    for (const write of writes) {
+      const body = JSON.stringify(write.body), bytes = body === undefined ? 0 : Buffer.byteLength(body);
+      if (rows.length > 0 && (rows.length >= 100 || batchBytes + bytes > 2_097_152)) await flush();
+      // An individual large stored body still executes singly, as write() did before.
+      // Explicit jsonb parameters preserve JSON null instead of inserting SQL NULL.
+      rows.push({ kind: write.kind, id: write.id, revision: '1', body: sql`${body}::jsonb` });
+      batchBytes += bytes;
+    }
+    await flush();
   }
 
   async guard(tx: PaymentSqlTransaction, id: string): Promise<void> {

@@ -106,6 +106,51 @@
         },
         "errors": []
       }
+    ],
+    "perInputRecordBatch": [
+      {
+        "outcome": "ROLLBACK",
+        "queries": 1013,
+        "elapsedMs": 1618.761,
+        "queryPromiseMs": 1353.038,
+        "toSqlMs": 94.229,
+        "queryCounts": {
+          "advisoryLockPhases": 5,
+          "singleRecordSelects": 1,
+          "batchedRecordSelects": 202,
+          "recordUpsertStatements": 1,
+          "obligationUpserts": 600
+        },
+        "errors": [
+          {
+            "code": "P0001",
+            "message": "synthetic large page commit failure"
+          }
+        ]
+      },
+      {
+        "outcome": "COMMIT",
+        "queries": 1014,
+        "elapsedMs": 774.281,
+        "queryPromiseMs": 585.918,
+        "toSqlMs": 72.085,
+        "queryCounts": {
+          "advisoryLockPhases": 5,
+          "singleRecordSelects": 1,
+          "batchedRecordSelects": 202,
+          "recordUpsertStatements": 1,
+          "obligationUpserts": 601
+        },
+        "errors": []
+      }
     ]
+  },
+  "readBatchFullGroup": {
+    "node": "24.21.0",
+    "tests": 44,
+    "pass": 42,
+    "fail": 2,
+    "failure": "25P04 before synthetic large-page fault, including parent failure",
+    "defaultFileConcurrencyUnchanged": true
   }
 }
