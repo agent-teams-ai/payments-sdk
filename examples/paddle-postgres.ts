@@ -34,7 +34,7 @@ export async function createPaddlePostgresHost(options: PaddlePostgresHostOption
   const store = await createPostgresPaymentStore({ pool: options.pool, schema: options.paymentSchema, scope: options.scope, queue: jobs.queue });
   const payments = createPayments({ scope: options.scope, producerNamespace: options.producerNamespace, provider, store, catalog: options.catalog });
   try {
-    for (const consumerId of Object.keys(options.consumers)) await payments.registerConsumer(consumerId);
+    for (const consumerId of Object.keys(options.consumers)) {await payments.registerConsumer(consumerId);}
     await jobs.start({ payments, store, consumers: options.consumers,
       ...(options.inspectUnknown === undefined ? {} : { inspectUnknown: options.inspectUnknown }),
       ...(options.resumeScan === undefined ? {} : { resumeScan: options.resumeScan }),

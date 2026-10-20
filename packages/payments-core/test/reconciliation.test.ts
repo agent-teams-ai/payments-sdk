@@ -68,7 +68,7 @@ test('concurrent page reads use CAS so a stale page never admits inputs', async 
   const readers: ((page: ReconciliationPage) => void)[] = [];
   context.replaceRead(async () => new Promise(resolve => { readers.push(resolve); }));
   const first = context.reconciler.resumeScan('scan'), second = context.reconciler.resumeScan('scan');
-  while (readers.length < 2) await new Promise<void>(resolve => setImmediate(resolve));
+  while (readers.length < 2) {await new Promise<void>(resolve => setImmediate(resolve));}
   readers[0]!({ kind: 'page', inputs: [receipt('event-1')], hasMore: true, lastId: 'event-1' }); assert.equal((await first).kind, 'saved');
   readers[1]!({ kind: 'page', inputs: [receipt('event-2')], hasMore: false, lastId: 'event-2' }); assert.equal((await second).kind, 'conflict');
   assert.equal(await context.store.loadReductionInput(scope, 'event-2'), undefined);

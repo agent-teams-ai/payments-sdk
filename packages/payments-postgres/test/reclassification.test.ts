@@ -13,7 +13,7 @@ async function duplicateCheckout(context: Context, store: PaymentStore): Promise
   context.provider.createCheckout = () => first.promise;
   try {
     const result = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'duplicate' });
-    assert.equal(result.kind, 'outcome_unknown'); if (result.kind !== 'outcome_unknown') throw new Error('Fixture');
+    assert.equal(result.kind, 'outcome_unknown'); if (result.kind !== 'outcome_unknown') {throw new Error('Fixture');}
     const operation = await context.payments.readOperation(result.operationId); assert.ok(operation?.intentId);
     success(await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'accept-risk', reason: 'reviewed duplicate risk', action: 'retry', acceptedDuplicateRisk: true }));
     context.provider.createCheckout = async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'initial-b', checkout: {} } });
@@ -29,15 +29,15 @@ async function duplicateCheckout(context: Context, store: PaymentStore): Promise
 async function repairAll(context: Context, f: Fixture): Promise<void> {
   for (let pass = 0; pass < 30; pass += 1) {
     await context.payments.repair(100);
-    if (!(await f.store.listWork(scope, 'reclassification', 1)).length && !(await f.store.listWork(scope, 'publication', 1)).length) return;
+    if (!(await f.store.listWork(scope, 'reclassification', 1)).length && !(await f.store.listWork(scope, 'publication', 1)).length) {return;}
   }
   assert.fail('Bounded durable work did not finish');
 }
 async function ackAll(context: Context): Promise<void> {
   for (;;) {
     const batch = await context.payments.readDeliveries('audit', 100);
-    if (!batch.length) return;
-    for (const message of batch) assert.equal(await context.payments.acknowledgeDelivery('audit', message.messageId, message.bodyDigest), 'acknowledged');
+    if (!batch.length) {return;}
+    for (const message of batch) {assert.equal(await context.payments.acknowledgeDelivery('audit', message.messageId, message.bodyDigest), 'acknowledged');}
   }
 }
 async function cursor(f: Fixture, bindingId: string): Promise<SubscriptionReclassification | undefined> {
@@ -127,13 +127,13 @@ test('real PostgreSQL historical adjustment reparenting fences both parents afte
   try {
     const a = success(await payments.startPurchase({ buyerId: 'buyer', offerId: 'one-time', requestKey: 'a' }));
     const b = success(await payments.startPurchase({ buyerId: 'buyer', offerId: 'one-time', requestKey: 'b' }));
-    for (const checkout of [a, b]) await observe(payments, receipt(transaction(checkout.transactionRef, `paid-${checkout.transactionRef}`, { subscriptionRef: known(null), lines: known([{ providerLineRef: `line-${checkout.transactionRef}`, providerPriceRef: 'price', quantity: 1, amount: money('USD', '1000'), billingCycle: known(null), trial: known(false), proration: known(false), period: known(null) }]) })));
+    for (const checkout of [a, b]) {await observe(payments, receipt(transaction(checkout.transactionRef, `paid-${checkout.transactionRef}`, { subscriptionRef: known(null), lines: known([{ providerLineRef: `line-${checkout.transactionRef}`, providerPriceRef: 'price', quantity: 1, amount: money('USD', '1000'), billingCycle: known(null), trial: known(false), proration: known(false), period: known(null) }]) })));}
     await payments.registerConsumer('audit');
     const v1: AdjustmentObservation = { kind: 'adjustment', adjustmentRef: 'historical-refund', transactionRef: a.transactionRef, version: at, action: 'refund', status: 'approved', amount: money('USD', '100'), allocations: [{ providerLineRef: `line-${a.transactionRef}`, amount: money('USD', '100') }], source: transaction(a.transactionRef, 'refund-v1').source };
     await observe(payments, receipt(v1));
     await observe(payments, receipt({ ...v1, version: '2026-01-02T00:00:00Z', amount: money('USD', '200'), allocations: [{ providerLineRef: `line-${a.transactionRef}`, amount: money('USD', '200') }], source: { ...v1.source, receiptId: 'refund-v2' } }));
     const beforeA = (await payments.readPurchase('buyer', a.intentId))?.transactions[0]; assert.ok(beforeA?.completion);
-    for (const message of await payments.readDeliveries('audit', 100)) await payments.acknowledgeDelivery('audit', message.messageId, message.bodyDigest);
+    for (const message of await payments.readDeliveries('audit', 100)) {await payments.acknowledgeDelivery('audit', message.messageId, message.bodyDigest);}
     const restarted = runtime(await createPostgresPaymentStore({ pool: f.pool, schema: f.schema, scope }));
     const contradictory = receipt({ ...v1, transactionRef: b.transactionRef, version: '2026-01-01T00:00:00.000001000+00:00', source: { ...v1.source, receiptId: 'contradictory-old-parent' } });
     success(await restarted.payments.ingestVerifiedInput(contradictory));
@@ -168,7 +168,7 @@ test('real pg-boss rebuilds deleted reclassification jobs and successful pages d
   try {
     const { bindingId } = await duplicateCheckout(context, f.store);
     await observe(context.payments, receipt(transaction('initial-a', 'initial-a-paid')));
-    for (let i = 0; i < 7; i += 1) await observe(context.payments, receipt(transaction(`renewal-${i}`, `paid-${i}`, { origin: known('subscription_recurring') })));
+    for (let i = 0; i < 7; i += 1) {await observe(context.payments, receipt(transaction(`renewal-${i}`, `paid-${i}`, { origin: known('subscription_recurring') })));}
     await observe(context.payments, receipt(transaction('initial-b', 'initial-b-paid', { subscriptionRef: known('sub-b') })));
     await bootstrapPostgresPaymentJobs(namespace);
     jobs = createPostgresPaymentJobs({ ...namespace, batchSize: 1, concurrency: 1, maxAttempts: 1, cooldownSeconds: 1, maxCooldownSeconds: 1, pollingIntervalSeconds: 0.5 });
@@ -179,16 +179,16 @@ test('real pg-boss rebuilds deleted reclassification jobs and successful pages d
     assert.equal((await jobs.repair(100)).enqueued, 1, 'payment-owned cursor obligation alone rebuilds the wakeup');
     let pages = 0, sawProgressCooldown = false;
     const process = f.store.processReclassification.bind(f.store);
-    f.store.processReclassification = async (...args) => { const result = await process(...args); if (result.kind === 'committed') pages += 1; return result; };
+    f.store.processReclassification = async (...args) => { const result = await process(...args); if (result.kind === 'committed') {pages += 1;} return result; };
     await jobs.start({ payments: context.payments, store: f.store });
     const deadline = performance.now() + 25_000;
     for (;;) {
       await jobs.repair(100);
       const progress = (await f.pool.query<{ attempts: number; cooling: boolean }>(`SELECT attempts, next_attempt_at > clock_timestamp() AS cooling FROM "${f.schema}".obligations WHERE kind = 'reclassification' AND state = 'pending'`)).rows[0];
-      if (pages > 0 && progress?.attempts === 0 && progress.cooling) sawProgressCooldown = true;
+      if (pages > 0 && progress?.attempts === 0 && progress.cooling) {sawProgressCooldown = true;}
       const remaining = await f.pool.query(`SELECT id FROM "${f.schema}".obligations WHERE kind IN ('reclassification', 'publication') AND state <> 'complete'`);
-      if (!remaining.rows.length) break;
-      if (performance.now() >= deadline) assert.fail('Durable reclassification did not complete under a one-fault retry bound');
+      if (!remaining.rows.length) {break;}
+      if (performance.now() >= deadline) {assert.fail('Durable reclassification did not complete under a one-fault retry bound');}
       await delay(20);
     }
     assert.ok(sawProgressCooldown, 'successful pages retain the durable cooldown instead of hot-looping');
@@ -220,7 +220,7 @@ async function selectedInitial(context: Context): Promise<string> {
   return purchase.intent.subscriptionBasisId;
 }
 
-for (const maxAttempts of [1, 2]) test(`ordinary renewal preserves exact reclassification ${maxAttempts === 1 ? 'quarantine' : 'cooldown'}; audited redrive and a new decision reset work`, { timeout: 25_000 }, async () => {
+for (const maxAttempts of [1, 2]) {test(`ordinary renewal preserves exact reclassification ${maxAttempts === 1 ? 'quarantine' : 'cooldown'}; audited redrive and a new decision reset work`, { timeout: 25_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store), jobSchema = `q_${f.schema}`;
   const errors: Error[] = [], namespace = { pool: f.pool, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
   let jobs: ReturnType<typeof createPostgresPaymentJobs> | undefined;
@@ -254,7 +254,7 @@ for (const maxAttempts of [1, 2]) test(`ordinary renewal preserves exact reclass
     assert.deepEqual(diagnostic.work, { kind: 'reclassification', id: bindingId });
     assert.equal(diagnostic.attempt, 1);
   } finally { await jobs?.stop(); await jobs?.drain(); await context.payments.drain(); await f.pool.query(`DROP SCHEMA IF EXISTS "${jobSchema}" CASCADE`); await f.close(); }
-});
+});}
 
 test('an old failed claimant cannot quarantine replacement work claimed again at attempt one', { timeout: 25_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store), jobSchema = `q_${f.schema}`;
@@ -300,7 +300,7 @@ test('an old failed claimant cannot quarantine replacement work claimed again at
   } finally { releaseOld.resolve(); releaseNew.resolve(); await jobs?.stop(); await jobs?.drain(); await context.payments.drain(); await f.pool.query(`DROP SCHEMA IF EXISTS "${jobSchema}" CASCADE`); await f.close(); }
 });
 
-for (const channel of ['authenticated', 'webhook', 'reconciliation'] as const) test(`${channel} T1 fences both historical adjustment parents before stale publication T2; cleanup and page rollback stay atomic`, { timeout: 25_000 }, async () => {
+for (const channel of ['authenticated', 'webhook', 'reconciliation'] as const) {test(`${channel} T1 fences both historical adjustment parents before stale publication T2; cleanup and page rollback stay atomic`, { timeout: 25_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store);
   try {
     const a = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'a' })), b = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'b' }));
@@ -312,7 +312,7 @@ for (const channel of ['authenticated', 'webhook', 'reconciliation'] as const) t
     const staged = [];
     for (const checkout of [a, b]) {
       const loaded = await f.store.loadPublicationInput(scope, { type: 'transaction', id: checkout.transactionRef }); assert.ok(loaded); assert.equal(loaded.incompleteReason, undefined);
-      for (const observation of loaded.state.transactions[checkout.transactionRef]?.observations ?? []) reduceObservation(loaded.state, scope, observation);
+      for (const observation of loaded.state.transactions[checkout.transactionRef]?.observations ?? []) {reduceObservation(loaded.state, scope, observation);}
       publishEvidence(loaded.state, scope, 'database-fixture', 65536); staged.push(loaded);
     }
     const plain = receipt({ ...adjustment, transactionRef: b.transactionRef, source: { ...adjustment.source, receiptId: `contradiction-${channel}` } });
@@ -337,8 +337,8 @@ for (const channel of ['authenticated', 'webhook', 'reconciliation'] as const) t
         IF (SELECT count(*) FROM pg_locks WHERE pid = pg_backend_pid() AND locktype = 'advisory') > 512 THEN RAISE EXCEPTION 'admission lock bound'; END IF; RETURN NEW; END $$`);
       assert.deepEqual(await f.store.commitScanPage(scope, undefined, next, page), { kind: 'committed' });
       assert.equal((await f.pool.query(`SELECT id FROM "${f.schema}".records WHERE kind = 'inbox' AND (id IN ($1, 'fail-after-custody') OR id LIKE 'page-input-%')`, [submitted.inputId])).rows.length, 200);
-    } else success(await context.payments.ingestVerifiedInput(submitted));
-    for (const loaded of staged) assert.deepEqual(await f.store.commitReduction(scope, { inputId: loaded.inputId, expected: loaded.expected, state: loaded.state }), { kind: 'conflict' }, 'successful adverse T1 invalidates every already-known parent T2');
+    } else {success(await context.payments.ingestVerifiedInput(submitted));}
+    for (const loaded of staged) {assert.deepEqual(await f.store.commitReduction(scope, { inputId: loaded.inputId, expected: loaded.expected, state: loaded.state }), { kind: 'conflict' }, 'successful adverse T1 invalidates every already-known parent T2');}
     for (const checkout of [a, b]) {
       const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.pendingAdverse.includes(submitted.inputId)); assert.equal(aggregate.flags.includes('conflict'), false);
       assert.ok((await f.store.listWork(scope, 'publication', 100)).some(id => id === canonicalJson({ type: 'transaction', id: checkout.transactionRef })));
@@ -350,7 +350,7 @@ for (const channel of ['authenticated', 'webhook', 'reconciliation'] as const) t
     const original = (await f.pool.query<{ body: { projection: { transactionRef: string } } }>(`SELECT body FROM "${f.schema}".records WHERE kind = 'versionEvidence' AND id = $1`, [objectVersionKey(adjustment)])).rows[0]?.body;
     assert.equal(original?.projection.transactionRef, a.transactionRef);
   } finally { await context.payments.drain(); await f.close(); }
-});
+});}
 
 test('T1 parent discovery waits for a concurrent first exact-version certification and then fences its retained parent', { timeout: 15_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store), blocker = await f.pool.connect();
@@ -379,12 +379,12 @@ test('T1 parent discovery waits for a concurrent first exact-version certificati
     await untilPersisted(async () => (await f.pool.query('SELECT pid FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))', [writerPid])).rows.length > 0, 'admission must wait for the in-flight certification lock');
     await blocker.query('ROLLBACK'); gateHeld = false;
     assert.deepEqual(await certification, { kind: 'committed' }); success(await admission);
-    for (const checkout of [a, b]) assert.ok((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.pendingAdverse.includes(incoming.inputId));
+    for (const checkout of [a, b]) {assert.ok((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.pendingAdverse.includes(incoming.inputId));}
     assert.equal(await context.payments.processInbox(incoming.inputId), 'processed');
     for (const checkout of [a, b]) {
       const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.flags.includes('conflict')); assert.ok(!aggregate.pendingAdverse.includes(incoming.inputId));
     }
-  } finally { if (gateHeld) await blocker.query('ROLLBACK'); blocker.release(); await context.payments.drain(); await f.close(); }
+  } finally { if (gateHeld) {await blocker.query('ROLLBACK');} blocker.release(); await context.payments.drain(); await f.close(); }
 });
 
 
@@ -398,11 +398,11 @@ test('a duplicate pending receipt fences a historical parent certified since its
     success(await context.payments.ingestVerifiedInput(early));
     await observe(context.payments, receipt(original));
     const stale = await f.store.loadPublicationInput(scope, { type: 'transaction', id: a.transactionRef }); assert.ok(stale);
-    for (const observation of stale.state.transactions[a.transactionRef]?.observations ?? []) reduceObservation(stale.state, scope, observation);
+    for (const observation of stale.state.transactions[a.transactionRef]?.observations ?? []) {reduceObservation(stale.state, scope, observation);}
     publishEvidence(stale.state, scope, 'database-fixture', 65536);
     success(await context.payments.ingestVerifiedInput(early));
     assert.deepEqual(await f.store.commitReduction(scope, { inputId: stale.inputId, expected: stale.expected, state: stale.state }), { kind: 'conflict' });
-    for (const checkout of [a, b]) assert.ok((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.pendingAdverse.includes(early.inputId));
+    for (const checkout of [a, b]) {assert.ok((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.pendingAdverse.includes(early.inputId));}
     assert.equal(await context.payments.processInbox(early.inputId), 'processed');
     for (const checkout of [a, b]) {
       const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.flags.includes('conflict')); assert.ok(!aggregate.pendingAdverse.includes(early.inputId));

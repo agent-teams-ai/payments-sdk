@@ -45,7 +45,7 @@ export type PurchaseProjectionOptions = Readonly<{
 export type PurchaseProjectionConfiguration = PurchaseProjectionOptions & Readonly<{ read: PurchaseReadPort }>;
 
 function copyQuery(query: PurchaseQuery | undefined): PurchaseQuery | undefined {
-  if (query === undefined) return undefined;
+  if (query === undefined) {return undefined;}
   assertIdentifier(query.buyerId);
   assertIdentifier(query.intentId);
   return { buyerId: query.buyerId, intentId: query.intentId };
@@ -57,7 +57,7 @@ function loading(query: PurchaseQuery | undefined): PurchaseProjectionState {
 }
 
 function copyPurchase(purchase: Awaited<ReturnType<PurchaseReadPort['readPurchase']>>): PurchaseReadValue {
-  if (purchase === undefined) return undefined;
+  if (purchase === undefined) {return undefined;}
   const view = {
     intent: { intentId: purchase.intent.intentId, buyerId: purchase.intent.buyerId, offer: purchase.intent.offer, createdAt: purchase.intent.createdAt },
     transactions: purchase.transactions.map(transaction => ({
@@ -103,7 +103,7 @@ export function createPurchaseProjection(
     loader: async ({ values }, { signal }) => {
       signal.throwIfAborted();
       const query = values.request.query;
-      if (query === undefined) return undefined;
+      if (query === undefined) {return undefined;}
       // readPurchase has no cancellation contract. Await its physical settlement, including the
       // reader's cleanup, even when superseded. Never race it against the observation signal.
       const purchase = await configuration.read.readPurchase(query.buyerId, query.intentId);
@@ -140,7 +140,7 @@ export function createPurchaseProjection(
       refresh: (): undefined => {
         resources.signal.throwIfAborted();
         const query = requests.read(['request']).values.request.query;
-        if (query !== undefined) select(query);
+        if (query !== undefined) {select(query);}
         return undefined;
       },
     }),

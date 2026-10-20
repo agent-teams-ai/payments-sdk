@@ -55,8 +55,8 @@ async function consumerCheckpoints(credit: CreditFixture): Promise<RecoveryCheck
 }
 async function requiredScans(admin: Awaited<ReturnType<typeof createPostgresPaymentRecovery>>, initial: PaymentRecoverySession): Promise<PaymentRecoverySession> {
   let session = initial;
-  while (session.producerScan.status !== 'complete') session = await admin.scanProducerHistory(session.sessionId, session.revision, 100, audit);
-  while (session.uncertaintyScan.status !== 'complete') session = await admin.scanUncertainOperations(session.sessionId, session.revision, 100, audit);
+  while (session.producerScan.status !== 'complete') {session = await admin.scanProducerHistory(session.sessionId, session.revision, 100, audit);}
+  while (session.uncertaintyScan.status !== 'complete') {session = await admin.scanUncertainOperations(session.sessionId, session.revision, 100, audit);}
   return admin.reviewArchives(session.sessionId, session.revision, { auditRef: 'archive-review', sources: ['fixture-owner-unit-export'], limitations: 'Logical rollback only; no physical backup, WAL replay or HA promotion qualification' }, audit);
 }
 
@@ -65,7 +65,7 @@ test('logical producer-only restore stays fenced below the consumer revision 10 
   try {
     await f.store.registerConsumer(scope, 'credit', false);
     const history = Array.from({ length: 10 }, (_, index) => message(index + 1)); await seed(f, history);
-    for (const item of history) assert.equal((await c.credit.receive(item)).acknowledge, true);
+    for (const item of history) {assert.equal((await c.credit.receive(item)).acknowledge, true);}
     const checkpoints = await consumerCheckpoints(c.credit); assert.equal(checkpoints.length, 10);
     assert.equal((await c.credit.owner.inspect<{ revision: string }>('evidence_projection'))[0]?.revision, '10');
     // Roll back only producer-owned rows; consumer correctness records remain at revision 10.
@@ -196,7 +196,7 @@ test('administrative CAS, immutable audit records and 100-record recovery pages 
     assert.equal(session.uncertaintyScan.processed, 205);
     assert.equal((await f.pool.query(`SELECT 1 FROM "${f.schema}".records WHERE kind='operations' AND body->>'state'='outcome_unknown'`)).rowCount, 205);
     session = await admin.startConsumerVerification(session.sessionId, session.revision, 'credit', manifest(checkpoints), audit);
-    for (let offset = 0; offset < checkpoints.length; offset += 100) session = await admin.verifyConsumerPage(session.sessionId, session.revision, 'credit', checkpoints.slice(offset, offset + 100), audit);
+    for (let offset = 0; offset < checkpoints.length; offset += 100) {session = await admin.verifyConsumerPage(session.sessionId, session.revision, 'credit', checkpoints.slice(offset, offset + 100), audit);}
     for (let page = 0; page < 3; page++) {
       session = await admin.backfillRestoredConsumer(session.sessionId, session.revision, 'credit', 100, audit);
       assert.equal(session.backfills['credit']?.processed, Math.min((page + 1) * 100, 205));

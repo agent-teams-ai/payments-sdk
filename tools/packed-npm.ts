@@ -20,7 +20,7 @@ const forbiddenTypePath = /(?:^|[/\\])(?:drizzle-orm|mysql2|mysql)(?:[/\\]|$)/u;
 /** A fresh npm installation proves the maintainer-only declaration repair is not a consumer input. */
 export async function qualifyNpmConsumer(target: string, packages: readonly ConsumerPackage[], compiler: string): Promise<void> {
   const reportBase = join(repository, `.artifacts/packed-npm-node-${process.versions.node}`);
-  for (const suffix of ['json', 'log', 'package-lock.json', 'nodenext.files.txt', 'bundler.files.txt']) await rm(`${reportBase}.${suffix}`, { force: true });
+  for (const suffix of ['json', 'log', 'package-lock.json', 'nodenext.files.txt', 'bundler.files.txt']) {await rm(`${reportBase}.${suffix}`, { force: true });}
   assert.ok(process.env['DATABASE_URL'], 'DATABASE_URL is required: the npm consumer runs the existing real PostgreSQL financial oracle');
   await mkdir(target);
   const artifact = JSON.parse(await readFile(join(repository, 'qualification/drizzle/artifact.json'), 'utf8')) as DrizzleArtifact;
@@ -75,10 +75,10 @@ export async function qualifyNpmConsumer(target: string, packages: readonly Cons
   assert.equal(artifact.runtime.manifestEncoding, 'sorted relative .js/.cjs path, TAB, lowercase SHA256, LF');
   async function installedFileManifest(pattern: string): Promise<Readonly<{ files: number; sha256: string }>> {
     const paths: string[] = [];
-    for await (const path of glob(pattern, { cwd: drizzleRoot })) paths.push(path);
+    for await (const path of glob(pattern, { cwd: drizzleRoot })) {paths.push(path);}
     paths.sort();
     let manifest = '';
-    for (const path of paths) manifest += `${path}\t${digest(await readFile(join(drizzleRoot, path)))}\n`;
+    for (const path of paths) {manifest += `${path}\t${digest(await readFile(join(drizzleRoot, path)))}\n`;}
     return { files: paths.length, sha256: digest(manifest) };
   }
   const runtime = await installedFileManifest('**/*.{js,cjs}');
@@ -108,7 +108,7 @@ export async function qualifyNpmConsumer(target: string, packages: readonly Cons
     const files = await command(process.execPath, [compiler, '-p', 'tsconfig.json', '--listFiles'], target);
     const paths = files.trim().split('\n');
     assert.ok(paths.includes(join(target, 'index.ts')), 'The actual all-export consumer must appear in the compiler file graph');
-    for (const path of paths) assert.equal(forbiddenTypePath.test(path), false, `ORM or MySQL declarations leaked through a public SDK export: ${path}`);
+    for (const path of paths) {assert.equal(forbiddenTypePath.test(path), false, `ORM or MySQL declarations leaked through a public SDK export: ${path}`);}
     await writeFile(`${reportBase}.${resolution.toLowerCase()}.files.txt`, files);
     resolvers.push({ resolution, strict: true, exactOptionalPropertyTypes: true, noUncheckedIndexedAccess: true, skipLibCheck: false, ormDeclarationsReachable: false, listFilesSha256: digest(files), passed: true });
   }

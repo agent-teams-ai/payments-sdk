@@ -29,7 +29,7 @@ test('one locked admission page retains sequential duplicate/conflict identity a
       assert.ok(aggregate);
       assert.ok(aggregate.flags.includes('conflict'), `both old/new observations and the explicit adverse route retain custody: ${id}`);
       assert.equal(new Set(aggregate.pendingAdverse).size, aggregate.pendingAdverse.length);
-      if (id === 'adverse-parent') assert.deepEqual(aggregate.pendingAdverse, ['same-page'], 'later page inputs must read the preceding aggregate write');
+      if (id === 'adverse-parent') {assert.deepEqual(aggregate.pendingAdverse, ['same-page'], 'later page inputs must read the preceding aggregate write');}
     }
     assert.equal(await context.payments.processInbox('same-page'), 'quarantined');
     const completed = (await f.pool.query<{ body: InboxRecord }>(`SELECT body FROM "${f.schema}".records WHERE kind = 'inbox' AND id = 'processed-receipt'`)).rows[0]?.body;
@@ -116,7 +116,7 @@ test('late old checkout evidence cannot release a newer unresolved subscription 
   try {
     context.provider.createCheckout = () => old.promise;
     const first = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'initial' });
-    assert.equal(first.kind, 'outcome_unknown'); if (first.kind !== 'outcome_unknown') throw new Error('Fixture');
+    assert.equal(first.kind, 'outcome_unknown'); if (first.kind !== 'outcome_unknown') {throw new Error('Fixture');}
     const op = await context.payments.readOperation(first.operationId); assert.ok(op?.intentId);
     assert.equal((await context.payments.resolveUnknownOperation({ operationId: op.operationId, expectedRevision: op.revision, actorId: 'operator', auditRef: 'approved-risk', reason: 'reviewed', action: 'retry', acceptedDuplicateRisk: true })).kind, 'succeeded');
     successfulRetry.provider.createCheckout = async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'new-tx', checkout: {} } });
@@ -125,9 +125,9 @@ test('late old checkout evidence cannot release a newer unresolved subscription 
     const basis = (await context.payments.readPurchase('buyer', op.intentId))?.intent.subscriptionBasisId; assert.ok(basis);
     context.provider.cancelSubscription = () => cancellation.promise;
     const cancel = await context.payments.requestCancellation({ buyerId: 'buyer', bindingId: basis, requestKey: 'cancel', timing: 'now' });
-    assert.equal(cancel.kind, 'outcome_unknown'); if (cancel.kind !== 'outcome_unknown') throw new Error('Fixture');
+    assert.equal(cancel.kind, 'outcome_unknown'); if (cancel.kind !== 'outcome_unknown') {throw new Error('Fixture');}
     const lateCommitted = deferred<void>(), finish = f.store.finishAttempt.bind(f.store);
-    f.store.finishAttempt = async (s, commit) => { const outcome = await finish(s, commit); if (commit.binding?.transactionRef === 'old-tx' && outcome.kind === 'committed') lateCommitted.resolve(); return outcome; };
+    f.store.finishAttempt = async (s, commit) => { const outcome = await finish(s, commit); if (commit.binding?.transactionRef === 'old-tx' && outcome.kind === 'committed') {lateCommitted.resolve();} return outcome; };
     old.resolve({ kind: 'succeeded', value: { intentId: op.intentId, transactionRef: 'old-tx', checkout: {} } });
     await lateCommitted.promise;
     const lane = (await f.pool.query<{ body: { unresolvedOperationId?: string } }>(`SELECT body FROM "${f.schema}".records WHERE kind = 'lanes' AND id = $1`, [`subscription:${basis}`])).rows[0]?.body;
@@ -171,7 +171,7 @@ test('T1 adverse custody invalidates a prepared T2 read set and cross-source con
       await context.payments.flushPublication({ type: 'transaction', id });
     }
     const messages = await context.payments.readDeliveries('credit', 100);
-    for (const id of ['original-route', 'changed-route']) assert.ok(messages.some(message => message.aggregate.id === id && message.kind === 'complete' && message.flags.includes('conflict')));
+    for (const id of ['original-route', 'changed-route']) {assert.ok(messages.some(message => message.aggregate.id === id && message.kind === 'complete' && message.flags.includes('conflict')));}
   } finally { await context.payments.drain(); await f.close(); }
 });
 
@@ -213,7 +213,7 @@ test('historical exact-version contradictions survive restart, acknowledgement a
     const adjustment: AdjustmentObservation = { kind: 'adjustment', adjustmentRef: 'history-refund', transactionRef: checkout.transactionRef, version: at, action: 'refund', status: 'pending_approval', amount: money('USD', '100'), allocations: [{ providerLineRef: `line-${checkout.transactionRef}`, amount: money('USD', '100') }], source: { ...subscription('sub-a', 'adjustment-v1').source } };
     await observe(context.payments, receipt(adjustment, { adverseTransactionRef: checkout.transactionRef }));
     await observe(context.payments, receipt({ ...adjustment, version: v2, status: 'approved', source: { ...adjustment.source, receiptId: 'adjustment-v2' } }, { adverseTransactionRef: checkout.transactionRef }));
-    for (const message of await context.payments.readDeliveries('audit', 100)) await context.payments.acknowledgeDelivery('audit', message.messageId, message.bodyDigest);
+    for (const message of await context.payments.readDeliveries('audit', 100)) {await context.payments.acknowledgeDelivery('audit', message.messageId, message.bodyDigest);}
     const restarted = runtime(await createPostgresPaymentStore({ pool: f.pool, schema: f.schema, scope }));
     await observe(restarted.payments, receipt({ ...subscription('sub-a', 'conflicting-old-sub'), version: '2026-01-01T00:00:00.000001000+00:00', status: known('canceled') }));
     await observe(restarted.payments, receipt({ ...adjustment, amount: money('USD', '90'), allocations: [{ providerLineRef: `line-${checkout.transactionRef}`, amount: money('USD', '90') }], source: { ...adjustment.source, receiptId: 'conflicting-old-adjustment' } }, { adverseTransactionRef: checkout.transactionRef }));

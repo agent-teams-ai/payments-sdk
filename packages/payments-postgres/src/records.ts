@@ -52,7 +52,7 @@ export class PaymentRecords {
     };
     const ordered = [...keys].sort((a, b) => rank(a.kind) - rank(b.kind) || compareKeys(a, b));
     const names = [...new Set(ordered.map(key => canonicalJson([this.schema, key.kind, key.id])))];
-    if (names.length > maximumRecordSet) throw new RangeError('Payment transaction lock set exceeds its bound');
+    if (names.length > maximumRecordSet) {throw new RangeError('Payment transaction lock set exceeds its bound');}
     // Exact-version certification must be stable before T1 discovers its retained parent.
     // T2 uses this same inbox/version/aggregate order, avoiding an inverse parent/version wait.
     await tx.query('SELECT pg_advisory_xact_lock(hashtextextended(key, 0)) FROM (SELECT key FROM unnest($1::text[]) WITH ORDINALITY AS keys(key, position) ORDER BY position) ordered', [names]);
@@ -68,8 +68,8 @@ export class PaymentRecords {
   /** Bounded lookups for identities whose existing transaction lock phase has completed. */
   async readMany<T>(tx: PaymentSqlTransaction, kind: string, ids: readonly string[]): Promise<ReadonlyMap<string, StoredRecord<T>>> {
     const unique = [...new Set(ids)];
-    if (unique.length > maximumRecordSet) throw new RangeError('Payment record lookup set exceeds its bound');
-    if (unique.length === 0) return new Map();
+    if (unique.length > maximumRecordSet) {throw new RangeError('Payment record lookup set exceeds its bound');}
+    if (unique.length === 0) {return new Map();}
     const table = this.tables.records;
     const rows = await selectPaymentRows(tx, paymentQueries.select({ id: table.id, revision: table.revision, body: table.body })
       .from(table).where(and(eq(table.kind, kind), inArray(table.id, unique))));
@@ -83,7 +83,7 @@ export class PaymentRecords {
   /** Group one input's distinct transitions; never coalesce revisions across inputs. */
   async writeMany(tx: PaymentSqlTransaction, writes: readonly RecordWrite[]): Promise<void> {
     // One locked route set plus event identity, inbox and conflicting representation.
-    if (writes.length > maximumRecordSet + 3) throw new RangeError('Payment record write set exceeds its bound');
+    if (writes.length > maximumRecordSet + 3) {throw new RangeError('Payment record write set exceeds its bound');}
     if (new Set(writes.map(item => canonicalJson([item.kind, item.id]))).size !== writes.length) {
       throw new TypeError('A payment record write set cannot repeat an identity');
     }
@@ -91,7 +91,7 @@ export class PaymentRecords {
     let rows: (typeof table.$inferInsert)[] = [];
     let batchBytes = 0;
     const flush = async (): Promise<void> => {
-      if (rows.length === 0) return;
+      if (rows.length === 0) {return;}
       await executePaymentStatement(tx, paymentQueries.insert(table).values(rows).onConflictDoUpdate({
         target: [table.kind, table.id],
         set: { revision: sql`${table.revision} + 1`, body: sql`excluded.body`, updatedAt: sql`clock_timestamp()` },
@@ -101,7 +101,7 @@ export class PaymentRecords {
     };
     for (const write of writes) {
       const body = JSON.stringify(write.body), bytes = body === undefined ? 0 : Buffer.byteLength(body);
-      if (rows.length > 0 && (rows.length >= 100 || batchBytes + bytes > 2_097_152)) await flush();
+      if (rows.length > 0 && (rows.length >= 100 || batchBytes + bytes > 2_097_152)) {await flush();}
       // An individual large stored body still executes singly, as write() did before.
       // Explicit jsonb parameters preserve JSON null instead of inserting SQL NULL.
       rows.push({ kind: write.kind, id: write.id, revision: '1', body: sql`${body}::jsonb` });
@@ -164,10 +164,10 @@ export class PaymentRecords {
 
 function safeRevision(value: string): number {
   const revision = Number(value);
-  if (!Number.isSafeInteger(revision) || revision < 1) throw new RangeError('Payment record revision exceeds the supported range');
+  if (!Number.isSafeInteger(revision) || revision < 1) {throw new RangeError('Payment record revision exceeds the supported range');}
   return revision;
 }
 
 export function assertBatchLimit(limit: number, maximum: 100 | 200 = 100): void {
-  if (!Number.isInteger(limit) || limit < 1 || limit > maximum) throw new RangeError(`Payment batch limit must be between 1 and ${maximum}`);
+  if (!Number.isInteger(limit) || limit < 1 || limit > maximum) {throw new RangeError(`Payment batch limit must be between 1 and ${maximum}`);}
 }

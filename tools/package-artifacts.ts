@@ -26,7 +26,7 @@ export async function auditPackageArchive(tarball: string, expectedName: string,
   assert.equal(manifest.license, 'Apache-2.0');
   assert.notEqual(manifest.private, true, 'Private package cannot be released');
   assert.ok(manifest.exports, `${expectedName}: missing exports map`);
-  if (expectedVersion !== undefined) assert.equal(manifest.version, expectedVersion, 'Archive version differs from release tag');
+  if (expectedVersion !== undefined) {assert.equal(manifest.version, expectedVersion, 'Archive version differs from release tag');}
   for (const [dependency, version] of Object.entries({ ...manifest.dependencies, ...manifest.peerDependencies })) {
     assert.ok(typeof version === 'string' && !version.startsWith('workspace:') && !version.startsWith('catalog:'), `${expectedName}: unresolved publish protocol ${dependency}`);
     assert.ok(!['@agent-teams/engineering-foundation', 'node-or-bun'].includes(dependency), `${expectedName}: development tooling leaked into runtime`);

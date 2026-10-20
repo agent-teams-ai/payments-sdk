@@ -29,8 +29,8 @@ export function translatePaddleError(error: unknown, mutation: boolean): Provide
   if (error instanceof ApiError) {
     const diagnostic = { providerCode: error.code };
     const code = rejections[error.code];
-    if (code !== undefined) return { kind: 'rejected', code, diagnostic };
-    if (!mutation) return { kind: 'rejected', code: error.retryAfter !== null ? 'rate_limited' : error.type === 'api_error' ? 'unavailable' : 'unclassified_external_state', diagnostic };
+    if (code !== undefined) {return { kind: 'rejected', code, diagnostic };}
+    if (!mutation) {return { kind: 'rejected', code: error.retryAfter !== null ? 'rate_limited' : error.type === 'api_error' ? 'unavailable' : 'unclassified_external_state', diagnostic };}
     return { kind: 'outcome_unknown', diagnostic };
   }
   // A network, JSON, or SDK mapping failure can follow a successful provider effect.

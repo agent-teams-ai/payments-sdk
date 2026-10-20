@@ -15,7 +15,7 @@ test('independent credit owner preserves causal history across full-refund deliv
       const fixture = await consumers();
       try {
         const paid = message(3), refunded = message(4, fact(), [adjustment()]);
-        for (const revision of order) await fixture.credit.receive(revision === 3 ? paid : refunded);
+        for (const revision of order) {await fixture.credit.receive(revision === 3 ? paid : refunded);}
         let decision = await onlyCredit(fixture.credit);
         assert.equal(BigInt(decision.eligible), 0n); assert.equal(BigInt(decision.allocated), 0n); assert.equal(decision.status, 'withheld');
         const history = await effects(fixture.credit);
@@ -70,7 +70,7 @@ test('duplicate paid support is held in either order, resolved locally with whol
         const a = message(4, fact(), [adjustment()]);
         const bFact = fact({ factId: 'completion-B', transactionRef: 'transaction-B', providerSubscriptionRef: 'subscription-B', lines: [{ ...fact().lines[0]!, providerLineRef: 'line-B', period: nextPeriod }] });
         const b = message(1, bFact);
-        for (const input of order === 'refunded-A-first' ? [a, b] : [b, a]) await fixture.credit.receive(input);
+        for (const input of order === 'refunded-A-first' ? [a, b] : [b, a]) {await fixture.credit.receive(input);}
         let row = (await fixture.credit.decisions()).find(candidate => candidate.body.period?.startsAt === nextPeriod.startsAt)!;
         assert.ok((await fixture.credit.decisions()).every(candidate => candidate.body.status === 'held' && candidate.body.eligible === '0'));
         assert.equal((await fixture.credit.decisions()).reduce((sum, candidate) => sum + BigInt(candidate.body.held), 0n), order === 'paid-B-first' ? Q : 0n);
@@ -129,7 +129,7 @@ test('a first unrouted held or unknown-schema source fences older complete evide
       try {
         const paid = message(3), active = subscription(3);
         function control(previous: typeof paid) {
-          if (controlKind === 'held') return held(4, previous);
+          if (controlKind === 'held') {return held(4, previous);}
           const complete4 = previous.aggregate.type === 'transaction' ? message(4) : subscription(4);
           const { bodyDigest: _digest, ...body } = complete4;
           return signFixtureMessage({ ...body, schemaVersion: 9 });
@@ -192,7 +192,7 @@ test('initial stream guard, distinct renewal periods and intentional top-ups pre
 });
 
 test('initial, renewal and recovery share one exact paid-period decision in either order across restart', async t => {
-  for (const classification of ['renewal', 'recovery'] as const) for (const initialFirst of [true, false]) for (const alias of [false, true]) {
+  for (const classification of ['renewal', 'recovery'] as const) {for (const initialFirst of [true, false]) {for (const alias of [false, true]) {
     await t.test(`${classification}, ${initialFirst ? 'initial first' : 'recurring first'}, ${alias ? 'equivalent RFC3339 spellings' : 'identical spellings'}`, async () => {
       const fixture = await consumers();
       try {
@@ -210,7 +210,7 @@ test('initial, renewal and recovery share one exact paid-period decision in eith
         assert.equal((await credit.initialGuards()).length, 1, 'initial guard is a separate durable constraint, not a second grant basis');
         const original = (await effects(credit)).find(effect => effect.kind === 'grant');
         assert.equal((await effects(credit)).filter(effect => effect.kind === 'grant').length, initialFirst ? 1 : 0);
-        for (const input of [recurring, initial]) assert.equal((await credit.receive(input)).outcome, 'duplicate');
+        for (const input of [recurring, initial]) {assert.equal((await credit.receive(input)).outcome, 'duplicate');}
         const resolution: HeldResolution = { basisKey: row.basis_key, expectedDecisionRevision: Number(row.revision), expectedReadSet: row.body.readSet, selectedSource: sourceIdentity(recurring), actorId: 'authorized-period-owner', approvalRef: `same-period-${classification}-${initialFirst}`, policyVersion: 'fixture-credit-policy-v1' };
         assert.equal(await credit.resolveHeldDecision(resolution), 'resolved'); assert.equal(await credit.resolveHeldDecision(resolution), 'duplicate');
         row = (await credit.decisions())[0]!;
@@ -231,7 +231,7 @@ test('initial, renewal and recovery share one exact paid-period decision in eith
         }
       } finally { await fixture.close(); }
     });
-  }
+  }}}
 });
 
 test('reentrant initial support A→B→A→B conserves one allocation across restart, replay and partial adverse evidence', async () => {
@@ -251,7 +251,7 @@ test('reentrant initial support A→B→A→B conserves one allocation across re
       assert.equal(decisions.reduce((sum, row) => sum + BigInt(row.body.allocated), 0n), Q);
       assert.equal(decisions.reduce((sum, row) => sum + BigInt(row.body.held), 0n), 0n);
       assert.equal(history.reduce((sum, effect) => sum + BigInt(effect.amount), 0n), Q);
-      for (const decision of decisions) assert.equal(history.filter(effect => effect.basisKey === decision.basis_key).reduce((sum, effect) => sum + BigInt(effect.amount), 0n), BigInt(decision.body.allocated), 'per-period effect net equals durable allocation');
+      for (const decision of decisions) {assert.equal(history.filter(effect => effect.basisKey === decision.basis_key).reduce((sum, effect) => sum + BigInt(effect.amount), 0n), BigInt(decision.body.allocated), 'per-period effect net equals durable allocation');}
       assert.equal(decisions.find(row => row.basis_key === target.basis_key)?.body.originalGrant, original.effectKey);
       assert.equal(guard.allocationOwner, target.basis_key); assert.equal(guard.allocationRevision, transition); assert.equal(guard.originalGrant, original.effectKey);
       assert.equal(history.filter(effect => effect.kind === 'grant').length, 1);

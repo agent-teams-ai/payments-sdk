@@ -15,7 +15,7 @@ function sign(body: string): string { const ts = Math.floor(Date.now() / 1000); 
 
 test('durable reconciliation through actual public Paddle SDK and PostgreSQL', { timeout: 60_000 }, async t => {
   const names = ['fetch', 'Headers', 'Response', 'Request', 'FormData', 'WebSocket', 'CloseEvent', 'ErrorEvent', 'MessageEvent', 'EventSource'] as const;
-  const connectionString = process.env['DATABASE_URL']; if (!connectionString) throw new Error('DATABASE_URL is required for reconciliation integration tests');
+  const connectionString = process.env['DATABASE_URL']; if (!connectionString) {throw new Error('DATABASE_URL is required for reconciliation integration tests');}
   const saved = names.map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)] as const), dispatcher = getGlobalDispatcher();
   install(); const agent = new MockAgent(); agent.disableNetConnect(); setGlobalDispatcher(agent);
   const api = agent.get('https://sandbox-api.paddle.com');
@@ -32,13 +32,13 @@ test('durable reconciliation through actual public Paddle SDK and PostgreSQL', {
   }
   const eventPath = (after?: string, eventType?: string) => (path: string): boolean => {
     const url = new URL(path, 'https://sandbox-api.paddle.com');
-    if (url.pathname !== '/events') return false;
+    if (url.pathname !== '/events') {return false;}
     assert.equal(url.searchParams.get('from'), query.from); assert.equal(url.searchParams.get('to'), query.to);
     assert.equal(url.searchParams.get('order_by'), 'id[ASC]'); assert.equal(url.searchParams.get('after'), after ?? null);
     assert.equal(url.searchParams.get('event_type'), eventType ?? null); return true;
   };
   try {
-    for (const size of [101, 200] as const) await t.test(`actual SDK ${size}-member pages retain every receipt and atomically advance the durable cursor`, async () => isolated(async ({ schema, store, reconciler }) => {
+    for (const size of [101, 200] as const) {await t.test(`actual SDK ${size}-member pages retain every receipt and atomically advance the durable cursor`, async () => isolated(async ({ schema, store, reconciler }) => {
       const events = Array.from({ length: size }, (_, index) => eventFixture('transaction.future_event', { id: `txn_${String(index + 1).padStart(26, '0')}` }, `evt_${String(index + 1).padStart(26, '0')}`));
       if (size === 200) {
         // A conflicting prior representation exercises 400 distinct old/new aggregate locks,
@@ -47,10 +47,10 @@ test('durable reconciliation through actual public Paddle SDK and PostgreSQL', {
         for (const [index, event] of events.entries()) {
           const body = JSON.stringify({ ...event, data: { id: `txn_${String(size + index + 1).padStart(26, '0')}` } });
           const verified = await provider.verifyWebhook(body, sign(body)); assert.equal(verified.kind, 'succeeded');
-          if (verified.kind !== 'succeeded') throw new Error('Expected verified receipt');
+          if (verified.kind !== 'succeeded') {throw new Error('Expected verified receipt');}
           originals.push(verified.value);
         }
-        for (let index = 0; index < originals.length; index += 100) await store.admitVerifiedInputs(scope, originals.slice(index, index + 100));
+        for (let index = 0; index < originals.length; index += 100) {await store.admitVerifiedInputs(scope, originals.slice(index, index + 100));}
       }
       await reconciler.beginScan({ scanId: 'large-page', epoch: 'epoch', query: { ...query, perPage: size } });
       const initial = await store.readCheckpoint(scope, 'large-page'); assert.ok(initial);
@@ -68,7 +68,7 @@ test('durable reconciliation through actual public Paddle SDK and PostgreSQL', {
       const restarted = createPaymentReconciler({ scope, store: reloadedStore, source });
       api.intercept({ path, method: 'GET' }).reply(200, responseFixture(events));
       const acquired = await restarted.resumeScan('large-page'); assert.equal(acquired.kind, 'saved');
-      if (acquired.kind !== 'saved') throw new Error('Expected saved page');
+      if (acquired.kind !== 'saved') {throw new Error('Expected saved page');}
       assert.equal(acquired.admitted, size); assert.equal(acquired.checkpoint.status, 'complete'); assert.equal(acquired.checkpoint.after, events.at(-1)?.['event_id']);
       const receipts = (await pool.query<{ input: VerifiedInput }>(`SELECT body->'input' AS input FROM "${schema}".records WHERE kind='inbox' AND body #>> '{input,source,kind}'='authenticated_api'`)).rows.map(row => row.input);
       assert.equal(receipts.length, size); assert.deepEqual(receipts.map(input => input.source.eventId).sort(), events.map(event => event['event_id']));
@@ -84,7 +84,7 @@ test('durable reconciliation through actual public Paddle SDK and PostgreSQL', {
       }
       await assert.rejects(restarted.beginScan({ scanId: 'oversized-page', epoch: 'epoch', query: { ...query, perPage: 201 } }), /Invalid page bound/u);
       assert.equal(await reloadedStore.readCheckpoint(scope, 'oversized-page'), undefined);
-    }));
+    }));}
 
     await t.test('begin creates a durable obligation; failed atomic commit retains cursor and rolls back every input', async () => isolated(async ({ schema, store, reconciler }) => {
       await reconciler.beginScan({ scanId: 'rollback', epoch: 'epoch-1', query });
@@ -145,8 +145,8 @@ test('durable reconciliation through actual public Paddle SDK and PostgreSQL', {
         api.intercept({ path: eventPath(), method: 'GET' }).reply(200, responseFixture([eventFixture('future.event', {})], true));
         await reconciler.resumeScan(fault);
         const request = api.intercept({ path: eventPath(paddleIds.event), method: 'GET' });
-        if (fault === 'rate-limit') request.reply(429, { error: { type: 'request_error', code: 'too_many_requests', detail: 'Synthetic limit', documentation_url: 'https://fixture.invalid/errors', errors: null }, meta: { request_id: 'synthetic-limit' } }, { headers: { 'retry-after': '1' } });
-        else request.replyWithError(new Error('Synthetic disconnected transport'));
+        if (fault === 'rate-limit') {request.reply(429, { error: { type: 'request_error', code: 'too_many_requests', detail: 'Synthetic limit', documentation_url: 'https://fixture.invalid/errors', errors: null }, meta: { request_id: 'synthetic-limit' } }, { headers: { 'retry-after': '1' } });}
+        else {request.replyWithError(new Error('Synthetic disconnected transport'));}
         await reconciler.resumeScan(fault);
         const checkpoint = await store.readCheckpoint(scope, fault); assert.equal(checkpoint?.after, paddleIds.event); assert.equal(checkpoint.status, 'gap');
         assert.equal(checkpoint.lastFailure?.sdkVersion, '3.10.0'); assert.equal(checkpoint.lastFailure?.code, fault === 'rate-limit' ? 'rate_limited' : 'unavailable');
@@ -157,7 +157,7 @@ test('durable reconciliation through actual public Paddle SDK and PostgreSQL', {
     await t.test('compatible raw and mapped events keep complete custody; contradictory identity fences both routes', async () => isolated(async ({ store, reconciler }) => {
       const rawData = transactionFixture({ monthly: false, customerRef: null });
       const body = JSON.stringify(eventFixture('transaction.completed', rawData));
-      const raw = await provider.verifyWebhook(body, sign(body)); assert.equal(raw.kind, 'succeeded'); if (raw.kind !== 'succeeded') throw new Error('Expected verified receipt');
+      const raw = await provider.verifyWebhook(body, sign(body)); assert.equal(raw.kind, 'succeeded'); if (raw.kind !== 'succeeded') {throw new Error('Expected verified receipt');}
       await store.admitVerifiedInputs(scope, [raw.value]);
       await reconciler.beginScan({ scanId: 'compatible', epoch: 'epoch', query: { ...query, eventType: 'transaction.completed' } });
       api.intercept({ path: eventPath(undefined, 'transaction.completed'), method: 'GET' }).reply(200, responseFixture([eventFixture('transaction.completed', rawData)]));
@@ -202,7 +202,7 @@ test('durable reconciliation through actual public Paddle SDK and PostgreSQL', {
       assert.equal(digest(input?.retainedRepresentation), input?.source.representationDigest);
     }));
 
-    for (const mode of ['raw', 'mapped'] as const) await t.test(`future ${mode} entity events survive restart and publish higher unsupported evidence`, async () => isolated(async ({ schema, store, reconciler }) => {
+    for (const mode of ['raw', 'mapped'] as const) {await t.test(`future ${mode} entity events survive restart and publish higher unsupported evidence`, async () => isolated(async ({ schema, store, reconciler }) => {
       const offer: OfferSnapshot = { applicationId: scope.applicationId, offerId: 'monthly', version: '1', policyVersion: '1', profile: 'monthly', currency: 'USD', allowZeroTotal: false, lines: [{ providerPriceRef: paddleIds.price, benefitSlotId: 'included', quantity: 1 }] };
       const ids = ['intent-fixture', 'operation-fixture', 'basis-fixture', 'attempt-fixture'];
       const runtimeOptions = { scope, provider, producerNamespace: 'reconciliation-fixture', catalog: { resolveOffer: async () => offer }, newId: () => ids.shift() ?? randomUUID() };
@@ -210,7 +210,7 @@ test('durable reconciliation through actual public Paddle SDK and PostgreSQL', {
       await runtime.registerConsumer('future-event-consumer');
       api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, responseFixture(transactionFixture({ status: 'ready', customerRef: null })));
       const checkout = await runtime.startPurchase({ buyerId: 'buyer-fixture', offerId: offer.offerId, requestKey: 'request-fixture' }); assert.equal(checkout.kind, 'succeeded');
-      if (checkout.kind !== 'succeeded') throw new Error('Expected checkout');
+      if (checkout.kind !== 'succeeded') {throw new Error('Expected checkout');}
       api.intercept({ path: path => new URL(path, 'https://sandbox-api.paddle.com').pathname === `/transactions/${paddleIds.transaction}`, method: 'GET' }).reply(200, responseFixture(transactionFixture()));
       assert.deepEqual(await runtime.refreshPurchase('buyer-fixture', checkout.value.intentId), { kind: 'succeeded', value: 1 });
       const baseline = await runtime.readPurchase('buyer-fixture', checkout.value.intentId); assert.ok(baseline);
@@ -228,15 +228,15 @@ test('durable reconciliation through actual public Paddle SDK and PostgreSQL', {
       const rawInputs: VerifiedInput[] = [];
       for (const event of events) {
         const body = JSON.stringify(event), verified = await provider.verifyWebhook(body, sign(body)); assert.equal(verified.kind, 'succeeded');
-        if (verified.kind !== 'succeeded') throw new Error('Expected verified receipt');
+        if (verified.kind !== 'succeeded') {throw new Error('Expected verified receipt');}
         rawInputs.push(verified.value);
       }
-      if (mode === 'raw') await store.admitVerifiedInputs(scope, rawInputs);
+      if (mode === 'raw') {await store.admitVerifiedInputs(scope, rawInputs);}
       else {
         await reconciler.beginScan({ scanId: 'future-entities', epoch: 'epoch', query });
         api.intercept({ path: eventPath(), method: 'GET' }).reply(200, responseFixture(events));
         const result = await reconciler.resumeScan('future-entities'); assert.equal(result.kind, 'saved');
-        if (result.kind !== 'saved') throw new Error('Expected saved page');
+        if (result.kind !== 'saved') {throw new Error('Expected saved page');}
         assert.equal(result.admitted, 2); assert.equal(result.checkpoint.status, 'complete'); assert.equal(result.checkpoint.after, paddleIds.thirdEvent);
       }
       const reloadedStore = await createPostgresPaymentStore({ pool, schema, scope });
@@ -247,8 +247,8 @@ test('durable reconciliation through actual public Paddle SDK and PostgreSQL', {
         const isTransaction = retained.source.eventType === 'transaction.future_event';
         assert.deepEqual(inputRoutes(retained), [{ type: isTransaction ? 'transaction' : 'subscription', id: isTransaction ? paddleIds.transaction : paddleIds.subscription }]);
         assert.equal(retained.observation.kind, 'unsupported');
-        if (mode === 'raw') assert.deepEqual(retained, rawInputs.find(input => input.inputId === id));
-        else assert.equal(digest(retained.retainedRepresentation), retained.source.representationDigest);
+        if (mode === 'raw') {assert.deepEqual(retained, rawInputs.find(input => input.inputId === id));}
+        else {assert.equal(digest(retained.retainedRepresentation), retained.source.representationDigest);}
         assert.equal(await restarted.processInbox(id), 'processed');
       }
       const durable = createPayments({ ...runtimeOptions, store: await createPostgresPaymentStore({ pool, schema, scope }) });
@@ -260,22 +260,22 @@ test('durable reconciliation through actual public Paddle SDK and PostgreSQL', {
       for (const aggregate of [{ type: 'transaction', id: paddleIds.transaction, revision: transaction.evidenceRevision }, { type: 'subscription', id: paddleIds.subscription, revision: subscription.evidenceRevision }]) {
         const latest = messages.filter(message => message.aggregate.type === aggregate.type && message.aggregate.id === aggregate.id).sort((a, b) => b.revision - a.revision)[0]; assert.ok(latest);
         assert.ok(latest.revision > aggregate.revision); assert.notEqual(latest.kind, 'held');
-        if (latest.kind === 'held') throw new Error('Expected retained known evidence with unsupported hold flag');
+        if (latest.kind === 'held') {throw new Error('Expected retained known evidence with unsupported hold flag');}
         assert.deepEqual(latest.flags, ['unsupported']);
         const { bodyDigest, ...body } = latest; assert.equal(digest(body), bodyDigest);
       }
-      if (mode === 'mapped') assert.equal((await reloadedStore.readCheckpoint(scope, 'future-entities'))?.status, 'complete');
-    }));
+      if (mode === 'mapped') {assert.equal((await reloadedStore.readCheckpoint(scope, 'future-entities'))?.status, 'complete');}
+    }));}
 
     await t.test('public refresh preserves official SDK transaction and subscription receipt bodies and digests', async () => isolated(async ({ store }) => {
       const offer: OfferSnapshot = { applicationId: scope.applicationId, offerId: 'monthly', version: '1', policyVersion: '1', profile: 'monthly', currency: 'USD', allowZeroTotal: false, lines: [{ providerPriceRef: paddleIds.price, benefitSlotId: 'included', quantity: 1 }] };
       const ids = ['intent-fixture', 'operation-fixture', 'basis-fixture', 'attempt-fixture'];
-      const runtime = createPayments({ scope, store, provider, producerNamespace: 'reconciliation-fixture', catalog: { resolveOffer: async () => offer }, newId: () => { const id = ids.shift(); if (!id) throw new Error('Exhausted fixture IDs'); return id; } });
+      const runtime = createPayments({ scope, store, provider, producerNamespace: 'reconciliation-fixture', catalog: { resolveOffer: async () => offer }, newId: () => { const id = ids.shift(); if (!id) {throw new Error('Exhausted fixture IDs');} return id; } });
       api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, responseFixture(transactionFixture({ status: 'ready', customerRef: null })));
-      const checkout = await runtime.startPurchase({ buyerId: 'buyer-fixture', offerId: offer.offerId, requestKey: 'request-fixture' }); assert.equal(checkout.kind, 'succeeded'); if (checkout.kind !== 'succeeded') throw new Error('Expected checkout');
+      const checkout = await runtime.startPurchase({ buyerId: 'buyer-fixture', offerId: offer.offerId, requestKey: 'request-fixture' }); assert.equal(checkout.kind, 'succeeded'); if (checkout.kind !== 'succeeded') {throw new Error('Expected checkout');}
       const transactionPath = (path: string) => new URL(path, 'https://sandbox-api.paddle.com').pathname === `/transactions/${paddleIds.transaction}`;
       api.intercept({ path: transactionPath, method: 'GET' }).reply(200, responseFixture(transactionFixture()));
-      const acquired = await provider.readTransactionInput(paddleIds.transaction); assert.equal(acquired.kind, 'succeeded'); if (acquired.kind !== 'succeeded') throw new Error('Expected receipt');
+      const acquired = await provider.readTransactionInput(paddleIds.transaction); assert.equal(acquired.kind, 'succeeded'); if (acquired.kind !== 'succeeded') {throw new Error('Expected receipt');}
       api.intercept({ path: transactionPath, method: 'GET' }).reply(200, responseFixture(transactionFixture()));
       assert.deepEqual(await runtime.refreshPurchase('buyer-fixture', checkout.value.intentId), { kind: 'succeeded', value: 1 });
       const retained = (await store.loadReductionInput(scope, acquired.value.inputId))?.state.inbox[acquired.value.inputId]?.input;
@@ -283,7 +283,7 @@ test('durable reconciliation through actual public Paddle SDK and PostgreSQL', {
       const purchase = await runtime.readPurchase('buyer-fixture', checkout.value.intentId); const basis = purchase?.intent.subscriptionBasisId; assert.ok(basis);
       const subscriptionPath = (path: string) => new URL(path, 'https://sandbox-api.paddle.com').pathname === `/subscriptions/${paddleIds.subscription}`;
       api.intercept({ path: subscriptionPath, method: 'GET' }).reply(200, responseFixture(subscriptionFixture()));
-      const subscription = await provider.readSubscriptionInput(paddleIds.subscription); assert.equal(subscription.kind, 'succeeded'); if (subscription.kind !== 'succeeded') throw new Error('Expected receipt');
+      const subscription = await provider.readSubscriptionInput(paddleIds.subscription); assert.equal(subscription.kind, 'succeeded'); if (subscription.kind !== 'succeeded') {throw new Error('Expected receipt');}
       api.intercept({ path: subscriptionPath, method: 'GET' }).reply(200, responseFixture(subscriptionFixture()));
       assert.deepEqual(await runtime.refreshSubscription('buyer-fixture', basis), { kind: 'succeeded', value: 1 });
       const savedSubscription = (await store.loadReductionInput(scope, subscription.value.inputId))?.state.inbox[subscription.value.inputId]?.input;
@@ -292,6 +292,6 @@ test('durable reconciliation through actual public Paddle SDK and PostgreSQL', {
     agent.assertNoPendingInterceptors();
   } finally {
     await pool.end(); await agent.close(); setGlobalDispatcher(dispatcher);
-    for (const [name, descriptor] of saved) { if (descriptor === undefined) Reflect.deleteProperty(globalThis, name); else Object.defineProperty(globalThis, name, descriptor); }
+    for (const [name, descriptor] of saved) { if (descriptor === undefined) {Reflect.deleteProperty(globalThis, name);} else {Object.defineProperty(globalThis, name, descriptor);} }
   }
 });

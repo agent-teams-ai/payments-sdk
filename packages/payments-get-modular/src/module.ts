@@ -26,7 +26,7 @@ export const paymentsModule = implement<PaymentsCapabilities>()(paymentsDeclarat
   const active = new Set<Promise<unknown>>();
   function track<A extends readonly unknown[], R>(call: (...args: A) => Promise<R>): (...args: A) => Promise<R> {
     return (...args) => {
-      if (resources.signal.aborted) return Promise.reject(resources.signal.reason);
+      if (resources.signal.aborted) {return Promise.reject(resources.signal.reason);}
       const task = call(...args);
       active.add(task);
       void task.finally(() => active.delete(task)).catch(() => undefined);

@@ -19,10 +19,10 @@ import { nextPeriod, offer, producerNamespace, scope } from './consumer-support.
 const SECRET = 'synthetic-e2e-destination-secret';
 const Q = 100n, T = 25n;
 function sign(body: string): string { const ts = Math.floor(Date.now() / 1000); return `ts=${ts};h1=${createHmac('sha256', SECRET).update(`${ts}:${body}`).digest('hex')}`; }
-function success<T>(result: OperationResult<T>): T { assert.equal(result.kind, 'succeeded', JSON.stringify(result)); if (result.kind !== 'succeeded') throw new Error('Expected success'); return result.value; }
+function success<T>(result: OperationResult<T>): T { assert.equal(result.kind, 'succeeded', JSON.stringify(result)); if (result.kind !== 'succeeded') {throw new Error('Expected success');} return result.value; }
 async function deliver(payments: HostedPayments, consumerId: string, consumer: CreditFixture | AccessFixture, ack = true): Promise<readonly EvidenceMessage[]> {
   const messages = await payments.readDeliveries(consumerId, 100);
-  for (const message of messages) { const receipt = await consumer.receive(message); assert.equal(receipt.acknowledge, true); if (ack) assert.equal(await payments.acknowledgeDelivery(consumerId, message.messageId, message.bodyDigest), 'acknowledged'); }
+  for (const message of messages) { const receipt = await consumer.receive(message); assert.equal(receipt.acknowledge, true); if (ack) {assert.equal(await payments.acknowledgeDelivery(consumerId, message.messageId, message.bodyDigest), 'acknowledged');} }
   return messages;
 }
 async function postHttp(url: string, path: string, body: string, headers: Record<string, string>): Promise<Readonly<{ status: number; body: string }>> {
@@ -38,7 +38,7 @@ function paddleEmulation() {
   install(); const agent = new MockAgent(); agent.disableNetConnect(); setGlobalDispatcher(agent);
   return { agent, api: agent.get('https://sandbox-api.paddle.com'), async restore() {
     setGlobalDispatcher(originalDispatcher); await agent.close();
-    for (const [name, descriptor] of saved) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else Reflect.deleteProperty(globalThis, name); }
+    for (const [name, descriptor] of saved) { if (descriptor) {Object.defineProperty(globalThis, name, descriptor);} else {Reflect.deleteProperty(globalThis, name);} }
   } };
 }
 
@@ -47,7 +47,7 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
   try {
     for (const kind of ['node-http-factory', 'fetch-static-gm'] as const) {
       await t.test(kind, async () => {
-        const connectionString = process.env['DATABASE_URL']; if (!connectionString) throw new Error('DATABASE_URL is required for the mandatory full-system suite');
+        const connectionString = process.env['DATABASE_URL']; if (!connectionString) {throw new Error('DATABASE_URL is required for the mandatory full-system suite');}
         const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
         const prefix = `system_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
         const trust = { producerNamespace, scope };
@@ -66,7 +66,7 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
         const host = kind === 'node-http-factory' ? await createNodeHttpHost(runtimeOptions, verify, authenticate) : await createFetchModularHost(runtimeOptions, verify, authenticate);
         const payments = host.payments;
         const post = async (path: string, body: string, headers: Record<string, string> = {}) => {
-          if ('url' in host) return postHttp(host.url, path, body, headers);
+          if ('url' in host) {return postHttp(host.url, path, body, headers);}
           const response = await host.handle(new Request(`https://fixture.test${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body }));
           return { status: response.status, body: await response.text() };
         };
@@ -118,7 +118,7 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
           assert.equal((await credit.decisions())[0]?.body.eligible, Q.toString());
           assert.ok((await payments.readDeliveries('credit', 100)).length > 0, 'sender still owns target after T3 commit and lost ACK');
           const restartedCredit = new CreditFixture({ pool, schema: credit.owner.options.schema, trust });
-          for (const body of beforeAck) assert.equal((await restartedCredit.receive(body)).outcome, 'duplicate');
+          for (const body of beforeAck) {assert.equal((await restartedCredit.receive(body)).outcome, 'duplicate');}
           await deliver(payments, 'credit', restartedCredit);
           assert.ok((await payments.readDeliveries('access', 100)).length > 0, 'credit ACK cannot satisfy access target');
           assert.equal((await ingress('subscription.activated', subscriptionFixture())).status, 200); await flush();
@@ -167,7 +167,7 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
             eventFixture('transaction.completed', apiInitial, 'evt_02000000000000000000000001'), eventFixture('transaction.completed', apiRenewal, 'evt_02000000000000000000000002'),
           ]));
           const page = await provider.readEventPage({ from: '2026-09-01T00:00:00Z', to: '2026-12-01T00:00:00Z', epoch: 'e2e-api-catchup', queryVersion: 'e2e/1' });
-          if (page.kind !== 'page') throw new Error(page.reason);
+          if (page.kind !== 'page') {throw new Error(page.reason);}
           assert.equal(page.inputs.length, 2);
           for (const input of page.inputs) { assert.equal(input.source.kind, 'authenticated_api'); assert.equal(input.source.verification, undefined); success(await payments.ingestVerifiedInput(input)); assert.equal(await payments.processInbox(input.inputId), 'processed'); }
           await flush();
@@ -230,9 +230,9 @@ test('full public payments system: real Paddle SDK, durable PostgreSQL and two i
 test('both public hosts hold distinct initial and renewal transactions for equivalent RFC3339 paid periods in either delivery order', { timeout: 60_000 }, async t => {
   const emulation = paddleEmulation(), { agent, api } = emulation;
   try {
-    for (const kind of ['node-http-factory', 'fetch-static-gm'] as const) for (const initialFirst of [true, false]) {
+    for (const kind of ['node-http-factory', 'fetch-static-gm'] as const) {for (const initialFirst of [true, false]) {
       await t.test(`${kind}, ${initialFirst ? 'initial first' : 'renewal first'}`, async () => {
-        const connectionString = process.env['DATABASE_URL']; if (!connectionString) throw new Error('DATABASE_URL is required');
+        const connectionString = process.env['DATABASE_URL']; if (!connectionString) {throw new Error('DATABASE_URL is required');}
         const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
         const prefix = `period_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
         const trust = { producerNamespace, scope }, credit = new CreditFixture({ pool, schema: `${prefix}_credit`, trust });
@@ -244,7 +244,7 @@ test('both public hosts hold distinct initial and renewal transactions for equiv
         const host = kind === 'node-http-factory' ? await createNodeHttpHost(runtimeOptions, verify, authenticate) : await createFetchModularHost(runtimeOptions, verify, authenticate);
         const payments = host.payments;
         const post = async (path: string, body: string, headers: Record<string, string> = {}) => {
-          if ('url' in host) return postHttp(host.url, path, body, headers);
+          if ('url' in host) {return postHttp(host.url, path, body, headers);}
           const response = await host.handle(new Request(`https://fixture.test${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body }));
           return { status: response.status, body: await response.text() };
         };
@@ -285,7 +285,7 @@ test('both public hosts hold distinct initial and renewal transactions for equiv
           const original = before.find(effect => effect.body.kind === 'grant')?.body;
           assert.equal(before.filter(effect => effect.body.kind === 'grant').length, initialFirst ? 1 : 0);
           assert.ok((await restarted.owner.inspect<{ state: string }>('obligations')).some(obligation => obligation.state === 'pending'));
-          for (const input of [renewal, initial]) assert.equal((await restarted.receive(input)).outcome, 'duplicate');
+          for (const input of [renewal, initial]) {assert.equal((await restarted.receive(input)).outcome, 'duplicate');}
           const resolution = { basisKey: row.basis_key, expectedDecisionRevision: Number(row.revision), expectedReadSet: row.body.readSet, selectedSource: sourceIdentity(initial), actorId: 'authorized-period-owner', approvalRef: `period-review-${kind}-${initialFirst}`, policyVersion: 'fixture-credit-policy-v1' };
           assert.equal(await restarted.resolveHeldDecision(resolution), 'resolved'); assert.equal(await restarted.resolveHeldDecision(resolution), 'duplicate');
           row = (await restarted.decisions())[0]!; assert.equal(BigInt(row.body.eligible), Q);
@@ -302,13 +302,13 @@ test('both public hosts hold distinct initial and renewal transactions for equiv
           agent.assertNoPendingInterceptors();
         } finally { await host.close(); await pool.query(`DROP SCHEMA "${schema}" CASCADE; DROP SCHEMA ${credit.owner.sql} CASCADE`); await pool.end(); }
       });
-    }
+    }}
   } finally { await emulation.restore(); }
 });
 
 test('actual SDK unknown outcome and approved duplicate-risk retry retain one reentrant initial allocation', { timeout: 15_000 }, async () => {
   const emulation = paddleEmulation(), { api, agent } = emulation;
-  const connectionString = process.env['DATABASE_URL']; if (!connectionString) throw new Error('DATABASE_URL is required');
+  const connectionString = process.env['DATABASE_URL']; if (!connectionString) {throw new Error('DATABASE_URL is required');}
   const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
   const prefix = `transfer_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
   const trust = { producerNamespace, scope }, credit = new CreditFixture({ pool, schema: `${prefix}_credit`, trust });
@@ -325,7 +325,7 @@ test('actual SDK unknown outcome and approved duplicate-risk retry retain one re
       return firstBarrier.then(() => responseFixture(transactionFixture({ intentId, status: 'ready', customerRef: null })));
     });
     const unknown = await payments.startPurchase({ buyerId: 'buyer-a', offerId: 'monthly', requestKey: 'transfer-initial' });
-    assert.equal(unknown.kind, 'outcome_unknown'); if (unknown.kind !== 'outcome_unknown') throw new Error('Expected unresolved create behind the barrier');
+    assert.equal(unknown.kind, 'outcome_unknown'); if (unknown.kind !== 'outcome_unknown') {throw new Error('Expected unresolved create behind the barrier');}
     const operation = await payments.readOperation(unknown.operationId); assert.ok(operation);
     success(await payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'authorized-risk-owner', auditRef: 'explicit-duplicate-risk', reason: 'reviewed missing first create', action: 'retry', acceptedDuplicateRisk: true }));
     api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, responseFixture(transactionFixture({ id: paddleIds.secondTransaction, intentId, status: 'ready', customerRef: null })));
@@ -335,7 +335,7 @@ test('actual SDK unknown outcome and approved duplicate-risk retry retain one re
     let sequence = 500;
     const ingress = async (data: Record<string, unknown>) => {
       const body = JSON.stringify(eventFixture('transaction.completed', data, `evt_${String(++sequence).padStart(26, '0')}`));
-      const verified = await provider.verifyWebhook(Buffer.from(body), sign(body)); if (verified.kind !== 'succeeded') throw new Error('Expected official signature verification');
+      const verified = await provider.verifyWebhook(Buffer.from(body), sign(body)); if (verified.kind !== 'succeeded') {throw new Error('Expected official signature verification');}
       success(await payments.ingestVerifiedInput(verified.value)); assert.equal(await payments.processInbox(verified.value.inputId), 'processed');
       await payments.repair(100); await deliver(payments, 'credit', credit);
     };
@@ -358,7 +358,7 @@ test('actual SDK unknown outcome and approved duplicate-risk retry retain one re
       assert.equal(decisions.reduce((sum, row) => sum + BigInt(row.body.allocated), 0n), Q);
       assert.equal(decisions.reduce((sum, row) => sum + BigInt(row.body.held), 0n), 0n);
       assert.equal(effects.reduce((sum, effect) => sum + BigInt(effect.amount), 0n), Q);
-      for (const row of decisions) assert.equal(effects.filter(effect => effect.basisKey === row.basis_key).reduce((sum, effect) => sum + BigInt(effect.amount), 0n), BigInt(row.body.allocated));
+      for (const row of decisions) {assert.equal(effects.filter(effect => effect.basisKey === row.basis_key).reduce((sum, effect) => sum + BigInt(effect.amount), 0n), BigInt(row.body.allocated));}
       assert.equal(guard.allocationOwner, target.basis_key); assert.equal(guard.allocationRevision, transition); assert.equal(guard.originalGrant, original.effectKey);
       assert.equal(effects.filter(effect => effect.kind === 'grant').length, 1); assert.equal(effects.filter(effect => ['correction', 'restoration'].includes(effect.kind)).length, 0);
       assert.equal(effects.filter(effect => effect.kind === 'support_transfer_out').length, transition); assert.equal(effects.filter(effect => effect.kind === 'support_transfer_in').length, transition);
@@ -370,9 +370,9 @@ test('actual SDK unknown outcome and approved duplicate-risk retry retain one re
 test('both public hosts qualify the whole reversal snapshot for independent credit and access owners across restart', { timeout: 60_000 }, async t => {
   const emulation = paddleEmulation(), { agent, api } = emulation;
   try {
-    for (const kind of ['node-http-factory', 'fetch-static-gm'] as const) for (const orphanFirst of [true, false]) {
+    for (const kind of ['node-http-factory', 'fetch-static-gm'] as const) {for (const orphanFirst of [true, false]) {
       await t.test(`${kind}, unmatched reverse ${orphanFirst ? 'before' : 'after'} matching pair`, async () => {
-        const connectionString = process.env['DATABASE_URL']; if (!connectionString) throw new Error('DATABASE_URL is required');
+        const connectionString = process.env['DATABASE_URL']; if (!connectionString) {throw new Error('DATABASE_URL is required');}
         const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
         const prefix = `reverse_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
         const trust = { producerNamespace, scope }, credit = new CreditFixture({ pool, schema: `${prefix}_credit`, trust });
@@ -385,7 +385,7 @@ test('both public hosts qualify the whole reversal snapshot for independent cred
         const host = kind === 'node-http-factory' ? await createNodeHttpHost(options, verify, authenticate) : await createFetchModularHost(options, verify, authenticate);
         const payments = host.payments;
         const post = async (path: string, body: string, headers: Record<string, string> = {}) => {
-          if ('url' in host) return postHttp(host.url, path, body, headers);
+          if ('url' in host) {return postHttp(host.url, path, body, headers);}
           const response = await host.handle(new Request(`https://fixture.test${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body }));
           return { status: response.status, body: await response.text() };
         };
@@ -415,11 +415,11 @@ test('both public hosts qualify the whole reversal snapshot for independent cred
           const projection = (await credit.owner.inspect<{ body: EvidenceMessage }>('evidence_projection')).find(source => source.body.aggregate.id === paddleIds.transaction)!;
           const staleResolution = { basisKey: afterCredit.basis_key, expectedDecisionRevision: Number(afterCredit.revision), expectedReadSet: afterCredit.body.readSet, selectedSource: sourceIdentity(projection.body), actorId: 'authorized-fixture-owner', approvalRef: `stale-reverse-${kind}-${orphanFirst}`, policyVersion: 'fixture-credit-policy-v1' };
           const orphan = adjustmentFixture({ id: 'adj_00000000000000000000000003', action: 'chargeback_reverse', total: '-1000', version: '2026-10-04T00:00:00Z' });
-          if (orphanFirst) await ingress('adjustment.created', orphan);
+          if (orphanFirst) {await ingress('adjustment.created', orphan);}
           await ingress('adjustment.updated', adjustmentFixture({ action: 'credit', status: 'reversed', version: '2026-10-03T00:00:00Z' }));
           assert.equal((await credit.decisions())[0]!.body.eligible, '0');
           const incompleteAccess = new AccessFixture({ pool, schema: access.owner.options.schema, trust, now: () => now });
-          for (const { body } of await incompleteAccess.owner.inspect<{ body: EvidenceMessage }>('evidence_projection')) assert.equal((await incompleteAccess.receive(body)).outcome, 'duplicate');
+          for (const { body } of await incompleteAccess.owner.inspect<{ body: EvidenceMessage }>('evidence_projection')) {assert.equal((await incompleteAccess.receive(body)).outcome, 'duplicate');}
           const incomplete = (await incompleteAccess.decisions())[0]!.body;
           assert.deepEqual([incomplete.newAction, incomplete.expand, incomplete.read, incomplete.export, incomplete.cancel], [false, false, true, true, true], 'a reversed original without its proven reverse never reopens access');
           assert.ok(incomplete.restrictions.includes('pending_adjustment_policy'));
@@ -432,7 +432,7 @@ test('both public hosts qualify the whole reversal snapshot for independent cred
             const qualified = (await incompleteAccess.decisions())[0]!.body;
             assert.deepEqual([qualified.newAction, qualified.expand, qualified.read, qualified.export, qualified.cancel], [true, true, true, true, true], 'the qualified pair restores access with active lifecycle and unexpired payment');
             assert.deepEqual(qualified.restrictions, []);
-            for (const { body } of await incompleteAccess.owner.inspect<{ body: EvidenceMessage }>('evidence_projection')) assert.equal((await incompleteAccess.receive(body)).outcome, 'duplicate');
+            for (const { body } of await incompleteAccess.owner.inspect<{ body: EvidenceMessage }>('evidence_projection')) {assert.equal((await incompleteAccess.receive(body)).outcome, 'duplicate');}
             assert.equal((await incompleteAccess.decisions())[0]!.body.newAction, true);
             await incompleteAccess.restrict({ buyerId: 'buyer-a', restricted: true, actorId: 'security-owner', approvalRef: 'security-during-qualified-restoration' });
             assert.deepEqual([(await incompleteAccess.decisions())[0]!.body.newAction, (await incompleteAccess.decisions())[0]!.body.expand], [false, false], 'qualified payment does not override independently owned security restriction');
@@ -452,7 +452,7 @@ test('both public hosts qualify the whole reversal snapshot for independent cred
           const decision = (await restarted.decisions())[0]!, allocated = orphanFirst ? '0' : Q.toString();
           assert.deepEqual([decision.body.status, decision.body.allocated, decision.body.eligible, decision.body.held], ['held', allocated, '0', allocated]);
           const restartedAccess = new AccessFixture({ pool, schema: access.owner.options.schema, trust, now: () => now });
-          for (const { body } of await restartedAccess.owner.inspect<{ body: EvidenceMessage }>('evidence_projection')) assert.equal((await restartedAccess.receive(body)).outcome, 'duplicate');
+          for (const { body } of await restartedAccess.owner.inspect<{ body: EvidenceMessage }>('evidence_projection')) {assert.equal((await restartedAccess.receive(body)).outcome, 'duplicate');}
           const accessHold = (await restartedAccess.decisions())[0]!.body;
           assert.deepEqual([accessHold.newAction, accessHold.expand, accessHold.read, accessHold.export, accessHold.cancel], [false, false, true, true, true]);
           assert.ok(accessHold.restrictions.includes('pending_adjustment_policy'));
@@ -472,7 +472,7 @@ test('both public hosts qualify the whole reversal snapshot for independent cred
           agent.assertNoPendingInterceptors();
         } finally { await host.close(); await pool.query(`DROP SCHEMA "${schema}" CASCADE; DROP SCHEMA ${credit.owner.sql} CASCADE; DROP SCHEMA ${access.owner.sql} CASCADE`); await pool.end(); }
       });
-    }
+    }}
   } finally { await emulation.restore(); }
 });
 

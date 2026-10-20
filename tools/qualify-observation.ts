@@ -68,13 +68,13 @@ for (const archive of manifest.archives) {
 
 const tarballs = await packPackages();
 const paymentsArtifacts = [];
-for (const [name, path] of tarballs) paymentsArtifacts.push({ name, sha256: digest(await readFile(path)) });
+for (const [name, path] of tarballs) {paymentsArtifacts.push({ name, sha256: digest(await readFile(path)) });}
 const root = await mkdtemp(join(tmpdir(), 'payments-observation-published-'));
 try {
   const dependencies: Record<string, string> = {};
-  for (const [name, path] of tarballs) dependencies[name] = `file:${path}`;
-  for (const archive of manifest.archives) dependencies[archive.name] = archive.version;
-  for (const name of ['pg', '@types/pg', '@types/node', 'undici']) dependencies[name] = pin(name);
+  for (const [name, path] of tarballs) {dependencies[name] = `file:${path}`;}
+  for (const archive of manifest.archives) {dependencies[archive.name] = archive.version;}
+  for (const name of ['pg', '@types/pg', '@types/node', 'undici']) {dependencies[name] = pin(name);}
   const rootManifest = JSON.parse(await readFile(join(repository, 'package.json'), 'utf8')) as { packageManager: string };
   await writeFile(join(root, 'package.json'), JSON.stringify({ private: true, type: 'module', packageManager: rootManifest.packageManager, dependencies }, null, 2));
   const overrides = Object.entries(dependencies).filter(([name]) => name.startsWith('@get-modular/') || name.startsWith('@agent-teams/payments-') || name === '@types/node');

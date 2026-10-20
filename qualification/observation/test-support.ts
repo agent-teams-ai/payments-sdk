@@ -17,7 +17,7 @@ const secret = 'synthetic-observation-qualification-secret';
 
 export function success<T>(result: OperationResult<T> | ProviderResult<T>): T {
   assert.equal(result.kind, 'succeeded', JSON.stringify(result));
-  if (result.kind !== 'succeeded') throw new Error('Expected a successful durable operation');
+  if (result.kind !== 'succeeded') {throw new Error('Expected a successful durable operation');}
   return result.value;
 }
 
@@ -34,8 +34,8 @@ export function emulatePaddle() {
     setGlobalDispatcher(original);
     await agent.close();
     for (const [name, descriptor] of saved) {
-      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
-      else Reflect.deleteProperty(globalThis, name);
+      if (descriptor) {Object.defineProperty(globalThis, name, descriptor);}
+      else {Reflect.deleteProperty(globalThis, name);}
     }
   } };
 }
@@ -43,7 +43,7 @@ export function emulatePaddle() {
 /** Reuses the existing independently owned credit/access fixtures; no copied ledger. */
 export async function durableWorld() {
   const connectionString = process.env['DATABASE_URL'];
-  if (!connectionString) throw new Error('DATABASE_URL is mandatory: observation qualification requires real PostgreSQL18');
+  if (!connectionString) {throw new Error('DATABASE_URL is mandatory: observation qualification requires real PostgreSQL18');}
   const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
   const prefix = `observation_${randomUUID().replaceAll('-', '').slice(0, 14)}`;
   const schema = `${prefix}_payments`;
@@ -89,7 +89,7 @@ export async function deliver(payments: Payments, consumerId: string, consumer: 
   const messages = await payments.readDeliveries(consumerId, 100);
   for (const message of messages) {
     assert.equal((await consumer.receive(message)).acknowledge, true);
-    if (acknowledge) assert.equal(await payments.acknowledgeDelivery(consumerId, message.messageId, message.bodyDigest), 'acknowledged');
+    if (acknowledge) {assert.equal(await payments.acknowledgeDelivery(consumerId, message.messageId, message.bodyDigest), 'acknowledged');}
   }
   return messages;
 }

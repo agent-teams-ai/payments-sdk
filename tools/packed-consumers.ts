@@ -30,13 +30,13 @@ try {
       await mkdir(target);
       const dependencies: Record<string, string> = {};
       for (const [name, tarball] of tarballs) {
-        if (!plain || name === '@agent-teams/payments-core') dependencies[name] = `file:${tarball}`;
+        if (!plain || name === '@agent-teams/payments-core') {dependencies[name] = `file:${tarball}`;}
       }
-      if (!plain) Object.assign(dependencies, {
+      if (!plain) {Object.assign(dependencies, {
         '@get-modular/core': '0.6.0',
         '@get-modular/assembly': '0.6.0',
         '@get-modular/resources': '0.2.0',
-      });
+      });}
       await writeFile(join(target, 'package.json'), JSON.stringify({ private: true, type: 'module', dependencies, packageManager: 'pnpm@11.25.0' }));
       // Every internal transitive dependency must resolve to this build, before these versions
       // exist in a registry. pnpm 11 reads overrides from the workspace file, not package.json.

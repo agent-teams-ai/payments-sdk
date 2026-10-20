@@ -15,7 +15,7 @@ const inputs = (options: ReturnType<typeof fixture>['options']) => ({ configurat
 test('published composition prepares without effects and matches an independent namespace/wiring oracle', async () => {
   const host = fixture(), result = await compose();
   assert.equal(result.status, 'prepared');
-  if (result.status !== 'prepared') throw new Error('Expected prepared composition');
+  if (result.status !== 'prepared') {throw new Error('Expected prepared composition');}
   assert.equal(host.calls(), 0);
   const declarations = [paymentsDeclaration, paymentsConfigurationDeclaration];
   checkNamespaces({ namespace: 'agent-teams/payments', declarations });
@@ -62,7 +62,7 @@ test('conformance smoke releases real scoped modules for success, injected failu
 test('one prepared template keeps two run inputs and sibling lifetimes isolated under a borrowed owner', async () => {
   const first = fixture(), second = fixture('app-b', first.store), result = await compose();
   assert.equal(result.status, 'prepared');
-  if (result.status !== 'prepared') throw new Error('Expected prepared composition');
+  if (result.status !== 'prepared') {throw new Error('Expected prepared composition');}
   let borrowedClosed = 0;
   const owner = createScope({ name: 'host-pool-owner' });
   owner.resources.use({ [Symbol.dispose]: () => { borrowedClosed += 1; } }, 'borrowed-pool');
@@ -72,11 +72,11 @@ test('one prepared template keeps two run inputs and sibling lifetimes isolated 
     result.prepared.run({ scope: b.resources, inputs: inputs(second.options) }),
   ]);
   assert.equal(runA.status, 'succeeded'); assert.equal(runB.status, 'succeeded');
-  if (runA.status !== 'succeeded' || runB.status !== 'succeeded') throw new Error('Expected successful runs');
+  if (runA.status !== 'succeeded' || runB.status !== 'succeeded') {throw new Error('Expected successful runs');}
   assert.notEqual(runA.roots.payments, runB.roots.payments);
   const checkout = await runA.roots.payments.checkout.startPurchase(command);
   assert.equal(checkout.kind, 'succeeded');
-  if (checkout.kind !== 'succeeded') throw new Error('Expected checkout');
+  if (checkout.kind !== 'succeeded') {throw new Error('Expected checkout');}
   assert.equal(await runB.roots.payments.read.readPurchase(command.buyerId, checkout.value.intentId), undefined);
   assert.equal((await a.control.close()).complete, true);
   assert.equal(borrowedClosed, 0); assert.equal(runB.roots.payments.lifecycle().accepting, true);
@@ -126,7 +126,7 @@ test('financial facts and delivery advance only through explicit durable command
   try {
     await built.instance.delivery.registerConsumer('consumer');
     const checkout = await built.instance.checkout.startPurchase(command);
-    assert.equal(checkout.kind, 'succeeded'); if (checkout.kind !== 'succeeded') throw new Error('Expected checkout');
+    assert.equal(checkout.kind, 'succeeded'); if (checkout.kind !== 'succeeded') {throw new Error('Expected checkout');}
     assert.deepEqual(await built.instance.delivery.readDeliveries('consumer'), []);
     const source = { kind: 'authenticated_api', receiptId: 'receipt', representationDigest: digest('representation'), decoderVersion: '1', apiProfile: 'fixture-v1' } as const;
     const known = <T>(value: T) => ({ presence: 'known', value }) as const;
@@ -143,7 +143,7 @@ test('financial facts and delivery advance only through explicit durable command
     const messages = await built.instance.delivery.readDeliveries('consumer');
     assert.equal(messages.length, 1);
     const message = messages[0]; assert.ok(message); assert.equal(message.kind, 'complete');
-    if (message.kind !== 'complete') throw new Error('Expected complete evidence');
+    if (message.kind !== 'complete') {throw new Error('Expected complete evidence');}
     assert.equal(message.completion?.classification, 'one_time');
     assert.deepEqual(message.completion?.lines.map(line => [line.providerLineRef, line.benefitSlotId, line.amount.minorUnits]), [['line', 'top-up', '1000']]);
     assert.equal(await built.instance.delivery.acknowledgeDelivery('consumer', message.messageId, message.bodyDigest), 'acknowledged');
@@ -158,16 +158,16 @@ test('a public Assembly runtime can audit and select duplicate initial subscript
   const lateSettled = deferred<void>(), originalFinish = host.store.finishAttempt.bind(host.store);
   host.store.finishAttempt = async (...args) => {
     const result = await originalFinish(...args);
-    if (args[1].binding?.transactionRef === 'initial-a' && result.kind === 'committed') lateSettled.resolve();
+    if (args[1].binding?.transactionRef === 'initial-a' && result.kind === 'committed') {lateSettled.resolve();}
     return result;
   };
   let intentId = '';
   host.replaceCheckout(input => { intentId = input.intentId; return first.promise; });
   const prepared = await compose();
-  assert.equal(prepared.status, 'prepared'); if (prepared.status !== 'prepared') throw new Error('Expected prepared composition');
+  assert.equal(prepared.status, 'prepared'); if (prepared.status !== 'prepared') {throw new Error('Expected prepared composition');}
   const attempt = createScope({ name: 'duplicate-stream-selection' });
   const outcome = await prepared.prepared.run({ scope: attempt.resources, inputs: inputs(host.options) });
-  assert.equal(outcome.status, 'succeeded'); if (outcome.status !== 'succeeded') throw new Error('Expected successful run');
+  assert.equal(outcome.status, 'succeeded'); if (outcome.status !== 'succeeded') {throw new Error('Expected successful run');}
   const { read, processing, checkout } = outcome.roots.payments;
   const known = <T>(value: T) => ({ presence: 'known', value }) as const;
   async function observe(transactionRef: string, subscriptionRef: string, initial: boolean, day = '01'): Promise<void> {
@@ -184,7 +184,7 @@ test('a public Assembly runtime can audit and select duplicate initial subscript
   }
   try {
     const unknown = await checkout.startPurchase(command);
-    assert.equal(unknown.kind, 'outcome_unknown'); if (unknown.kind !== 'outcome_unknown') throw new Error('Expected unknown first attempt');
+    assert.equal(unknown.kind, 'outcome_unknown'); if (unknown.kind !== 'outcome_unknown') {throw new Error('Expected unknown first attempt');}
     const operation = await read.readOperation(unknown.operationId); assert.ok(operation);
     assert.equal((await processing.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'accepted-duplicate-risk', reason: 'recover unknown checkout', action: 'retry', acceptedDuplicateRisk: true })).kind, 'succeeded');
     host.replaceCheckout(async input => ({ kind: 'succeeded', value: { intentId: input.intentId, transactionRef: 'initial-b', checkout: { token: 'b' } } }));
@@ -201,7 +201,7 @@ test('a public Assembly runtime can audit and select duplicate initial subscript
     const selection = await read.readSubscriptionSelection('buyer', basis, 'sub-b'); assert.ok(selection);
     const resolution = await processing.selectSubscriptionStream({ buyerId: 'buyer', bindingId: basis, providerSubscriptionRef: 'sub-b', expectedReadSet: selection.expectedReadSet, actorId: 'operator', auditRef: 'choose-sub-b', reason: 'choose duplicate support stream' });
     assert.equal(resolution.kind, 'succeeded');
-    if (resolution.kind !== 'succeeded') throw new Error('Expected selected stream');
+    if (resolution.kind !== 'succeeded') {throw new Error('Expected selected stream');}
     assert.equal(resolution.value.selectedSubscriptionRef, 'sub-b');
     assert.deepEqual(resolution.value.streamSelection, { actorId: 'operator', auditRef: 'choose-sub-b', reason: 'choose duplicate support stream', at: '2026-01-01T00:00:00Z' });
     assert.equal((await processing.selectSubscriptionStream({ buyerId: 'buyer', bindingId: basis, providerSubscriptionRef: 'sub-b', expectedReadSet: selection.expectedReadSet, actorId: 'operator', auditRef: 'stale-selection', reason: 'stale read set' })).kind, 'rejected');
@@ -234,7 +234,7 @@ test('a later factory failure leaves cleanup to Host control and preserves the c
     throw new Error('startup failed');
   }, scoped);
   const prepared = await assemblyFor<HostCapabilities>().prepare({ profileId: 'test/failed-startup', modules: [paymentsGroup, failure], inputs: { configuration: paymentsConfiguration }, roots: { diagnostics: failure } });
-  assert.equal(prepared.status, 'prepared'); if (prepared.status !== 'prepared') throw new Error('Expected prepared composition');
+  assert.equal(prepared.status, 'prepared'); if (prepared.status !== 'prepared') {throw new Error('Expected prepared composition');}
   const attempt = createScope({ name: 'failed-startup' });
   const outcome = await prepared.prepared.run({ scope: attempt.resources, inputs: inputs(host.options) });
   assert.equal(outcome.status, 'failed'); assert.equal(released, 0);
@@ -249,7 +249,7 @@ test('cancelled acquisition waits for physical setup and cleans its late resourc
     return { instance: { healthy: true }, capabilities: { [Diagnostics.id]: { healthy: true } } };
   }, scoped);
   const prepared = await assemblyFor<HostCapabilities>().prepare({ profileId: 'test/cancel-startup', modules: [paymentsGroup, pending], inputs: { configuration: paymentsConfiguration }, roots: { diagnostics: pending } });
-  assert.equal(prepared.status, 'prepared'); if (prepared.status !== 'prepared') throw new Error('Expected prepared composition');
+  assert.equal(prepared.status, 'prepared'); if (prepared.status !== 'prepared') {throw new Error('Expected prepared composition');}
   const attempt = createScope({ name: 'cancel-startup' }), signal = new AbortController();
   const running = prepared.prepared.run({ signal: signal.signal, scope: attempt.resources, inputs: inputs(host.options) });
   await started.promise; signal.abort('host cancelled');
@@ -264,9 +264,9 @@ test('cancelled acquisition waits for physical setup and cleans its late resourc
 test('missing declared input fails preparation; invalid runtime configuration fails run without provider effects', async () => {
   const missing = await assemblyFor<PaymentsCapabilities>().prepare({ profileId: 'test/missing-input', modules: [paymentsGroup], roots: { payments: paymentsModule } });
   assert.equal(missing.status, 'failed');
-  if (missing.status === 'failed') assert.equal(missing.error.code, 'assembly.prepare.unresolved-binding');
+  if (missing.status === 'failed') {assert.equal(missing.error.code, 'assembly.prepare.unresolved-binding');}
   const host = fixture(), prepared = await compose();
-  assert.equal(prepared.status, 'prepared'); if (prepared.status !== 'prepared') throw new Error('Expected prepared composition');
+  assert.equal(prepared.status, 'prepared'); if (prepared.status !== 'prepared') {throw new Error('Expected prepared composition');}
   const attempt = createScope({ name: 'invalid-input' });
   const result = await prepared.prepared.run({ scope: attempt.resources, inputs: inputs({ ...host.options, producerNamespace: '' }) });
   assert.equal(result.status, 'failed'); assert.equal((await attempt.control.close()).complete, true); assert.equal(host.calls(), 0);

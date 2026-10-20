@@ -14,7 +14,7 @@ test('installed public observation surface uses one physical GM peer graph witho
   };
   for (const [consumer, peers] of Object.entries(relationships)) {
     const require = createRequire(import.meta.resolve(consumer));
-    for (const peer of peers) assert.equal(realpathSync(require.resolve(peer)), root(peer), `${consumer} must use the Host's physical ${peer}`);
+    for (const peer of peers) {assert.equal(realpathSync(require.resolve(peer)), root(peer), `${consumer} must use the Host's physical ${peer}`);}
   }
   for (const absent of ['@agent-teams/engineering-foundation']) {
     assert.throws(() => import.meta.resolve(absent), { code: 'ERR_MODULE_NOT_FOUND' }, `${absent} must remain outside the published runtime graph`);

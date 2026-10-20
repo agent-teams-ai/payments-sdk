@@ -21,10 +21,10 @@ test('release workflow validates as YAML and confines writing to the dependent p
   assert.equal(workflow.jobs['candidate']?.permissions, undefined);
   assert.equal(workflow.jobs['release']?.needs, 'candidate');
   assert.equal(workflow.jobs['release']?.permissions?.['contents'], 'write');
-  for (const job of Object.values(workflow.jobs)) for (const step of job.steps) {
-    if (step.uses !== undefined) assert.match(step.uses, /^[a-z0-9-]+\/[a-z0-9-]+@[a-f0-9]{40}$/u, 'Every action must be pinned to a full SHA');
+  for (const job of Object.values(workflow.jobs)) {for (const step of job.steps) {
+    if (step.uses !== undefined) {assert.match(step.uses, /^[a-z0-9-]+\/[a-z0-9-]+@[a-f0-9]{40}$/u, 'Every action must be pinned to a full SHA');}
     assert.ok(!step.run?.includes('npm publish'));
-  }
+  }}
 });
 
 test('release admits a full exact main commit and successful required Checks, never a nearby run', () => {
@@ -33,7 +33,7 @@ test('release admits a full exact main commit and successful required Checks, ne
     assert.throws(() => qualifiedChecksRun(commit, [{ ...run, ...change }], jobs));
   }
   assert.throws(() => qualifiedChecksRun(commit, [run, { ...run, id: 101, conclusion: 'failure' }], jobs), /Latest/u);
-  for (const conclusion of ['skipped', 'cancelled', 'failure', null]) assert.throws(() => qualifiedChecksRun(commit, [run], [{ ...jobs[0]!, conclusion }]));
+  for (const conclusion of ['skipped', 'cancelled', 'failure', null]) {assert.throws(() => qualifiedChecksRun(commit, [run], [{ ...jobs[0]!, conclusion }]));}
   assert.throws(() => qualifiedChecksRun(commit, [run], []));
   assert.throws(() => qualifiedChecksRun(commit, [run], [...jobs, ...jobs]));
 });
@@ -41,8 +41,8 @@ test('release admits a full exact main commit and successful required Checks, ne
 test('release target syntax excludes abbreviated SHAs and shell/path/tag ambiguity', () => {
   assert.equal(releaseVersion('v0.1.0'), '0.1.0');
   assert.equal(releaseVersion('v1.2.3-rc.1'), '1.2.3-rc.1');
-  for (const tag of ['main', 'v01.2.3', 'v1.2', '../v1.2.3', 'v1.2.3\n', 'v1.2.3\ncommit=evil', 'v1.2.3+mutable', 'v1.2.3;echo bad']) assert.throws(() => releaseVersion(tag));
-  for (const sha of ['abc123', 'A'.repeat(40), `${commit}\n`, 'main', `${commit};true`]) assert.throws(() => assertReleaseCommit(sha));
+  for (const tag of ['main', 'v01.2.3', 'v1.2', '../v1.2.3', 'v1.2.3\n', 'v1.2.3\ncommit=evil', 'v1.2.3+mutable', 'v1.2.3;echo bad']) {assert.throws(() => releaseVersion(tag));}
+  for (const sha of ['abc123', 'A'.repeat(40), `${commit}\n`, 'main', `${commit};true`]) {assert.throws(() => assertReleaseCommit(sha));}
 });
 
 test('archive admission validates identity/version and rejects unresolved or development dependencies', async () => {

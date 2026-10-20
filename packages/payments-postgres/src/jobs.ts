@@ -46,17 +46,17 @@ class WorkIssue extends Error {
   constructor(issue: string, quarantine = false) { super(issue); this.issue = issue; this.quarantine = quarantine; }
 }
 function isWork(value: unknown): value is PaymentJobWork {
-  if (!value || typeof value !== 'object') return false;
+  if (!value || typeof value !== 'object') {return false;}
   const item = value as Partial<PaymentJobWork>;
   return ['inbox', 'publication', 'reclassification', 'prepared', 'unknown', 'delivery', 'scan'].includes(item.kind ?? '') && typeof item.id === 'string' && item.id.length > 0 && item.id.length <= 4_096;
 }
 function aggregate(id: string): AggregateIdentity {
   const value: unknown = JSON.parse(id);
-  if (!value || typeof value !== 'object' || !('type' in value) || !('id' in value) || (value.type !== 'transaction' && value.type !== 'subscription') || typeof value.id !== 'string' || !value.id) throw new WorkIssue('invalid_publication_identity', true);
+  if (!value || typeof value !== 'object' || !('type' in value) || !('id' in value) || (value.type !== 'transaction' && value.type !== 'subscription') || typeof value.id !== 'string' || !value.id) {throw new WorkIssue('invalid_publication_identity', true);}
   return { type: value.type, id: value.id };
 }
 function boundedInteger(value: number, min: number, max: number, label: string): number {
-  if (!Number.isSafeInteger(value) || value < min || value > max) throw new RangeError(`Invalid payment job ${label}`);
+  if (!Number.isSafeInteger(value) || value < min || value > max) {throw new RangeError(`Invalid payment job ${label}`);}
   return value;
 }
 
@@ -69,7 +69,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
   const cooldown = boundedInteger(options.cooldownSeconds ?? 30, 1, 86_400, 'cooldown');
   const maxCooldown = boundedInteger(options.maxCooldownSeconds ?? 3_600, cooldown, 604_800, 'maximum cooldown');
   const poll = options.pollingIntervalSeconds ?? 1;
-  if (!Number.isFinite(poll) || poll < 0.5 || poll > 60) throw new RangeError('Invalid payment job polling interval');
+  if (!Number.isFinite(poll) || poll < 0.5 || poll > 60) {throw new RangeError('Invalid payment job polling interval');}
   const boss = makePaymentBoss(options);
   let handlers: PaymentJobHandlers | undefined;
   let accepting = false, started = false, transportStopped = true, stopRequested = false;
@@ -86,7 +86,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
     assertBatchLimit(limit);
     await qualify();
     return withPaymentTransaction(options.pool, async tx => {
-      if ((await records.configuration(tx, options.scope)).body.recoveryFenced) return { enqueued: 0 };
+      if ((await records.configuration(tx, options.scope)).body.recoveryFenced) {return { enqueued: 0 };}
       // Queue rows can all disappear. The payment-owned obligation is the only work authority.
       // Existing runnable jobs are excluded before LIMIT, so an older live job cannot starve later
       // obligations. Locking the obligation serializes competing repair replicas and admissions.
@@ -102,7 +102,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
           continue;
         }
         const id = await boss.send(paymentWorkQueue, work, { db: { executeSql: (text, values) => tx.query(text, values) }, singletonKey: digest(work), retryLimit: 0 });
-        if (id) enqueued += 1;
+        if (id) {enqueued += 1;}
       }
       return { enqueued };
     }, options.timeouts);
@@ -110,7 +110,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
 
   async function claim(work: PaymentJobWork): Promise<Readonly<{ attempt: number; revision: string }> | undefined> {
     return withPaymentTransaction(options.pool, async tx => {
-      if ((await records.configuration(tx, options.scope)).body.recoveryFenced) return undefined;
+      if ((await records.configuration(tx, options.scope)).body.recoveryFenced) {return undefined;}
       const row = await tx.query<{ attempts: number; revision: string }>(`UPDATE ${records.sql}.obligations SET attempts = attempts + 1, revision = revision + 1,
         next_attempt_at = clock_timestamp() + $3 * interval '1 second'
         WHERE kind = $1 AND id = $2 AND state = 'pending' AND next_attempt_at <= clock_timestamp()
@@ -147,30 +147,30 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
       return canonicalJson(before ?? null) !== canonicalJson(await cursor() ?? null);
     }
     const target = await withPaymentTransaction(options.pool, async tx => {
-      if ((await records.configuration(tx, options.scope)).body.recoveryFenced) throw new WorkIssue('recovery_fenced');
+      if ((await records.configuration(tx, options.scope)).body.recoveryFenced) {throw new WorkIssue('recovery_fenced');}
       const delivery = (await records.read<Delivery>(tx, 'deliveries', work.id))?.body;
-      if (!delivery) throw new WorkIssue('missing_delivery_authority', true);
-      if (delivery.acknowledged) return undefined;
-      if (canonicalJson([delivery.messageId, delivery.consumerId]) !== work.id) throw new WorkIssue('invalid_delivery_identity', true);
+      if (!delivery) {throw new WorkIssue('missing_delivery_authority', true);}
+      if (delivery.acknowledged) {return undefined;}
+      if (canonicalJson([delivery.messageId, delivery.consumerId]) !== work.id) {throw new WorkIssue('invalid_delivery_identity', true);}
       const message = (await records.read<EvidenceMessage>(tx, 'evidence', delivery.messageId))?.body;
-      if (!message || message.messageId !== delivery.messageId || canonicalJson(message.scope) !== canonicalJson(options.scope)) throw new WorkIssue('missing_delivery_evidence', true);
+      if (!message || message.messageId !== delivery.messageId || canonicalJson(message.scope) !== canonicalJson(options.scope)) {throw new WorkIssue('missing_delivery_evidence', true);}
       return { delivery, message };
     }, options.timeouts);
-    if (!target) return false;
+    if (!target) {return false;}
     const consume = installed.consumers?.[target.delivery.consumerId];
-    if (!consume) throw new WorkIssue('consumer_not_installed');
+    if (!consume) {throw new WorkIssue('consumer_not_installed');}
     const receipt = await consume(structuredClone(target.message));
-    if (receipt.messageId !== target.message.messageId || receipt.bodyDigest !== target.message.bodyDigest) throw new WorkIssue('consumer_receipt_mismatch', true);
+    if (receipt.messageId !== target.message.messageId || receipt.bodyDigest !== target.message.bodyDigest) {throw new WorkIssue('consumer_receipt_mismatch', true);}
     const result = await installed.payments.acknowledgeDelivery(target.delivery.consumerId, target.message.messageId, target.message.bodyDigest);
-    if (result === 'conflict') throw new WorkIssue('delivery_ack_conflict', true);
+    if (result === 'conflict') {throw new WorkIssue('delivery_ack_conflict', true);}
     return false;
   }
 
   async function run(work: PaymentJobWork, installed: PaymentJobHandlers): Promise<boolean> {
     if (work.kind === 'inbox') {
       const result = await installed.payments.processInbox(work.id);
-      if (result === 'missing') throw new WorkIssue('missing_inbox_authority', true);
-      if (result === 'conflict' || result === 'recovery_fenced') throw new WorkIssue(result);
+      if (result === 'missing') {throw new WorkIssue('missing_inbox_authority', true);}
+      if (result === 'conflict' || result === 'recovery_fenced') {throw new WorkIssue(result);}
     } else if (work.kind === 'reclassification') {
       const cursor = () => withPaymentTransaction(options.pool, async tx => {
         await records.configuration(tx, options.scope);
@@ -178,79 +178,79 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
       }, options.timeouts);
       const before = await cursor();
       const result = await installed.payments.processReclassification(work.id, batch);
-      if (result === 'conflict' || result === 'recovery_fenced') throw new WorkIssue(result);
+      if (result === 'conflict' || result === 'recovery_fenced') {throw new WorkIssue(result);}
       // A bounded page is successful progress, even when further pages remain. It must not
       // consume the logical fault budget after job deletion or across worker restarts.
       return canonicalJson(before ?? null) !== canonicalJson(await cursor() ?? null);
     } else if (work.kind === 'publication') {
       const result = await installed.payments.flushPublication(aggregate(work.id));
-      if (result === 'missing') throw new WorkIssue('missing_publication_authority', true);
-      if (result === 'conflict' || result === 'recovery_fenced') throw new WorkIssue(result);
+      if (result === 'missing') {throw new WorkIssue('missing_publication_authority', true);}
+      if (result === 'conflict' || result === 'recovery_fenced') {throw new WorkIssue(result);}
     } else if (work.kind === 'prepared') {
       // Queue payload never authorizes a monetary dispatch. Re-read the durable marker first.
       const operation = await installed.payments.readOperation(work.id);
-      if (!operation) throw new WorkIssue('missing_operation_authority', true);
-      if (operation.state === 'prepared') await installed.payments.executeOperation(work.id);
+      if (!operation) {throw new WorkIssue('missing_operation_authority', true);}
+      if (operation.state === 'prepared') {await installed.payments.executeOperation(work.id);}
     } else if (work.kind === 'unknown') {
       const operation = await installed.payments.readOperation(work.id);
-      if (!operation) throw new WorkIssue('missing_operation_authority', true);
-      if (operation.state !== 'dispatch_started' && operation.state !== 'outcome_unknown') return false;
-      if (!installed.inspectUnknown || await installed.inspectUnknown(structuredClone(operation)) === 'review') throw new WorkIssue('unknown_requires_manual_review', true);
+      if (!operation) {throw new WorkIssue('missing_operation_authority', true);}
+      if (operation.state !== 'dispatch_started' && operation.state !== 'outcome_unknown') {return false;}
+      if (!installed.inspectUnknown || await installed.inspectUnknown(structuredClone(operation)) === 'review') {throw new WorkIssue('unknown_requires_manual_review', true);}
     } else if (work.kind === 'scan') {
       const checkpoint = await installed.store.readCheckpoint(options.scope, work.id);
-      if (!checkpoint) throw new WorkIssue('missing_scan_authority', true);
-      if (checkpoint.status === 'complete') return false;
-      if (!installed.resumeScan) throw new WorkIssue('scan_requires_manual_review', true);
+      if (!checkpoint) {throw new WorkIssue('missing_scan_authority', true);}
+      if (checkpoint.status === 'complete') {return false;}
+      if (!installed.resumeScan) {throw new WorkIssue('scan_requires_manual_review', true);}
       await installed.resumeScan(structuredClone(checkpoint));
       return canonicalJson(await installed.store.readCheckpoint(options.scope, work.id) ?? null) !== canonicalJson(checkpoint);
-    } else return deliver(work, installed);
+    } else {return deliver(work, installed);}
     return false;
   }
 
   async function handle(job: Job<unknown>): Promise<void> {
-    if (!accepting || !handlers) return;
-    if (!isWork(job.data)) throw new WorkIssue('invalid_job_payload', true);
+    if (!accepting || !handlers) {return;}
+    if (!isWork(job.data)) {throw new WorkIssue('invalid_job_payload', true);}
     const work = job.data, installed = handlers;
     const attempt = await claim(work);
-    if (attempt === undefined) return;
+    if (attempt === undefined) {return;}
     let issue: WorkIssue | undefined;
     let failure: PaymentJobHandlerError | undefined;
     let progress = false;
     try { progress = await run(work, installed); }
     catch (error) {
       issue = error instanceof WorkIssue ? error : new WorkIssue('handler_failed');
-      if (!(error instanceof WorkIssue)) failure = new PaymentJobHandlerError(work, attempt.attempt, error);
+      if (!(error instanceof WorkIssue)) {failure = new PaymentJobHandlerError(work, attempt.attempt, error);}
     }
     try { await settle(work, attempt, issue, progress); }
-    finally { if (failure) reportPaymentJobError(options, failure); }
+    finally { if (failure) {reportPaymentJobError(options, failure);} }
   }
 
   function admitted(operation: () => Promise<unknown>): Promise<unknown> {
-    if (!accepting) return Promise.resolve();
+    if (!accepting) {return Promise.resolve();}
     const task = operation(); active.add(task);
     void task.finally(() => active.delete(task)).catch(() => undefined);
     return task;
   }
 
   async function start(installed: PaymentJobHandlers): Promise<void> {
-    if (starting) return starting;
-    if (started) throw new Error('Payment job workers are already started');
-    if (stopping || stopRequested) throw new Error('Payment job workers are stopping');
-    if (canonicalJson(installed.payments.scope) !== canonicalJson(options.scope)) throw new Error('Payment worker scope mismatch');
+    if (starting) {return starting;}
+    if (started) {throw new Error('Payment job workers are already started');}
+    if (stopping || stopRequested) {throw new Error('Payment job workers are stopping');}
+    if (canonicalJson(installed.payments.scope) !== canonicalJson(options.scope)) {throw new Error('Payment worker scope mismatch');}
     starting = (async () => {
       try {
         await qualify();
         handlers = installed; transportStopped = false;
         await boss.start();
         await repair();
-        if (stopRequested) return;
+        if (stopRequested) {return;}
         accepting = true;
         await boss.work<unknown>(paymentWorkQueue, { batchSize: 1, localConcurrency: concurrency, pollingIntervalSeconds: poll }, async jobs => {
           await Promise.all(jobs.map(job => admitted(() => handle(job))));
         });
         await boss.work<unknown>(paymentRepairQueue, { batchSize: 1, pollingIntervalSeconds: poll }, async jobs => {
           await Promise.all(jobs.map(job => admitted(async () => {
-            if (canonicalJson(job.data) !== canonicalJson({ kind: 'repair', paymentSchema: options.paymentSchema })) throw new WorkIssue('invalid_repair_namespace', true);
+            if (canonicalJson(job.data) !== canonicalJson({ kind: 'repair', paymentSchema: options.paymentSchema })) {throw new WorkIssue('invalid_repair_namespace', true);}
             await repair();
           })));
         });
@@ -260,7 +260,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
         // A worker may already have admitted an SDK call before a later registration fails.
         // Keep its core lifecycle reachable through status/drain, and make this instance
         // terminal rather than allowing a second installation to replace that ownership.
-        if (handlers) stopRequested = true;
+        if (handlers) {stopRequested = true;}
         await boss.offWork(paymentWorkQueue, { wait: false });
         await boss.offWork(paymentRepairQueue, { wait: false });
         await boss.stop({ close: false, graceful: true });
@@ -281,7 +281,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
     stopRequested = true; accepting = false;
     if (!stopping) {
       stopping = (async () => {
-        if (starting) await starting.catch(() => undefined);
+        if (starting) {await starting.catch(() => undefined);}
         accepting = false;
         await boss.offWork(paymentWorkQueue, { wait: false });
         await boss.offWork(paymentRepairQueue, { wait: false });
@@ -294,22 +294,22 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
     try {
       await Promise.race([stopping, new Promise<void>(resolve => { timer = setTimeout(resolve, timeoutMs); })]);
       return status();
-    } finally { if (timer) clearTimeout(timer); }
+    } finally { if (timer) {clearTimeout(timer);} }
   }
 
   async function drain(): Promise<PaymentJobStopResult> {
-    if (stopping) await stopping;
-    while (active.size) await Promise.allSettled(active);
+    if (stopping) {await stopping;}
+    while (active.size) {await Promise.allSettled(active);}
     await handlers?.payments.drain();
     return status();
   }
 
   /** Explicit operator redrive. It clears logical cooldown/quarantine with an audit reference. */
   async function redrive(work: PaymentJobWork, auditRef: string): Promise<void> {
-    if (!isWork(work) || !auditRef || auditRef.length > 512) throw new TypeError('Payment job redrive requires a valid work identity and audit reference');
+    if (!isWork(work) || !auditRef || auditRef.length > 512) {throw new TypeError('Payment job redrive requires a valid work identity and audit reference');}
     await qualify();
     await withPaymentTransaction(options.pool, async tx => {
-      if ((await records.configuration(tx, options.scope)).body.recoveryFenced) throw new Error('Payment recovery is fenced');
+      if ((await records.configuration(tx, options.scope)).body.recoveryFenced) {throw new Error('Payment recovery is fenced');}
       await tx.query(`UPDATE ${records.sql}.obligations SET state = 'pending', attempts = 0, revision = revision + 1, next_attempt_at = clock_timestamp(), issue = $3
         WHERE kind = $1 AND id = $2 AND state <> 'complete'`, [work.kind, work.id, `redrive:${auditRef}`]);
       await tx.query(`INSERT INTO ${records.sql}.records (kind, id, revision, body) VALUES ('jobRedrives', $1, 1, $2)

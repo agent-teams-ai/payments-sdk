@@ -63,6 +63,6 @@ export async function observe(payments: ReturnType<typeof runtime>['payments'], 
 
 export function success<T>(value: ProviderResult<T> | OperationResult<T>): T {
   assert.equal(value.kind, 'succeeded');
-  if (value.kind !== 'succeeded') throw new Error('Fixture expected provider success');
+  if (value.kind !== 'succeeded') {throw new Error('Fixture expected provider success');}
   return value.value;
 }

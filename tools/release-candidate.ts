@@ -20,8 +20,8 @@ async function verify(): Promise<void> {
   assertReleaseCommit(commit);
   await command('git', ['merge-base', '--is-ancestor', commit, 'refs/remotes/origin/main']);
   const refs = (await command('git', ['tag', '--list', tag])).trim();
-  if (refs) assert.equal((await command('git', ['rev-parse', `${tag}^{commit}`])).trim(), commit, 'Existing release tag points at another commit');
-  else assert.equal(required('GITHUB_EVENT_NAME'), 'workflow_dispatch', 'A push release must have an existing tag');
+  if (refs) {assert.equal((await command('git', ['rev-parse', `${tag}^{commit}`])).trim(), commit, 'Existing release tag points at another commit');}
+  else {assert.equal(required('GITHUB_EVENT_NAME'), 'workflow_dispatch', 'A push release must have an existing tag');}
   for (const short of packageNames) {
     const manifest = JSON.parse(await command('git', ['show', `${commit}:packages/payments-${short}/package.json`])) as PackedManifest;
     assert.equal(manifest.name, `@agent-teams/payments-${short}`);
@@ -85,7 +85,7 @@ async function publish(): Promise<void> {
     await command('gh', ['api', '--method', 'POST', `repos/${releaseRepository}/git/refs`, '-f', `ref=refs/tags/${tag}`, '-f', `sha=${commit}`]);
     reference = { type: 'commit', sha: commit };
   }
-  for (let depth = 0; reference.type === 'tag' && depth < 10; depth += 1) reference = (await api<{ object: GitObject }>(`repos/${releaseRepository}/git/tags/${reference.sha}`)).object;
+  for (let depth = 0; reference.type === 'tag' && depth < 10; depth += 1) {reference = (await api<{ object: GitObject }>(`repos/${releaseRepository}/git/tags/${reference.sha}`)).object;}
   assert.equal(reference.type, 'commit', 'Release tag must resolve to a commit');
   assert.equal(reference.sha, commit, 'Remote release tag no longer resolves to the admitted commit');
   const assets = [...expected, 'SHA256SUMS', 'release-manifest.json'].map(filename => join(target, filename));
@@ -94,7 +94,7 @@ async function publish(): Promise<void> {
 }
 
 const operation = process.argv[2];
-if (operation === 'verify') await verify();
-else if (operation === 'assemble') await assemble();
-else if (operation === 'publish') await publish();
-else throw new Error('Expected release-candidate.ts verify|assemble|publish');
+if (operation === 'verify') {await verify();}
+else if (operation === 'assemble') {await assemble();}
+else if (operation === 'publish') {await publish();}
+else {throw new Error('Expected release-candidate.ts verify|assemble|publish');}

@@ -15,7 +15,7 @@ const known = <T>(value: T) => ({ presence: 'known' as const, value });
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; }
 async function until(check: () => Promise<boolean>, label: string): Promise<void> {
   const deadline = performance.now() + 12_000;
-  while (!await check()) { if (performance.now() > deadline) throw new Error(`Timed out: ${label}`); await delay(15); }
+  while (!await check()) { if (performance.now() > deadline) {throw new Error(`Timed out: ${label}`);} await delay(15); }
 }
 function runtime(store: PaymentStore, create?: PaymentProvider['createCheckout'], timeoutMs = 1000) {
   let calls = 0;
@@ -88,7 +88,7 @@ test('deleted jobs are rebuilt from payment obligations; T2 replay and exact ind
     await core.payments.registerConsumer('credits'); await core.payments.registerConsumer('access');
     await prepare(f.store, 'prepared');
     const checkout = await core.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'already-dispatched' });
-    assert.equal(checkout.kind, 'succeeded'); if (checkout.kind !== 'succeeded') throw new Error('Fixture checkout failed');
+    assert.equal(checkout.kind, 'succeeded'); if (checkout.kind !== 'succeeded') {throw new Error('Fixture checkout failed');}
     await core.payments.ingestVerifiedInput(input(checkout.value.transactionRef, 'inbox-pending'));
     await f.jobs.queue.boss.deleteAllJobs();
     assert.equal((await f.pool.query(`SELECT count(*)::int AS count FROM ${f.jobSchema}.job`)).rows[0]?.count, 0);
@@ -122,13 +122,13 @@ test('logical cooldown and quarantine survive queue deletion; unknown commands n
   const jobs = createPostgresPaymentJobs({ ...f, maxAttempts: 2, cooldownSeconds: 2, maxCooldownSeconds: 2, pollingIntervalSeconds: 0.5 });
   try {
     const unknown = await core.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'unknown' });
-    assert.equal(unknown.kind, 'outcome_unknown'); if (unknown.kind !== 'outcome_unknown') throw new Error('Fixture');
+    assert.equal(unknown.kind, 'outcome_unknown'); if (unknown.kind !== 'outcome_unknown') {throw new Error('Fixture');}
     await jobs.queue.boss.deleteAllJobs();
     await f.pool.query(`INSERT INTO ${f.paymentSchema}.obligations (kind, id) VALUES ('delivery', 'missing-target')`);
     let acquired = 0;
     const reconciler = createPaymentReconciler({ scope, store: f.store, source: { scope, readPage: async (query, after) => {
       acquired += 1; assert.equal(query.kind, 'events');
-      if (acquired > 2) return { kind: 'page', inputs: [], hasMore: false, ...(after === undefined ? {} : { lastId: after }) };
+      if (acquired > 2) {return { kind: 'page', inputs: [], hasMore: false, ...(after === undefined ? {} : { lastId: after }) };}
       const receipt = input(`scan-transaction-${acquired}`, `scan-receipt-${acquired}`), eventId = `evt-000${acquired}`;
       const source = { ...receipt.source, eventId, eventType: 'transaction.updated' };
       return { kind: 'page', inputs: [{ ...receipt, source, observation: { ...receipt.observation, source } }], ids: [eventId], lastId: eventId, hasMore: true };
@@ -171,13 +171,13 @@ for (const sink of ['throws', 'rejects'] as const) {
     const sinkFailure = new Error('synthetic diagnostic sink failure');
     const jobs = createPostgresPaymentJobs({
       ...f, maxAttempts: 2, cooldownSeconds: 1, maxCooldownSeconds: 1, pollingIntervalSeconds: 0.5,
-      onError: error => { reported.push(error); if (sink === 'rejects') return Promise.reject(sinkFailure); throw sinkFailure; },
+      onError: error => { reported.push(error); if (sink === 'rejects') {return Promise.reject(sinkFailure);} throw sinkFailure; },
     });
     let consumed = 0;
     try {
       await core.payments.registerConsumer('credits');
       const checkout = await core.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: `diagnostic-${sink}` });
-      assert.equal(checkout.kind, 'succeeded'); if (checkout.kind !== 'succeeded') throw new Error('Fixture checkout failed');
+      assert.equal(checkout.kind, 'succeeded'); if (checkout.kind !== 'succeeded') {throw new Error('Fixture checkout failed');}
       await core.payments.ingestVerifiedInput(input(checkout.value.transactionRef, `receipt-${sink}`));
       assert.equal(await core.payments.processInbox(`receipt-${sink}`), 'processed');
       const messages = await core.payments.readDeliveries('credits');
@@ -226,7 +226,7 @@ test('shutdown reports a physically unresolved SDK call and leaves the shared po
     assert.equal(missing.status().transportStopped, true); assert.equal(missing.queue.boss.getWipData().length, 0);
     const partial = createPostgresPaymentJobs(sibling), originalWork = partial.queue.boss.work;
     Object.defineProperty(partial.queue.boss, 'work', { value: async (name: string, ...args: unknown[]) => {
-      if (name === 'payments_repair') throw new Error('injected second worker registration failure');
+      if (name === 'payments_repair') {throw new Error('injected second worker registration failure');}
       return Reflect.apply(originalWork, partial.queue.boss, [name, ...args]) as Promise<string>;
     } });
     await assert.rejects(partial.start({ payments: runtime(sibling.store).payments, store: sibling.store }), /injected second worker/);

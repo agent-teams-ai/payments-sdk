@@ -22,7 +22,7 @@ export function reportPaymentJobError(events: PaymentJobEvents, error: Error): v
 
 function validateNamespace(options: PaymentJobNamespace): void {
   sqlIdentifier(options.paymentSchema); sqlIdentifier(options.jobSchema);
-  if (options.paymentSchema === options.jobSchema) throw new TypeError('Payment records and jobs require separate schemas');
+  if (options.paymentSchema === options.jobSchema) {throw new TypeError('Payment records and jobs require separate schemas');}
 }
 
 /** The supplied Pool remains owned by the host, including failed startup and shutdown. */
@@ -48,15 +48,15 @@ export async function bootstrapPostgresPaymentJobs(options: PaymentJobNamespace 
   // serializes replicas; the job-schema owner row rejects a different payment deployment.
   await withPaymentTransaction(options.pool, async tx => {
     const owner = await tx.query<{ body: { scope: PaymentScope; jobTransport?: unknown } }>(`SELECT body FROM ${payment}.configuration WHERE id = 'owner' FOR UPDATE`);
-    if (!owner.rows[0] || canonicalJson(owner.rows[0].body.scope) !== canonicalJson(options.scope)) throw new Error('Payment job namespace scope mismatch');
+    if (!owner.rows[0] || canonicalJson(owner.rows[0].body.scope) !== canonicalJson(options.scope)) {throw new Error('Payment job namespace scope mismatch');}
     const binding = { jobSchema: options.jobSchema, queueName: paymentWorkQueue };
-    if (owner.rows[0].body.jobTransport && canonicalJson(owner.rows[0].body.jobTransport) !== canonicalJson(binding)) throw new Error('Payment schema already has another job namespace');
+    if (owner.rows[0].body.jobTransport && canonicalJson(owner.rows[0].body.jobTransport) !== canonicalJson(binding)) {throw new Error('Payment schema already has another job namespace');}
     await tx.query(`CREATE SCHEMA IF NOT EXISTS ${jobs}`);
     await tx.query(`CREATE TABLE IF NOT EXISTS ${jobs}.payment_owner (id text PRIMARY KEY CHECK (id = 'owner'), body jsonb NOT NULL)`);
     const expected = { paymentSchema: options.paymentSchema, scope: options.scope };
     await tx.query(`INSERT INTO ${jobs}.payment_owner (id, body) VALUES ('owner', $1) ON CONFLICT DO NOTHING`, [JSON.stringify(expected)]);
     const existing = await tx.query<{ body: unknown }>(`SELECT body FROM ${jobs}.payment_owner WHERE id = 'owner' FOR UPDATE`);
-    if (canonicalJson(existing.rows[0]?.body ?? null) !== canonicalJson(expected)) throw new Error('Job namespace already belongs to another payment deployment');
+    if (canonicalJson(existing.rows[0]?.body ?? null) !== canonicalJson(expected)) {throw new Error('Job namespace already belongs to another payment deployment');}
     await tx.query(`UPDATE ${payment}.configuration SET revision = revision + 1, body = jsonb_set(body, '{jobTransport}', $1::jsonb) WHERE id = 'owner' AND body -> 'jobTransport' IS DISTINCT FROM $1::jsonb`, [JSON.stringify(binding)]);
   }, options.timeouts);
   const boss = makePaymentBoss(options, true);
@@ -82,17 +82,17 @@ export async function qualifyPaymentJobNamespace(options: PaymentJobNamespace, b
     const namespace = await tx.query<{ body: unknown }>(`SELECT body FROM ${jobs}.payment_owner WHERE id = 'owner'`);
     if (!owner.rows[0] || canonicalJson(owner.rows[0].body.scope) !== canonicalJson(options.scope)
       || canonicalJson(owner.rows[0].body.jobTransport ?? null) !== canonicalJson({ jobSchema: options.jobSchema, queueName: paymentWorkQueue })
-      || canonicalJson(namespace.rows[0]?.body ?? null) !== canonicalJson({ paymentSchema: options.paymentSchema, scope: options.scope })) throw new Error('Payment job namespace binding is absent or mismatched');
+      || canonicalJson(namespace.rows[0]?.body ?? null) !== canonicalJson({ paymentSchema: options.paymentSchema, scope: options.scope })) {throw new Error('Payment job namespace binding is absent or mismatched');}
     const weak = await tx.query(`SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname = $1 AND c.relpersistence <> 'p' AND c.relkind IN ('r', 'p') LIMIT 1`, [options.jobSchema]);
-    if (weak.rows.length) throw new PaymentDatabaseError('durability_profile');
+    if (weak.rows.length) {throw new PaymentDatabaseError('durability_profile');}
   }, options.timeouts);
   for (const name of [paymentWorkQueue, paymentRepairQueue, schedulerQueue]) {
     const queue = await boss.getQueue(name);
     if (!queue || queue.partition || queue.retryLimit !== 0 || queue.expireInSeconds !== 300 || queue.policy !== 'standard'
-      || queue.retentionSeconds !== paymentJobRetention.retentionSeconds || queue.deleteAfterSeconds !== paymentJobRetention.deleteAfterSeconds) throw new Error(`Payment job queue requires explicit bootstrap: ${name}`);
+      || queue.retentionSeconds !== paymentJobRetention.retentionSeconds || queue.deleteAfterSeconds !== paymentJobRetention.deleteAfterSeconds) {throw new Error(`Payment job queue requires explicit bootstrap: ${name}`);}
   }
   const schedule = await boss.getSchedule(paymentRepairQueue, 'durable_obligations');
   if (!schedule || schedule.cron !== '* * * * *' || schedule.timezone !== 'UTC' || schedule.options?.missed !== 'once'
-    || canonicalJson(schedule.data ?? null) !== canonicalJson({ kind: 'repair', paymentSchema: options.paymentSchema })) throw new Error('Payment repair schedule requires explicit bootstrap');
+    || canonicalJson(schedule.data ?? null) !== canonicalJson({ kind: 'repair', paymentSchema: options.paymentSchema })) {throw new Error('Payment repair schedule requires explicit bootstrap');}
 }

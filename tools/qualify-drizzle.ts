@@ -55,7 +55,7 @@ try {
   const visit = async (path = ''): Promise<void> => {
     for (const entry of await readdir(join(installed, path), { withFileTypes: true })) {
       const relative = path ? `${path}/${entry.name}` : entry.name;
-      if (entry.isDirectory()) await visit(relative);
+      if (entry.isDirectory()) {await visit(relative);}
       else { assert.equal(entry.isFile(), true, `Unexpected installed link ${relative}`); installedFiles.push(relative); }
     }
   };
@@ -87,7 +87,7 @@ try {
       assert.equal(actual.toString('utf8'), expected, `Change outside the reviewed optional-field correction: ${file}`);
       assert.equal(hash(actual), correction.patchedSha256, `Installed declaration patch drift: ${file}`);
       changed.push(file);
-    } else assert.equal(actual.equals(official), true, `Unapproved Drizzle file change: ${file}`);
+    } else {assert.equal(actual.equals(official), true, `Unapproved Drizzle file change: ${file}`);}
     if (/\.(?:js|cjs)$/u.test(file)) {
       runtimeCount += 1;
       runtimeManifest += `${file}\t${hash(official)}\n`;

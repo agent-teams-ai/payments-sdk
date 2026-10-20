@@ -13,8 +13,8 @@ const secret = 'synthetic-destination-secret';
 const offer: OfferSnapshot = { applicationId: 'app-a', offerId: 'monthly', version: '1', policyVersion: '1', profile: 'monthly', currency: 'USD', allowZeroTotal: false, lines: [{ providerPriceRef: paddleIds.price, benefitSlotId: 'included', quantity: 1 }] };
 const options = { scope, apiKey: 'synthetic-noncredential', apiVersion: 1 as const, webhook: { endpointId: 'fixture-destination', secret, apiVersion: 1 as const } };
 function sign(body: string, timestamp = Math.floor(Date.now() / 1000)): string { return `ts=${timestamp};h1=${createHmac('sha256', secret).update(`${timestamp}:${body}`).digest('hex')}`; }
-function succeeded<T>(result: ProviderResult<T>): T { assert.equal(result.kind, 'succeeded'); if (result.kind !== 'succeeded') throw new Error('Expected success'); return result.value; }
-function value<T>(field: Field<T>): T { assert.equal(field.presence, 'known'); if (field.presence !== 'known') throw new Error('Expected known field'); return field.value; }
+function succeeded<T>(result: ProviderResult<T>): T { assert.equal(result.kind, 'succeeded'); if (result.kind !== 'succeeded') {throw new Error('Expected success');} return result.value; }
+function value<T>(field: Field<T>): T { assert.equal(field.presence, 'known'); if (field.presence !== 'known') {throw new Error('Expected known field');} return field.value; }
 function query(): PaddleEventScanQuery { return { from: '2026-09-30T00:00:00Z', to: '2026-10-03T00:00:00Z', epoch: 'epoch-1', queryVersion: 'events/1', perPage: 2 }; }
 
 test('official SDK contract probes with synthetic API1 fixtures and no network', async t => {
@@ -78,7 +78,7 @@ test('official SDK contract probes with synthetic API1 fixtures and no network',
         pool.intercept({ path: path => new URL(path, 'https://sandbox-api.paddle.com').pathname === `/transactions/${paddleIds.transaction}`, method: 'GET' }).reply(200, responseFixture(data));
         const mapped = succeeded(await provider.readTransactionInput(paddleIds.transaction));
         for (const input of [raw, mapped]) {
-          assert.equal(input.observation.kind, 'transaction'); if (input.observation.kind !== 'transaction') throw new Error('Expected transaction');
+          assert.equal(input.observation.kind, 'transaction'); if (input.observation.kind !== 'transaction') {throw new Error('Expected transaction');}
           assert.equal(input.observation.status, status);
           assert.deepEqual(input.observation.statusMeaning, { kind: status === 'completed' ? 'completed' : status.endsWith('future_status') || status === 'future_provider_status' ? 'unsupported' : 'not_completed' });
         }
@@ -98,9 +98,9 @@ test('official SDK contract probes with synthetic API1 fixtures and no network',
         pool.intercept({ path: path => new URL(path, 'https://sandbox-api.paddle.com').pathname === `/subscriptions/${paddleIds.subscription}`, method: 'GET' }).reply(200, responseFixture(data));
         const mapped = succeeded(await provider.readSubscriptionInput(paddleIds.subscription));
         for (const input of [raw, mapped]) {
-          assert.equal(input.observation.kind, 'subscription'); if (input.observation.kind !== 'subscription') throw new Error('Expected subscription');
+          assert.equal(input.observation.kind, 'subscription'); if (input.observation.kind !== 'subscription') {throw new Error('Expected subscription');}
           const item = value(input.observation.items)[0]; assert.ok(item); assert.equal(item.providerPriceRef, paddleIds.price);
-          if (configuration.omitQuantity) assert.deepEqual(item.quantity, { presence: 'unknown' });
+          if (configuration.omitQuantity) {assert.deepEqual(item.quantity, { presence: 'unknown' });}
           else { assert.equal(value(item.quantity), configuration.quantity ?? 1); assert.equal(item.quantity.presence === 'known' ? item.quantity.provenance : undefined, 'observed'); }
           assert.equal(value(item.trial), configuration.trial ?? false);
           assert.equal(value(item.billingCycle)?.interval ?? null, configuration.monthly === false ? null : 'month');
@@ -118,7 +118,7 @@ test('official SDK contract probes with synthetic API1 fixtures and no network',
       const body = JSON.stringify(eventFixture('transaction.completed', raw));
       const input = succeeded(await provider.verifyWebhook(body, sign(body)));
       assert.equal(input.observation.kind, 'transaction');
-      if (input.observation.kind !== 'transaction') throw new Error('Expected transaction');
+      if (input.observation.kind !== 'transaction') {throw new Error('Expected transaction');}
       assert.deepEqual(input.observation.customerRef, { presence: 'known', value: null, provenance: 'observed' });
       assert.deepEqual(value(input.observation.lines)[0]?.billingCycle, { presence: 'unknown' });
       pool.intercept({ path: path => new URL(path, 'https://sandbox-api.paddle.com').pathname === `/transactions/${paddleIds.transaction}`, method: 'GET' }).reply(200, responseFixture(raw));
@@ -174,25 +174,25 @@ test('official SDK contract probes with synthetic API1 fixtures and no network',
         const raw = succeeded(await provider.verifyWebhook(body, sign(body)));
         assert.deepEqual(inputRoutes(raw), item.routes, `${item.type}: raw route`);
         assert.equal(raw.observation.kind, 'unsupported');
-        if (raw.observation.kind !== 'unsupported') throw new Error('Expected unsupported observation');
+        if (raw.observation.kind !== 'unsupported') {throw new Error('Expected unsupported observation');}
         assert.equal(raw.observation.reason, item.type.endsWith('.updated') ? 'invalid_or_unsupported_provider_shape' : 'unsupported_event_type');
         assert.deepEqual(raw.retainedRepresentation, { rawBody: body });
         assert.equal(raw.source.representationDigest, createHash('sha256').update(body).digest('hex'));
         assert.deepEqual(provider.normalizeVerifiedWebhook(raw), raw);
         pool.intercept({ path: path => path.startsWith('/events?'), method: 'GET' }).reply(200, responseFixture([eventFixture(item.type, item.data)]));
         const result = await provider.readEventPage(query()); assert.equal(result.kind, 'page');
-        if (result.kind !== 'page') throw new Error('Expected page');
+        if (result.kind !== 'page') {throw new Error('Expected page');}
         const mapped = result.inputs[0]; assert.ok(mapped);
         assert.deepEqual(inputRoutes(mapped), item.routes, `${item.type}: SDK route`);
         assert.equal(mapped.observation.kind, 'unsupported');
-        if (mapped.observation.kind !== 'unsupported') throw new Error('Expected unsupported observation');
+        if (mapped.observation.kind !== 'unsupported') {throw new Error('Expected unsupported observation');}
         assert.equal(mapped.observation.reason, raw.observation.reason);
         assert.equal(digest(mapped.retainedRepresentation), mapped.source.representationDigest);
         assert.equal(result.hasMore, false); assert.equal(result.lastEventId, paddleIds.event);
         const retained = mapped.retainedRepresentation as Record<string, unknown>;
         assert.equal(retained['representationKind'], 'sdk_mapped_observation');
         const diagnostic = retained['diagnostic'] as Record<string, Record<string, unknown>>;
-        if (item.data['future_total'] !== undefined) assert.equal(diagnostic['data']?.['futureTotal'], 'uninterpreted');
+        if (item.data['future_total'] !== undefined) {assert.equal(diagnostic['data']?.['futureTotal'], 'uninterpreted');}
       }
     });
 
@@ -212,7 +212,7 @@ test('official SDK contract probes with synthetic API1 fixtures and no network',
       assert.equal(result.inputs.length, 2);
       const a = result.inputs[0], b = result.inputs[1]; assert.ok(a); assert.ok(b);
       assert.equal(a.adverseTransactionRef, paddleIds.transaction); assert.equal(a.observation.kind, 'adjustment'); assert.equal(b.observation.kind, 'adjustment');
-      if (a.observation.kind !== 'adjustment' || b.observation.kind !== 'adjustment') throw new Error('Expected adjustments');
+      if (a.observation.kind !== 'adjustment' || b.observation.kind !== 'adjustment') {throw new Error('Expected adjustments');}
       assert.equal(a.observation.adjustmentRef, paddleIds.adjustment); assert.equal(a.observation.status, 'reversed');
       assert.equal(b.observation.adjustmentRef, paddleIds.reverseAdjustment); assert.equal(b.observation.action, 'chargeback_reverse');
       assert.equal(b.observation.amount.minorUnits, '-1000'); assert.equal(b.observation.allocations[0]?.amount.minorUnits, '-1000');
@@ -270,7 +270,7 @@ test('official SDK contract probes with synthetic API1 fixtures and no network',
       assert.equal((await provider.readEventPage(scan)).kind, 'gap');
       pool.intercept({ path, method: 'GET' }).reply(200, responseFixture([eventFixture('transaction.completed', transactionFixture(), paddleIds.secondEvent)], false));
       const result = await provider.readEventPage(scan); assert.equal(result.kind, 'page');
-      if (result.kind !== 'page') throw new Error('Expected page');
+      if (result.kind !== 'page') {throw new Error('Expected page');}
       assert.equal(result.lastEventId, paddleIds.secondEvent); assert.equal(result.inputs.length, 1); assert.equal(result.hasMore, false);
     });
 
@@ -279,7 +279,7 @@ test('official SDK contract probes with synthetic API1 fixtures and no network',
       assert.deepEqual((await provider.readEventPage(query())).kind, 'gap');
       pool.intercept({ path: path => path.startsWith('/events?'), method: 'GET' }).reply(200, responseFixture([eventFixture('future.event', { AppID: 'A', appid: 'B' })]));
       const result = await provider.readEventPage(query()); assert.equal(result.kind, 'page');
-      if (result.kind !== 'page') throw new Error('Expected page');
+      if (result.kind !== 'page') {throw new Error('Expected page');}
       assert.equal(result.inputs[0]?.observation.kind, 'unsupported'); assert.equal(result.inputs[0]?.source.kind, 'authenticated_api');
       assert.equal(result.inputs[0]?.source.stableEnvelopeDigest, undefined); assert.equal(result.inputs[0]?.source.verification, undefined);
       const retained = result.inputs[0]?.retainedRepresentation as Record<string, unknown>;
@@ -293,8 +293,8 @@ test('official SDK contract probes with synthetic API1 fixtures and no network',
   } finally {
     await agent.close(); setGlobalDispatcher(savedDispatcher);
     for (const [name, descriptor] of savedGlobals) {
-      if (descriptor === undefined) Reflect.deleteProperty(globalThis, name);
-      else Object.defineProperty(globalThis, name, descriptor);
+      if (descriptor === undefined) {Reflect.deleteProperty(globalThis, name);}
+      else {Object.defineProperty(globalThis, name, descriptor);}
     }
   }
 });

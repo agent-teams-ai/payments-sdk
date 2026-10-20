@@ -19,8 +19,8 @@ test('captured development commands preserve literal argv, cwd, environment and 
     });
     assert.equal(await command(process.execPath, ['-e', 'process.stdout.write(process.cwd())']), repository);
   } finally {
-    if (previous === undefined) delete process.env[key];
-    else process.env[key] = previous;
+    if (previous === undefined) {delete process.env[key];}
+    else {process.env[key] = previous;}
     await rm(directory, { recursive: true, force: true });
   }
 });

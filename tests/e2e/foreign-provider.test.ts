@@ -72,7 +72,7 @@ function foreignProvider(scope: PaymentScope) {
     },
     readTransaction: async reference => {
       const raw = transactions.get(reference);
-      if (!raw) return { kind: 'rejected', code: 'unavailable' };
+      if (!raw) {return { kind: 'rejected', code: 'unavailable' };}
       return { kind: 'succeeded', value: receipt(raw).observation };
     },
     readTransactionInput: async reference => {
@@ -106,7 +106,7 @@ test('foreign provider vocabulary preserves public completion, renewal and manag
     const credit = new CreditFixture({ pool, schema: consumerSchema, trust: { scope, producerNamespace } });
     await credit.migrate();
     const catalog = { resolveOffer: async (_scope: PaymentScope, offerId: string): Promise<OfferSnapshot | undefined> => {
-      if (offerId !== 'one_time' && offerId !== 'monthly') return undefined;
+      if (offerId !== 'one_time' && offerId !== 'monthly') {return undefined;}
       return { applicationId: scope.applicationId, offerId, version: '1', policyVersion: '1', profile: offerId, currency: 'USD', allowZeroTotal: false, lines: [{ providerPriceRef: `foreign-${offerId}`, benefitSlotId: 'benefit', quantity: 1 }] };
     } };
     const runtime = createPayments({ scope, producerNamespace, provider: foreign.provider, store, catalog });
@@ -125,7 +125,7 @@ test('foreign provider vocabulary preserves public completion, renewal and manag
     async function purchase(profile: 'one_time' | 'monthly', requestKey: string) {
       const result = await runtime.startPurchase({ buyerId: 'buyer', offerId: profile, requestKey });
       assert.equal(result.kind, 'succeeded');
-      if (result.kind !== 'succeeded') throw new Error('Expected foreign checkout');
+      if (result.kind !== 'succeeded') {throw new Error('Expected foreign checkout');}
       return result.value;
     }
     const oneTime = await purchase('one_time', 'topup');
@@ -195,7 +195,7 @@ test('foreign provider vocabulary preserves public completion, renewal and manag
     assert.equal(await runtime.processInbox(renewalInput.inputId), 'duplicate');
     await runtime.repair(); await deliver();
     const restartedCredit = new CreditFixture({ pool, schema: consumerSchema, trust: { scope, producerNamespace } });
-    for (const message of delivered.values()) assert.equal((await restartedCredit.receive(message)).outcome, 'duplicate');
+    for (const message of delivered.values()) {assert.equal((await restartedCredit.receive(message)).outcome, 'duplicate');}
     const effects = (await restartedCredit.owner.inspect<{ body: Effect }>('effects')).map(row => row.body);
     assert.equal(effects.length, 3);
     assert.ok(effects.every(effect => effect.kind === 'grant'));

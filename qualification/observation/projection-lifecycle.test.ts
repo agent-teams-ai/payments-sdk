@@ -26,7 +26,7 @@ test('projection supersession and close await actual PostgreSQL reads plus clean
         // A real public read through the packed runtime/store completes before these barriers.
         // The wrapper's Promise includes all temporary cleanup, as required of a borrowed read port.
         const purchase = await world.payments.readPurchase(buyerId, intentId);
-        if (intentId === 'recoverable' && failRecoverableRead) throw new Error('synthetic private connection diagnostic: never expose in the view');
+        if (intentId === 'recoverable' && failRecoverableRead) {throw new Error('synthetic private connection diagnostic: never expose in the view');}
         if (intentId === 'old') { physicalRead.resolve(); await releaseRead.promise; }
         if (intentId === 'close-held') { closeRead.resolve(); await releaseCloseRead.promise; }
         return purchase;
@@ -58,7 +58,7 @@ test('projection supersession and close await actual PostgreSQL reads plus clean
     assert.equal(maximumConcurrent, 1, 'abort is not treated as physical cancellation');
     const ready = projection.view.read(['state']).values.state;
     assert.equal(ready.status, 'ready');
-    if (ready.status !== 'ready') throw new Error('Expected the newest real read to settle');
+    if (ready.status !== 'ready') {throw new Error('Expected the newest real read to settle');}
     assert.deepEqual(ready.query, { buyerId: 'other-buyer', intentId: 'newest' });
     assert.equal(ready.purchase, undefined);
     assert.deepEqual(states.flatMap(state => state.status === 'ready' ? [state.query.intentId] : []), ['newest'], 'a newer query committed before old publication suppresses every obsolete ready state');

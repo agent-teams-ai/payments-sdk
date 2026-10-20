@@ -43,7 +43,7 @@ test('packed payments and installed observation: absent, failing and closed scre
     assert.deepEqual([firstDecision.body.bucket, firstDecision.body.allocated, firstDecision.body.eligible, firstDecision.body.held], ['included', '100', '100', '0']);
     assert.ok((await world.payments.readDeliveries('credits', 100)).length > 0, 'T3 custody survives a lost producer ACK');
     const restartedCredit = new CreditFixture({ pool: world.pool, schema: world.credit.owner.options.schema, trust: { producerNamespace, scope } });
-    for (const message of unacknowledged) assert.equal((await restartedCredit.receive(message)).outcome, 'duplicate');
+    for (const message of unacknowledged) {assert.equal((await restartedCredit.receive(message)).outcome, 'duplicate');}
     await deliver(world.payments, 'credits', restartedCredit);
     await deliver(world.payments, 'access', world.access);
     assert.deepEqual(await world.payments.readDeliveries('credits', 100), []);
@@ -57,7 +57,7 @@ test('packed payments and installed observation: absent, failing and closed scre
     });
     const prepared = await compose();
     assert.equal(prepared.status, 'prepared');
-    if (prepared.status !== 'prepared') throw new Error('Expected a prepared actual Assembly template');
+    if (prepared.status !== 'prepared') {throw new Error('Expected a prepared actual Assembly template');}
     const a = owner.resources.child({ name: 'screen-a' }), b = owner.resources.child({ name: 'screen-b' });
     const originalQuery = { buyerId: 'buyer-a', intentId: initial.intentId };
     const input = (query: { buyerId: string; intentId: string }, render: (state: PurchaseProjectionState) => undefined) => ({
@@ -79,13 +79,13 @@ test('packed payments and installed observation: absent, failing and closed scre
       prepared.prepared.run({ scope: b.resources, inputs: input({ buyerId: 'other-buyer', intentId: initial.intentId }, state => { screensB.push(state); }) }),
     ]);
     assert.equal(runA.status, 'succeeded'); assert.equal(runB.status, 'succeeded');
-    if (runA.status !== 'succeeded' || runB.status !== 'succeeded') throw new Error('Expected two independent actual Assembly runs');
+    if (runA.status !== 'succeeded' || runB.status !== 'succeeded') {throw new Error('Expected two independent actual Assembly runs');}
     const first = runA.roots.projection, second = runB.roots.projection;
     assert.notEqual(first, second);
     await settled();
     const readyA = runA.roots.display.current(), readyB = runB.roots.display.current();
     assert.equal(readyA.status, 'ready'); assert.equal(readyB.status, 'ready');
-    if (readyA.status !== 'ready' || readyB.status !== 'ready') throw new Error('Expected settled read projections');
+    if (readyA.status !== 'ready' || readyB.status !== 'ready') {throw new Error('Expected settled read projections');}
     assert.equal(readyA.purchase?.intent.intentId, initial.intentId);
     assert.equal(readyA.purchase?.transactions.find(item => item.transactionRef === initial.transactionRef)?.completion?.total.minorUnits, '1000');
     assert.equal(readyB.purchase, undefined, 'the other buyer does not see the first root purchase');
@@ -126,7 +126,7 @@ test('packed payments and installed observation: absent, failing and closed scre
     await settled();
     const refreshed = first.view.read(['state']).values.state;
     assert.equal(refreshed.status, 'ready');
-    if (refreshed.status !== 'ready') throw new Error('Expected explicitly refreshed completed top-up');
+    if (refreshed.status !== 'ready') {throw new Error('Expected explicitly refreshed completed top-up');}
     const completedTopup = refreshed.purchase?.transactions.find(item => item.transactionRef === paddleIds.secondTransaction);
     assert.deepEqual({ intentId: refreshed.purchase?.intent.intentId, buyerId: refreshed.purchase?.intent.buyerId,
       transactionRef: completedTopup?.transactionRef, classification: completedTopup?.completion?.classification, total: completedTopup?.completion?.total },
