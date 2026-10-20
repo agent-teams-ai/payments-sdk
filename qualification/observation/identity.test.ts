@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 test('installed public observation surface uses one physical GM peer graph without development tooling', () => {
   const root = (name: string) => realpathSync(fileURLToPath(import.meta.resolve(name)));
   const relationships: Readonly<Record<string, readonly string[]>> = {
-    '@agent-teams/payments-get-modular/observation': ['@agent-teams/payments-core', '@get-modular/core', '@get-modular/assembly', '@get-modular/resources', '@get-modular/observation'],
+    '@agent-teams/payments-get-modular/observation': ['@get-modular/core', '@get-modular/assembly', '@get-modular/resources', '@get-modular/observation'],
     '@get-modular/assembly': ['@get-modular/core'],
     '@get-modular/observation': ['@get-modular/resources'],
     '@get-modular/conformance': ['@get-modular/core', '@get-modular/assembly', '@get-modular/resources'],
