@@ -1,10 +1,12 @@
 {
   "sourceCommit": "d303f2a36774555bd885df63e536b97428c200a0",
+  "releaseBootstrapCommit": "4b3cd8d6ff2ca25a48c7c42e3ef7bfd0d895bb09",
+  "scope": "Complete local runtime/consumer evidence at sourceCommit; separately reviewed release workflow bootstrap at releaseBootstrapCommit.",
   "files": [
     {
       "path": "README.md",
-      "sha256": "3e9c865dd0508e66a4770be0c6c9a8a76ed8f0eefe80028f0b804e20309889ac",
-      "bytes": 13886
+      "sha256": "eb0388e0520e4ff96f94c5b34475d37fcb2e196e74933f04a4b41d138c2470cd",
+      "bytes": 16326
     },
     {
       "path": "cold-build/baseline-observation-tsconfig.json",
@@ -310,6 +312,106 @@
       "path": "production-loc.json",
       "sha256": "25e4ced87407cb3b3195cc73d464c5ddd9da6578aca1252e29fa1ffefc9f051c",
       "bytes": 27831
+    },
+    {
+      "path": "release-bootstrap/README.md",
+      "sha256": "48fb666ad3e6180580683d1c31f9c6a5fda6d6f4a2aee2192246b1184df797a5",
+      "bytes": 8697
+    },
+    {
+      "path": "release-bootstrap/before-install.json",
+      "sha256": "b2b7ea576860b0aa61bd16f57d4141544a31ad652738e50d2c13cd954bb7d69d",
+      "bytes": 241
+    },
+    {
+      "path": "release-bootstrap/bootstrap.diff",
+      "sha256": "63cc9b8b6734f960b8734eed1054eadbebf4ee65703cd107561a9767b1a937bc",
+      "bytes": 6790
+    },
+    {
+      "path": "release-bootstrap/candidate-assemble-node24.log",
+      "sha256": "3b96ee3d1949930466c98dc2ad78c3b63342ee6f470d1a8e6062e95a4cbd1ed8",
+      "bytes": 315
+    },
+    {
+      "path": "release-bootstrap/candidate-assemble-node26.log",
+      "sha256": "01e8822db8cb737f62083465b8399f8ade197ebe6ddc8763e8c06388d6cb0d65",
+      "bytes": 315
+    },
+    {
+      "path": "release-bootstrap/candidate-checksums-node24.log",
+      "sha256": "f78d9170630b56dc16daf6b2c0c9f7cb537ce1c0ecf7fb12ca493a06133e56aa",
+      "bytes": 173
+    },
+    {
+      "path": "release-bootstrap/candidate-checksums-node26.log",
+      "sha256": "f78d9170630b56dc16daf6b2c0c9f7cb537ce1c0ecf7fb12ca493a06133e56aa",
+      "bytes": 173
+    },
+    {
+      "path": "release-bootstrap/candidate-install-network-sandbox-attempt.log",
+      "sha256": "660f031ce7e99cdd62473c273c1b368196e6372307492d1eb7becbc3e0c79f82",
+      "bytes": 18969
+    },
+    {
+      "path": "release-bootstrap/candidate-install.log",
+      "sha256": "f63c678e5e1b584f2e463a87f8c3487711bae5389d3506acff23c2bf73d84368",
+      "bytes": 1815
+    },
+    {
+      "path": "release-bootstrap/node24-before-install.log",
+      "sha256": "bf8bf76886dc4a8a1842139f9d68606f6a06566e7404838132ac9c4e62515a23",
+      "bytes": 1248
+    },
+    {
+      "path": "release-bootstrap/node26-before-install.log",
+      "sha256": "52b55c1fcc083b9b21db19d0be1d5b7e35d05ae5ac61c935ac2e4a705fd78c55",
+      "bytes": 1247
+    },
+    {
+      "path": "release-bootstrap/release-cli-load-node24.log",
+      "sha256": "5e923a494e263055564b8627134deccee66bff9555894ad63540ea8830496a39",
+      "bytes": 811
+    },
+    {
+      "path": "release-bootstrap/release-cli-load-node26.log",
+      "sha256": "63f88fdab3a3ba10671eaeb8b4382da9538208454f8e914d9eee818f1282e6bb",
+      "bytes": 811
+    },
+    {
+      "path": "release-bootstrap/release-import-node24.log",
+      "sha256": "fc2e36221fe08b025316e043813d42f827c3d6d7e77f45060c38dfeadb49667e",
+      "bytes": 580
+    },
+    {
+      "path": "release-bootstrap/release-import-node26.log",
+      "sha256": "bde7903258a325a8bdc1efed9075c856139fc47df81bfd77f322f92ffe39e7a3",
+      "bytes": 580
+    },
+    {
+      "path": "release-bootstrap/release-install-shared-store.log",
+      "sha256": "bed1002ef9cce201fb3dfaa758678105e6b7dbc11a781c0f7fb649b6f78ab282",
+      "bytes": 1692
+    },
+    {
+      "path": "release-bootstrap/results.json",
+      "sha256": "b8e4d57bbcba04d83a42faaf5a3754ed5b3fa6b07015614f2f4a1c8c16f2f94b",
+      "bytes": 5022
+    },
+    {
+      "path": "release-bootstrap/source-binding.json",
+      "sha256": "dfa7382b77f44f823880b199c38753f1bde5fc27564060c4a6dfa3c664cd0b1a",
+      "bytes": 1469
+    },
+    {
+      "path": "release-bootstrap/workflow-yaml-parse.log",
+      "sha256": "02d1c26abb99cbc2d2413a6708df10db2bd21226159a0c47938ce7b92274034a",
+      "bytes": 70
+    },
+    {
+      "path": "release-bootstrap-independent.md",
+      "sha256": "45b426db1a82d3bbd83aa9058b348c6dfad84c82e9aca1ddef3bd0a914a1604f",
+      "bytes": 13653
     },
     {
       "path": "typed-core-provider.md",

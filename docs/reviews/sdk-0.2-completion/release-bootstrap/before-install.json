@@ -1,0 +1,14 @@
+[
+  {
+    "node": "v24.21.0",
+    "exitCode": 1,
+    "missingNodeOrBun": true,
+    "sourceNodeModulesExists": false
+  },
+  {
+    "node": "v26.11.1",
+    "exitCode": 1,
+    "missingNodeOrBun": true,
+    "sourceNodeModulesExists": false
+  }
+]

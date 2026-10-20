@@ -13,8 +13,10 @@ The exact same PR source passed hosted [Checks run 39420493065](https://github.c
 and [CodeQL run 39420489316](https://github.com/agent-teams-ai/payments-sdk/actions/runs/39420489316).
 All required build, quality and two scenario jobs, their artifact uploads and
 the fail-closed `Required checks` aggregate succeeded. This record belongs to
-that source. A subsequent documentation-only recording commit still needs its
-own required CI; these executions are not relabeled as another commit's runs.
+that source. Subsequent documentation and release-bootstrap commits still need
+their own required CI; these executions are not relabeled as another commit's
+runs. Runtime, test, dependency and package build inputs remain unchanged in
+those later commits; the release workflow has its separate qualification below.
 [PR #5](https://github.com/agent-teams-ai/payments-sdk/pull/5) and the exact
 main-push release manifest supply the subsequent remote delivery coordinates.
 
@@ -57,6 +59,7 @@ they are not described as another four-wave campaign.
 | PostgreSQL, independent consumers and GM typed corrections | [Storage and consumers](typed-storage-consumers.md) | No new P0/P1/P2 in the reviewed delta |
 | Cold declaration graph, strict ownership and packed config isolation | [Cold build](cold-build-independent.md) | No P0/P1/P2; new actual-backend and consumer witnesses pass |
 | Accepted scope, meaningful dependency adoption and source metrics | [Delivery and metrics](delivery-scope.md) | No concrete P0/P1/P2 contradiction; counts independently reproduced |
+| Cold release dependency bootstrap and archive reuse | [Release bootstrap](release-bootstrap-independent.md) | Missing bootstrap corrected; no P0/P1/P2 in the independently reviewed fix |
 
 The final [independent evidence read-back](evidence-readback.md) recomputes
 all reported test blocks, transcript/report hashes, the actual package bytes
@@ -148,6 +151,39 @@ An old `fb9baa1` report discovered beside that transcript is explicitly not
 paired with it. The successful Node26 run reported above repeats the complete
 route on a new disposable database. Earlier SDK performance and diagnostic
 failures remain in their [own historical report](../sdk-0.2/qualification.md#failures-retained-and-corrections-qualified).
+
+## Final release bootstrap correction
+
+After the complete local and PR checks above, a cold release preflight exposed
+an additional delivery defect: both release jobs loaded the shared captured
+command helper without installing its new static `node-or-bun` dependency.
+The failure reproduces on both Node floors before installation. Earlier review
+and full-check success did not exercise that empty release checkout; they are
+not evidence that this defect was absent.
+
+The exact three-file correction was committed as **`4b3cd8d6ff2ca25a48c7c42e3ef7bfd0d895bb09`**. Both jobs now
+install the trusted main checkout's frozen dependencies with the SHA-pinned
+pnpm setup, shared store cache and `--ignore-scripts`. No SDK build/pack command
+is introduced, and the release continues to use the exact admitted CI archives.
+Tool code, dependency pins, token scopes, main-push admission, immutable tags
+and no-overwrite behavior remain unchanged. The [updated release guide](../../releasing.md)
+records the deliberate replacement of the earlier dependency-free assumption.
+
+The [focused cold record](release-bootstrap/README.md) and
+[independent review](release-bootstrap-independent.md) retain the exact diff
+hash and original failure. An empty-store candidate install took 4.645 seconds;
+a separate checkout sharing only that store took 1.897 seconds. Both installed
+actual `node-or-bun` 0.2.2 with unchanged manifests/catalog/lock and without SDK
+build outputs. Actual archive assembly on Node 24 and 26 preserves all four
+input checksums; actual captured commands and CLI loading pass in the separate
+release checkout. Expected usage-error probes are successful negative checks,
+not successful publication calls.
+
+The local assembly used **synthetic Checks run ID 1**, is explicitly test only,
+and performed no authoritative GitHub admission or publication. Generated
+synthetic provenance is not a real release attestation. The final hosted
+release still must pass actual exact-main-push admission and publish its own
+manifest and assets. Its independently verified result is recorded by GitHub.
 
 ## Qualified package bytes
 

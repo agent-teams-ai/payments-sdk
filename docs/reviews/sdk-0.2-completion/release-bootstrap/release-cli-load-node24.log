@@ -1,0 +1,18 @@
+TEST ONLY; no authoritative Checks provenance or release admission.
+Command: ["/tmp/payments-cont-toolchain/node24/bin/node", "tools/release-candidate.ts"]
+Working directory: /tmp/payments-release-bootstrap-probe/release
+
+file:///tmp/payments-release-bootstrap-probe/release/tools/release-candidate.ts:100
+else {throw new Error('Expected release-candidate.ts verify|assemble|publish');}
+            ^
+
+Error: Expected release-candidate.ts verify|assemble|publish
+    at file:///tmp/payments-release-bootstrap-probe/release/tools/release-candidate.ts:100:13
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.21.0
+
+Exit: 1
+Elapsed seconds: 2.207
