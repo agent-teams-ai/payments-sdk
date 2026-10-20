@@ -1,6 +1,6 @@
 # @agent-teams/payments-get-modular
 
-Optional Get Modular composition for the provider-neutral payment runtime. The Host supplies the same `PaymentRuntimeOptions` accepted by `createPayments()` from `@agent-teams/payments-core`. This package imports only that core and the published Get Modular composition/resource APIs. It does not create provider connections, database pools, HTTP routes, background workers, or product grants.
+Optional Get Modular composition for the provider-neutral payment runtime. The Host supplies the same `PaymentRuntimeOptions` accepted by `createPayments()` from `@agent-teams/payments-core`. Its main entry imports only that core and the published Get Modular composition/resource APIs; the optional observation subpath also imports the published Observation API. It does not create provider connections, database pools, HTTP routes, background workers, or product grants.
 
 ## Supported composition profile
 

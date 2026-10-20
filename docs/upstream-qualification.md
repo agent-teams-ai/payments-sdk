@@ -53,7 +53,7 @@ The dependency diff from `b4048b8` changes only the exact Foundation root develo
 
 The separately published [FMS 0.1.2](https://github.com/agent-teams-ai/engineering-foundation/releases/tag/%40agent-teams/feature-module-standard%400.1.2) corrects its optional Foundation peer to `^1.8.0`. FMS is not used by this workspace and was not added. Package engines, runtime dependencies, Get Modular peers and TypeScript/Node pins are unchanged.
 
-## Get Modular: merged implementation, unpublished release train
+## Historical Get Modular: merged implementation before publication
 
 Official [main `3e595957424ebc8b0211da7ec5926688f0dd41de`](https://github.com/agent-teams-ai/get-modular/commit/3e595957424ebc8b0211da7ec5926688f0dd41de) now includes the observation implementation. The following merges were verified directly through the official GitHub API:
 
@@ -70,7 +70,7 @@ The [current CMS](https://github.com/agent-teams-ai/get-modular/blob/3e595957424
 
 Actual npm publication remains a separate gate. The [Core](https://registry.npmjs.org/%40get-modular%2Fcore) and [Assembly](https://registry.npmjs.org/%40get-modular%2Fassembly) registry tags remain `latest:0.4.0`, `next:0.5.0`; [Resources](https://registry.npmjs.org/%40get-modular%2Fresources) remains `latest:0.1.0`; [Conformance](https://registry.npmjs.org/%40get-modular%2Fconformance) remains `latest:0.2.0`, `next:0.3.0`. The intended Core/Assembly **0.6.0**, Resources **0.2.0**, Conformance **0.4.0** versions are absent and [Observation](https://registry.npmjs.org/%40get-modular%2Fobservation) returns HTTP 404. [Release PR #199](https://github.com/agent-teams-ai/get-modular/pull/199) remained open at `9cabbd3892d2015056e8a83e6886674edb4ac298`.
 
-This SDK qualifies only its installed static profile. Optional observation adoption still requires actual coherent release artifacts, exact peer identities, strict packed consumers and the hook behavior tests in the [integration guide](../packages/payments-get-modular/README.md#observation-hooks-explicit-release-gate). No unpublished version was installed and no peer range was widened.
+This SDK qualifies only its installed static profile. Optional observation adoption still requires actual coherent release artifacts, exact peer identities, strict packed consumers and the hook behavior tests in the [integration guide](../packages/payments-get-modular/README.md#optional-purchase-observation). No unpublished version was installed and no peer range was widened.
 
 ## Paddle.js browser example: blocked strict declarations
 
