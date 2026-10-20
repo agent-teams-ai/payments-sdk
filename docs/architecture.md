@@ -103,6 +103,32 @@ Management portal sessions require explicit authorization over the entire provid
 
 Verified webhooks retain original bytes and authentication context. Authenticated API evidence is the official SDK's mapped representation. API1/SDK3.10.0/decoder2 permits documented required nullable fields to have `schema_assumed_null` provenance; optional/dropped fields remain unknown. This is a declared trust assumption, not original-wire custody. The [Paddle guide](../packages/payments-paddle/README.md) owns the detailed decoder and pagination contract.
 
+## Provider observation vocabulary
+
+`payments-core` owns the canonical interpreted observation tokens in
+[`vocabulary.ts`](../packages/payments-core/src/vocabulary.ts). The historical
+serialized spellings of transaction origins, subscription statuses/scheduled
+actions and adjustment actions/statuses remain the durable protocol. An adapter
+maps its supported provider vocabulary into these meanings before admission;
+another provider need not use these strings in its own API. Transaction status
+already has the separate closed `statusMeaning` contract, while its raw status
+remains evidence.
+
+The origin interpreter distinguishes checkout, initial subscription, recurring
+subscription, payment-method maintenance and explicitly unsupported profiles.
+It does not authorize a purchase without the existing saved binding and full
+offer/profile checks. Open string fields also retain unknown codes as opaque
+unsupported evidence, preserving their exact representation and fail-closed
+behavior. Paddle's explicit origin mapping preserves every previous token and
+the decoder version; no evidence bytes, identity scheme, DTO shape or schema
+version changes here. New or renamed canonical tokens require protocol/replay
+review rather than an implicit provider-specific core branch.
+
+The foreign-provider E2E fixture maps different wire origins and statuses, then
+checks public completion, renewal, noncommercial maintenance, unknown holds and
+independent durable consumer replay. It is portability evidence for this
+contract, not qualification of another production provider.
+
 ## Get Modular and extension boundaries
 
 The integration uses real published static modules, Assembly preparation/run inputs and Resources ownership. It creates the same plain core runtime and borrows provider/store/pool dependencies. Frozen checkout/read/management/processing/delivery facets segregate consumers' needs without inventing another payment service or authorization layer.

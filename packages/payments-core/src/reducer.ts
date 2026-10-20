@@ -1,5 +1,6 @@
 import type { AdjustmentObservation, AggregateIdentity, CompletionFact, EventIdentityEvidence, EvidenceFlag, EvidenceMessage, Field, ObjectVersionEvidence, Observation, OfferSnapshot, PaymentScope, PaymentState, ProfileEvidenceHolds, ProviderLine, SubscriptionAggregate, SubscriptionBinding, SubscriptionObservation, TransactionAggregate, TransactionObservation, VerifiedInput } from './contracts.js';
 import { assertIdentifier, canonicalJson, compareTime, digest, exactTime, money, MAX_OBJECT_VERSION_EVIDENCE_BYTES, objectVersionKey } from './values.js';
+import { isSupportedAdjustmentAction, isSupportedAdjustmentStatus, isSupportedSubscriptionStatus, supportedScheduledChangeAction, transactionOriginMeaning } from './vocabulary.js';
 
 const known = <T>(field: Field<T>): field is Readonly<{ presence: 'known'; value: T; provenance?: 'observed' | 'schema_assumed_null' }> => field.presence === 'known';
 type FlaggedEvidence = ProfileEvidenceHolds & { flags: EvidenceFlag[] };
@@ -118,7 +119,9 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
   if (observation.statusMeaning.kind !== 'completed') return { kind: 'not_completed' };
   const binding = state.bindings[observation.transactionRef];
   if (!binding) return { kind: 'held', reason: 'unresolved_binding' };
-  if (binding.purpose === 'payment_method' || (known(observation.origin) && observation.origin.value === 'subscription_payment_method_change')) return { kind: 'management' };
+  if (binding.purpose === 'payment_method') return { kind: 'management' };
+  const originMeaning = known(observation.origin) ? transactionOriginMeaning(observation.origin.value) : undefined;
+  if (originMeaning === 'payment_method') return { kind: 'management' };
   const intent = state.intents[binding.intentId];
   if (!intent) return { kind: 'held', reason: 'unresolved_binding' };
   const offer = intent.offer;
@@ -130,8 +133,7 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
   if (observation.customerRef.value === null) return { kind: 'held', reason: 'incomplete' };
   if (binding.customerRef !== null && binding.customerRef !== observation.customerRef.value) return { kind: 'held', reason: 'ownership_mismatch' };
   if (known(observation.intentCorrelation) && observation.intentCorrelation.value !== null && observation.intentCorrelation.value !== intent.intentId) return { kind: 'held', reason: 'ownership_mismatch' };
-  const origin = observation.origin.value;
-  if (['subscription_update', 'subscription_charge', 'subscription_recurring_manual', 'subscription_trial'].includes(origin)) return { kind: 'held', reason: 'unsupported' };
+  if (originMeaning === 'unsupported_profile') return { kind: 'held', reason: 'unsupported' };
   let classification: CompletionFact['classification'] = 'one_time';
   let sub: SubscriptionBinding | undefined;
   let holdReason: EvidenceFlag | undefined;
@@ -140,8 +142,8 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
     if (!subRef || !intent.subscriptionBasisId) return { kind: 'held', reason: 'incomplete' };
     sub = state.subscriptionBindings[intent.subscriptionBasisId];
     if (!sub) return { kind: 'held', reason: 'unresolved_binding' };
-    classification = origin === 'subscription_recurring' ? (binding.purpose === 'recovery' ? 'recovery' : 'renewal') : 'initial';
-    if (classification === 'initial' && !['web', 'api', 'subscription_create', 'automatic'].includes(origin)) return { kind: 'held', reason: 'unsupported' };
+    classification = originMeaning === 'recurring_subscription' ? (binding.purpose === 'recovery' ? 'recovery' : 'renewal') : 'initial';
+    if (classification === 'initial' && originMeaning !== 'checkout' && originMeaning !== 'initial_subscription') return { kind: 'held', reason: 'unsupported' };
     if (!sub.providerSubscriptionRefs.includes(subRef)) sub.providerSubscriptionRefs.push(subRef);
     if (sub.customerRef !== null && sub.customerRef !== observation.customerRef.value) return { kind: 'held', reason: 'ownership_mismatch' };
     sub.customerRef ??= observation.customerRef.value;
@@ -151,7 +153,7 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
       if (sub.selectedSubscriptionRef !== subRef || (duplicateInitial && !sub.streamSelection)) holdReason = 'duplicate_initial_purchase';
     }
   } else {
-    if ((known(observation.subscriptionRef) && observation.subscriptionRef.value !== null) || !['web', 'api', 'automatic'].includes(origin)) return { kind: 'held', reason: 'unsupported' };
+    if ((known(observation.subscriptionRef) && observation.subscriptionRef.value !== null) || originMeaning !== 'checkout') return { kind: 'held', reason: 'unsupported' };
   }
   binding.customerRef ??= observation.customerRef.value;
   const lines = observation.lines.value.map(line => {
@@ -163,7 +165,7 @@ export function classifyCompletion(state: PaymentState, scope: PaymentScope, obs
   return { kind: 'commercial', ...(holdReason ? { holdReason } : {}), fact: { factId: digest([scope.provider, scope.paymentAccountId, scope.environment, observation.transactionRef, 'completion']), scope, transactionRef: observation.transactionRef, intentId: intent.intentId, buyerId: intent.buyerId, ...(sub ? { subscriptionBasisId: sub.bindingId, providerSubscriptionRef: known(observation.subscriptionRef) ? observation.subscriptionRef.value as string : '' } : {}), classification, offer, total: observation.total.value, lines, source: observation.source } };
 }
 function bindRenewal(state: PaymentState, observation: TransactionObservation): void {
-  if (state.bindings[observation.transactionRef] || !known(observation.subscriptionRef) || !observation.subscriptionRef.value || !known(observation.origin) || observation.origin.value !== 'subscription_recurring') return;
+  if (state.bindings[observation.transactionRef] || !known(observation.subscriptionRef) || !observation.subscriptionRef.value || !known(observation.origin) || transactionOriginMeaning(observation.origin.value) !== 'recurring_subscription') return;
   const matches = Object.values(state.subscriptionBindings).filter(binding => binding.providerSubscriptionRefs.includes(observation.subscriptionRef.presence === 'known' ? observation.subscriptionRef.value ?? '' : ''));
   if (matches.length !== 1) return;
   const binding = matches[0]; if (!binding) return;
@@ -235,7 +237,7 @@ function reduceSubscription(state: PaymentState, observation: SubscriptionObserv
   }
   aggregate.current = observation;
   const profileFlags: EvidenceFlag[] = [];
-  if ((known(observation.status) && !['active', 'past_due', 'canceled'].includes(observation.status.value)) || (known(observation.scheduledChange) && observation.scheduledChange.value && observation.scheduledChange.value.action !== 'cancel') || (observation.collection?.presence === 'known' && observation.collection.value.kind !== 'automatic')) profileFlags.push('unsupported');
+  if ((known(observation.status) && !isSupportedSubscriptionStatus(observation.status.value)) || (known(observation.scheduledChange) && observation.scheduledChange.value && observation.scheduledChange.value.action !== supportedScheduledChangeAction) || (observation.collection?.presence === 'known' && observation.collection.value.kind !== 'automatic')) profileFlags.push('unsupported');
   if (!known(observation.status) || !known(observation.scheduledChange) || !known(observation.currentPeriod) || !known(observation.customerRef) || observation.collection?.presence !== 'known' || observation.items?.presence !== 'known') profileFlags.push('incomplete');
   if (observation.items?.presence === 'known') {
     for (const item of observation.items.value) {
@@ -265,7 +267,7 @@ function reduceAdjustment(state: PaymentState, observation: AdjustmentObservatio
   }
   aggregate.adjustments[observation.adjustmentRef] = observation;
   if (observation.allocations.some(allocation => allocation.amount.currency !== observation.amount.currency)) flag(aggregate, 'unsupported');
-  if (!['refund', 'credit', 'chargeback', 'chargeback_reverse', 'chargeback_warning', 'chargeback_warning_reverse', 'credit_reverse'].includes(observation.action) || !['pending_approval', 'approved', 'rejected', 'reversed'].includes(observation.status)) flag(aggregate, 'unsupported');
+  if (!isSupportedAdjustmentAction(observation.action) || !isSupportedAdjustmentStatus(observation.status)) flag(aggregate, 'unsupported');
   aggregate.revision += 1; aggregate.publicationRequired = true;
 }
 export function reduceObservation(state: PaymentState, scope: PaymentScope, observation: Observation): 'applied' | 'conflict' | 'held' {

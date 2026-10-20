@@ -1,4 +1,4 @@
-import { assertIdentifier, compareTime, exactTime, money } from '@agent-teams/payments-core';
+import { assertIdentifier, compareTime, exactTime, money, transactionOrigins } from '@agent-teams/payments-core';
 import type { AdjustmentObservation, BillingCycle, CollectionMethod, EvidenceSource, Field, Money, Observation, PaymentScope, Period, ProviderLine, SubscriptionObservation, TransactionObservation, TransactionStatusMeaning, UnsupportedObservation } from '@agent-teams/payments-core';
 
 type RecordValue = Record<string, unknown>;
@@ -100,6 +100,24 @@ function transactionStatusMeaning(status: string): TransactionStatusMeaning {
   if (['draft', 'ready', 'billed', 'paid', 'canceled', 'past_due'].includes(status)) return { kind: 'not_completed' };
   return { kind: 'unsupported' };
 }
+/** API1 wire-to-core mapping. Equal spellings preserve the existing receipt/replay representation. */
+function transactionOrigin(value: unknown): string {
+  const origin = text(value);
+  switch (origin) {
+    case 'web': return transactionOrigins.checkoutWeb;
+    case 'api': return transactionOrigins.checkoutApi;
+    case 'automatic': return transactionOrigins.checkoutAutomatic;
+    case 'subscription_create': return transactionOrigins.initialSubscription;
+    case 'subscription_recurring': return transactionOrigins.recurringSubscription;
+    case 'subscription_payment_method_change': return transactionOrigins.paymentMethodChange;
+    case 'subscription_update': return transactionOrigins.subscriptionChange;
+    case 'subscription_charge': return transactionOrigins.subscriptionCharge;
+    case 'subscription_recurring_manual': return transactionOrigins.manualSubscriptionRenewal;
+    case 'subscription_trial': return transactionOrigins.subscriptionTrial;
+    // Preserve unfamiliar provider values verbatim as opaque unsupported evidence.
+    default: return origin;
+  }
+}
 function collectionMethod(value: unknown): CollectionMethod {
   const mode = text(value);
   if (mode === 'automatic') return { kind: 'automatic' };
@@ -130,7 +148,7 @@ export function transactionObservation(value: unknown, mode: Mode, source: Evide
   });
   return {
     kind: 'transaction', transactionRef: id(data['id']), version: timestamp(get(data, mode, 'updated_at', 'updatedAt')),
-    status, statusMeaning: transactionStatusMeaning(status), origin: field(() => text(data['origin'])),
+    status, statusMeaning: transactionStatusMeaning(status), origin: field(() => transactionOrigin(data['origin'])),
     customerRef: nullable(get(data, mode, 'customer_id', 'customerId'), mode, false, id),
     subscriptionRef: nullable(get(data, mode, 'subscription_id', 'subscriptionId'), mode, false, id),
     intentCorrelation: intentCorrelation(data, mode, scope), currency: code, total,
