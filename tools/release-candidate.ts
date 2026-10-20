@@ -12,7 +12,7 @@ async function pages<T>(path: string, field: string): Promise<T[]> {
   const responses = JSON.parse(await command('gh', ['api', '--paginate', '--slurp', path])) as Record<string, T[]>[];
   return responses.flatMap(page => page[field] ?? []);
 }
-function required(name: string): string { const value = process.env[name]; assert.ok(value, `Missing ${name}`); return value; }
+function required(name: string): string { const value = process.env[name]; assert.ok((value !== undefined && value !== ''), `Missing ${name}`); return value; }
 
 async function verify(): Promise<void> {
   assert.equal(required('GITHUB_REPOSITORY'), releaseRepository, 'Release workflow is restricted to its authoritative repository');
@@ -28,8 +28,8 @@ async function verify(): Promise<void> {
     assert.equal(manifest.version, version, 'Every package version must match the release tag');
   }
   const runs = await pages<ChecksRun>(`repos/${releaseRepository}/actions/workflows/checks.yaml/runs?head_sha=${commit}&event=push&per_page=100`, 'workflow_runs');
-  const runId = [...runs].filter(run => run.head_sha === commit && run.head_branch === 'main' && run.event === 'push' && run.head_repository?.full_name === releaseRepository).sort((left, right) => right.id - left.id)[0]?.id;
-  assert.ok(runId, 'The exact commit has no main-push Checks run');
+  const runId = [...runs].filter(run => run.head_sha === commit && run.head_branch === 'main' && run.event === 'push' && run.head_repository?.full_name === releaseRepository).toSorted((left, right) => right.id - left.id)[0]?.id;
+  assert.ok(runId !== undefined && Number.isSafeInteger(runId) && runId > 0, 'The exact commit has no main-push Checks run');
   const jobs = await pages<ChecksJob>(`repos/${releaseRepository}/actions/runs/${runId}/jobs?filter=latest&per_page=100`, 'jobs');
   const run = qualifiedChecksRun(commit, runs, jobs);
   // A release artifact must exist and remain unexpired before download; the action pins this run ID.
@@ -43,8 +43,8 @@ async function assemble(): Promise<void> {
   const tag = required('RELEASE_TAG'), version = releaseVersion(tag), commit = required('RELEASE_COMMIT');
   assertReleaseCommit(commit);
   const input = resolve(repository, '.artifacts/ci/packages'), target = resolve(repository, '.artifacts/release');
-  const expected = packageNames.map(short => `agent-teams-payments-${short}-${version}.tgz`).sort();
-  assert.deepEqual((await readdir(input)).sort(), expected, 'CI artifact must contain exactly the four versioned package tarballs');
+  const expected = packageNames.map(short => `agent-teams-payments-${short}-${version}.tgz`).toSorted();
+  assert.deepEqual((await readdir(input)).toSorted(), expected, 'CI artifact must contain exactly the four versioned package tarballs');
   await mkdir(target, { recursive: true });
   const packages = [];
   for (const short of packageNames) {
@@ -69,8 +69,8 @@ async function publish(): Promise<void> {
   const target = resolve(repository, '.artifacts/release');
   const manifest = JSON.parse(await readFile(join(target, 'release-manifest.json'), 'utf8')) as { tag: string; commit: string; repository: string; packages: readonly { filename: string; sha256: string }[] };
   assert.equal(manifest.tag, tag); assert.equal(manifest.commit, commit); assert.equal(manifest.repository, releaseRepository);
-  const expected = packageNames.map(short => `agent-teams-payments-${short}-${version}.tgz`).sort();
-  assert.deepEqual(manifest.packages.map(item => item.filename).sort(), expected);
+  const expected = packageNames.map(short => `agent-teams-payments-${short}-${version}.tgz`).toSorted();
+  assert.deepEqual(manifest.packages.map(item => item.filename).toSorted(), expected);
   for (const item of manifest.packages) {
     assert.equal(createHash('sha256').update(await readFile(join(target, item.filename))).digest('hex'), item.sha256, 'Downloaded candidate digest changed');
   }

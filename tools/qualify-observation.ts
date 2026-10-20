@@ -29,18 +29,18 @@ const manifestBytes = await readFile(join(source, 'published-artifacts.json'));
 const manifest = JSON.parse(manifestBytes.toString('utf8')) as PublishedManifest;
 assert.equal(manifest.schemaVersion, 1);
 assert.equal(manifest.status, 'published-registry-release');
-assert.deepEqual(manifest.archives.map(item => item.name).sort(), [
+assert.deepEqual(manifest.archives.map(item => item.name).toSorted(), [
   '@get-modular/assembly', '@get-modular/conformance', '@get-modular/core',
   '@get-modular/observation', '@get-modular/resources',
 ]);
-assert.ok(process.env['DATABASE_URL'], 'DATABASE_URL is required: published observation qualification includes real PostgreSQL');
+assert.ok((process.env['DATABASE_URL'] !== undefined && process.env['DATABASE_URL'] !== ''), 'DATABASE_URL is required: published observation qualification includes real PostgreSQL');
 await command(process.execPath, ['tools/toolchain.ts']);
 
 const digest = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const catalog = (parse(await readFile(join(repository, 'pnpm-workspace.yaml'), 'utf8')) as { catalog: Record<string, string> }).catalog;
 function pin(name: string): string {
   const value = catalog[name];
-  assert.ok(value && /^\d+\.\d+\.\d+$/u.test(value), `Expected qualified exact catalog pin for ${name}`);
+  assert.ok((value !== undefined && value !== '') && /^\d+\.\d+\.\d+$/u.test(value), `Expected qualified exact catalog pin for ${name}`);
   return value;
 }
 // Registry packages replace the prepublication download/cache path. Verify public immutable
@@ -100,7 +100,7 @@ try {
     } }));
     await command(process.execPath, [compiler, '-p', join(consumer, config)], root);
   }
-  const tests = (await readdir(consumer)).filter(name => name.endsWith('.test.ts')).sort();
+  const tests = (await readdir(consumer)).filter(name => name.endsWith('.test.ts')).toSorted();
   assert.ok(tests.length > 0, 'Published observation cannot qualify without scenarios');
   const output = await command(process.execPath, ['--test', '--test-reporter=spec', ...tests.map(name => join(consumer, name))], root);
   console.log(output);

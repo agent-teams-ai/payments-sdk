@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { isProcessRuntimeError } from 'node-or-bun';
 import { command, repository } from '../package-artifacts.ts';
 
-test('captured development commands preserve literal argv, cwd, environment and stdout', async () => {
+void test('captured development commands preserve literal argv, cwd, environment and stdout', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'payments captured command '));
   const key = 'PAYMENTS_CAPTURE_FIXTURE';
   const previous = process.env[key];
@@ -25,7 +25,7 @@ test('captured development commands preserve literal argv, cwd, environment and 
   }
 });
 
-test('nonzero exits reject after retaining both captured diagnostic streams', async () => {
+void test('nonzero exits reject after retaining both captured diagnostic streams', async () => {
   await assert.rejects(() => command(process.execPath, ['-e', "process.stdout.write('stdout fixture'); process.stderr.write('stderr fixture'); process.exitCode = 23;"]), error => {
     assert.ok(error instanceof assert.AssertionError);
     assert.equal(error.actual, 23);
@@ -35,7 +35,7 @@ test('nonzero exits reject after retaining both captured diagnostic streams', as
   });
 });
 
-test('signal termination cannot be mistaken for a successful command', async () => {
+void test('signal termination cannot be mistaken for a successful command', async () => {
   await assert.rejects(() => command(process.execPath, ['-e', "process.kill(process.pid, 'SIGTERM')"]), error => {
     assert.ok(error instanceof assert.AssertionError);
     assert.equal(error.actual, null);
@@ -44,7 +44,7 @@ test('signal termination cannot be mistaken for a successful command', async () 
   });
 });
 
-test('launch failures preserve the native ProcessRuntimeError and original cause', async () => {
+void test('launch failures preserve the native ProcessRuntimeError and original cause', async () => {
   await assert.rejects(() => command(join(repository, 'missing-command-fixture'), []), error => {
     assert.ok(isProcessRuntimeError(error));
     assert.equal(error.code, 'launch');
@@ -55,13 +55,13 @@ test('launch failures preserve the native ProcessRuntimeError and original cause
   });
 });
 
-test('independent stream budgets accept 3 MiB stdout plus 3 MiB stderr', async () => {
+void test('independent stream budgets accept 3 MiB stdout plus 3 MiB stderr', async () => {
   const output = await command(process.execPath, ['-e', 'process.stdout.end(Buffer.alloc(3 * 1024 * 1024, 97)); process.stderr.end(Buffer.alloc(3 * 1024 * 1024, 98));']);
   assert.equal(output, 'a'.repeat(3 * 1024 * 1024));
 });
 
 for (const stream of ['stdout', 'stderr'] as const) {
-  test(`${stream} overflow remains a bounded runtime failure instead of a partial success`, async () => {
+  void test(`${stream} overflow remains a bounded runtime failure instead of a partial success`, async () => {
     await assert.rejects(() => command(process.execPath, ['-e', `process.${stream}.end(Buffer.alloc(4 * 1024 * 1024 + 1, 97));`]), error => {
       assert.ok(isProcessRuntimeError(error));
       assert.equal(error.code, 'output-limit');

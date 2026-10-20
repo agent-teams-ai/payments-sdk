@@ -21,14 +21,14 @@ const forbiddenTypePath = /(?:^|[/\\])(?:drizzle-orm|mysql2|mysql)(?:[/\\]|$)/u;
 export async function qualifyNpmConsumer(target: string, packages: readonly ConsumerPackage[], compiler: string): Promise<void> {
   const reportBase = join(repository, `.artifacts/packed-npm-node-${process.versions.node}`);
   for (const suffix of ['json', 'log', 'package-lock.json', 'nodenext.files.txt', 'bundler.files.txt']) {await rm(`${reportBase}.${suffix}`, { force: true });}
-  assert.ok(process.env['DATABASE_URL'], 'DATABASE_URL is required: the npm consumer runs the existing real PostgreSQL financial oracle');
+  assert.ok((process.env['DATABASE_URL'] !== undefined && process.env['DATABASE_URL'] !== ''), 'DATABASE_URL is required: the npm consumer runs the existing real PostgreSQL financial oracle');
   await mkdir(target);
   const artifact = JSON.parse(await readFile(join(repository, 'qualification/drizzle/artifact.json'), 'utf8')) as DrizzleArtifact;
   const catalog = (parse(await readFile(join(repository, 'pnpm-workspace.yaml'), 'utf8')) as { catalog: Record<string, string> }).catalog;
   const dependencies: Record<string, string> = Object.fromEntries(packages.map(item => [item.name, `file:${item.tarball}`]));
   for (const name of ['@get-modular/core', '@get-modular/assembly', '@get-modular/resources', '@get-modular/observation', '@get-modular/conformance', 'pg', '@types/pg', '@types/node', 'undici']) {
     const version = catalog[name];
-    assert.ok(version && /^\d+\.\d+\.\d+$/u.test(version), `Missing exact consumer fixture/peer pin ${name}`);
+    assert.ok((version !== undefined && version !== '') && /^\d+\.\d+\.\d+$/u.test(version), `Missing exact consumer fixture/peer pin ${name}`);
     dependencies[name] = version;
   }
   // npm's $ references preserve the root's exact four file: specs for transitive SDK edges.

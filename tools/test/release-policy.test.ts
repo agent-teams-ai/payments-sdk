@@ -12,22 +12,22 @@ const commit = 'a'.repeat(40);
 const run: ChecksRun = { id: 100, head_sha: commit, head_branch: 'main', event: 'push', status: 'completed', conclusion: 'success', head_repository: { full_name: releaseRepository } };
 const jobs: readonly ChecksJob[] = [{ name: 'Required checks', status: 'completed', conclusion: 'success' }];
 
-test('release workflow validates as YAML and confines writing to the dependent publication job', async () => {
+void test('release workflow validates as YAML and confines writing to the dependent publication job', async () => {
   type Job = { needs?: string; permissions?: Record<string, string>; steps: readonly { uses?: string; run?: string }[] };
   const workflow = parse(await readFile(join(repository, '.github/workflows/release.yaml'), 'utf8')) as { on: Record<string, unknown>; permissions: Record<string, string>; jobs: Record<string, Job> };
-  assert.deepEqual(Object.keys(workflow.on).sort(), ['push', 'workflow_dispatch']);
+  assert.deepEqual(Object.keys(workflow.on).toSorted(), ['push', 'workflow_dispatch']);
   assert.equal(workflow.permissions['contents'], 'read');
   assert.equal(workflow.permissions['actions'], 'read');
   assert.equal(workflow.jobs['candidate']?.permissions, undefined);
   assert.equal(workflow.jobs['release']?.needs, 'candidate');
-  assert.equal(workflow.jobs['release']?.permissions?.['contents'], 'write');
+  assert.equal(workflow.jobs['release'].permissions?.['contents'], 'write');
   for (const job of Object.values(workflow.jobs)) {for (const step of job.steps) {
     if (step.uses !== undefined) {assert.match(step.uses, /^[a-z0-9-]+\/[a-z0-9-]+@[a-f0-9]{40}$/u, 'Every action must be pinned to a full SHA');}
-    assert.ok(!step.run?.includes('npm publish'));
+    assert.ok(!(step.run?.includes('npm publish') === true));
   }}
 });
 
-test('release admits a full exact main commit and successful required Checks, never a nearby run', () => {
+void test('release admits a full exact main commit and successful required Checks, never a nearby run', () => {
   assert.equal(qualifiedChecksRun(commit, [run], jobs).id, 100);
   for (const change of [{ head_sha: 'b'.repeat(40) }, { event: 'pull_request' }, { head_branch: 'feature' }, { head_repository: { full_name: 'some-fork/payments-sdk' } }, { status: 'in_progress' }, { conclusion: 'failure' }]) {
     assert.throws(() => qualifiedChecksRun(commit, [{ ...run, ...change }], jobs));
@@ -38,14 +38,14 @@ test('release admits a full exact main commit and successful required Checks, ne
   assert.throws(() => qualifiedChecksRun(commit, [run], [...jobs, ...jobs]));
 });
 
-test('release target syntax excludes abbreviated SHAs and shell/path/tag ambiguity', () => {
+void test('release target syntax excludes abbreviated SHAs and shell/path/tag ambiguity', () => {
   assert.equal(releaseVersion('v0.1.0'), '0.1.0');
   assert.equal(releaseVersion('v1.2.3-rc.1'), '1.2.3-rc.1');
   for (const tag of ['main', 'v01.2.3', 'v1.2', '../v1.2.3', 'v1.2.3\n', 'v1.2.3\ncommit=evil', 'v1.2.3+mutable', 'v1.2.3;echo bad']) {assert.throws(() => releaseVersion(tag));}
-  for (const sha of ['abc123', 'A'.repeat(40), `${commit}\n`, 'main', `${commit};true`]) {assert.throws(() => assertReleaseCommit(sha));}
+  for (const sha of ['abc123', 'A'.repeat(40), `${commit}\n`, 'main', `${commit};true`]) {assert.throws(() => { assertReleaseCommit(sha); });}
 });
 
-test('archive admission validates identity/version and rejects unresolved or development dependencies', async () => {
+void test('archive admission validates identity/version and rejects unresolved or development dependencies', async () => {
   const root = await mkdtemp(join(tmpdir(), 'payments-release-policy-'));
   try {
     const directory = join(root, 'package'); await mkdir(join(directory, 'dist'), { recursive: true });

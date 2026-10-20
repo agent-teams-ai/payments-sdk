@@ -22,7 +22,7 @@ export function assertReleaseCommit(commit: string): void {
 /** Runs come only from checks.yaml; require its latest exact-SHA main push and final aggregate job. */
 export function qualifiedChecksRun(commit: string, runs: readonly ChecksRun[], jobs: readonly ChecksJob[]): ChecksRun {
   assertReleaseCommit(commit);
-  const run = [...runs].filter(item => item.head_sha === commit && item.head_branch === 'main' && item.event === 'push' && item.head_repository?.full_name === releaseRepository).sort((left, right) => right.id - left.id)[0];
+  const run = [...runs].filter(item => item.head_sha === commit && item.head_branch === 'main' && item.event === 'push' && item.head_repository?.full_name === releaseRepository).toSorted((left, right) => right.id - left.id)[0];
   assert.ok(run, 'No Checks main-push run exists for this exact commit');
   assert.ok(Number.isSafeInteger(run.id) && run.id > 0, 'Invalid Checks run identity');
   assert.equal(run.status, 'completed', 'Latest exact-commit Checks run is not complete');
@@ -30,6 +30,6 @@ export function qualifiedChecksRun(commit: string, runs: readonly ChecksRun[], j
   const required = jobs.filter(job => job.name === 'Required checks');
   assert.equal(required.length, 1, 'Expected one Required checks aggregate job');
   assert.equal(required[0]?.status, 'completed', 'Required checks did not complete');
-  assert.equal(required[0]?.conclusion, 'success', 'Required checks did not succeed');
+  assert.equal(required[0].conclusion, 'success', 'Required checks did not succeed');
   return run;
 }

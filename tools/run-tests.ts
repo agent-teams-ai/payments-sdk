@@ -10,7 +10,7 @@ const groups: Readonly<Record<string, readonly string[]>> = {
   e2e: ['tests/e2e/**/*.test.ts'],
 };
 const name = process.argv[2];
-assert.ok(name && groups[name], `Unknown test group: ${name}`);
+assert.ok((name !== undefined && name !== '') && groups[name], `Unknown test group: ${name}`);
 const files: string[] = [];
 for await (const file of glob(groups[name])) {files.push(file);}
 assert.ok(files.length > 0, `Required test group ${name} has no tests`);

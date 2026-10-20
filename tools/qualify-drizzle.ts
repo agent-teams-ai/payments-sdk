@@ -35,7 +35,7 @@ const temporary = await mkdtemp(join(repository, '.artifacts/drizzle-admission-'
 try {
   const archive = join(temporary, 'official.tgz');
   const supplied = process.env['DRIZZLE_ARCHIVE'];
-  const bytes = supplied ? await readFile(supplied) : new Uint8Array(await (async () => {
+  const bytes = (supplied !== undefined && supplied !== '') ? await readFile(supplied) : new Uint8Array(await (async () => {
     const dispatcher = new EnvHttpProxyAgent();
     try {
       const response = await fetch(artifact.tarball, { dispatcher, signal: AbortSignal.timeout(20_000) });
@@ -50,7 +50,7 @@ try {
   assert.ok(entries.every(entry => entry.startsWith('package/') && !entry.split('/').includes('..')), 'Unsafe archive path');
   await command('tar', ['-xzf', archive, '-C', temporary]);
   const original = join(temporary, 'package');
-  const originalFiles = entries.filter(entry => !entry.endsWith('/')).map(entry => entry.slice('package/'.length)).sort();
+  const originalFiles = entries.filter(entry => !entry.endsWith('/')).map(entry => entry.slice('package/'.length)).toSorted();
   const installedFiles: string[] = [];
   const visit = async (path = ''): Promise<void> => {
     for (const entry of await readdir(join(installed, path), { withFileTypes: true })) {
@@ -60,7 +60,7 @@ try {
     }
   };
   await visit();
-  assert.deepEqual(installedFiles.sort(), originalFiles, 'Installed Drizzle package file set drift');
+  assert.deepEqual(installedFiles.toSorted(), originalFiles, 'Installed Drizzle package file set drift');
   assert.equal(hash(await readFile(join(original, 'package.json'))), artifact.packageJsonSha256);
   let runtimeCount = 0;
   let runtimeManifest = '';
@@ -76,7 +76,7 @@ try {
       const text = official.toString('utf8');
       const interfaceName = `${file.startsWith('pg-') ? 'Pg' : 'Cockroach'}${file.includes('policies') ? 'Policy' : 'Role'}Config`;
       const match = new RegExp(`interface ${interfaceName} \\{\\n([^}]+)\\n\\}`).exec(text);
-      assert.ok(match?.[1], `Missing reviewed configuration interface: ${file}`);
+      assert.ok((match?.[1] !== undefined && match[1] !== ''), `Missing reviewed configuration interface: ${file}`);
       let declaration = match[1];
       for (const field of correction.fields) {
         const line = new RegExp(`(^  ${field}\\?: [^;\\n]+);$`, 'm');
@@ -101,7 +101,7 @@ try {
   assert.equal(hash(runtimeManifest), artifact.runtime.sha256Manifest);
   assert.equal(declarationCount, artifact.declaration.files);
   assert.equal(hash(declarationManifest), artifact.declaration.sha256Manifest);
-  assert.deepEqual(changed.sort(), artifact.patch.files.map(file => file.path).sort());
+  assert.deepEqual(changed.toSorted(), artifact.patch.files.map(file => file.path).toSorted());
 
   // These are consumer probes, separate from the SDK's ordinary strict build. Their
   // invalid inputs must remain rejected after the optional-undefined correction.

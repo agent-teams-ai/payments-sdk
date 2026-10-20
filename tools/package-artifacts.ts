@@ -25,7 +25,7 @@ export async function auditPackageArchive(tarball: string, expectedName: string,
   assert.equal(manifest.name, expectedName, 'Archive package name mismatch');
   assert.equal(manifest.license, 'Apache-2.0');
   assert.notEqual(manifest.private, true, 'Private package cannot be released');
-  assert.ok(manifest.exports, `${expectedName}: missing exports map`);
+  assert.ok(Boolean(manifest.exports), `${expectedName}: missing exports map`);
   if (expectedVersion !== undefined) {assert.equal(manifest.version, expectedVersion, 'Archive version differs from release tag');}
   for (const [dependency, version] of Object.entries({ ...manifest.dependencies, ...manifest.peerDependencies })) {
     assert.ok(typeof version === 'string' && !version.startsWith('workspace:') && !version.startsWith('catalog:'), `${expectedName}: unresolved publish protocol ${dependency}`);
@@ -43,7 +43,7 @@ export async function command(executable: string, args: readonly string[], cwd =
 
 export function pnpm(args: readonly string[], cwd = repository): Promise<string> {
   const entry = process.env['npm_execpath'];
-  assert.ok(entry && entry.includes('pnpm'), 'Run this gate through pnpm so the pinned package manager is used');
+  assert.ok((entry !== undefined && entry !== '') && entry.includes('pnpm'), 'Run this gate through pnpm so the pinned package manager is used');
   return command(process.execPath, [entry, ...args], cwd);
 }
 
