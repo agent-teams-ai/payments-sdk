@@ -120,6 +120,16 @@ jobs:
       - run: pnpm test:modular
       - run: pnpm test:postgres
       - run: pnpm test:e2e
+      - name: Qualify retained observation candidate
+        run: pnpm test:observation:candidate
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: observation-candidate-node-${{ matrix.node }}
+          path: |
+            .artifacts/observation-candidate-node-*.json
+            .artifacts/observation-candidate-node-*.log
+          if-no-files-found: error
+          retention-days: 7
 
   required:
     name: Required checks
