@@ -51,6 +51,11 @@ does not establish semantic equivalence. No cross-owner SQL or Unit of Work.
 
 Select an exact artifact after checking its current stable release, provenance,
 Node/driver compatibility and actual strict TypeScript 7.0.2-or-newer declarations.
+For Drizzle, the owner's 2026-10-20 direction selects the newest published
+release line, including prereleases. Check the registry's release channels and
+publication history, record the chosen exact artifact, and never use a moving
+dist tag as the dependency specifier. Prerelease selection does not waive any
+compiler, adapter or packed-consumer guarantee.
 Confine runtime dependencies and Foundation allowlist changes to the owning
 adapter; qualify packed NodeNext and Bundler consumers with `skipLibCheck:false`
 and preserve dependency rejection probes. Use real PostgreSQL integration for

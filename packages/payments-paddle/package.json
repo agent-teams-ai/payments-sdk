@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/payments-paddle",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Official Paddle SDK adapter for provider-neutral payment evidence",
   "license": "Apache-2.0",
   "type": "module",
