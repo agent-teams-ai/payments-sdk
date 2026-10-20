@@ -5,6 +5,7 @@ import { sqlIdentifier, withPaymentTransaction } from './database.js';
 import { makePaymentBoss, paymentRepairQueue, paymentWorkQueue, qualifyPaymentJobNamespace, reportPaymentJobError } from './job-transport.js';
 import type { PaymentJobEvents, PaymentJobNamespace } from './job-transport.js';
 import { assertBatchLimit, PaymentRecords } from './records.js';
+import type { StoredRecord } from './records.js';
 
 export type PaymentJobWork = Readonly<{ kind: 'inbox' | 'publication' | 'reclassification' | 'prepared' | 'unknown' | 'delivery' | 'scan'; id: string }>;
 export type PaymentDeliveryReceipt = Readonly<{ messageId: string; bodyDigest: string }>;
@@ -46,13 +47,13 @@ class WorkIssue extends Error {
   constructor(issue: string, quarantine = false) { super(issue); this.issue = issue; this.quarantine = quarantine; }
 }
 function isWork(value: unknown): value is PaymentJobWork {
-  if (!value || typeof value !== 'object') {return false;}
+  if (value === null || typeof value !== 'object') {return false;}
   const item = value as Partial<PaymentJobWork>;
   return ['inbox', 'publication', 'reclassification', 'prepared', 'unknown', 'delivery', 'scan'].includes(item.kind ?? '') && typeof item.id === 'string' && item.id.length > 0 && item.id.length <= 4_096;
 }
 function aggregate(id: string): AggregateIdentity {
   const value: unknown = JSON.parse(id);
-  if (!value || typeof value !== 'object' || !('type' in value) || !('id' in value) || (value.type !== 'transaction' && value.type !== 'subscription') || typeof value.id !== 'string' || !value.id) {throw new WorkIssue('invalid_publication_identity', true);}
+  if (value === null || typeof value !== 'object' || !('type' in value) || !('id' in value) || (value.type !== 'transaction' && value.type !== 'subscription') || typeof value.id !== 'string' || !value.id) {throw new WorkIssue('invalid_publication_identity', true);}
   return { type: value.type, id: value.id };
 }
 function boundedInteger(value: number, min: number, max: number, label: string): number {
@@ -78,7 +79,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
   const active = new Set<Promise<unknown>>();
 
   function qualify(): Promise<void> {
-    qualification ??= qualifyPaymentJobNamespace(options, boss).catch(error => { qualification = undefined; throw error; });
+    qualification ??= qualifyPaymentJobNamespace(options, boss).catch((error: unknown) => { qualification = undefined; throw error; });
     return qualification;
   }
 
@@ -102,7 +103,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
           continue;
         }
         const id = await boss.send(paymentWorkQueue, work, { db: { executeSql: (text, values) => tx.query(text, values) }, singletonKey: digest(work), retryLimit: 0 });
-        if (id) {enqueued += 1;}
+        if ((id !== null && id !== '')) {enqueued += 1;}
       }
       return { enqueued };
     }, options.timeouts);
@@ -110,7 +111,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
 
   async function claim(work: PaymentJobWork): Promise<Readonly<{ attempt: number; revision: string }> | undefined> {
     return withPaymentTransaction(options.pool, async tx => {
-      if ((await records.configuration(tx, options.scope)).body.recoveryFenced) {return undefined;}
+      if ((await records.configuration(tx, options.scope)).body.recoveryFenced) {return;}
       const row = await tx.query<{ attempts: number; revision: string }>(`UPDATE ${records.sql}.obligations SET attempts = attempts + 1, revision = revision + 1,
         next_attempt_at = clock_timestamp() + $3 * interval '1 second'
         WHERE kind = $1 AND id = $2 AND state = 'pending' AND next_attempt_at <= clock_timestamp()
@@ -120,10 +121,10 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
     }, options.timeouts);
   }
 
-  async function settle(work: PaymentJobWork, claim: Readonly<{ attempt: number; revision: string }>, issue: WorkIssue | undefined, progress: boolean): Promise<void> {
+  async function settle(work: PaymentJobWork, claimed: Readonly<{ attempt: number; revision: string }>, issue: WorkIssue | undefined, progress: boolean): Promise<void> {
     await withPaymentTransaction(options.pool, async tx => {
       await records.configuration(tx, options.scope);
-      const seconds = Math.min(maxCooldown, cooldown * 2 ** Math.min(claim.attempt - 1, 20));
+      const seconds = Math.min(maxCooldown, cooldown * 2 ** Math.min(claimed.attempt - 1, 20));
       // T2/ACK may already have completed the obligation. Never reopen it or overwrite a later
       // claimant's outcome. The logical retry counter survives deletion of every queue job.
       await tx.query(`UPDATE ${records.sql}.obligations SET
@@ -131,7 +132,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
         attempts = CASE WHEN $8 THEN 0 ELSE attempts END,
         next_attempt_at = clock_timestamp() + $6 * interval '1 second', issue = $7
         WHERE kind = $1 AND id = $2 AND state = 'pending' AND attempts = $3 AND revision = $9`,
-      [work.kind, work.id, claim.attempt, issue?.quarantine ?? false, maxAttempts, progress ? cooldown : seconds, progress ? null : issue?.issue ?? 'work_remains_pending', progress, claim.revision]);
+      [work.kind, work.id, claimed.attempt, issue?.quarantine ?? false, maxAttempts, progress ? cooldown : seconds, progress ? null : issue?.issue ?? 'work_remains_pending', progress, claimed.revision]);
     }, options.timeouts);
   }
 
@@ -140,7 +141,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
       const consumer = work.id.slice('backfill:'.length);
       const cursor = () => withPaymentTransaction(options.pool, async tx => {
         await records.configuration(tx, options.scope);
-        return (await records.read<unknown>(tx, 'backfills', consumer))?.body;
+        return (await records.read(tx, 'backfills', consumer))?.body;
       }, options.timeouts);
       const before = await cursor();
       await installed.store.listDeliveries(options.scope, consumer, batch);
@@ -148,11 +149,11 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
     }
     const target = await withPaymentTransaction(options.pool, async tx => {
       if ((await records.configuration(tx, options.scope)).body.recoveryFenced) {throw new WorkIssue('recovery_fenced');}
-      const delivery = (await records.read<Delivery>(tx, 'deliveries', work.id))?.body;
+      const delivery = (await (records.read(tx, 'deliveries', work.id) as Promise<StoredRecord<Delivery> | undefined>))?.body;
       if (!delivery) {throw new WorkIssue('missing_delivery_authority', true);}
-      if (delivery.acknowledged) {return undefined;}
+      if (delivery.acknowledged) {return;}
       if (canonicalJson([delivery.messageId, delivery.consumerId]) !== work.id) {throw new WorkIssue('invalid_delivery_identity', true);}
-      const message = (await records.read<EvidenceMessage>(tx, 'evidence', delivery.messageId))?.body;
+      const message = (await (records.read(tx, 'evidence', delivery.messageId) as Promise<StoredRecord<EvidenceMessage> | undefined>))?.body;
       if (!message || message.messageId !== delivery.messageId || canonicalJson(message.scope) !== canonicalJson(options.scope)) {throw new WorkIssue('missing_delivery_evidence', true);}
       return { delivery, message };
     }, options.timeouts);
@@ -174,7 +175,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
     } else if (work.kind === 'reclassification') {
       const cursor = () => withPaymentTransaction(options.pool, async tx => {
         await records.configuration(tx, options.scope);
-        return (await records.read<unknown>(tx, 'reclassifications', work.id))?.body;
+        return (await records.read(tx, 'reclassifications', work.id))?.body;
       }, options.timeouts);
       const before = await cursor();
       const result = await installed.payments.processReclassification(work.id, batch);
@@ -228,7 +229,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
   function admitted(operation: () => Promise<unknown>): Promise<unknown> {
     if (!accepting) {return Promise.resolve();}
     const task = operation(); active.add(task);
-    void task.finally(() => active.delete(task)).catch(() => undefined);
+    void task.finally(() => active.delete(task)).catch(() => {});
     return task;
   }
 
@@ -243,13 +244,13 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
         handlers = installed; transportStopped = false;
         await boss.start();
         await repair();
-        if (stopRequested) {return;}
+        if (isStopRequested()) {return;}
         accepting = true;
-        await boss.work<unknown>(paymentWorkQueue, { batchSize: 1, localConcurrency: concurrency, pollingIntervalSeconds: poll }, async jobs => {
-          await Promise.all(jobs.map(job => admitted(() => handle(job))));
+        await boss.work<unknown>(paymentWorkQueue, { batchSize: 1, localConcurrency: concurrency, pollingIntervalSeconds: poll }, async batchJobs => {
+          await Promise.all(batchJobs.map(job => admitted(() => handle(job))));
         });
-        await boss.work<unknown>(paymentRepairQueue, { batchSize: 1, pollingIntervalSeconds: poll }, async jobs => {
-          await Promise.all(jobs.map(job => admitted(async () => {
+        await boss.work<unknown>(paymentRepairQueue, { batchSize: 1, pollingIntervalSeconds: poll }, async batchJobs => {
+          await Promise.all(batchJobs.map(job => admitted(async () => {
             if (canonicalJson(job.data) !== canonicalJson({ kind: 'repair', paymentSchema: options.paymentSchema })) {throw new WorkIssue('invalid_repair_namespace', true);}
             await repair();
           })));
@@ -271,6 +272,8 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
     return starting;
   }
 
+  function isStopRequested(): boolean { return stopRequested; }
+
   function status(): PaymentJobStopResult {
     const lifecycle = handlers?.payments.lifecycle();
     return { transportStopped, admittedHandlers: active.size, unresolvedExternalCalls: lifecycle?.unresolvedExternalCalls ?? 0, pendingCoreWork: lifecycle?.pendingWork ?? 0 };
@@ -281,14 +284,14 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
     stopRequested = true; accepting = false;
     if (!stopping) {
       stopping = (async () => {
-        if (starting) {await starting.catch(() => undefined);}
+        if (starting) {await starting.catch(() => {});}
         accepting = false;
         await boss.offWork(paymentWorkQueue, { wait: false });
         await boss.offWork(paymentRepairQueue, { wait: false });
         await boss.stop({ close: false, graceful: true, timeout: timeoutMs });
         transportStopped = true; started = false;
       })();
-      void stopping.catch(error => reportPaymentJobError(options, error));
+      void stopping.catch((error: unknown) => { reportPaymentJobError(options, error instanceof Error ? error : new Error('Payment job shutdown failed', { cause: error })); });
     }
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {

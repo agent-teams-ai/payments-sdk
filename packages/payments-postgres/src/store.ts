@@ -14,7 +14,7 @@ import type { PgBoss } from 'pg-boss';
 import { assertPostgresDurability, withPaymentTransaction } from './database.js';
 import type { DatabaseTimeouts, PaymentSqlTransaction } from './database.js';
 import { assertBatchLimit, PaymentRecords } from './records.js';
-import type { DurableWork, RecordKey, RecordWrite } from './records.js';
+import type { DurableWork, RecordKey, RecordWrite, StoredRecord } from './records.js';
 
 export type PostgresPaymentStoreOptions = Readonly<{
   pool: Pool;
@@ -41,6 +41,11 @@ export async function createPostgresPaymentStore(options: PostgresPaymentStoreOp
   const store = new PostgresPaymentStore(options);
   await store.qualify();
   return store;
+}
+
+function versionKey(input: VerifiedInput): string | undefined {
+  if (input.observation.kind !== 'adjustment') {return;}
+  try { return objectVersionKey(input.observation); } catch { return; }
 }
 
 class PostgresPaymentStore implements PaymentStore {
@@ -81,7 +86,7 @@ class PostgresPaymentStore implements PaymentStore {
   }
 
   private laneKey(operation: PaymentOperation): string {
-    return operation.subscriptionBindingId ? `subscription:${operation.subscriptionBindingId}` : `operation:${operation.operationId}`;
+    return (operation.subscriptionBindingId !== undefined && operation.subscriptionBindingId !== '') ? `subscription:${operation.subscriptionBindingId}` : `operation:${operation.operationId}`;
   }
 
   async admitIntent(scope: PaymentScope, admission: IntentAdmission): ReturnType<PaymentStore['admitIntent']> {
@@ -98,21 +103,22 @@ class PostgresPaymentStore implements PaymentStore {
       const requestKey = this.requestKey(operation);
       const keys: RecordKey[] = [{ kind: 'requestKeys', id: requestKey }, { kind: 'operations', id: operation.operationId }];
       if (admission) {keys.push({ kind: 'intents', id: admission.intent.intentId });}
-      if (operation.subscriptionBindingId) {keys.push({ kind: 'subscriptionBindings', id: operation.subscriptionBindingId }, { kind: 'lanes', id: this.laneKey(operation) });}
+      if ((operation.subscriptionBindingId !== undefined && operation.subscriptionBindingId !== '')) {keys.push({ kind: 'subscriptionBindings', id: operation.subscriptionBindingId }, { kind: 'lanes', id: this.laneKey(operation) });}
       if (admission?.subscriptionBinding) {keys.push({ kind: 'subscriptionBindings', id: admission.subscriptionBinding.bindingId });}
       await this.records.lock(tx, keys);
-      const existingId = (await this.records.read<string>(tx, 'requestKeys', requestKey))?.body;
-      if (existingId) {
-        const previous = (await this.records.read<PaymentOperation>(tx, 'operations', existingId))?.body;
+      const existingId = (await (this.records.read(tx, 'requestKeys', requestKey) as Promise<StoredRecord<string> | undefined>))?.body;
+      if ((existingId !== undefined && existingId !== '')) {
+        const previous = (await (this.records.read(tx, 'operations', existingId) as Promise<StoredRecord<PaymentOperation> | undefined>))?.body;
         if (!previous) {throw new Error('Corrupt request identity');}
         return previous.fingerprint === operation.fingerprint ? { kind: 'existing', operation: previous } as const : conflict;
       }
       if (await this.records.read(tx, 'operations', operation.operationId)) {return conflict;}
       if (!admission) {
-        const binding = operation.subscriptionBindingId ? (await this.records.read<SubscriptionBinding>(tx, 'subscriptionBindings', operation.subscriptionBindingId))?.body : undefined;
+        const binding = (operation.subscriptionBindingId !== undefined && operation.subscriptionBindingId !== '') ? (await (this.records.read(tx, 'subscriptionBindings', operation.subscriptionBindingId) as Promise<StoredRecord<SubscriptionBinding> | undefined>))?.body : undefined;
         if (!binding || binding.buyerId !== operation.buyerId) {return conflict;}
       }
-      if ((await this.records.read<Lane>(tx, 'lanes', this.laneKey(operation)))?.body.recoveryReviewRequired) {return fenced;}
+      const recoveryReviewRequired = (await (this.records.read(tx, 'lanes', this.laneKey(operation)) as Promise<StoredRecord<Lane> | undefined>))?.body.recoveryReviewRequired;
+      if (recoveryReviewRequired !== undefined && recoveryReviewRequired !== '') {return fenced;}
       await this.records.write(tx, 'requestKeys', requestKey, operation.operationId);
       await this.records.write(tx, 'operations', operation.operationId, operation);
       if (admission) {
@@ -127,20 +133,20 @@ class PostgresPaymentStore implements PaymentStore {
   async findRequest(scope: PaymentScope, buyerId: string, requestKey: string): Promise<PaymentOperation | undefined> {
     return this.tx(scope, async tx => {
       await this.records.configuration(tx, scope);
-      const id = (await this.records.read<string>(tx, 'requestKeys', canonicalJson([buyerId, requestKey])))?.body;
-      return id ? (await this.records.read<PaymentOperation>(tx, 'operations', id))?.body : undefined;
+      const id = (await (this.records.read(tx, 'requestKeys', canonicalJson([buyerId, requestKey])) as Promise<StoredRecord<string> | undefined>))?.body;
+      return (id !== undefined && id !== '') ? (await (this.records.read(tx, 'operations', id) as Promise<StoredRecord<PaymentOperation> | undefined>))?.body : undefined;
     });
   }
 
   async loadOperation(scope: PaymentScope, operationId: string): Promise<OperationInput | undefined> {
     return this.tx(scope, async tx => {
       await this.records.configuration(tx, scope);
-      const operation = (await this.records.read<PaymentOperation>(tx, 'operations', operationId))?.body;
-      if (!operation) {return undefined;}
-      const intent = operation.intentId ? (await this.records.read<PurchaseIntent>(tx, 'intents', operation.intentId))?.body : undefined;
+      const operation = (await (this.records.read(tx, 'operations', operationId) as Promise<StoredRecord<PaymentOperation> | undefined>))?.body;
+      if (!operation) {return;}
+      const intent = (operation.intentId !== undefined && operation.intentId !== '') ? (await (this.records.read(tx, 'intents', operation.intentId) as Promise<StoredRecord<PurchaseIntent> | undefined>))?.body : undefined;
       const bindingId = operation.subscriptionBindingId ?? intent?.subscriptionBasisId;
-      const subscriptionBinding = bindingId ? (await this.records.read<SubscriptionBinding>(tx, 'subscriptionBindings', bindingId))?.body : undefined;
-      const lane = (await this.records.read<Lane>(tx, 'lanes', this.laneKey(operation)))?.body;
+      const subscriptionBinding = (bindingId !== undefined && bindingId !== '') ? (await (this.records.read(tx, 'subscriptionBindings', bindingId) as Promise<StoredRecord<SubscriptionBinding> | undefined>))?.body : undefined;
+      const lane = (await (this.records.read(tx, 'lanes', this.laneKey(operation)) as Promise<StoredRecord<Lane> | undefined>))?.body;
       return { operation, ...(intent ? { intent } : {}), ...(subscriptionBinding ? { subscriptionBinding } : {}), laneRevision: lane?.revision ?? 0 };
     });
   }
@@ -165,34 +171,34 @@ class PostgresPaymentStore implements PaymentStore {
         for (const ref of commit.subscriptionBinding.providerSubscriptionRefs) {keys.push({ kind: 'guards', id: `subscription:${ref}` });}
       }
       await this.records.lock(tx, keys);
-      const current = (await this.records.read<PaymentOperation>(tx, 'operations', op.operationId))?.body;
-      const lane = (await this.records.read<Lane>(tx, 'lanes', laneId))?.body ?? { revision: 0 };
+      const current = (await (this.records.read(tx, 'operations', op.operationId) as Promise<StoredRecord<PaymentOperation> | undefined>))?.body;
+      const lane = (await (this.records.read(tx, 'lanes', laneId) as Promise<StoredRecord<Lane> | undefined>))?.body ?? { revision: 0 };
       if (!current || current.revision !== commit.expectedRevision || lane.revision !== commit.expectedLaneRevision || !sameOperationCommand(current, op)) {return conflict;}
       for (const read of commit.expectedReadSet ?? []) {
         if (await this.records.version(tx, read) !== read.revision) {return conflict;}
       }
       if (dispatch && current.kind !== 'purchase') {
         const reads = commit.expectedReadSet ?? [];
-        if (!current.providerSubscriptionRef || !current.subscriptionBindingId ||
+        if (!(current.providerSubscriptionRef !== undefined && current.providerSubscriptionRef !== '') || !(current.subscriptionBindingId !== undefined && current.subscriptionBindingId !== '') ||
             !reads.some(read => read.table === 'subscriptionBindings' && read.id === current.subscriptionBindingId && read.revision !== null) ||
             !reads.some(read => read.table === 'subscriptions' && read.id === current.providerSubscriptionRef && read.revision !== null)) {return conflict;}
       }
-      if (dispatch && lane.recoveryReviewRequired) {return fenced;}
-      if (dispatch && (current.state !== 'prepared' || op.state !== 'dispatch_started' || (lane.unresolvedOperationId && lane.unresolvedOperationId !== op.operationId))) {return conflict;}
+      if (dispatch && (lane.recoveryReviewRequired !== undefined && lane.recoveryReviewRequired !== '')) {return fenced;}
+      if (dispatch && (current.state !== 'prepared' || op.state !== 'dispatch_started' || ((lane.unresolvedOperationId !== undefined && lane.unresolvedOperationId !== '') && lane.unresolvedOperationId !== op.operationId))) {return conflict;}
       const unresolved = op.state === 'dispatch_started' || op.state === 'outcome_unknown';
       // A late terminal observation belongs to this operation. It cannot release a different
       // command's unresolved lane, even when it loaded the latest lane revision before settling.
-      const owner = lane.unresolvedOperationId && lane.unresolvedOperationId !== op.operationId
+      const owner = (lane.unresolvedOperationId !== undefined && lane.unresolvedOperationId !== '') && lane.unresolvedOperationId !== op.operationId
         ? lane.unresolvedOperationId : unresolved ? op.operationId : undefined;
       if (unresolved && owner !== op.operationId) {return conflict;}
       if (commit.binding) {
-        const existing = (await this.records.read<TransactionBinding>(tx, 'bindings', commit.binding.transactionRef))?.body;
+        const existing = (await (this.records.read(tx, 'bindings', commit.binding.transactionRef) as Promise<StoredRecord<TransactionBinding> | undefined>))?.body;
         const compatiblePurpose = !existing || existing.purpose === commit.binding.purpose || (existing.purpose === 'commercial' && commit.binding.purpose === 'recovery') || (existing.purpose === 'recovery' && commit.binding.purpose === 'commercial');
         if (existing && (existing.intentId !== commit.binding.intentId || existing.buyerId !== commit.binding.buyerId || !compatiblePurpose || (existing.customerRef !== null && commit.binding.customerRef !== null && existing.customerRef !== commit.binding.customerRef))) {return conflict;}
         const binding: TransactionBinding = { ...commit.binding, purpose: existing?.purpose === 'recovery' ? 'recovery' : commit.binding.purpose, customerRef: existing?.customerRef ?? commit.binding.customerRef };
         await this.records.write(tx, 'bindings', binding.transactionRef, binding);
         const state = createEmptyPaymentState();
-        const previous = (await this.records.read<TransactionAggregate>(tx, 'transactions', binding.transactionRef))?.body;
+        const previous = (await (this.records.read(tx, 'transactions', binding.transactionRef) as Promise<StoredRecord<TransactionAggregate> | undefined>))?.body;
         if (previous) {state.transactions[binding.transactionRef] = previous;}
         const aggregate = transactionAggregate(state, binding.transactionRef);
         aggregate.revision += 1;
@@ -202,7 +208,7 @@ class PostgresPaymentStore implements PaymentStore {
         await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'transaction', id: binding.transactionRef }) });
       }
       await this.records.write(tx, 'operations', op.operationId, op);
-      await this.records.write(tx, 'lanes', laneId, { revision: lane.revision + 1, ...(owner ? { unresolvedOperationId: owner } : {}), ...(lane.recoveryReviewRequired ? { recoveryReviewRequired: lane.recoveryReviewRequired } : {}) });
+      await this.records.write(tx, 'lanes', laneId, { revision: lane.revision + 1, ...((owner !== undefined && owner !== '') ? { unresolvedOperationId: owner } : {}), ...((lane.recoveryReviewRequired !== undefined && lane.recoveryReviewRequired !== '') ? { recoveryReviewRequired: lane.recoveryReviewRequired } : {}) });
       if (commit.intent) {await this.records.write(tx, 'intents', commit.intent.intentId, commit.intent);}
       if (commit.subscriptionBinding) {
         await this.records.write(tx, 'subscriptionBindings', commit.subscriptionBinding.bindingId, commit.subscriptionBinding);
@@ -218,7 +224,7 @@ class PostgresPaymentStore implements PaymentStore {
     await this.tx(scope, async tx => {
       await this.records.configuration(tx, scope);
       await this.records.lock(tx, [{ kind: 'operations', id: operationId }]);
-      const operation = (await this.records.read<PaymentOperation>(tx, 'operations', operationId))?.body;
+      const operation = (await (this.records.read(tx, 'operations', operationId) as Promise<StoredRecord<PaymentOperation> | undefined>))?.body;
       const attempt = operation?.attempts.find(item => item.attemptId === attemptId);
       if (!attempt || !operation) {throw new Error('Unknown payment operation attempt');}
       if (attempt.observations.some(item => digest(item) === digest(result))) {return;}
@@ -245,31 +251,27 @@ class PostgresPaymentStore implements PaymentStore {
     // Event identity has only T1 writers. Lock it before receipt identities, then aggregate routes
     // in the same order T2 uses. This includes the OLD routes of a contradictory representation.
     const events = new Map<string, StoredEventIdentity>();
-    const eventIds = [...new Set(inputs.flatMap(input => input.source.eventId ? [input.source.eventId] : []))];
+    const eventIds = [...new Set(inputs.flatMap(input => (input.source.eventId !== undefined && input.source.eventId !== '') ? [input.source.eventId] : []))];
     await this.records.lock(tx, eventIds.map(id => ({ kind: 'eventIdentity', id })));
-    for (const [id, record] of await this.records.readMany<StoredEventIdentity>(tx, 'eventIdentity', eventIds)) {events.set(id, record.body);}
+    for (const [id, record] of await (this.records.readMany(tx, 'eventIdentity', eventIds) as Promise<ReadonlyMap<string, StoredRecord<StoredEventIdentity>>>)) {events.set(id, record.body);}
     await this.records.lock(tx, inputs.map(input => ({ kind: 'inbox', id: input.inputId })));
     const existingReceipts = new Map<string, InboxRecord>();
-    for (const [id, record] of await this.records.readMany<InboxRecord>(tx, 'inbox', inputs.map(input => input.inputId))) {existingReceipts.set(id, record.body);}
+    for (const [id, record] of await (this.records.readMany(tx, 'inbox', inputs.map(input => input.inputId)) as Promise<ReadonlyMap<string, StoredRecord<InboxRecord>>>)) {existingReceipts.set(id, record.body);}
     // The shared lock order places certification before aggregates in T1 and T2. Read it only
     // after locking, so a concurrent first certification cannot introduce an unfenced old parent.
     const versions = new Map<string, ObjectVersionEvidence>();
-    const versionKey = (input: VerifiedInput): string | undefined => {
-      if (input.observation.kind !== 'adjustment') {return undefined;}
-      try { return objectVersionKey(input.observation); } catch { return undefined; }
-    };
     const versionKeys = [...new Set([...inputs, ...[...existingReceipts.values()].map(receipt => receipt.input)].flatMap(input => {
       const key = versionKey(input); return key === undefined ? [] : [key];
     }))];
     await this.records.lock(tx, versionKeys.map(id => ({ kind: 'versionEvidence', id })));
-    for (const [id, record] of await this.records.readMany<ObjectVersionEvidence>(tx, 'versionEvidence', versionKeys)) {versions.set(id, record.body);}
+    for (const [id, record] of await (this.records.readMany(tx, 'versionEvidence', versionKeys) as Promise<ReadonlyMap<string, StoredRecord<ObjectVersionEvidence>>>)) {versions.set(id, record.body);}
     const knownRoutes = (input: VerifiedInput): readonly AggregateIdentity[] => [
       ...inputRoutes(input), ...objectVersionDependentRoutes(input.observation, versions.get(versionKey(input) ?? '')),
     ];
     const routes = inputs.flatMap(input => [
       ...knownRoutes(input),
       ...(existingReceipts.has(input.inputId) ? knownRoutes(existingReceipts.get(input.inputId)!.input) : []),
-      ...(input.source.eventId ? events.get(input.source.eventId)?.evidence.routes ?? [] : []),
+      ...((input.source.eventId !== undefined && input.source.eventId !== '') ? events.get(input.source.eventId)?.evidence.routes ?? [] : []),
     ]);
     await this.records.lock(tx, routes.map(route => ({ kind: route.type === 'transaction' ? 'transactions' : 'subscriptions', id: route.id })));
     const result: { inputId: string; kind: 'admitted' | 'duplicate' | 'conflict' }[] = [];
@@ -283,15 +285,15 @@ class PostgresPaymentStore implements PaymentStore {
       if (existing) {state.inbox[input.inputId] = existing;}
       const eventId = input.source.eventId;
       const incomingIdentity = eventIdentityEvidence(input);
-      const identity = eventId ? events.get(eventId) : undefined;
+      const identity = (eventId !== undefined && eventId !== '') ? events.get(eventId) : undefined;
       const eventConflict = identity !== undefined && (identity.conflict || compareEventIdentity(identity.evidence, incomingIdentity) === 'conflict');
       const affected = [...new Map([
         ...knownRoutes(input), ...(existing ? knownRoutes(existing.input) : []), ...(identity?.evidence.routes ?? []),
       ].map(route => [canonicalJson([route.type, route.id]), route])).values()];
       // Read only this input's locked routes, after every prior input has finished
       // writing. A page-wide aggregate snapshot would miss those preceding writes.
-      const transactions = await this.records.readMany<TransactionAggregate>(tx, 'transactions', affected.filter(route => route.type === 'transaction').map(route => route.id));
-      const subscriptions = await this.records.readMany<SubscriptionAggregate>(tx, 'subscriptions', affected.filter(route => route.type === 'subscription').map(route => route.id));
+      const transactions = await (this.records.readMany(tx, 'transactions', affected.filter(route => route.type === 'transaction').map(route => route.id)) as Promise<ReadonlyMap<string, StoredRecord<TransactionAggregate>>>);
+      const subscriptions = await (this.records.readMany(tx, 'subscriptions', affected.filter(route => route.type === 'subscription').map(route => route.id)) as Promise<ReadonlyMap<string, StoredRecord<SubscriptionAggregate>>>);
       for (const route of affected) {
         if (route.type === 'transaction') {
           const record = transactions.get(route.id); if (record) {state.transactions[route.id] = record.body;}
@@ -315,7 +317,7 @@ class PostgresPaymentStore implements PaymentStore {
       }
       const writes: RecordWrite[] = [];
       let nextIdentity: StoredEventIdentity | undefined;
-      if (eventId) {
+      if ((eventId !== undefined && eventId !== '')) {
         // Keep the merged certified facts: pairwise compatible partial receipts are not transitive.
         // After a contradiction the original summary remains fenced; previously flagged routes
         // need no unbounded replay list. Every new contradictory route is fenced in this T1.
@@ -331,7 +333,7 @@ class PostgresPaymentStore implements PaymentStore {
       for (const [id, aggregate] of Object.entries(state.subscriptions)) {writes.push({ kind: 'subscriptions', id, body: aggregate });}
       await this.records.writeMany(tx, writes);
       existingReceipts.set(input.inputId, receipt);
-      if (eventId && nextIdentity) {events.set(eventId, nextIdentity);}
+      if ((eventId !== undefined && eventId !== '') && nextIdentity) {events.set(eventId, nextIdentity);}
       for (const [id, aggregate] of Object.entries(state.transactions)) {
         if (aggregate.publicationRequired) {await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'transaction', id }) });}
       }
@@ -362,6 +364,7 @@ class PostgresPaymentStore implements PaymentStore {
     let remainingBytes = this.options.maxWorkingSetBytes ?? 2_097_152;
     let incomplete = false;
     let invalidVersion = false;
+    const incompleteReason = (): string => invalidVersion ? 'invalid_object_version' : 'working_set_limit';
     const seen = new Set<string>();
     const guard = async (id: string): Promise<void> => {
       if (expected.some(item => item.table === 'guards' && item.id === id)) {return;}
@@ -411,7 +414,7 @@ class PostgresPaymentStore implements PaymentStore {
       await add('intents', intentId);
       const intent = state.intents[intentId];
       if (!intent) {return;}
-      if (intent.subscriptionBasisId) {
+      if ((intent.subscriptionBasisId !== undefined && intent.subscriptionBasisId !== '')) {
         await add('subscriptionBindings', intent.subscriptionBasisId);
         await add('reclassifications', intent.subscriptionBasisId);
       }
@@ -430,21 +433,21 @@ class PostgresPaymentStore implements PaymentStore {
       else {subscriptionRefs.add(aggregate.id);}
     } else {
       // Input custody is independently capped at admission; routing survives a smaller reducer budget.
-      const receipt = await this.records.read<InboxRecord>(tx, 'inbox', inputId);
-      if (!receipt) {return undefined;}
+      const receipt = await (this.records.read(tx, 'inbox', inputId) as Promise<StoredRecord<InboxRecord> | undefined>);
+      if (!receipt) {return;}
       expected.push({ table: 'inbox', id: inputId, revision: receipt.revision });
       seen.add(canonicalJson(['inbox', inputId]));
       state.inbox[inputId] = receipt.body;
       remainingBytes -= Buffer.byteLength(JSON.stringify(receipt.body));
       if (remainingBytes < 0) {incomplete = true;}
       const observation = receipt.body.input.observation;
-      const versionKey = await includeVersion(observation);
-      for (const route of objectVersionDependentRoutes(observation, versionKey === undefined ? undefined : state.versionEvidence[versionKey])) {
+      const observationVersionKey = await includeVersion(observation);
+      for (const route of objectVersionDependentRoutes(observation, observationVersionKey === undefined ? undefined : state.versionEvidence[observationVersionKey])) {
         if (route.type === 'transaction') {transactionRefs.add(route.id);}
         else {subscriptionRefs.add(route.id);}
       }
-      if (receipt.body.input.adverseTransactionRef) {transactionRefs.add(receipt.body.input.adverseTransactionRef);}
-      if (observation.kind === 'transaction' && observation.subscriptionRef.presence === 'known' && observation.subscriptionRef.value) {subscriptionRefs.add(observation.subscriptionRef.value);}
+      if ((receipt.body.input.adverseTransactionRef !== undefined && receipt.body.input.adverseTransactionRef !== '')) {transactionRefs.add(receipt.body.input.adverseTransactionRef);}
+      if (observation.kind === 'transaction' && observation.subscriptionRef.presence === 'known' && (observation.subscriptionRef.value !== null && observation.subscriptionRef.value !== '')) {subscriptionRefs.add(observation.subscriptionRef.value);}
     }
     for (const transactionRef of transactionRefs) {
       await add('transactions', transactionRef);
@@ -452,7 +455,7 @@ class PostgresPaymentStore implements PaymentStore {
       const binding = state.bindings[transactionRef];
       if (binding) {await includeIntent(binding.intentId);}
       const current = state.transactions[transactionRef]?.current;
-      if (current?.subscriptionRef.presence === 'known' && current.subscriptionRef.value) {subscriptionRefs.add(current.subscriptionRef.value);}
+      if (current?.subscriptionRef.presence === 'known' && (current.subscriptionRef.value !== null && current.subscriptionRef.value !== '')) {subscriptionRefs.add(current.subscriptionRef.value);}
     }
     for (const subscriptionRef of subscriptionRefs) {
       await guard(`subscription:${subscriptionRef}`);
@@ -476,7 +479,7 @@ class PostgresPaymentStore implements PaymentStore {
       for (const observation of Object.values(value.adjustments)) {await includeVersion(observation);}
     }
     for (const value of Object.values(state.subscriptions)) {if (value.current) {await includeVersion(value.current);}}
-    return { inputId, state, expected, ...(incomplete ? { incompleteReason: invalidVersion ? 'invalid_object_version' : 'working_set_limit' } : {}) };
+    return { inputId, state, expected, ...(incomplete ? { incompleteReason: incompleteReason() } : {}) };
   }
 
   async commitReduction(scope: PaymentScope, commit: ReductionCommit): Promise<StoreCommitResult> {
@@ -491,27 +494,27 @@ class PostgresPaymentStore implements PaymentStore {
       for (const item of commit.expected) {if (await this.records.version(tx, item) !== item.revision) {return conflict;}}
       const namespaces = [...new Set(Object.values(commit.state.evidence).map(message => message.producerNamespace))];
       if (namespaces.length > 1) {return conflict;}
-      const namespace = namespaces[0];
-      let savedNamespace = (await this.records.read<string>(tx, 'ownerIdentity', 'producerNamespace'))?.body;
+      const namespace = namespaces.at(0);
+      let savedNamespace = (await (this.records.read(tx, 'ownerIdentity', 'producerNamespace') as Promise<StoredRecord<string> | undefined>))?.body;
       if (namespace !== undefined && savedNamespace === undefined) {
         // Namespace is immutable after first publication. Only its first creation needs a lock;
         // ordinary unrelated aggregate commits keep their existing concurrency.
         await this.records.lock(tx, [{ kind: 'ownerIdentity', id: 'producerNamespace' }]);
-        savedNamespace = (await this.records.read<string>(tx, 'ownerIdentity', 'producerNamespace'))?.body;
+        savedNamespace = (await (this.records.read(tx, 'ownerIdentity', 'producerNamespace') as Promise<StoredRecord<string> | undefined>))?.body;
       }
       if (namespace !== undefined && savedNamespace !== undefined && savedNamespace !== namespace) {return conflict;}
       // Validate all immutable outputs before changing any row. Conflict is a rejected commit.
       for (const [id, message] of Object.entries(commit.state.evidence)) {
         const { bodyDigest, ...body } = message;
         if (message.messageId !== id || bodyDigest !== digest(body) || canonicalJson(message.scope) !== canonicalJson(scope)) {return conflict;}
-        const existing = await this.records.read<EvidenceMessage>(tx, 'evidence', id);
+        const existing = await (this.records.read(tx, 'evidence', id) as Promise<StoredRecord<EvidenceMessage> | undefined>);
         if (existing && existing.body.bodyDigest !== message.bodyDigest) {return conflict;}
       }
       if (namespace !== undefined && savedNamespace === undefined) {await this.records.write(tx, 'ownerIdentity', 'producerNamespace', namespace);}
       for (const table of mutableTables) {
         for (const [id, value] of Object.entries(commit.state[table])) {
-          const previous = await this.records.read<unknown>(tx, table, id);
-          if (commit.heldReason) {
+          const previous = await this.records.read(tx, table, id);
+          if ((commit.heldReason !== undefined && commit.heldReason !== '')) {
             if (table === 'transactions' || table === 'subscriptions') {
               const partial = value as TransactionAggregate | SubscriptionAggregate;
               if (previous) {
@@ -536,7 +539,7 @@ class PostgresPaymentStore implements PaymentStore {
           } else if (table === 'transactions') {
             const transaction = value as TransactionAggregate;
             const intentId = transaction.completion?.intentId ?? commit.state.bindings[id]?.intentId;
-            if (intentId) {await this.records.guard(tx, `intent:${intentId}`);}
+            if ((intentId !== undefined && intentId !== '')) {await this.records.guard(tx, `intent:${intentId}`);}
           } else if (table === 'bindings') {
             await this.records.guard(tx, `intent:${(value as TransactionBinding).intentId}`);
           } else if (table === 'subscriptionBindings') {
@@ -546,9 +549,9 @@ class PostgresPaymentStore implements PaymentStore {
       }
       for (const [id, message] of Object.entries(commit.state.evidence)) {await this.records.write(tx, 'evidence', id, message);}
       for (const [id, delivery] of Object.entries(commit.state.deliveries)) {
-        const existing = await this.records.read<Delivery>(tx, 'deliveries', id);
+        const existing = await (this.records.read(tx, 'deliveries', id) as Promise<StoredRecord<Delivery> | undefined>);
         if (!existing) {await this.records.write(tx, 'deliveries', id, delivery);}
-        await this.work(tx, { kind: 'delivery', id }, existing?.body.acknowledged ? 'complete' : 'pending');
+        await this.work(tx, { kind: 'delivery', id }, (existing?.body.acknowledged === true) ? 'complete' : 'pending');
       }
       for (const issue of commit.state.issues) {await this.records.write(tx, 'issues', digest(issue), { issue });}
       for (const aggregate of Object.values(commit.state.transactions)) {await this.work(tx, { kind: 'publication', id: canonicalJson({ type: 'transaction', id: aggregate.transactionRef }) }, aggregate.publicationRequired ? 'pending' : 'complete');}
@@ -563,12 +566,12 @@ class PostgresPaymentStore implements PaymentStore {
     assertBatchLimit(limit);
     return this.tx(scope, async tx => {
       if ((await this.records.configuration(tx, scope)).body.recoveryFenced) {return fenced;}
-      const initial = await this.records.read<SubscriptionBinding>(tx, 'subscriptionBindings', bindingId);
+      const initial = await (this.records.read(tx, 'subscriptionBindings', bindingId) as Promise<StoredRecord<SubscriptionBinding> | undefined>);
       const keys: RecordKey[] = [{ kind: 'subscriptionBindings', id: bindingId }, { kind: 'reclassifications', id: bindingId }];
       if (initial) {keys.push({ kind: 'guards', id: `intent:${initial.body.originatingIntentId}` });}
       await this.records.lock(tx, keys);
-      const binding = await this.records.read<SubscriptionBinding>(tx, 'subscriptionBindings', bindingId);
-      const record = await this.records.read<SubscriptionReclassification>(tx, 'reclassifications', bindingId);
+      const binding = await (this.records.read(tx, 'subscriptionBindings', bindingId) as Promise<StoredRecord<SubscriptionBinding> | undefined>);
+      const record = await (this.records.read(tx, 'reclassifications', bindingId) as Promise<StoredRecord<SubscriptionReclassification> | undefined>);
       if (!record || record.body.complete) {return committed;}
       if (!binding || binding.revision !== initial?.revision || record.body.decisionRevision !== binding.body.classificationDecision?.revision) {return conflict;}
       // Membership changes use the same originating-intent guard. A newly admitted member which
@@ -601,8 +604,8 @@ class PostgresPaymentStore implements PaymentStore {
   async readPurchase(scope: PaymentScope, buyerId: string, intentId: string): ReturnType<PaymentStore['readPurchase']> {
     return this.tx(scope, async tx => {
       await this.records.configuration(tx, scope);
-      const intent = (await this.records.read<PurchaseIntent>(tx, 'intents', intentId))?.body;
-      if (!intent || intent.buyerId !== buyerId) {return undefined;}
+      const intent = (await (this.records.read(tx, 'intents', intentId) as Promise<StoredRecord<PurchaseIntent> | undefined>))?.body;
+      if (!intent || intent.buyerId !== buyerId) {return;}
       const result = await tx.query<{ body: TransactionAggregate }>(`SELECT t.body FROM ${this.records.sql}.records b
         JOIN ${this.records.sql}.records t ON t.kind = 'transactions' AND t.id = b.id
         WHERE b.kind = 'bindings' AND b.body ->> 'intentId' = $1 ORDER BY t.id LIMIT 101`, [intentId]);
@@ -614,8 +617,8 @@ class PostgresPaymentStore implements PaymentStore {
   async readSubscription(scope: PaymentScope, buyerId: string, bindingId: string): ReturnType<PaymentStore['readSubscription']> {
     return this.tx(scope, async tx => {
       await this.records.configuration(tx, scope);
-      const binding = (await this.records.read<SubscriptionBinding>(tx, 'subscriptionBindings', bindingId))?.body;
-      if (!binding || binding.buyerId !== buyerId) {return undefined;}
+      const binding = (await (this.records.read(tx, 'subscriptionBindings', bindingId) as Promise<StoredRecord<SubscriptionBinding> | undefined>))?.body;
+      if (!binding || binding.buyerId !== buyerId) {return;}
       if (binding.providerSubscriptionRefs.length > 100) {throw new RangeError('Too many candidate subscription streams');}
       const result = await tx.query<{ body: SubscriptionAggregate }>(`SELECT body FROM ${this.records.sql}.records
         WHERE kind = 'subscriptions' AND id = ANY($1::text[]) ORDER BY id`, [binding.providerSubscriptionRefs]);
@@ -654,14 +657,14 @@ class PostgresPaymentStore implements PaymentStore {
     await this.tx(scope, async tx => {
       await this.records.configuration(tx, scope);
       await this.records.lock(tx, [{ kind: 'backfills', id: consumerId }]);
-      const cursor = (await this.records.read<{ consumerId: string; after: string | null; state: string }>(tx, 'backfills', consumerId))?.body;
+      const cursor = (await (this.records.read(tx, 'backfills', consumerId) as Promise<StoredRecord<{ consumerId: string; after: string | null; state: string }> | undefined>))?.body;
       if (!cursor || cursor.state === 'complete') {return;}
       const messages = await this.records.listKeys(tx, 'evidence', cursor.after, 100);
       for (const row of messages) {
         const id = canonicalJson([row.id, consumerId]);
-        const existing = await this.records.read<Delivery>(tx, 'deliveries', id);
+        const existing = await (this.records.read(tx, 'deliveries', id) as Promise<StoredRecord<Delivery> | undefined>);
         if (!existing) {await this.records.write(tx, 'deliveries', id, { consumerId, messageId: row.id, acknowledged: false, attempts: 0 });}
-        await this.work(tx, { kind: 'delivery', id }, existing?.body.acknowledged ? 'complete' : 'pending');
+        await this.work(tx, { kind: 'delivery', id }, (existing?.body.acknowledged === true) ? 'complete' : 'pending');
       }
       const last = messages.at(-1)?.id;
       await this.records.write(tx, 'backfills', consumerId, { consumerId, after: last ?? cursor.after, state: messages.length < 100 ? 'complete' : 'pending' });
@@ -688,8 +691,8 @@ class PostgresPaymentStore implements PaymentStore {
       if ((await this.records.configuration(tx, scope)).body.recoveryFenced) {return 'conflict';}
       const id = canonicalJson([messageId, consumerId]);
       await this.records.lock(tx, [{ kind: 'deliveries', id }]);
-      const delivery = (await this.records.read<Delivery>(tx, 'deliveries', id))?.body;
-      const message = (await this.records.read<EvidenceMessage>(tx, 'evidence', messageId))?.body;
+      const delivery = (await (this.records.read(tx, 'deliveries', id) as Promise<StoredRecord<Delivery> | undefined>))?.body;
+      const message = (await (this.records.read(tx, 'evidence', messageId) as Promise<StoredRecord<EvidenceMessage> | undefined>))?.body;
       if (!delivery || !message || message.bodyDigest !== bodyDigest) {return 'conflict';}
       if (delivery.acknowledged) {return 'duplicate';}
       delivery.acknowledged = true;
@@ -703,7 +706,7 @@ class PostgresPaymentStore implements PaymentStore {
     if (!auditRef || auditRef.length > 512) {throw new TypeError('A recovery fence requires an audit reference');}
     await this.tx(scope, async tx => {
       const config = await this.records.configuration(tx, scope, true);
-      if (!recoveryFenced && config.body.activeRecoverySessionId) {throw new Error('An active recovery session must pass its resume gate');}
+      if (!recoveryFenced && (config.body.activeRecoverySessionId !== undefined && config.body.activeRecoverySessionId !== '')) {throw new Error('An active recovery session must pass its resume gate');}
       config.body.recoveryFenced = recoveryFenced;
       config.body.fenceAudits.push({ fenced: recoveryFenced, auditRef, at: new Date().toISOString() });
       await this.records.writeConfiguration(tx, config.body);
@@ -713,7 +716,7 @@ class PostgresPaymentStore implements PaymentStore {
   async readCheckpoint(scope: PaymentScope, scanId: string): Promise<ScanCheckpoint | undefined> {
     return this.tx(scope, async tx => {
       await this.records.configuration(tx, scope);
-      return (await this.records.read<ScanCheckpoint>(tx, 'scans', scanId))?.body;
+      return (await (this.records.read(tx, 'scans', scanId) as Promise<StoredRecord<ScanCheckpoint> | undefined>))?.body;
     });
   }
 
@@ -721,7 +724,7 @@ class PostgresPaymentStore implements PaymentStore {
     return this.tx(scope, async tx => {
       if ((await this.records.configuration(tx, scope)).body.recoveryFenced) {return fenced;}
       await this.records.lock(tx, [{ kind: 'scans', id: next.scanId }]);
-      const current = (await this.records.read<ScanCheckpoint>(tx, 'scans', next.scanId))?.body;
+      const current = (await (this.records.read(tx, 'scans', next.scanId) as Promise<StoredRecord<ScanCheckpoint> | undefined>))?.body;
       if (canonicalJson(current ?? null) !== canonicalJson(expected ?? null)) {return conflict;}
       await this.admitInputs(tx, scope, inputs, 200);
       await this.records.write(tx, 'scans', next.scanId, next);

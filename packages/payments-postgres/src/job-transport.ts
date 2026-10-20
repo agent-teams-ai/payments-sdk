@@ -16,7 +16,11 @@ export type PaymentJobEvents = Readonly<{ onError: (error: Error) => void; onWar
 
 /** Diagnostics cannot change durable work settlement or create an unhandled rejection. */
 export function reportPaymentJobError(events: PaymentJobEvents, error: Error): void {
-  try { void Promise.resolve(events.onError(error)).catch(() => undefined); }
+  try {
+    const sink: Readonly<{ onError: (error: Error) => unknown }> = events;
+    const report = sink.onError(error);
+    void Promise.resolve(report).catch(() => {});
+  }
   catch { /* The host owns its diagnostic sink; never recursively report a sink failure. */ }
 }
 
@@ -35,8 +39,8 @@ export function makePaymentBoss(options: PaymentJobNamespace & PaymentJobEvents,
     ...paymentJobRetention,
   });
   // EventEmitter error listeners must exist before any pg-boss subsystem can start.
-  boss.on('error', error => reportPaymentJobError(options, error));
-  boss.on('warning', options.onWarning ?? (warning => reportPaymentJobError(options, new Error(`Payment job warning: ${warning.message}`))));
+  boss.on('error', error => { reportPaymentJobError(options, error); });
+  boss.on('warning', options.onWarning ?? (warning => { reportPaymentJobError(options, new Error(`Payment job warning: ${warning.message}`)); }));
   return boss;
 }
 
@@ -50,7 +54,7 @@ export async function bootstrapPostgresPaymentJobs(options: PaymentJobNamespace 
     const owner = await tx.query<{ body: { scope: PaymentScope; jobTransport?: unknown } }>(`SELECT body FROM ${payment}.configuration WHERE id = 'owner' FOR UPDATE`);
     if (!owner.rows[0] || canonicalJson(owner.rows[0].body.scope) !== canonicalJson(options.scope)) {throw new Error('Payment job namespace scope mismatch');}
     const binding = { jobSchema: options.jobSchema, queueName: paymentWorkQueue };
-    if (owner.rows[0].body.jobTransport && canonicalJson(owner.rows[0].body.jobTransport) !== canonicalJson(binding)) {throw new Error('Payment schema already has another job namespace');}
+    if (Boolean(owner.rows[0].body.jobTransport) && canonicalJson(owner.rows[0].body.jobTransport) !== canonicalJson(binding)) {throw new Error('Payment schema already has another job namespace');}
     await tx.query(`CREATE SCHEMA IF NOT EXISTS ${jobs}`);
     await tx.query(`CREATE TABLE IF NOT EXISTS ${jobs}.payment_owner (id text PRIMARY KEY CHECK (id = 'owner'), body jsonb NOT NULL)`);
     const expected = { paymentSchema: options.paymentSchema, scope: options.scope };
@@ -89,7 +93,7 @@ export async function qualifyPaymentJobNamespace(options: PaymentJobNamespace, b
   }, options.timeouts);
   for (const name of [paymentWorkQueue, paymentRepairQueue, schedulerQueue]) {
     const queue = await boss.getQueue(name);
-    if (!queue || queue.partition || queue.retryLimit !== 0 || queue.expireInSeconds !== 300 || queue.policy !== 'standard'
+    if (!queue || (queue.partition === true) || queue.retryLimit !== 0 || queue.expireInSeconds !== 300 || queue.policy !== 'standard'
       || queue.retentionSeconds !== paymentJobRetention.retentionSeconds || queue.deleteAfterSeconds !== paymentJobRetention.deleteAfterSeconds) {throw new Error(`Payment job queue requires explicit bootstrap: ${name}`);}
   }
   const schedule = await boss.getSchedule(paymentRepairQueue, 'durable_obligations');

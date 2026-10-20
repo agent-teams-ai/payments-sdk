@@ -20,6 +20,12 @@ export type RecordWrite = RecordKey & Readonly<{ body: unknown }>;
 export type DurableWork = Readonly<{ kind: 'inbox' | 'publication' | 'reclassification' | 'prepared' | 'unknown' | 'delivery' | 'scan'; id: string }>;
 const maximumRecordSet = 512;
 
+function lockRank(kind: string): number { return kind === 'inbox' ? 0 : kind === 'versionEvidence' ? 1 : 2; }
+function compareRecordKeys(a: RecordKey, b: RecordKey): number {
+  const left = canonicalJson([a.kind, a.id]), right = canonicalJson([b.kind, b.id]);
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 /** Storage details stay in the outer adapter; core sees named atomic methods and revision tokens. */
 export class PaymentRecords {
   readonly sql: string;
@@ -45,12 +51,7 @@ export class PaymentRecords {
 
   /** Missing records also have a lock, so unique creation and membership reads have no phantom gap. */
   async lock(tx: PaymentSqlTransaction, keys: readonly RecordKey[]): Promise<void> {
-    const rank = (kind: string): number => kind === 'inbox' ? 0 : kind === 'versionEvidence' ? 1 : 2;
-    const compareKeys = (a: RecordKey, b: RecordKey): number => {
-      const left = canonicalJson([a.kind, a.id]), right = canonicalJson([b.kind, b.id]);
-      return left < right ? -1 : left > right ? 1 : 0;
-    };
-    const ordered = [...keys].sort((a, b) => rank(a.kind) - rank(b.kind) || compareKeys(a, b));
+    const ordered = keys.toSorted((a, b) => lockRank(a.kind) - lockRank(b.kind) || compareRecordKeys(a, b));
     const names = [...new Set(ordered.map(key => canonicalJson([this.schema, key.kind, key.id])))];
     if (names.length > maximumRecordSet) {throw new RangeError('Payment transaction lock set exceeds its bound');}
     // Exact-version certification must be stable before T1 discovers its retained parent.
@@ -58,22 +59,22 @@ export class PaymentRecords {
     await tx.query('SELECT pg_advisory_xact_lock(hashtextextended(key, 0)) FROM (SELECT key FROM unnest($1::text[]) WITH ORDINALITY AS keys(key, position) ORDER BY position) ordered', [names]);
   }
 
-  async read<T>(tx: PaymentSqlTransaction, kind: string, id: string): Promise<StoredRecord<T> | undefined> {
+  async read(tx: PaymentSqlTransaction, kind: string, id: string): Promise<StoredRecord<unknown> | undefined> {
     const table = this.tables.records;
     const [row] = await selectPaymentRows(tx, paymentQueries.select({ revision: table.revision, body: table.body })
       .from(table).where(and(eq(table.kind, kind), eq(table.id, id))));
-    return row ? { revision: safeRevision(row.revision), body: row.body as T } : undefined;
+    return row ? { revision: safeRevision(row.revision), body: row.body } : undefined;
   }
 
   /** Bounded lookups for identities whose existing transaction lock phase has completed. */
-  async readMany<T>(tx: PaymentSqlTransaction, kind: string, ids: readonly string[]): Promise<ReadonlyMap<string, StoredRecord<T>>> {
+  async readMany(tx: PaymentSqlTransaction, kind: string, ids: readonly string[]): Promise<ReadonlyMap<string, StoredRecord<unknown>>> {
     const unique = [...new Set(ids)];
     if (unique.length > maximumRecordSet) {throw new RangeError('Payment record lookup set exceeds its bound');}
     if (unique.length === 0) {return new Map();}
     const table = this.tables.records;
     const rows = await selectPaymentRows(tx, paymentQueries.select({ id: table.id, revision: table.revision, body: table.body })
       .from(table).where(and(eq(table.kind, kind), inArray(table.id, unique))));
-    return new Map(rows.map(row => [row.id, { revision: safeRevision(row.revision), body: row.body as T }]));
+    return new Map(rows.map(row => [row.id, { revision: safeRevision(row.revision), body: row.body }]));
   }
 
   async write(tx: PaymentSqlTransaction, kind: string, id: string, body: unknown): Promise<void> {
@@ -100,7 +101,7 @@ export class PaymentRecords {
       rows = []; batchBytes = 0;
     };
     for (const write of writes) {
-      const body = JSON.stringify(write.body), bytes = body === undefined ? 0 : Buffer.byteLength(body);
+      const body: unknown = JSON.stringify(write.body), bytes = typeof body === 'string' ? Buffer.byteLength(body) : 0;
       if (rows.length > 0 && (rows.length >= 100 || batchBytes + bytes > 2_097_152)) {await flush();}
       // An individual large stored body still executes singly, as write() did before.
       // Explicit jsonb parameters preserve JSON null instead of inserting SQL NULL.

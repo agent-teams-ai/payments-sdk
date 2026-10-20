@@ -9,5 +9,5 @@ export { bootstrapPostgresPaymentJobs, paymentJobRetention } from './job-transpo
 export type { PaymentJobNamespace, PaymentJobEvents } from './job-transport.js';
 export { createPostgresPaymentJobs, PaymentJobHandlerError } from './jobs.js';
 export type { PaymentJobOptions, PaymentJobHandlers, PaymentJobWork, PaymentDeliveryReceipt, PaymentJobStopResult, PostgresPaymentJobs } from './jobs.js';
-import './pg-boss-declarations.js';
+export * from './pg-boss-declarations.js';
 

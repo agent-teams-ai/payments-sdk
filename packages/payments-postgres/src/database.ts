@@ -73,6 +73,9 @@ function acquire(pool: Pool, timeoutMs: number): Promise<PoolClient> {
   });
 }
 
+// Query promises carry the observable failure, including during server restarts.
+function onPaymentConnectionError(): void {}
+
 type OwnedConnection = Readonly<{
   sql: PaymentSqlTransaction;
   expired: () => boolean;
@@ -96,8 +99,7 @@ async function withPaymentConnection<T>(
     client.release(destroy);
   };
   // A client checked out during a server restart may emit an error before its query rejects.
-  const onError = (): void => { /* Query promises carry the observable failure. */ };
-  client.on('error', onError);
+  client.on('error', onPaymentConnectionError);
   const remaining = (): number => Math.max(1, Math.floor(timeouts.deadlineMs - (performance.now() - startedAt)));
   const timer = setTimeout(() => {
     expired = true;
@@ -113,11 +115,11 @@ async function withPaymentConnection<T>(
     },
   };
   try {
-    return await operation({ sql: transaction, expired: () => expired, destroy: () => release(true) });
+    return await operation({ sql: transaction, expired: () => expired, destroy: () => { release(true); } });
   } finally {
     clearTimeout(timer);
     release(false);
-    client.removeListener('error', onError);
+    client.removeListener('error', onPaymentConnectionError);
   }
 }
 
@@ -186,7 +188,7 @@ export function createPaymentSqlExecutor(pool: Pool, timeouts: DatabaseTimeouts 
           // pg-boss's maintenance and migration scripts inspect rows from multiple statements.
           // Match its documented custom Db behavior and preserve every result row in order.
           const rows: QueryResultRow[] = Array.isArray(result)
-            ? (result as QueryResult[]).flatMap(item => item.rows ?? []) : result.rows;
+            ? (result as { rows?: QueryResultRow[] }[]).flatMap(item => item.rows ?? []) : result.rows;
           return { rows };
         } catch (error) {
           connection.destroy();

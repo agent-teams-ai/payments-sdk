@@ -4,6 +4,7 @@ import type { Pool } from 'pg';
 import { assertPostgresDurability, withPaymentTransaction } from './database.js';
 import type { DatabaseTimeouts, PaymentSqlTransaction } from './database.js';
 import { assertBatchLimit, PaymentRecords } from './records.js';
+import type { StoredRecord } from './records.js';
 
 /** Trusted owner administration. Never expose this capability through buyer HTTP handlers. */
 export type PaymentRecoveryOptions = Readonly<{ pool: Pool; schema: string; scope: PaymentScope; producerNamespace: string; timeouts?: DatabaseTimeouts }>;
@@ -49,7 +50,7 @@ function text(value: string, label: string): void {
   if (typeof value !== 'string' || value.length < 1 || value.length > 512) {throw new TypeError(`Invalid recovery ${label}`);}
 }
 function auditInput(audit: RecoveryAudit): void { text(audit.actorId, 'actor'); text(audit.auditRef, 'audit reference'); text(audit.reason, 'reason'); }
-function laneId(operation: PaymentOperation): string { return operation.subscriptionBindingId ? `subscription:${operation.subscriptionBindingId}` : `operation:${operation.operationId}`; }
+function laneId(operation: PaymentOperation): string { return (operation.subscriptionBindingId !== undefined && operation.subscriptionBindingId !== '') ? `subscription:${operation.subscriptionBindingId}` : `operation:${operation.operationId}`; }
 function validCheckpoint(value: RecoveryCheckpoint): void {
   text(value.messageId, 'message identity'); text(value.aggregate.id, 'aggregate identity');
   if (!['transaction', 'subscription'].includes(value.aggregate.type) || !Number.isSafeInteger(value.revision) || value.revision < 1 || !/^[a-f0-9]{64}$/.test(value.bodyDigest)) {throw new TypeError('Invalid recovery checkpoint');}
@@ -84,16 +85,16 @@ export class PostgresPaymentRecovery {
     if (Date.parse(input.restore.uncertainFrom) > Date.parse(input.restore.uncertainThrough)) {throw new TypeError('Invalid recovery uncertainty interval');}
     return this.tx(async tx => {
       const config = await this.records.configuration(tx, this.options.scope, true), body = config.body as typeof config.body & RecoveryConfiguration;
-      if (body.activeRecoverySessionId || await this.records.read(tx, 'recoverySessions', input.sessionId)) {throw new PaymentRecoveryConflictError();}
-      if (body.producerNamespace && body.producerNamespace !== this.options.producerNamespace) {throw new PaymentRecoveryBlockedError(['producer_namespace_mismatch']);}
-      const namespace = (await this.records.read<string>(tx, 'ownerIdentity', 'producerNamespace'))?.body;
-      if (namespace && namespace !== this.options.producerNamespace) {throw new PaymentRecoveryBlockedError(['producer_namespace_mismatch']);}
-      if (!namespace) {await this.records.write(tx, 'ownerIdentity', 'producerNamespace', this.options.producerNamespace);}
-      const restoredConsumerIds = [...new Set(input.restoredConsumerIds)].sort();
+      if ((body.activeRecoverySessionId !== undefined && body.activeRecoverySessionId !== '') || await this.records.read(tx, 'recoverySessions', input.sessionId)) {throw new PaymentRecoveryConflictError();}
+      if ((body.producerNamespace !== undefined && body.producerNamespace !== '') && body.producerNamespace !== this.options.producerNamespace) {throw new PaymentRecoveryBlockedError(['producer_namespace_mismatch']);}
+      const namespace = (await (this.records.read(tx, 'ownerIdentity', 'producerNamespace') as Promise<StoredRecord<string> | undefined>))?.body;
+      if ((namespace !== undefined && namespace !== '') && namespace !== this.options.producerNamespace) {throw new PaymentRecoveryBlockedError(['producer_namespace_mismatch']);}
+      if (!(namespace !== undefined && namespace !== '')) {await this.records.write(tx, 'ownerIdentity', 'producerNamespace', this.options.producerNamespace);}
+      const restoredConsumerIds = [...new Set(input.restoredConsumerIds)].toSorted();
       if (restoredConsumerIds.some(id => !body.consumers.includes(id))) {throw new TypeError('Restored consumer is not registered');}
       const session: PaymentRecoverySession = {
         sessionId: input.sessionId, revision: 1, producerNamespace: this.options.producerNamespace, status: 'fenced',
-        externalFence: input.externalFence, restore: input.restore, requiredConsumerIds: [...body.consumers].sort(), restoredConsumerIds,
+        externalFence: input.externalFence, restore: input.restore, requiredConsumerIds: body.consumers.toSorted(), restoredConsumerIds,
         producerScan: cursor(), uncertaintyScan: cursor(), consumers: {}, backfills: Object.fromEntries(restoredConsumerIds.map(id => [id, cursor()])),
       };
       body.activeRecoverySessionId = session.sessionId; body.recoveryFenced = true;
@@ -106,7 +107,7 @@ export class PostgresPaymentRecovery {
 
   async read(sessionId: string): Promise<PaymentRecoverySession | undefined> {
     text(sessionId, 'session identity');
-    return this.tx(async tx => { await this.records.configuration(tx, this.options.scope); return (await this.records.read<PaymentRecoverySession>(tx, 'recoverySessions', sessionId))?.body; });
+    return this.tx(async tx => { await this.records.configuration(tx, this.options.scope); return (await (this.records.read(tx, 'recoverySessions', sessionId) as Promise<StoredRecord<PaymentRecoverySession> | undefined>))?.body; });
   }
 
   async readAudits(sessionId: string, afterRevision: number, limit: number): Promise<readonly PaymentRecoveryAuditRecord[]> {
@@ -166,7 +167,7 @@ export class PostgresPaymentRecovery {
     catch (error) { if (error instanceof PaymentRecoveryBlockedError) {return error.reasons[0];} throw error; }
     if (!message) {return 'missing_immutable_message';}
     if (message.bodyDigest !== checkpoint.bodyDigest || message.revision !== checkpoint.revision || canonicalJson(message.aggregate) !== canonicalJson(checkpoint.aggregate)) {return 'immutable_checkpoint_mismatch';}
-    const aggregate = (await this.records.read<{ evidenceRevision: number }>(tx, checkpoint.aggregate.type === 'transaction' ? 'transactions' : 'subscriptions', checkpoint.aggregate.id))?.body;
+    const aggregate = (await (this.records.read(tx, checkpoint.aggregate.type === 'transaction' ? 'transactions' : 'subscriptions', checkpoint.aggregate.id) as Promise<StoredRecord<{ evidenceRevision: number }> | undefined>))?.body;
     if (!aggregate || !Number.isSafeInteger(aggregate.evidenceRevision) || aggregate.evidenceRevision < checkpoint.revision) {return 'producer_counter_regressed';}
     return undefined;
   }
@@ -186,7 +187,7 @@ export class PostgresPaymentRecovery {
         }
         if (!message) {throw new PaymentRecoveryBlockedError(['missing_immutable_message']);}
         const issue = await this.checkpointIssue(tx, message);
-        if (issue) { scan.status = 'blocked'; scan.issue = issue; return; }
+        if ((issue !== undefined && issue !== '')) { scan.status = 'blocked'; scan.issue = issue; return; }
       }
       scan.after = rows.at(-1)?.id ?? scan.after; scan.processed += rows.length;
       scan.status = rows.length < limit ? 'complete' : 'pending'; delete scan.issue;
@@ -213,7 +214,7 @@ export class PostgresPaymentRecovery {
         if (after !== null && checkpoint.messageId <= after) {throw new TypeError('Consumer checkpoints must be strictly ordered by message identity');}
         after = checkpoint.messageId;
         const issue = await this.checkpointIssue(tx, checkpoint);
-        if (issue) { verification.status = 'blocked'; verification.issue = issue; return; }
+        if ((issue !== undefined && issue !== '')) { verification.status = 'blocked'; verification.issue = issue; return; }
       }
       const count = verification.processed + checkpoints.length;
       if (count > verification.manifest.checkpointCount) {throw new TypeError('Consumer checkpoint manifest count exceeded');}
@@ -233,14 +234,14 @@ export class PostgresPaymentRecovery {
       const scan = session.uncertaintyScan;
       if (scan.status === 'complete') {return;}
       const rows = await tx.query<{ id: string; body: PaymentOperation }>(`SELECT id, body FROM ${this.records.sql}.records WHERE kind = 'operations' AND ($1::text IS NULL OR id > $1) ORDER BY id LIMIT $2`, [scan.after, limit]);
-      await this.records.lock(tx, rows.rows.flatMap(row => [{ kind: 'operations', id: row.id }, { kind: 'lanes', id: laneId(row.body) }, ...(row.body.subscriptionBindingId ? [{ kind: 'subscriptionBindings', id: row.body.subscriptionBindingId }] : [])]));
+      await this.records.lock(tx, rows.rows.flatMap(row => [{ kind: 'operations', id: row.id }, { kind: 'lanes', id: laneId(row.body) }, ...((row.body.subscriptionBindingId !== undefined && row.body.subscriptionBindingId !== '') ? [{ kind: 'subscriptionBindings', id: row.body.subscriptionBindingId }] : [])]));
       for (const row of rows.rows) {
         // Re-read after the common lock: a late observation may append evidence during the fence.
-        const operation = (await this.records.read<PaymentOperation>(tx, 'operations', row.id))?.body;
+        const operation = (await (this.records.read(tx, 'operations', row.id) as Promise<StoredRecord<PaymentOperation> | undefined>))?.body;
         if (!operation || !['prepared', 'dispatch_started', 'outcome_unknown'].includes(operation.state)) {continue;}
         operation.state = 'outcome_unknown'; operation.result = { kind: 'outcome_unknown' }; operation.revision += 1;
         operation.audits.push({ ...audit, action: 'keep_unknown', acceptedDuplicateRisk: false, at: new Date().toISOString() });
-        const id = laneId(operation), lane = (await this.records.read<Lane>(tx, 'lanes', id))?.body ?? { revision: 0 };
+        const id = laneId(operation), lane = (await (this.records.read(tx, 'lanes', id) as Promise<StoredRecord<Lane> | undefined>))?.body ?? { revision: 0 };
         lane.revision += 1; lane.recoveryReviewRequired = session.sessionId; lane.unresolvedOperationId ??= operation.operationId;
         await this.records.write(tx, 'operations', row.id, operation); await this.records.write(tx, 'lanes', id, lane);
         await this.records.write(tx, 'recoveryUncertainOperations', canonicalJson([session.sessionId, row.id]), { sessionId: session.sessionId, operationId: row.id, laneId: id, audit });
@@ -259,7 +260,7 @@ export class PostgresPaymentRecovery {
       const rows = await this.records.listKeys(tx, 'evidence', scan.after, limit);
       await this.records.lock(tx, rows.map(row => ({ kind: 'deliveries', id: canonicalJson([row.id, consumerId]) })));
       for (const row of rows) {
-        const id = canonicalJson([row.id, consumerId]), previous = (await this.records.read<Delivery>(tx, 'deliveries', id))?.body;
+        const id = canonicalJson([row.id, consumerId]), previous = (await (this.records.read(tx, 'deliveries', id) as Promise<StoredRecord<Delivery> | undefined>))?.body;
         await this.records.write(tx, 'deliveries', id, { consumerId, messageId: row.id, acknowledged: false, attempts: previous?.attempts ?? 0 });
         await this.records.obligation(tx, { kind: 'delivery', id });
       }
@@ -281,7 +282,7 @@ export class PostgresPaymentRecovery {
       for (const id of session.requiredConsumerIds) {if (session.consumers[id]?.status !== 'complete') {reasons.push(`unverified_consumer:${id}`);}}
       for (const id of session.restoredConsumerIds) {if (session.backfills[id]?.status !== 'complete') {reasons.push(`unfinished_backfill:${id}`);}}
       const config = await this.records.configuration(tx, this.options.scope, true), body = config.body as typeof config.body & RecoveryConfiguration;
-      if (canonicalJson([...body.consumers].sort()) !== canonicalJson(session.requiredConsumerIds)) {reasons.push('required_consumers_changed');}
+      if (canonicalJson(body.consumers.toSorted()) !== canonicalJson(session.requiredConsumerIds)) {reasons.push('required_consumers_changed');}
       if (reasons.length > 0) {throw new PaymentRecoveryBlockedError(reasons);}
       body.recoveryFenced = false; delete body.activeRecoverySessionId;
       body.fenceAudits.push({ fenced: false, auditRef: audit.auditRef, at: new Date().toISOString() });
@@ -295,12 +296,12 @@ export class PostgresPaymentRecovery {
     auditInput(audit);
     await this.tx(async tx => {
       await this.records.configuration(tx, this.options.scope);
-      const session = (await this.records.read<PaymentRecoverySession>(tx, 'recoverySessions', sessionId))?.body;
-      const operation = (await this.records.read<PaymentOperation>(tx, 'operations', operationId))?.body;
+      const session = (await (this.records.read(tx, 'recoverySessions', sessionId) as Promise<StoredRecord<PaymentRecoverySession> | undefined>))?.body;
+      const operation = (await (this.records.read(tx, 'operations', operationId) as Promise<StoredRecord<PaymentOperation> | undefined>))?.body;
       if (!session || session.status !== 'resumed' || !operation) {throw new PaymentRecoveryConflictError();}
       const id = laneId(operation);
-      await this.records.lock(tx, [{ kind: 'lanes', id }, ...(operation.subscriptionBindingId ? [{ kind: 'subscriptionBindings', id: operation.subscriptionBindingId }] : [])]);
-      const lane = (await this.records.read<Lane>(tx, 'lanes', id))?.body;
+      await this.records.lock(tx, [{ kind: 'lanes', id }, ...((operation.subscriptionBindingId !== undefined && operation.subscriptionBindingId !== '') ? [{ kind: 'subscriptionBindings', id: operation.subscriptionBindingId }] : [])]);
+      const lane = (await (this.records.read(tx, 'lanes', id) as Promise<StoredRecord<Lane> | undefined>))?.body;
       if (!lane || lane.revision !== expectedLaneRevision || lane.recoveryReviewRequired !== sessionId) {throw new PaymentRecoveryConflictError();}
       const unresolved = await tx.query(`SELECT 1 FROM ${this.records.sql}.records WHERE kind = 'operations' AND body->>'state' IN ('prepared','dispatch_started','outcome_unknown')
         AND CASE WHEN $1::text IS NULL THEN id = $2 ELSE body->>'subscriptionBindingId' = $1 END LIMIT 1`, [operation.subscriptionBindingId ?? null, operationId]);
@@ -315,7 +316,7 @@ export class PostgresPaymentRecovery {
     text(sessionId, 'session identity'); auditInput(audit);
     return this.tx(async tx => {
       const config = await this.records.configuration(tx, this.options.scope, true), body = config.body as typeof config.body & RecoveryConfiguration;
-      const session = (await this.records.read<PaymentRecoverySession>(tx, 'recoverySessions', sessionId))?.body;
+      const session = (await (this.records.read(tx, 'recoverySessions', sessionId) as Promise<StoredRecord<PaymentRecoverySession> | undefined>))?.body;
       if (!body.recoveryFenced || body.activeRecoverySessionId !== sessionId || !session || session.status !== 'fenced' || session.revision !== expectedRevision || session.producerNamespace !== this.options.producerNamespace) {throw new PaymentRecoveryConflictError();}
       await work(tx, session); session.revision += 1; await this.save(tx, session, audit, action); return session;
     });

@@ -13,8 +13,8 @@ async function duplicateCheckout(context: Context, store: PaymentStore): Promise
   context.provider.createCheckout = () => first.promise;
   try {
     const result = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'duplicate' });
-    assert.equal(result.kind, 'outcome_unknown'); if (result.kind !== 'outcome_unknown') {throw new Error('Fixture');}
-    const operation = await context.payments.readOperation(result.operationId); assert.ok(operation?.intentId);
+    assert.equal(result.kind, 'outcome_unknown');
+    const operation = await context.payments.readOperation(result.operationId); assert.ok((operation?.intentId !== undefined && operation.intentId !== ''));
     success(await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'accept-risk', reason: 'reviewed duplicate risk', action: 'retry', acceptedDuplicateRisk: true }));
     context.provider.createCheckout = async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'initial-b', checkout: {} } });
     const retry = createPayments({ scope, producerNamespace: 'database-fixture', provider: context.provider, store, catalog: { resolveOffer: async () => offer }, operationTimeoutMs: 1000 });
@@ -22,7 +22,7 @@ async function duplicateCheckout(context: Context, store: PaymentStore): Promise
     await retry.drain();
     first.resolve({ kind: 'succeeded', value: { intentId: operation.intentId, transactionRef: 'initial-a', checkout: {} } });
     await context.payments.drain();
-    const purchase = await context.payments.readPurchase('buyer', operation.intentId); assert.ok(purchase?.intent.subscriptionBasisId);
+    const purchase = await context.payments.readPurchase('buyer', operation.intentId); assert.ok((purchase?.intent.subscriptionBasisId !== undefined && purchase.intent.subscriptionBasisId !== ''));
     return { intentId: operation.intentId, bindingId: purchase.intent.subscriptionBasisId };
   } finally { first.resolve({ kind: 'outcome_unknown' }); }
 }
@@ -54,7 +54,7 @@ async function select(context: Context, bindingId: string, ref: string): Promise
   success(await context.payments.selectSubscriptionStream(selectionCommand(bindingId, ref, snapshot.expectedReadSet)));
 }
 
-test('real PostgreSQL reclassification resumes 205 acknowledged renewals, rejects stale CAS, and covers new members behind its cursor', { timeout: 90_000 }, async () => {
+void test('real PostgreSQL reclassification resumes 205 acknowledged renewals, rejects stale CAS, and covers new members behind its cursor', { timeout: 90_000 }, async () => {
   const f = await databaseFixture(); let context = runtime(f.store, 25);
   try {
     const { bindingId } = await duplicateCheckout(context, f.store);
@@ -73,7 +73,7 @@ test('real PostgreSQL reclassification resumes 205 acknowledged renewals, reject
     const staleSelection = await context.payments.readSubscriptionSelection('buyer', bindingId, 'sub-a'); assert.ok(staleSelection);
     const revisions = new Map((await renewals(f)).map(row => [row.transactionRef, row.revision]));
     assert.equal(await context.payments.processReclassification(bindingId, 17), 'committed');
-    const page = await cursor(f, bindingId); assert.equal(page?.complete, false); assert.ok(page?.afterTransactionRef);
+    const page = await cursor(f, bindingId); assert.equal(page?.complete, false); assert.ok((page.afterTransactionRef !== undefined && page.afterTransactionRef !== ''));
     const changed = (await renewals(f)).filter(row => row.revision !== revisions.get(row.transactionRef));
     assert.ok(changed.length > 0 && changed.length <= 17, 'one page changes no more than its requested bound');
     assert.deepEqual(await context.payments.selectSubscriptionStream(selectionCommand(bindingId, 'sub-a', staleSelection.expectedReadSet)), { kind: 'rejected', code: 'conflict' });
@@ -107,7 +107,7 @@ test('real PostgreSQL reclassification resumes 205 acknowledged renewals, reject
     assert.equal((await cursor(f, bindingId))?.decisionRevision, 4, 'a concurrent reselection cannot lose its new decision cursor');
     assert.equal(await context.payments.processReclassification(bindingId, 100), 'committed');
     await observe(context.payments, receipt(transaction('000-new-behind-cursor', 'new-membership', { origin: known('subscription_recurring') })));
-    assert.ok((await renewals(f)).find(row => row.transactionRef === '000-new-behind-cursor')?.flags.includes('duplicate_initial_purchase'));
+    assert.ok(((await renewals(f)).find(row => row.transactionRef === '000-new-behind-cursor')?.flags.includes('duplicate_initial_purchase') === true));
     assert.deepEqual(await Promise.all([context.payments.processReclassification(bindingId, 25), context.payments.processReclassification(bindingId, 25)]), ['committed', 'committed']);
     await repairAll(context, f);
     const final = await renewals(f); assert.equal(final.length, 206); assert.ok(final.every(row => row.flags.includes('duplicate_initial_purchase')));
@@ -121,7 +121,7 @@ test('real PostgreSQL reclassification resumes 205 acknowledged renewals, reject
   } finally { await context.payments.drain(); await f.close(); }
 });
 
-test('real PostgreSQL historical adjustment reparenting fences both parents after restart and preserves the certified original version', async () => {
+void test('real PostgreSQL historical adjustment reparenting fences both parents after restart and preserves the certified original version', async () => {
   const f = await databaseFixture(), base = runtime(f.store);
   const payments = createPayments({ scope, producerNamespace: 'database-fixture', provider: base.provider, store: f.store, catalog: { resolveOffer: async () => ({ ...offer, profile: 'one_time' }) } });
   try {
@@ -149,18 +149,18 @@ test('real PostgreSQL historical adjustment reparenting fences both parents afte
     assert.equal(await restarted.payments.processInbox(contradictory.inputId), 'processed');
     await restarted.payments.repair(100);
     for (const checkout of [a, b]) {
-      const after = (await restarted.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(after?.flags.includes('conflict'));
+      const after = (await restarted.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok((after?.flags.includes('conflict') === true));
       assert.ok((await restarted.payments.readDeliveries('audit', 100)).some(message => message.kind === 'complete' && message.aggregate.id === checkout.transactionRef && message.flags.includes('conflict')));
     }
     const afterA = (await restarted.payments.readPurchase('buyer', a.intentId))?.transactions[0];
-    assert.deepEqual(afterA?.completion, beforeA.completion); assert.deepEqual(afterA?.adjustments, beforeA.adjustments);
+    assert.deepEqual(afterA?.completion, beforeA.completion); assert.deepEqual(afterA.adjustments, beforeA.adjustments);
     const certified = (await f.pool.query<{ body: { projection: { transactionRef: string }; conflict: boolean } }>(`SELECT body FROM "${f.schema}".records WHERE kind = 'versionEvidence' AND id = $1`, [objectVersionKey(v1)])).rows[0]?.body;
     assert.equal(certified?.projection.transactionRef, a.transactionRef); assert.equal(certified.conflict, true);
   } finally { await payments.drain(); await f.close(); }
 });
 
 
-test('real pg-boss rebuilds deleted reclassification jobs and successful pages do not spend the fault budget', { timeout: 40_000 }, async () => {
+void test('real pg-boss rebuilds deleted reclassification jobs and successful pages do not spend the fault budget', { timeout: 40_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store, 25), jobSchema = `q_${f.schema}`;
   const errors: Error[] = [];
   const namespace = { pool: f.pool, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
@@ -175,7 +175,7 @@ test('real pg-boss rebuilds deleted reclassification jobs and successful pages d
     await jobs.repair(100);
     assert.ok((await f.pool.query(`SELECT id FROM "${jobSchema}".job WHERE data ->> 'kind' = 'reclassification'`)).rows.length > 0);
     await jobs.queue.boss.deleteAllJobs();
-    assert.equal((await f.pool.query(`SELECT count(*)::int AS count FROM "${jobSchema}".job`)).rows[0]?.count, 0);
+    assert.equal((await f.pool.query<{ count: number }>(`SELECT count(*)::int AS count FROM "${jobSchema}".job`)).rows[0]?.count, 0);
     assert.equal((await jobs.repair(100)).enqueued, 1, 'payment-owned cursor obligation alone rebuilds the wakeup');
     let pages = 0, sawProgressCooldown = false;
     const process = f.store.processReclassification.bind(f.store);
@@ -215,12 +215,12 @@ async function workDisposition(f: Fixture, bindingId: string) {
 async function selectedInitial(context: Context): Promise<string> {
   const checkout = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'retry-policy' }));
   await observe(context.payments, receipt(transaction(checkout.transactionRef, 'initial-paid')));
-  const purchase = await context.payments.readPurchase('buyer', checkout.intentId); assert.ok(purchase?.intent.subscriptionBasisId);
+  const purchase = await context.payments.readPurchase('buyer', checkout.intentId); assert.ok((purchase?.intent.subscriptionBasisId !== undefined && purchase.intent.subscriptionBasisId !== ''));
   await select(context, purchase.intent.subscriptionBasisId, 'sub-a');
   return purchase.intent.subscriptionBasisId;
 }
 
-for (const maxAttempts of [1, 2]) {test(`ordinary renewal preserves exact reclassification ${maxAttempts === 1 ? 'quarantine' : 'cooldown'}; audited redrive and a new decision reset work`, { timeout: 25_000 }, async () => {
+for (const maxAttempts of [1, 2]) {void test(`ordinary renewal preserves exact reclassification ${maxAttempts === 1 ? 'quarantine' : 'cooldown'}; audited redrive and a new decision reset work`, { timeout: 25_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store), jobSchema = `q_${f.schema}`;
   const errors: Error[] = [], namespace = { pool: f.pool, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
   let jobs: ReturnType<typeof createPostgresPaymentJobs> | undefined;
@@ -256,7 +256,7 @@ for (const maxAttempts of [1, 2]) {test(`ordinary renewal preserves exact reclas
   } finally { await jobs?.stop(); await jobs?.drain(); await context.payments.drain(); await f.pool.query(`DROP SCHEMA IF EXISTS "${jobSchema}" CASCADE`); await f.close(); }
 });}
 
-test('an old failed claimant cannot quarantine replacement work claimed again at attempt one', { timeout: 25_000 }, async () => {
+void test('an old failed claimant cannot quarantine replacement work claimed again at attempt one', { timeout: 25_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store), jobSchema = `q_${f.schema}`;
   const errors: Error[] = [], namespace = { pool: f.pool, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
   const enteredOld = deferred<void>(), releaseOld = deferred<void>(), enteredNew = deferred<void>(), releaseNew = deferred<void>();
@@ -273,7 +273,7 @@ test('an old failed claimant cannot quarantine replacement work claimed again at
     };
     jobs = createPostgresPaymentJobs({ ...namespace, concurrency: 2, maxAttempts: 1, cooldownSeconds: 30, maxCooldownSeconds: 30, pollingIntervalSeconds: 0.5 });
     await jobs.repair(100);
-    const oldId = (await f.pool.query<{ id: string }>(`SELECT id FROM "${jobSchema}".job WHERE data ->> 'kind' = 'reclassification'`)).rows[0]?.id; assert.ok(oldId);
+    const oldId = (await f.pool.query<{ id: string }>(`SELECT id FROM "${jobSchema}".job WHERE data ->> 'kind' = 'reclassification'`)).rows[0]?.id; assert.ok((oldId !== undefined && oldId !== ''));
     await jobs.start({ payments: context.payments, store: f.store }); await enteredOld.promise;
     await select(context, bindingId, 'sub-a');
     await jobs.queue.boss.send('payments_work', { kind: 'reclassification', id: bindingId }, { singletonKey: 'new-generation-race' });
@@ -300,7 +300,7 @@ test('an old failed claimant cannot quarantine replacement work claimed again at
   } finally { releaseOld.resolve(); releaseNew.resolve(); await jobs?.stop(); await jobs?.drain(); await context.payments.drain(); await f.pool.query(`DROP SCHEMA IF EXISTS "${jobSchema}" CASCADE`); await f.close(); }
 });
 
-for (const channel of ['authenticated', 'webhook', 'reconciliation'] as const) {test(`${channel} T1 fences both historical adjustment parents before stale publication T2; cleanup and page rollback stay atomic`, { timeout: 25_000 }, async () => {
+for (const channel of ['authenticated', 'webhook', 'reconciliation'] as const) {void test(`${channel} T1 fences both historical adjustment parents before stale publication T2; cleanup and page rollback stay atomic`, { timeout: 25_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store);
   try {
     const a = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'a' })), b = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'b' }));
@@ -352,7 +352,7 @@ for (const channel of ['authenticated', 'webhook', 'reconciliation'] as const) {
   } finally { await context.payments.drain(); await f.close(); }
 });}
 
-test('T1 parent discovery waits for a concurrent first exact-version certification and then fences its retained parent', { timeout: 15_000 }, async () => {
+void test('T1 parent discovery waits for a concurrent first exact-version certification and then fences its retained parent', { timeout: 15_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store), blocker = await f.pool.connect();
   let gateHeld = false;
   try {
@@ -379,7 +379,7 @@ test('T1 parent discovery waits for a concurrent first exact-version certificati
     await untilPersisted(async () => (await f.pool.query('SELECT pid FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))', [writerPid])).rows.length > 0, 'admission must wait for the in-flight certification lock');
     await blocker.query('ROLLBACK'); gateHeld = false;
     assert.deepEqual(await certification, { kind: 'committed' }); success(await admission);
-    for (const checkout of [a, b]) {assert.ok((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.pendingAdverse.includes(incoming.inputId));}
+    for (const checkout of [a, b]) {assert.ok(((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.pendingAdverse.includes(incoming.inputId) === true));}
     assert.equal(await context.payments.processInbox(incoming.inputId), 'processed');
     for (const checkout of [a, b]) {
       const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.flags.includes('conflict')); assert.ok(!aggregate.pendingAdverse.includes(incoming.inputId));
@@ -388,7 +388,7 @@ test('T1 parent discovery waits for a concurrent first exact-version certificati
 });
 
 
-test('a duplicate pending receipt fences a historical parent certified since its first admission', async () => {
+void test('a duplicate pending receipt fences a historical parent certified since its first admission', async () => {
   const f = await databaseFixture(), context = runtime(f.store);
   try {
     const a = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'a' })), b = success(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'b' }));
@@ -402,13 +402,13 @@ test('a duplicate pending receipt fences a historical parent certified since its
     publishEvidence(stale.state, scope, 'database-fixture', 65536);
     success(await context.payments.ingestVerifiedInput(early));
     assert.deepEqual(await f.store.commitReduction(scope, { inputId: stale.inputId, expected: stale.expected, state: stale.state }), { kind: 'conflict' });
-    for (const checkout of [a, b]) {assert.ok((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.pendingAdverse.includes(early.inputId));}
+    for (const checkout of [a, b]) {assert.ok(((await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]?.pendingAdverse.includes(early.inputId) === true));}
     assert.equal(await context.payments.processInbox(early.inputId), 'processed');
     for (const checkout of [a, b]) {
       const aggregate = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(aggregate); assert.ok(aggregate.flags.includes('conflict')); assert.ok(!aggregate.pendingAdverse.includes(early.inputId));
     }
     const beforeReplay = await Promise.all([a, b].map(checkout => context.payments.readPurchase('buyer', checkout.intentId)));
-    const evidence = async () => (await f.pool.query(`SELECT id, body FROM "${f.schema}".records WHERE kind = 'evidence' ORDER BY id`)).rows;
+    const evidence = async () => (await f.pool.query<{ id: string; body: EvidenceMessage }>(`SELECT id, body FROM "${f.schema}".records WHERE kind = 'evidence' ORDER BY id`)).rows;
     const immutableEvidence = await evidence();
     success(await context.payments.ingestVerifiedInput(early));
     assert.equal(await context.payments.processInbox(early.inputId), 'duplicate');

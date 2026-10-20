@@ -6,7 +6,7 @@ import { PaymentRecords } from '../dist/records.js';
 import { paymentQueries, paymentTables } from '../dist/schema.js';
 import { databaseFixture, scope } from './helpers.ts';
 
-test('per-input record batches retain per-key revisions, JSON null and atomic rollback across chunks', async () => {
+void test('per-input record batches retain per-key revisions, JSON null and atomic rollback across chunks', async () => {
   const f = await databaseFixture(), records = new PaymentRecords(f.schema);
   try {
     await f.pool.query(`INSERT INTO "${f.schema}".records (kind, id, revision, body, updated_at) VALUES
@@ -51,7 +51,7 @@ test('per-input record batches retain per-key revisions, JSON null and atomic ro
   } finally { await f.close(); }
 });
 
-test('typed queries preserve existing schemaVersion 1 JSON bodies, no-op revisions and exact int8 range checks', async () => {
+void test('typed queries preserve existing schemaVersion 1 JSON bodies, no-op revisions and exact int8 range checks', async () => {
   const publicRecords = paymentTables('public').records;
   assert.match(paymentQueries.select({ id: publicRecords.id }).from(publicRecords).toSQL().sql, /from "public"\."records"/u,
     'the existing public schema option stays explicit and independent of host search_path');
@@ -84,7 +84,7 @@ test('typed queries preserve existing schemaVersion 1 JSON bodies, no-op revisio
         assert.deepEqual((await records.read(tx, 'codecs', id))?.body, value);
       }
       const grouped = await records.readMany(tx, 'codecs', ['string', 'missing', 'null', 'string']);
-      assert.deepEqual([...grouped.keys()].sort(), ['null', 'string']);
+      assert.deepEqual([...grouped.keys()].toSorted(), ['null', 'string']);
       assert.deepEqual(grouped.get('null'), { revision: 1, body: null });
       assert.deepEqual(grouped.get('string'), { revision: 1, body: 'opaque' });
       assert.equal((await records.readMany(tx, 'codecs', [])).size, 0);
@@ -105,7 +105,7 @@ test('typed queries preserve existing schemaVersion 1 JSON bodies, no-op revisio
   } finally { await f.close(); }
 });
 
-test('typed obligation upserts preserve attempts, quarantine and cooldown until an explicit reset', async () => {
+void test('typed obligation upserts preserve attempts, quarantine and cooldown until an explicit reset', async () => {
   const f = await databaseFixture();
   const records = new PaymentRecords(f.schema);
   const work = { kind: 'prepared', id: 'existing-obligation' } as const;

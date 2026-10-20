@@ -33,7 +33,7 @@ export async function postgresFaultProxy(connectionString: string) {
   });
   await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
   const address = server.address();
-  if (!address || typeof address === 'string') {throw new Error('Proxy listener has no address');}
+  if (address === null || typeof address === 'string') {throw new Error('Proxy listener has no address');}
   target.hostname = '127.0.0.1'; target.port = String(address.port);
   return {
     connectionString: target.toString(),
@@ -41,7 +41,7 @@ export async function postgresFaultProxy(connectionString: string) {
     blackholeReplies(value: boolean) { blackhole = value; },
     async close() {
       for (const socket of sockets) {socket.destroy();}
-      await new Promise<void>((resolve, reject) => server.close(error => { if (error) {reject(error);} else {resolve();} }));
+      await new Promise<void>((resolve, reject) => { server.close(error => { if (error) {reject(error);} else {resolve();} }); });
     },
   };
 }
