@@ -25,9 +25,12 @@ author and committer identity. Original branches and review subjects were retain
 no remote or external-contributor history was rewritten. Review subjects continue
 to name the code actually inspected instead of pretending that reviews ran again.
 
-The full integrated source requires its own fresh forced build and serial Node
-24.21.0/26.11.1 `pnpm check` runs. Author checks and narrow review probes do not
-substitute for those final gates or the later exact-commit remote CI.
+The full integrated source `fb9baa1d463d5b1ab5760aad72fe3fb1ee361f33` passed
+fresh forced builds and complete Node 24.21.0/26.11.1 `pnpm check` runs against
+separate fresh PostgreSQL databases. The [qualification record](qualification.md)
+binds the exact logs, counts, archives and retained failure history. A separate
+[independent evidence review](evidence-review.md) audits that local proof chain.
+These results do not substitute for the later exact-commit remote CI.
 
 ## Maximum-page integration remediation
 

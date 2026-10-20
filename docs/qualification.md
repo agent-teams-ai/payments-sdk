@@ -2,6 +2,11 @@
 
 This page describes reproducible evidence and its limits. A test file is not a recorded passing run. Use the exact commit's successful **Checks → Required checks** run and its logs/artifacts as the release evidence. Counts and dates are intentionally not copied here: the workflow result is authoritative, and a later commit needs its own qualification.
 
+The [SDK 0.2 complete local qualification](reviews/sdk-0.2/qualification.md)
+records the exact two-floor integration subject, logs and package hashes. It
+preserves prior failures and explicitly separates local evidence from hosted
+CI, publication and production admission.
+
 ## Functional CI profile
 
 | Component | Exact qualification inputs |

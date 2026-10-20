@@ -30,6 +30,14 @@ feature-branch check cannot authorize the release.
 
 ## Explicit admission boundaries
 
+The SDK 0.2 integration has completed its full local checks on both supported
+Node floors at the exact source in the [qualification record](reviews/sdk-0.2/qualification.md).
+That record covers private Drizzle, published optional observation, canonical
+provider vocabulary, worker diagnostics and maximum-page IO corrections. The
+historical PR links above identify the original delivery; they do not imply
+that the later SDK 0.2 work has been pushed or merged. Exact-head hosted CI and
+remote delivery remain separate requirements.
+
 The post-integration [dependency correction and Node runtime investigation](security-qualification.md) are separate from the completed four implementation review waves. The development HTTP harness is qualified on Undici **7.30.1**. Production runtime admission remains blocked by an independently reproduced built-in `fetch` defect in the current Node floors and latest same-major official releases. Functional GitHub prerelease delivery is available; a corrected official runtime and its consumer qualification are required before production deployment.
 
 The P6 Get Modular host uses the coherent published Core/Assembly `0.6.0` and Resources `0.2.0` peer set. The optional public `payments-get-modular/observation` subpath now consumes Observation `0.1.0`; Conformance `0.4.0` remains development-only. The [registry record](../qualification/observation/published-artifacts.json) proves all five official artifacts match their original retained candidate bytes. Earlier candidate reports remain historical.
