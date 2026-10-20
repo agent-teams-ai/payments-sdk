@@ -1,0 +1,148 @@
+diff --git a/cockroach-core/policies.d.cts b/cockroach-core/policies.d.cts
+index d2d9d193b453642aae04510442ad7ac85530c8df..684c2e3a94270fee9e0c0b2494a2aeb705acab40 100644
+--- a/cockroach-core/policies.d.cts
++++ b/cockroach-core/policies.d.cts
+@@ -5,11 +5,11 @@ import { SQL } from "../sql/sql.cjs";
+ //#region src/cockroach-core/policies.d.ts
+ type CockroachPolicyToOption = 'public' | 'current_user' | 'session_user' | (string & {}) | CockroachPolicyToOption[] | CockroachRole;
+ interface CockroachPolicyConfig {
+-  as?: 'permissive' | 'restrictive';
+-  for?: 'all' | 'select' | 'insert' | 'update' | 'delete';
+-  to?: CockroachPolicyToOption;
+-  using?: SQL;
+-  withCheck?: SQL;
++  as?: 'permissive' | 'restrictive' | undefined;
++  for?: 'all' | 'select' | 'insert' | 'update' | 'delete' | undefined;
++  to?: CockroachPolicyToOption | undefined;
++  using?: SQL | undefined;
++  withCheck?: SQL | undefined;
+ }
+ declare class CockroachPolicy implements CockroachPolicyConfig {
+   readonly name: string;
+diff --git a/cockroach-core/policies.d.ts b/cockroach-core/policies.d.ts
+index 4a59f66a4131f9cb341c7354e2ab2936530a38c5..07e52462a41674b1c130a769314758231643f5ec 100644
+--- a/cockroach-core/policies.d.ts
++++ b/cockroach-core/policies.d.ts
+@@ -5,11 +5,11 @@ import { SQL } from "../sql/sql.js";
+ //#region src/cockroach-core/policies.d.ts
+ type CockroachPolicyToOption = 'public' | 'current_user' | 'session_user' | (string & {}) | CockroachPolicyToOption[] | CockroachRole;
+ interface CockroachPolicyConfig {
+-  as?: 'permissive' | 'restrictive';
+-  for?: 'all' | 'select' | 'insert' | 'update' | 'delete';
+-  to?: CockroachPolicyToOption;
+-  using?: SQL;
+-  withCheck?: SQL;
++  as?: 'permissive' | 'restrictive' | undefined;
++  for?: 'all' | 'select' | 'insert' | 'update' | 'delete' | undefined;
++  to?: CockroachPolicyToOption | undefined;
++  using?: SQL | undefined;
++  withCheck?: SQL | undefined;
+ }
+ declare class CockroachPolicy implements CockroachPolicyConfig {
+   readonly name: string;
+diff --git a/cockroach-core/roles.d.cts b/cockroach-core/roles.d.cts
+index 2d347f1367ec123b207b86f9514036b4dc4fff96..f3b5fd77d2b3c46ebf79c715832e00928b0ceee1 100644
+--- a/cockroach-core/roles.d.cts
++++ b/cockroach-core/roles.d.cts
+@@ -1,8 +1,8 @@
+ import { entityKind } from "../entity.cjs";
+ //#region src/cockroach-core/roles.d.ts
+ interface CockroachRoleConfig {
+-  createDb?: boolean;
+-  createRole?: boolean;
++  createDb?: boolean | undefined;
++  createRole?: boolean | undefined;
+ }
+ declare class CockroachRole implements CockroachRoleConfig {
+   readonly name: string;
+diff --git a/cockroach-core/roles.d.ts b/cockroach-core/roles.d.ts
+index 23694ab4c3a64fd6984d6d2a98ca22b6d45a55b1..6a8cca250c3c145471432c1dc814db1b49b4a8d9 100644
+--- a/cockroach-core/roles.d.ts
++++ b/cockroach-core/roles.d.ts
+@@ -1,8 +1,8 @@
+ import { entityKind } from "../entity.js";
+ //#region src/cockroach-core/roles.d.ts
+ interface CockroachRoleConfig {
+-  createDb?: boolean;
+-  createRole?: boolean;
++  createDb?: boolean | undefined;
++  createRole?: boolean | undefined;
+ }
+ declare class CockroachRole implements CockroachRoleConfig {
+   readonly name: string;
+diff --git a/pg-core/policies.d.cts b/pg-core/policies.d.cts
+index 5b35877a71e2545fb3b6a862a68bab27fb950380..b083be4597c8769f642519c154e0d5b6aefe4c01 100644
+--- a/pg-core/policies.d.cts
++++ b/pg-core/policies.d.cts
+@@ -5,11 +5,11 @@ import { SQL } from "../sql/sql.cjs";
+ //#region src/pg-core/policies.d.ts
+ type PgPolicyToOption = 'public' | 'current_role' | 'current_user' | 'session_user' | (string & {}) | PgPolicyToOption[] | PgRole;
+ interface PgPolicyConfig {
+-  as?: 'permissive' | 'restrictive';
+-  for?: 'all' | 'select' | 'insert' | 'update' | 'delete';
+-  to?: PgPolicyToOption;
+-  using?: SQL;
+-  withCheck?: SQL;
++  as?: 'permissive' | 'restrictive' | undefined;
++  for?: 'all' | 'select' | 'insert' | 'update' | 'delete' | undefined;
++  to?: PgPolicyToOption | undefined;
++  using?: SQL | undefined;
++  withCheck?: SQL | undefined;
+ }
+ declare class PgPolicy implements PgPolicyConfig {
+   readonly name: string;
+diff --git a/pg-core/policies.d.ts b/pg-core/policies.d.ts
+index 0ad6e39a041df85bf4be8a82c9fbab232f2e9973..7be8f4eba294748d5524193ccd247387eb8067d7 100644
+--- a/pg-core/policies.d.ts
++++ b/pg-core/policies.d.ts
+@@ -5,11 +5,11 @@ import { SQL } from "../sql/sql.js";
+ //#region src/pg-core/policies.d.ts
+ type PgPolicyToOption = 'public' | 'current_role' | 'current_user' | 'session_user' | (string & {}) | PgPolicyToOption[] | PgRole;
+ interface PgPolicyConfig {
+-  as?: 'permissive' | 'restrictive';
+-  for?: 'all' | 'select' | 'insert' | 'update' | 'delete';
+-  to?: PgPolicyToOption;
+-  using?: SQL;
+-  withCheck?: SQL;
++  as?: 'permissive' | 'restrictive' | undefined;
++  for?: 'all' | 'select' | 'insert' | 'update' | 'delete' | undefined;
++  to?: PgPolicyToOption | undefined;
++  using?: SQL | undefined;
++  withCheck?: SQL | undefined;
+ }
+ declare class PgPolicy implements PgPolicyConfig {
+   readonly name: string;
+diff --git a/pg-core/roles.d.cts b/pg-core/roles.d.cts
+index 76e15295a805e0df96462fe3ba2b7d7534c36dc5..cbab992ca9774e21ddce9adcd0d00e88ffa08f18 100644
+--- a/pg-core/roles.d.cts
++++ b/pg-core/roles.d.cts
+@@ -1,9 +1,9 @@
+ import { entityKind } from "../entity.cjs";
+ //#region src/pg-core/roles.d.ts
+ interface PgRoleConfig {
+-  createDb?: boolean;
+-  createRole?: boolean;
+-  inherit?: boolean;
++  createDb?: boolean | undefined;
++  createRole?: boolean | undefined;
++  inherit?: boolean | undefined;
+ }
+ declare class PgRole implements PgRoleConfig {
+   readonly name: string;
+diff --git a/pg-core/roles.d.ts b/pg-core/roles.d.ts
+index 6af5c715ec12f5771262111c43e4795a03075b8e..907aa88275447a457436e961c2bc349ea13dbc93 100644
+--- a/pg-core/roles.d.ts
++++ b/pg-core/roles.d.ts
+@@ -1,9 +1,9 @@
+ import { entityKind } from "../entity.js";
+ //#region src/pg-core/roles.d.ts
+ interface PgRoleConfig {
+-  createDb?: boolean;
+-  createRole?: boolean;
+-  inherit?: boolean;
++  createDb?: boolean | undefined;
++  createRole?: boolean | undefined;
++  inherit?: boolean | undefined;
+ }
+ declare class PgRole implements PgRoleConfig {
+   readonly name: string;

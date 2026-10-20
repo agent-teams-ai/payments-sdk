@@ -4,7 +4,7 @@
 `pg-boss@12.38.0` as a disposable transport. The host owns one `pg.Pool`. Neither the
 store nor the transport opens a hidden pool or calls `pool.end()`.
 
-## Typed SQL candidate and dependency admission
+## Typed SQL and dependency admission
 
 The adapter uses private Drizzle schema bindings and typed PostgreSQL query
 builders for record reads, conditional record upserts, membership guards,
@@ -22,18 +22,23 @@ The physical `schemaVersion: 1` and explicit bootstrap DDL are unchanged. Existi
 databases need no ORM migration metadata or baseline rewrite. `migrations.ts`
 remains the authoritative DDL; the runtime bindings describe its columns and keys.
 
-**Candidate admission remains blocked.** The current official stable
-`drizzle-orm@0.45.4` and the official `1.0.0-rc.4` artifact fail the required
-TypeScript `7.0.2` declaration checks. The candidate uses the exact official
-`1.0.0-rc.5-5935859` preview, rather than claiming a stable release. Its declaration
-closure additionally requires `mysql2@3.24.6` at development time; the adapter does
-not import that driver or add it as a runtime dependency. That preview still fails
-four upstream policy/role declarations under the inherited
-`exactOptionalPropertyTypes:true` setting. Passing PostgreSQL scenarios does not
-remove this build gate. Do not publish or merge this candidate as qualified until
-an official compatible artifact passes the unchanged strict compiler and packed
-consumer gates. No declaration patch, compiler suppression or relaxed checking is
-part of this implementation.
+The exact dependency is the official `drizzle-orm@1.0.0-rc.5-5935859` preview;
+it is explicitly a prerelease snapshot. The official stable `0.45.4` and earlier
+`1.0.0-rc.4` artifacts fail the required TypeScript `7.0.2` declaration profile.
+The selected preview requires a narrow maintainer declaration correction: fifteen
+optional policy/role config fields explicitly admit `undefined`, matching their
+existing runtime classes. The eight ESM/CJS declaration files are the only changed
+package bytes. `tools/qualify-drizzle.ts` verifies the original archive SRI,
+the exact correction, every unchanged runtime file and strict positive/negative
+type probes. It keeps `skipLibCheck:false`, `exactOptionalPropertyTypes:true` and
+the rest of the inherited compiler profile. The [admission record](../../docs/reviews/drizzle-admission.md)
+owns the provenance, maintenance scope and validation limits.
+
+Drizzle's cross-dialect declaration closure also requires `mysql2@3.24.6` for
+maintainer compilation. That driver is a development dependency only. The public
+SDK declaration graph does not expose Drizzle internals, and ordinary npm
+consumers use the official unpatched Drizzle runtime without inheriting the
+workspace's pnpm patch. Packed consumer qualification verifies that boundary.
 
 ## Bootstrap and runtime are separate operations
 

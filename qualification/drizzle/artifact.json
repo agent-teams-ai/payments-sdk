@@ -1,0 +1,116 @@
+{
+  "name": "drizzle-orm",
+  "version": "1.0.0-rc.5-5935859",
+  "status": "official prerelease snapshot with declaration-only maintainer correction",
+  "channel": "rc5",
+  "registry": "https://registry.npmjs.org/drizzle-orm/1.0.0-rc.5-5935859",
+  "tarball": "https://registry.npmjs.org/drizzle-orm/-/drizzle-orm-1.0.0-rc.5-5935859.tgz",
+  "integrity": "sha512-PkVjyxhamD7IOVfpDMn3BmV9afyvj3eeLvIPind3NmPv+cfv6/jh6GN0fHP0zzgrprGx/jGE4mkE0ttRFlzHwA==",
+  "sourceCommit": "59358596b5be6a79f9cc1a2a20d39d276f6ab4b5",
+  "publishedAt": "2026-09-09T10:25:53.776Z",
+  "retrievedAt": "2026-10-20",
+  "typescript": "7.0.2",
+  "patch": {
+    "path": "patches/drizzle-orm@1.0.0-rc.5-5935859.patch",
+    "sha256": "c0ac842c102d0e7a339e79a1676c02fa0dd803a11f6cc82e4b42007c8e153efb",
+    "files": [
+      {
+        "path": "cockroach-core/policies.d.cts",
+        "fields": [
+          "as",
+          "for",
+          "to",
+          "using",
+          "withCheck"
+        ],
+        "originalSha256": "afefa089118a9a916fb396b09580a6664bbeda37d21fcc5486597277b648b05b",
+        "patchedSha256": "bc7ac0281412ea91c255f26ae3268c69a81928d06d6d2b551bb46a388a8ed761"
+      },
+      {
+        "path": "cockroach-core/policies.d.ts",
+        "fields": [
+          "as",
+          "for",
+          "to",
+          "using",
+          "withCheck"
+        ],
+        "originalSha256": "e8a96a0b24a0e17d55c0c661abbf2befab6ef96c604fb71e99965eb8b3316a4a",
+        "patchedSha256": "8c28fcd71d519ad5ebc4b76aea4421db422f3631d85b9ff1efd87f9852426ea4"
+      },
+      {
+        "path": "cockroach-core/roles.d.cts",
+        "fields": [
+          "createDb",
+          "createRole"
+        ],
+        "originalSha256": "0caab04f8b891aee8335d9e5770d1db89ef7622f7bace95d81ea638488424e49",
+        "patchedSha256": "05de43891b5dc0304dcde0d21f66e1470ee8bc23968dbdc445f8ab0c88d1c183"
+      },
+      {
+        "path": "cockroach-core/roles.d.ts",
+        "fields": [
+          "createDb",
+          "createRole"
+        ],
+        "originalSha256": "96db4e0d7a120a1ddf3ae9a578d6aef230155c4367e6ac3a6b67cbaf8e270b4c",
+        "patchedSha256": "a836c1f32287e6f9286ac60c8b1fac57def2f75439de1e802778530c96c36b80"
+      },
+      {
+        "path": "pg-core/policies.d.cts",
+        "fields": [
+          "as",
+          "for",
+          "to",
+          "using",
+          "withCheck"
+        ],
+        "originalSha256": "dc07e1af25bbc34fb758b2e8f18b05658c418b476c2005be2e0390fa2431df36",
+        "patchedSha256": "d05123e7b0f71128e63999aaa190693ae225449763c61aef7b0db4876294e08a"
+      },
+      {
+        "path": "pg-core/policies.d.ts",
+        "fields": [
+          "as",
+          "for",
+          "to",
+          "using",
+          "withCheck"
+        ],
+        "originalSha256": "44a234f5b9cb4a151c94da9b9745a0d680aed3767b68a1a756a70fdfa56df7a6",
+        "patchedSha256": "c81a92bf80ba4d8ff4e9c60818052ea8f4b67fbdb3b8e69c95e3b511ee276bc7"
+      },
+      {
+        "path": "pg-core/roles.d.cts",
+        "fields": [
+          "createDb",
+          "createRole",
+          "inherit"
+        ],
+        "originalSha256": "d368309134f88f64602643f554f2f277f765959f82a3b13f2a8e0a36465103c4",
+        "patchedSha256": "50f508662128015fbf58dbda7e851f7bb16e3e5be2984aec28b8fac08f90f078"
+      },
+      {
+        "path": "pg-core/roles.d.ts",
+        "fields": [
+          "createDb",
+          "createRole",
+          "inherit"
+        ],
+        "originalSha256": "43e350a5b320d0b6b17366f9ddaef30a5b0ddf592fdc0e0c1fa176d0694773e5",
+        "patchedSha256": "3d00464b87e0e133ea7075e11efd32f5f9837f5efd05e1a688d0dc5ea66f5a98"
+      }
+    ]
+  },
+  "runtime": {
+    "files": 1743,
+    "sha256Manifest": "b55c1e931df5efbcae510e60fd12b6018b75fa13b5f0431286fb67195ef10292",
+    "manifestEncoding": "sorted relative .js/.cjs path, TAB, lowercase SHA256, LF"
+  },
+  "packageJsonSha256": "a0c98fa732cd389f5b4d983390cfb3fc47d797f0f4651b5c511dea8f6dfe7e1a",
+  "declaration": {
+    "files": 1742,
+    "sha256Manifest": "9ec1dfc99dc72ef18ec08b114ecb54f19858985def6c6d576ad4f2384b3ac1f4",
+    "manifestEncoding": "sorted relative .d.ts/.d.cts path, TAB, lowercase SHA256, LF"
+  }
+}

@@ -83,6 +83,6 @@ boundaries:
     entrypoints: []
     allow:
       boundaries: [payments.core, payments.postgres]
-      packages: ['@agent-teams/payments-core', pg, pg-boss]
+      packages: ['@agent-teams/payments-core', pg, pg-boss, drizzle-orm]
       builtins: [node:assert/strict, node:test, node:crypto, node:net, node:timers/promises]
       runtimeReferences: []
