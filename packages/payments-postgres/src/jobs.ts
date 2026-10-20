@@ -2,7 +2,7 @@ import { canonicalJson, digest } from '@agent-teams/payments-core';
 import type { AggregateIdentity, Delivery, EvidenceMessage, PaymentOperation, Payments, PaymentStore, ScanCheckpoint } from '@agent-teams/payments-core';
 import type { Job } from 'pg-boss';
 import { sqlIdentifier, withPaymentTransaction } from './database.js';
-import { makePaymentBoss, paymentRepairQueue, paymentWorkQueue, qualifyPaymentJobNamespace } from './job-transport.js';
+import { makePaymentBoss, paymentRepairQueue, paymentWorkQueue, qualifyPaymentJobNamespace, reportPaymentJobError } from './job-transport.js';
 import type { PaymentJobEvents, PaymentJobNamespace } from './job-transport.js';
 import { assertBatchLimit, PaymentRecords } from './records.js';
 
@@ -27,6 +27,18 @@ export type PaymentJobOptions = PaymentJobNamespace & PaymentJobEvents & Readonl
   maxCooldownSeconds?: number;
 }>;
 export type PaymentJobStopResult = Readonly<{ transportStopped: boolean; admittedHandlers: number; unresolvedExternalCalls: number; pendingCoreWork: number }>;
+
+/** Host-only diagnostic context. Never persisted in payment evidence or queue payloads. */
+export class PaymentJobHandlerError extends Error {
+  readonly work: PaymentJobWork;
+  readonly attempt: number;
+  constructor(work: PaymentJobWork, attempt: number, cause: unknown) {
+    super('Payment job handler failed', { cause });
+    this.name = 'PaymentJobHandlerError';
+    this.work = Object.freeze({ kind: work.kind, id: work.id });
+    this.attempt = attempt;
+  }
+}
 
 class WorkIssue extends Error {
   readonly issue: string;
@@ -202,10 +214,15 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
     const attempt = await claim(work);
     if (attempt === undefined) return;
     let issue: WorkIssue | undefined;
+    let failure: PaymentJobHandlerError | undefined;
     let progress = false;
     try { progress = await run(work, installed); }
-    catch (error) { issue = error instanceof WorkIssue ? error : new WorkIssue('handler_failed'); }
-    await settle(work, attempt, issue, progress);
+    catch (error) {
+      issue = error instanceof WorkIssue ? error : new WorkIssue('handler_failed');
+      if (!(error instanceof WorkIssue)) failure = new PaymentJobHandlerError(work, attempt.attempt, error);
+    }
+    try { await settle(work, attempt, issue, progress); }
+    finally { if (failure) reportPaymentJobError(options, failure); }
   }
 
   function admitted(operation: () => Promise<unknown>): Promise<unknown> {
@@ -271,7 +288,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
         await boss.stop({ close: false, graceful: true, timeout: timeoutMs });
         transportStopped = true; started = false;
       })();
-      void stopping.catch(options.onError);
+      void stopping.catch(error => reportPaymentJobError(options, error));
     }
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {

@@ -180,6 +180,13 @@ logical attempts, with exponential cooldown from 30 seconds up to one hour.
 Persistent handler/configuration faults become durable quarantine instead of a
 hot loop. Successful scan or backfill cursor progress resets the fault budget, so
 long scans do not become quarantined merely because they require many pages.
+Unexpected handler exceptions also reach the host's `onError` as
+`PaymentJobHandlerError`, with the original `cause`, bounded work kind/identity
+and logical attempt number. The adapter reports after attempting durable
+settlement and does not attach the payment message or persist the exception.
+Keep this diagnostic sink private to the host and apply its logging/redaction
+policy there. A throwing or rejected error listener cannot change retry, ACK or
+quarantine; the host owns monitoring failures of its diagnostic sink.
 Missing read-only reconciliation/scan handlers and unknown outcomes
 needing operator review are quarantined visibly. Unknown outcomes retain their
 dispatch marker and can only acquire evidence or enter audited manual resolution;

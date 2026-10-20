@@ -5,7 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { Pool } from 'pg';
 import { createPaymentReconciler, createPayments, digest, money } from '@agent-teams/payments-core';
 import type { EvidenceMessage, OfferSnapshot, PaymentProvider, PaymentScope, PaymentStore, ProviderResult, CheckoutReady, VerifiedInput } from '@agent-teams/payments-core';
-import { bootstrapPostgresPaymentJobs, createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema } from '../dist/index.js';
+import { bootstrapPostgresPaymentJobs, createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema, PaymentJobHandlerError } from '../dist/index.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 assert.ok(databaseUrl, 'PostgreSQL 18 integration tests require DATABASE_URL');
@@ -138,7 +138,8 @@ test('logical cooldown and quarantine survive queue deletion; unknown commands n
     await jobs.queue.boss.deleteAllJobs();
     // A failing read-only inspection is retried only through persisted logical attempt state.
     let inspected = 0, resumed = 0;
-    await jobs.start({ payments: core.payments, store: f.store, inspectUnknown: async () => { inspected += 1; throw new Error('persistent decoder fault'); }, resumeScan: async saved => { resumed += 1; assert.equal((await reconciler.resumeScan(saved)).kind, 'saved'); } });
+    const inspectionFailure = new Error('persistent decoder fault');
+    await jobs.start({ payments: core.payments, store: f.store, inspectUnknown: async () => { inspected += 1; throw inspectionFailure; }, resumeScan: async saved => { resumed += 1; assert.equal((await reconciler.resumeScan(saved)).kind, 'saved'); } });
     await until(async () => (await f.pool.query(`SELECT attempts FROM ${f.paymentSchema}.obligations WHERE kind = 'unknown'`)).rows[0]?.attempts === 1, 'first unknown inspection');
     await jobs.queue.boss.deleteAllJobs();
     await jobs.repair();
@@ -146,6 +147,13 @@ test('logical cooldown and quarantine survive queue deletion; unknown commands n
     assert.equal(calls, 1); assert.equal(inspected, 1);
     await until(async () => { await jobs.repair(); return (await f.pool.query(`SELECT state FROM ${f.paymentSchema}.obligations WHERE kind = 'unknown'`)).rows[0]?.state === 'quarantined'; }, 'persistent quarantine');
     assert.equal(inspected, 2); assert.equal(calls, 1);
+    await until(async () => f.errors.length === 2, 'bounded inspection diagnostics');
+    for (const [index, error] of f.errors.entries()) {
+      assert.ok(error instanceof PaymentJobHandlerError);
+      assert.equal(error.cause, inspectionFailure);
+      assert.deepEqual(error.work, { kind: 'unknown', id: unknown.operationId });
+      assert.equal(error.attempt, index + 1);
+    }
     await until(async () => { await jobs.repair(); return (await f.store.readCheckpoint(scope, 'scan-fixture'))?.status === 'complete'; }, 'forward-progress scan does not spend the fault retry bound');
     assert.equal(resumed, 3); assert.equal(acquired, 3);
     assert.equal((await core.payments.readOperation(unknown.operationId))?.state, 'outcome_unknown');
@@ -155,6 +163,46 @@ test('logical cooldown and quarantine survive queue deletion; unknown commands n
     assert.equal(calls, 1);
   } finally { core.payments.stop(); await jobs.stop(); await jobs.drain(); await f.cleanup(); }
 });
+
+for (const sink of ['throws', 'rejects'] as const) {
+  test(`consumer failure preserves retry/quarantine and its cause when the diagnostic sink ${sink}`, { timeout: 30_000 }, async () => {
+    const f = await fixture(), core = runtime(f.store), reported: Error[] = [];
+    const consumerFailure = new Error('synthetic consumer transaction failure');
+    const sinkFailure = new Error('synthetic diagnostic sink failure');
+    const jobs = createPostgresPaymentJobs({
+      ...f, maxAttempts: 2, cooldownSeconds: 1, maxCooldownSeconds: 1, pollingIntervalSeconds: 0.5,
+      onError: error => { reported.push(error); if (sink === 'rejects') return Promise.reject(sinkFailure); throw sinkFailure; },
+    });
+    let consumed = 0;
+    try {
+      await core.payments.registerConsumer('credits');
+      const checkout = await core.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: `diagnostic-${sink}` });
+      assert.equal(checkout.kind, 'succeeded'); if (checkout.kind !== 'succeeded') throw new Error('Fixture checkout failed');
+      await core.payments.ingestVerifiedInput(input(checkout.value.transactionRef, `receipt-${sink}`));
+      assert.equal(await core.payments.processInbox(`receipt-${sink}`), 'processed');
+      const messages = await core.payments.readDeliveries('credits');
+      assert.equal(messages.length, 1); const message = messages[0]; assert.ok(message);
+      const deliveryId = JSON.stringify([message.messageId, 'credits']);
+      await jobs.start({ payments: core.payments, store: f.store, consumers: { credits: async () => { consumed += 1; throw consumerFailure; } } });
+      await until(async () => {
+        await jobs.repair();
+        const row = (await f.pool.query(`SELECT state, attempts, issue FROM ${f.paymentSchema}.obligations WHERE kind = 'delivery' AND id = $1`, [deliveryId])).rows[0];
+        return row?.state === 'quarantined' && row.attempts === 2 && row.issue === 'handler_failed' && reported.length === 2;
+      }, 'durable quarantine despite a failed diagnostic sink');
+      assert.equal(consumed, 2);
+      for (const [index, error] of reported.entries()) {
+        assert.ok(error instanceof PaymentJobHandlerError);
+        assert.equal(error.cause, consumerFailure);
+        assert.equal(error.message, 'Payment job handler failed');
+        assert.deepEqual(error.work, { kind: 'delivery', id: deliveryId });
+        assert.equal(Object.isFrozen(error.work), true);
+        assert.equal(error.attempt, index + 1);
+      }
+      assert.deepEqual((await core.payments.readDeliveries('credits')).map(item => item.messageId), [message.messageId], 'failed T3 never acknowledges delivery');
+      assert.equal(core.calls(), 1, 'diagnostic failure cannot redispatch checkout');
+    } finally { core.payments.stop(); await jobs.stop(); await jobs.drain(); await f.cleanup(); }
+  });
+}
 
 test('shutdown reports a physically unresolved SDK call and leaves the shared pool and sibling namespace usable', { timeout: 30_000 }, async () => {
   const f = await fixture(), sibling = await fixture(), held = deferred<ProviderResult<CheckoutReady>>(), entered = deferred<void>();

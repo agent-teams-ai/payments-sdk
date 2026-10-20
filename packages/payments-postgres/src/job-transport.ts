@@ -14,6 +14,12 @@ const schedulerQueue = '__pgboss__send-it';
 export type PaymentJobNamespace = Readonly<{ pool: Pool; paymentSchema: string; jobSchema: string; scope: PaymentScope; timeouts?: DatabaseTimeouts }>;
 export type PaymentJobEvents = Readonly<{ onError: (error: Error) => void; onWarning?: (warning: Warning) => void }>;
 
+/** Diagnostics cannot change durable work settlement or create an unhandled rejection. */
+export function reportPaymentJobError(events: PaymentJobEvents, error: Error): void {
+  try { void Promise.resolve(events.onError(error)).catch(() => undefined); }
+  catch { /* The host owns its diagnostic sink; never recursively report a sink failure. */ }
+}
+
 function validateNamespace(options: PaymentJobNamespace): void {
   sqlIdentifier(options.paymentSchema); sqlIdentifier(options.jobSchema);
   if (options.paymentSchema === options.jobSchema) throw new TypeError('Payment records and jobs require separate schemas');
@@ -29,8 +35,8 @@ export function makePaymentBoss(options: PaymentJobNamespace & PaymentJobEvents,
     ...paymentJobRetention,
   });
   // EventEmitter error listeners must exist before any pg-boss subsystem can start.
-  boss.on('error', options.onError);
-  boss.on('warning', options.onWarning ?? (warning => options.onError(new Error(`Payment job warning: ${warning.message}`))));
+  boss.on('error', error => reportPaymentJobError(options, error));
+  boss.on('warning', options.onWarning ?? (warning => reportPaymentJobError(options, new Error(`Payment job warning: ${warning.message}`))));
   return boss;
 }
 

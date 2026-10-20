@@ -7,7 +7,7 @@ export { createPostgresPaymentRecovery, PostgresPaymentRecovery, PaymentRecovery
 export type { PaymentRecoveryOptions, PaymentRecoverySession, PaymentRecoveryAuditRecord, RecoveryAudit, RecoveryCheckpoint, RecoveryManifest } from './recovery.js';
 export { bootstrapPostgresPaymentJobs, paymentJobRetention } from './job-transport.js';
 export type { PaymentJobNamespace, PaymentJobEvents } from './job-transport.js';
-export { createPostgresPaymentJobs } from './jobs.js';
+export { createPostgresPaymentJobs, PaymentJobHandlerError } from './jobs.js';
 export type { PaymentJobOptions, PaymentJobHandlers, PaymentJobWork, PaymentDeliveryReceipt, PaymentJobStopResult, PostgresPaymentJobs } from './jobs.js';
 import './pg-boss-declarations.js';
 
