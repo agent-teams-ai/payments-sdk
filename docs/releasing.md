@@ -102,7 +102,38 @@ explicit local-package overrides for strict isolated consumers, while
 `test:observation` exercises the optional published integration.
 
 For npm, use the matching four tarballs as direct dependencies and exact `$`
-overrides for their internal edges before registry publication. The required
+overrides for their internal edges before registry publication. For a host using
+the optional Get Modular observation entrypoint, merge the following into the
+application's `package.json` after downloading the matching release assets:
+
+```json
+{
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@agent-teams/payments-core": "file:./payments-candidate/agent-teams-payments-core-0.2.0.tgz",
+    "@agent-teams/payments-paddle": "file:./payments-candidate/agent-teams-payments-paddle-0.2.0.tgz",
+    "@agent-teams/payments-postgres": "file:./payments-candidate/agent-teams-payments-postgres-0.2.0.tgz",
+    "@agent-teams/payments-get-modular": "file:./payments-candidate/agent-teams-payments-get-modular-0.2.0.tgz",
+    "@get-modular/core": "0.6.0",
+    "@get-modular/assembly": "0.6.0",
+    "@get-modular/resources": "0.2.0",
+    "@get-modular/observation": "0.1.0",
+    "pg": "8.23.1"
+  },
+  "overrides": {
+    "@agent-teams/payments-core": "$@agent-teams/payments-core",
+    "@agent-teams/payments-paddle": "$@agent-teams/payments-paddle",
+    "@agent-teams/payments-postgres": "$@agent-teams/payments-postgres",
+    "@agent-teams/payments-get-modular": "$@agent-teams/payments-get-modular"
+  }
+}
+```
+
+Run `npm install --strict-peer-deps --ignore-scripts` and retain its generated
+lockfile. A plain host can omit the Get Modular SDK dependency, its override and
+the four Get Modular peers. Keep the application's own TypeScript/build setup;
+Conformance is only needed for development tests that use it. The required
 `test:packed:npm` gate installs with `--omit=dev --ignore-scripts`, compiles all
 public exports with the complete strict profile in both resolver modes and runs
 the PostgreSQL financial fixture. It verifies the original unpatched Drizzle
