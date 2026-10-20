@@ -158,7 +158,10 @@ test('packed payments and installed observation: absent, failing and closed scre
     const effects = (await restartedCredit.owner.inspect<{ body: { kind: string; amount: string } }>('effects')).map(row => row.body);
     assert.equal(effects.filter(effect => effect.kind === 'grant').length, 3);
     assert.equal(effects.reduce((total, effect) => total + BigInt(effect.amount), 0n), 225n);
-    assert.equal((await world.access.decisions())[0]?.body.newAction, true);
+    const renewedAccess = (await world.access.decisions())[0]?.body;
+    assert.equal(renewedAccess?.newAction, true);
+    assert.equal(renewedAccess?.paidUntil, '2026-12-01T00:00:00.123456Z', 'renewal extends access after every projection has closed');
+    assert.equal(renewedAccess?.knownLastPeriod?.endsAt, '2026-12-01T00:00:00.123456Z', 'the access owner persists the newly paid period');
     assert.equal(success(await world.payments.startPurchase({ buyerId: 'buyer-a', offerId: 'monthly', requestKey: 'initial' })).intentId, initial.intentId);
     assert.equal(createCalls, 2, 'closed optional observation never retries or dispatches financial work');
     assert.deepEqual(await world.payments.readDeliveries('credits', 100), []);
