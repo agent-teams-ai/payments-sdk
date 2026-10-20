@@ -118,13 +118,23 @@
           "advisoryLockPhases": 5,
           "singleRecordSelects": 1,
           "batchedRecordSelects": 202,
-          "recordUpsertStatements": 1,
+          "recordUpsertStatements": 201,
           "obligationUpserts": 600
         },
         "errors": [
           {
             "code": "P0001",
             "message": "synthetic large page commit failure"
+          }
+        ],
+        "recordStatementShapes": [
+          {
+            "sqlPrefix": "insert into \"schema\".\"records\" (\"kind\", \"id\", \"revision\", \"body\", \"updated_at\") values ($1, $2, $3, $4::jsonb, default), ($5, $6, $7, $8::jsonb, defau",
+            "statements": 200
+          },
+          {
+            "sqlPrefix": "insert into \"schema\".\"records\" (\"kind\", \"id\", \"revision\", \"body\", \"updated_at\") values ($1, $2, $3, $4::jsonb, default) on conflict (\"kind\",\"id\") do u",
+            "statements": 1
           }
         ]
       },
@@ -138,10 +148,20 @@
           "advisoryLockPhases": 5,
           "singleRecordSelects": 1,
           "batchedRecordSelects": 202,
-          "recordUpsertStatements": 1,
+          "recordUpsertStatements": 201,
           "obligationUpserts": 601
         },
-        "errors": []
+        "errors": [],
+        "recordStatementShapes": [
+          {
+            "sqlPrefix": "insert into \"schema\".\"records\" (\"kind\", \"id\", \"revision\", \"body\", \"updated_at\") values ($1, $2, $3, $4::jsonb, default), ($5, $6, $7, $8::jsonb, defau",
+            "statements": 200
+          },
+          {
+            "sqlPrefix": "insert into \"schema\".\"records\" (\"kind\", \"id\", \"revision\", \"body\", \"updated_at\") values ($1, $2, $3, $4::jsonb, default) on conflict (\"kind\",\"id\") do u",
+            "statements": 1
+          }
+        ]
       }
     ]
   },
@@ -152,5 +172,15 @@
     "fail": 2,
     "failure": "25P04 before synthetic large-page fault, including parent failure",
     "defaultFileConcurrencyUnchanged": true
+  },
+  "perInputDiagnosticSha256": "ca570b7c9237da29b6e9fc55a0d2908197e23802581b7fee2d4b415b3c2915c8",
+  "fullGroupAfterPerInputBatch": {
+    "sourceCommit": "623b4db4a729973c3e4947d6624750573acc9fda",
+    "node": "24.21.0",
+    "tests": 45,
+    "pass": 45,
+    "fail": 0,
+    "defaultFileConcurrencyUnchanged": true,
+    "logSha256": "2c24f08bddbae9b322fe3e06c5a50f202600356507a07fa4966f16e43f9097ce"
   }
 }

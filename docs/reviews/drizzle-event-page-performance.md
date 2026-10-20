@@ -93,3 +93,11 @@ times, JSON null, the full 515-record set, duplicate preflight across a chunk
 boundary, an oversized individual body, and rollback of every preceding chunk
 after a row-trigger failure in the final chunk. The current full-group result
 is still required; successful isolated measurements do not replace it.
+
+At runtime source commit `623b4db`, the unchanged full PostgreSQL group passed
+45/45 on Node 24.21.0 using the existing qualification database and default
+test-file concurrency. Strict compilation and lint also passed. The retained
+record distinguishes 200 multirow record statements from the single final
+checkpoint record statement: both shapes contribute to the observed total of
+201. Integrated release qualification on both Node floors remains a separate
+gate owned by the final delivery commit.
