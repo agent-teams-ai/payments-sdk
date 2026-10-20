@@ -8,6 +8,14 @@ second command abstraction or runtime auto-detection was introduced. Engineering
 Foundation already carried its own transitive 0.2.1 pin; that dependency remains
 unchanged, and this adoption adds payments-owned direct use of 0.2.2.
 
+The [release workflow](../.github/workflows/release.yaml) installs the trusted
+`main` checkout's frozen workspace dependencies in both jobs before loading
+this helper. It uses the exact `packageManager` pnpm version, the shared pnpm
+store cache and `--ignore-scripts`; release still audits and delivers the
+exact admitted CI archives without rebuilding or repacking them. This explicit
+bootstrap replaces the earlier assumption that release tooling needed only
+Node built-ins and hosted-runner executables.
+
 This is a tooling adoption. None of the four published SDK packages imports or
 declares `node-or-bun`. Archive admission rejects it in published dependency or
 peer dependency declarations, and packed plain-core and production npm consumer
