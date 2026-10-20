@@ -16,9 +16,14 @@ catalog:
   '@get-modular/resources': 0.2.0
   '@get-modular/conformance': 0.4.0
   '@get-modular/observation': 0.1.0
+  drizzle-orm: 1.0.0-rc.5-5935859
+  mysql2: 3.24.6
   pg: 8.23.1
   pg-boss: 12.38.0
   oxlint: 1.83.0
   typescript: 7.0.2
   undici: 7.30.1
   yaml: 2.9.0
+
+patchedDependencies:
+  drizzle-orm@1.0.0-rc.5-5935859: patches/drizzle-orm@1.0.0-rc.5-5935859.patch
