@@ -1,6 +1,18 @@
 # Payments SDK contributor instructions
 
-Implement the accepted `docs/implementation-plan.md` incrementally. Keep payment operations, commercial access, credit accounting and usage independently owned. Core must not import Paddle, PostgreSQL, Get Modular, HTTP frameworks or Engineering Foundation. Contract ownership and observable guarantees matter more than file counts.
+Implement the accepted `docs/implementation-plan.md` incrementally. Keep payment operations, commercial access, credit accounting and usage independently owned. Core must not import Paddle, PostgreSQL, an ORM, Get Modular, HTTP frameworks or Engineering Foundation. Contract ownership and observable guarantees matter more than file counts.
+
+<!-- agent-teams:quality-standard:start -->
+Before planning, implementing or reviewing changes, read and follow the
+[organization Engineering Quality Standard](https://github.com/agent-teams-ai/.github/blob/main/docs/engineering-quality-standard.md)
+with this repository's instructions, accepted decisions and scoped adoption
+profiles. The current link is maintained guidance; it does not replace a pinned
+contract, adopt a central successor or certify existing code.
+<!-- agent-teams:quality-standard:end -->
+
+Read [the developer stack and adapter boundaries](docs/developer-stack.md)
+before selecting dependencies or changing persistence. It records the approved
+adapter-local Drizzle choice, source authority and qualification requirements.
 
 ## Language and tooling
 
