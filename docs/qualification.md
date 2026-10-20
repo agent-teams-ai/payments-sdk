@@ -7,6 +7,11 @@ records the exact two-floor integration subject, logs and package hashes. It
 preserves prior failures and explicitly separates local evidence from hosted
 CI, publication and production admission.
 
+The subsequent [Foundation profile completion](foundation-adoption.md) activates
+the shared typed lint baseline and corrects source validation/types accordingly.
+The earlier local qualification remains historical; the PR's final exact-head
+Checks run qualifies these additional source and tooling changes.
+
 ## Functional CI profile
 
 | Component | Exact qualification inputs |

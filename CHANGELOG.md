@@ -30,6 +30,22 @@ remain unchanged; this entry describes the next source release.
   bounded work identity/attempt through `PaymentJobHandlerError`. Failed error
   listeners cannot alter durable retry, quarantine or acknowledgement.
 
+### Development quality and boundary validation
+
+- Adopt the complete selected Engineering Foundation profile: shared Node and
+  type-aware Oxlint presets, strict project discovery and all six public
+  registry/local-source lifecycle commands. Keep tooling development-only.
+- Use exact `node-or-bun` 0.2.2 for the existing captured-command tooling
+  boundary, with explicit Node ownership, bounded per-stream capture, timeout
+  and no retries. Runtime SDK consumers do not acquire this dependency.
+- Validate runtime identifiers, scopes and provider outcomes from unknown data
+  before typed use. Preserve uncertain mutation outcomes and exercise malformed
+  successful proofs in the existing settlement scenario.
+- Keep independent consumer fixture payload validation honest: malformed
+  completion payloads are held after validated envelope custody. Credit/access
+  decision types remain independently owned.
+- Preserve hosted qualification evidence under the explicit artifact allowlist.
+
 ### Migration from 0.1.0
 
 The Get Modular adapter's peer compatibility changes, so this is a minor
