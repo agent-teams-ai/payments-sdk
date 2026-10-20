@@ -4,6 +4,8 @@
     { "path": "packages/payments-core" },
     { "path": "packages/payments-paddle" },
     { "path": "packages/payments-postgres" },
-    { "path": "packages/payments-get-modular" }
+    { "path": "packages/payments-get-modular" },
+    { "path": "./tsconfig.checks.json" },
+    { "path": "./qualification/observation/tsconfig.json" }
   ]
 }

@@ -86,9 +86,15 @@ importers:
       '@get-modular/assembly':
         specifier: 'catalog:'
         version: 0.6.0
+      '@get-modular/conformance':
+        specifier: 'catalog:'
+        version: 0.4.0(@get-modular/assembly@0.6.0)(@get-modular/core@0.6.0)(@get-modular/resources@0.2.0)
       '@get-modular/core':
         specifier: 'catalog:'
         version: 0.6.0
+      '@get-modular/observation':
+        specifier: 'catalog:'
+        version: 0.1.0(@get-modular/resources@0.2.0)
       '@get-modular/resources':
         specifier: 'catalog:'
         version: 0.2.0

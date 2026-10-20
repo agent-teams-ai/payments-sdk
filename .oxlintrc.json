@@ -1,7 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "categories": { "correctness": "error" },
-  "plugins": ["typescript", "unicorn", "node"],
+  "extends": ["./node_modules/@agent-teams/engineering-foundation/presets/oxlint/type-aware.json"],
   "rules": {
     "no-debugger": "error",
     "no-unused-vars": "error",

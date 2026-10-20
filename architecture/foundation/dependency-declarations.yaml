@@ -11,6 +11,8 @@ policies:
   developmentOnlyPackages:
     - typescript
     - oxlint
+    - oxlint-tsgolint
+    - node-or-bun
     - '@types/node'
     - undici
   exactRegistryDevelopmentOnlyPackages:
