@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 — unreleased
+## 0.2.0 — integration and fixture candidate
 
 The four SDK packages advance together. Existing `v0.1.0` release artifacts
 remain unchanged; this entry describes the next source release.

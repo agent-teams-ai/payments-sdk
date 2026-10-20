@@ -1,0 +1,25 @@
+{
+  "published": false,
+  "packages": [
+    {
+      "name": "@agent-teams/payments-core",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-delivery/.artifacts/packages/agent-teams-payments-core-0.2.0.tgz",
+      "entries": 34
+    },
+    {
+      "name": "@agent-teams/payments-paddle",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-delivery/.artifacts/packages/agent-teams-payments-paddle-0.2.0.tgz",
+      "entries": 23
+    },
+    {
+      "name": "@agent-teams/payments-postgres",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-delivery/.artifacts/packages/agent-teams-payments-postgres-0.2.0.tgz",
+      "entries": 44
+    },
+    {
+      "name": "@agent-teams/payments-get-modular",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-delivery/.artifacts/packages/agent-teams-payments-get-modular-0.2.0.tgz",
+      "entries": 27
+    }
+  ]
+}

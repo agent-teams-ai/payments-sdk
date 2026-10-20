@@ -1,0 +1,178 @@
+$ tsc -b && tsc -p tsconfig.checks.json
+examples/fetch-modular.ts(4,93): error TS2307: Cannot find module '@agent-teams/payments-get-modular' or its corresponding type declarations.
+examples/fetch-modular.ts(5,43): error TS2307: Cannot find module '@agent-teams/payments-get-modular' or its corresponding type declarations.
+examples/fetch-modular.ts(10,128): error TS2322: Type '[any]' is not assignable to type 'readonly [any] & { readonly "capabilities missing from the preparing map": any; }'.
+  Property '"capabilities missing from the preparing map"' is missing in type '[any]' but required in type '{ readonly "capabilities missing from the preparing map": any; }'.
+examples/paddle-postgres.ts(5,38): error TS2307: Cannot find module '@agent-teams/payments-paddle' or its corresponding type declarations.
+examples/paddle-postgres.ts(6,44): error TS2307: Cannot find module '@agent-teams/payments-paddle' or its corresponding type declarations.
+examples/paddle-postgres.ts(7,123): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.
+examples/paddle-postgres.ts(8,41): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.
+packages/payments-get-modular/test/modular.test.ts(7,225): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.
+packages/payments-get-modular/test/modular.test.ts(11,60): error TS2322: Type '[any]' is not assignable to type 'readonly [any] & { readonly "capabilities missing from the preparing map": any; }'.
+  Property '"capabilities missing from the preparing map"' is missing in type '[any]' but required in type '{ readonly "capabilities missing from the preparing map": any; }'.
+packages/payments-get-modular/test/modular.test.ts(148,51): error TS7006: Parameter 'line' implicitly has an 'any' type.
+packages/payments-get-modular/test/modular.test.ts(199,45): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/payments-get-modular/test/modular.test.ts(200,41): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/payments-get-modular/test/modular.test.ts(210,44): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/payments-get-modular/test/modular.test.ts(211,39): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/payments-get-modular/test/modular.test.ts(212,39): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/payments-get-modular/test/modular.test.ts(236,102): error TS2322: Type '[any, ModuleEntry<HostCapabilities, { readonly moduleId: "test/diagnostics"; readonly implementationId: "test/diagnostics/default"; readonly owner: { readonly authority: "test"; readonly path: readonly [...]; }; readonly provides: readonly [...]; readonly slots: readonly [...]; } & { ...; }, unknown>]' is not assignable to type 'readonly [any, ModuleEntry<HostCapabilities, { readonly moduleId: "test/diagnostics"; readonly implementationId: "test/diagnostics/default"; readonly owner: { readonly authority: "test"; readonly path: readonly [...]; }; readonly provides: readonly [...]; readonly slots: readonly [...]; } & { ...; }, unknown>] & { ....'.
+  Property '"capabilities missing from the preparing map"' is missing in type '[any, ModuleEntry<HostCapabilities, { readonly moduleId: "test/diagnostics"; readonly implementationId: "test/diagnostics/default"; readonly owner: { readonly authority: "test"; readonly path: readonly [...]; }; readonly provides: readonly [...]; readonly slots: readonly [...]; } & { ...; }, unknown>]' but required in type '{ readonly "capabilities missing from the preparing map": any; }'.
+packages/payments-get-modular/test/modular.test.ts(251,102): error TS2322: Type '[any, ModuleEntry<HostCapabilities, { readonly moduleId: "test/diagnostics"; readonly implementationId: "test/diagnostics/default"; readonly owner: { readonly authority: "test"; readonly path: readonly [...]; }; readonly provides: readonly [...]; readonly slots: readonly [...]; } & { ...; }, { ...; }>]' is not assignable to type 'readonly [any, ModuleEntry<HostCapabilities, { readonly moduleId: "test/diagnostics"; readonly implementationId: "test/diagnostics/default"; readonly owner: { readonly authority: "test"; readonly path: readonly [...]; }; readonly provides: readonly [...]; readonly slots: readonly [...]; } & { ...; }, { ...; }>] & { ...'.
+  Property '"capabilities missing from the preparing map"' is missing in type '[any, ModuleEntry<HostCapabilities, { readonly moduleId: "test/diagnostics"; readonly implementationId: "test/diagnostics/default"; readonly owner: { readonly authority: "test"; readonly path: readonly [...]; }; readonly provides: readonly [...]; readonly slots: readonly [...]; } & { ...; }, { ...; }>]' but required in type '{ readonly "capabilities missing from the preparing map": any; }'.
+packages/payments-get-modular/test/modular.test.ts(265,104): error TS2322: Type '[any]' is not assignable to type 'readonly [any] & { readonly "capabilities missing from the preparing map": any; }'.
+  Property '"capabilities missing from the preparing map"' is missing in type '[any]' but required in type '{ readonly "capabilities missing from the preparing map": any; }'.
+packages/payments-get-modular/test/surface.types.ts(1,89): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.
+packages/payments-get-modular/test/surface.types.ts(7,3): error TS2578: Unused '@ts-expect-error' directive.
+packages/payments-get-modular/test/surface.types.ts(9,3): error TS2578: Unused '@ts-expect-error' directive.
+packages/payments-get-modular/test/surface.types.ts(11,3): error TS2578: Unused '@ts-expect-error' directive.
+packages/payments-get-modular/test/surface.types.ts(17,39): error TS18046: 'command' is of type 'unknown'.
+packages/payments-get-modular/test/surface.types.ts(17,56): error TS18046: 'command' is of type 'unknown'.
+packages/payments-get-modular/test/surface.types.ts(17,75): error TS18046: 'command' is of type 'unknown'.
+packages/payments-get-modular/test/surface.types.ts(19,3): error TS2578: Unused '@ts-expect-error' directive.
+packages/payments-paddle/test/sdk-contract.test.ts(5,58): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.
+packages/payments-paddle/test/sdk-contract.test.ts(7,43): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.
+packages/payments-paddle/test/sdk-contract.test.ts(51,20): error TS18046: 'result' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(51,80): error TS18046: 'result' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(52,20): error TS18046: 'result' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(59,22): error TS18046: 'observation' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(59,69): error TS18046: 'observation' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(60,15): error TS2488: Type 'unknown' must have a '[Symbol.iterator]()' method that returns an iterator.
+packages/payments-paddle/test/sdk-contract.test.ts(60,30): error TS18046: 'observation' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(64,22): error TS2571: Object is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(64,28): error TS18046: 'observation' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(65,48): error TS2339: Property 'interval' does not exist on type '{}'.
+packages/payments-paddle/test/sdk-contract.test.ts(66,22): error TS18046: 'observation' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(66,82): error TS18046: 'observation' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(67,22): error TS18046: 'observation' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(67,75): error TS18046: 'observation' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(81,24): error TS18046: 'input' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(82,24): error TS18046: 'input' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(83,28): error TS18046: 'input' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(85,38): error TS18046: 'mapped' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(85,74): error TS18046: 'mapped' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(101,24): error TS18046: 'input' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(102,24): error TS2571: Object is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(102,30): error TS18046: 'input' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(106,50): error TS2339: Property 'interval' does not exist on type '{}'.
+packages/payments-paddle/test/sdk-contract.test.ts(108,34): error TS18046: 'input' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(110,38): error TS18046: 'raw' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(110,71): error TS18046: 'raw' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(111,38): error TS18046: 'mapped' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(111,74): error TS18046: 'mapped' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(120,20): error TS18046: 'input' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(122,24): error TS18046: 'input' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(123,24): error TS2571: Object is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(123,30): error TS18046: 'input' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(126,24): error TS18046: 'mapped' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(127,24): error TS2571: Object is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(127,30): error TS18046: 'mapped' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(136,43): error TS2698: Spread types may only be created from object types.
+packages/payments-paddle/test/sdk-contract.test.ts(136,66): error TS18046: 'input' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(136,99): error TS18046: 'input' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(149,20): error TS18046: 'a' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(149,69): error TS18046: 'a' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(149,100): error TS18046: 'b' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(150,23): error TS18046: 'a' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(150,54): error TS18046: 'b' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(150,102): error TS18046: 'a' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(150,113): error TS18046: 'b' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(151,24): error TS18046: 'a' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(153,20): error TS2571: Object is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(175,38): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'Pick<Readonly<{ scope: Readonly<{ applicationId: string; provider: string; paymentAccountId: string; environment: "production" | "sandbox"; }>; inputId: string; source: Readonly<{ kind: "authenticated_api" | "verified_webhook"; ... 10 more ...; query?: JsonValue; }>; observation: Observation; retainedRepresentation:...'.
+packages/payments-paddle/test/sdk-contract.test.ts(176,22): error TS18046: 'raw' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(178,22): error TS18046: 'raw' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(179,26): error TS18046: 'raw' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(180,22): error TS18046: 'raw' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(189,49): error TS18046: 'raw' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(202,20): error TS18046: 'input' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(202,70): error TS18046: 'input' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(212,20): error TS18046: 'result' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(213,17): error TS18046: 'result' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(213,39): error TS18046: 'result' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(227,30): error TS18046: 'observation' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(237,20): error TS18046: 'ready' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(238,20): error TS18046: 'ready' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(239,20): error TS18046: 'ready' is of type 'unknown'.
+packages/payments-paddle/test/sdk-contract.test.ts(256,93): error TS7006: Parameter 'input' implicitly has an 'any' type.
+packages/payments-paddle/test/sdk-contract.test.ts(258,20): error TS2571: Object is of type 'unknown'.
+packages/payments-postgres/test/drizzle.test.ts(3,38): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.
+packages/payments-postgres/test/drizzle.test.ts(4,40): error TS2307: Cannot find module '../dist/database.js' or its corresponding type declarations.
+packages/payments-postgres/test/drizzle.test.ts(5,32): error TS2307: Cannot find module '../dist/records.js' or its corresponding type declarations.
+packages/payments-postgres/test/drizzle.test.ts(6,47): error TS2307: Cannot find module '../dist/schema.js' or its corresponding type declarations.
+packages/payments-postgres/test/drizzle.test.ts(15,42): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+packages/payments-postgres/test/drizzle.test.ts(29,48): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+packages/payments-postgres/test/drizzle.test.ts(33,27): error TS2347: Untyped function calls may not accept type arguments.
+packages/payments-postgres/test/drizzle.test.ts(40,42): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+packages/payments-postgres/test/drizzle.test.ts(48,57): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+packages/payments-postgres/test/drizzle.test.ts(73,48): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+packages/payments-postgres/test/drizzle.test.ts(76,32): error TS2347: Untyped function calls may not accept type arguments.
+packages/payments-postgres/test/drizzle.test.ts(78,27): error TS2347: Untyped function calls may not accept type arguments.
+packages/payments-postgres/test/drizzle.test.ts(99,48): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+packages/payments-postgres/test/drizzle.test.ts(120,42): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+packages/payments-postgres/test/drizzle.test.ts(122,42): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+packages/payments-postgres/test/drizzle.test.ts(124,48): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+packages/payments-postgres/test/durability.test.ts(6,114): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.
+packages/payments-postgres/test/durability.test.ts(7,66): error TS2307: Cannot find module '../dist/database.js' or its corresponding type declarations.
+packages/payments-postgres/test/durability.test.ts(49,46): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+packages/payments-postgres/test/durability.test.ts(50,27): error TS2347: Untyped function calls may not accept type arguments.
+packages/payments-postgres/test/durability.test.ts(63,118): error TS18046: 'error' is of type 'unknown'.
+packages/payments-postgres/test/durability.test.ts(73,42): error TS7019: Rest parameter 'args' implicitly has an 'any[]' type.
+packages/payments-postgres/test/durability.test.ts(75,183): error TS18046: 'error' is of type 'unknown'.
+packages/payments-postgres/test/durability.test.ts(92,168): error TS18046: 'error' is of type 'unknown'.
+packages/payments-postgres/test/durability.test.ts(99,57): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+packages/payments-postgres/test/durability.test.ts(104,55): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+packages/payments-postgres/test/durability.test.ts(132,36): error TS7006: Parameter 's' implicitly has an 'any' type.
+packages/payments-postgres/test/durability.test.ts(132,39): error TS7006: Parameter 'commit' implicitly has an 'any' type.
+packages/payments-postgres/test/helpers.ts(6,66): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.
+packages/payments-postgres/test/jobs.test.ts(8,147): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.
+packages/payments-postgres/test/jobs.test.ts(61,74): error TS7006: Parameter 'error' implicitly has an 'any' type.
+packages/payments-postgres/test/jobs.test.ts(99,32): error TS7006: Parameter 'job' implicitly has an 'any' type.
+packages/payments-postgres/test/jobs.test.ts(104,64): error TS7006: Parameter 'job' implicitly has an 'any' type.
+packages/payments-postgres/test/jobs.test.ts(142,157): error TS7006: Parameter 'saved' implicitly has an 'any' type.
+packages/payments-postgres/test/jobs.test.ts(154,30): error TS2339: Property 'work' does not exist on type 'Error'.
+packages/payments-postgres/test/jobs.test.ts(155,26): error TS2339: Property 'attempt' does not exist on type 'Error'.
+packages/payments-postgres/test/jobs.test.ts(198,32): error TS2339: Property 'work' does not exist on type 'Error'.
+packages/payments-postgres/test/jobs.test.ts(199,44): error TS2339: Property 'work' does not exist on type 'Error'.
+packages/payments-postgres/test/jobs.test.ts(200,28): error TS2339: Property 'attempt' does not exist on type 'Error'.
+packages/payments-postgres/test/jobs.test.ts(258,42): error TS7006: Parameter 'result' implicitly has an 'any' type.
+packages/payments-postgres/test/reclassification.test.ts(6,125): error TS2307: Cannot find module '../dist/index.js' or its corresponding type declarations.
+packages/payments-postgres/test/reclassification.test.ts(143,38): error TS7006: Parameter 'read' implicitly has an 'any' type.
+packages/payments-postgres/test/reclassification.test.ts(182,46): error TS7019: Rest parameter 'args' implicitly has an 'any[]' type.
+packages/payments-postgres/test/reclassification.test.ts(253,18): error TS18048: 'diagnostic' is possibly 'undefined'.
+packages/payments-postgres/test/reclassification.test.ts(254,22): error TS18048: 'diagnostic' is possibly 'undefined'.
+packages/payments-postgres/test/reclassification.test.ts(254,33): error TS2339: Property 'work' does not exist on type 'Error'.
+packages/payments-postgres/test/reclassification.test.ts(255,18): error TS18048: 'diagnostic' is possibly 'undefined'.
+packages/payments-postgres/test/reclassification.test.ts(255,29): error TS2339: Property 'attempt' does not exist on type 'Error'.
+packages/payments-postgres/test/reclassification.test.ts(296,20): error TS18048: 'diagnostic' is possibly 'undefined'.
+packages/payments-postgres/test/reclassification.test.ts(297,24): error TS18048: 'diagnostic' is possibly 'undefined'.
+packages/payments-postgres/test/reclassification.test.ts(297,35): error TS2339: Property 'work' does not exist on type 'Error'.
+packages/payments-postgres/test/reclassification.test.ts(298,20): error TS18048: 'diagnostic' is possibly 'undefined'.
+packages/payments-postgres/test/reclassification.test.ts(298,31): error TS2339: Property 'attempt' does not exist on type 'Error'.
+packages/payments-postgres/test/reclassification.test.ts(344,74): error TS7006: Parameter 'id' implicitly has an 'any' type.
+tests/e2e/foreign-provider.test.ts(7,66): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.
+tests/e2e/full-system.test.ts(8,38): error TS2307: Cannot find module '@agent-teams/payments-paddle' or its corresponding type declarations.
+tests/e2e/full-system.test.ts(9,66): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.
+tests/e2e/provider-profile.test.ts(8,38): error TS2307: Cannot find module '@agent-teams/payments-paddle' or its corresponding type declarations.
+tests/e2e/provider-profile.test.ts(9,66): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.
+tests/e2e/provider-profile.test.ts(42,22): error TS18046: 'input' is of type 'unknown'.
+tests/e2e/provider-profile.test.ts(43,5): error TS2322: Type 'unknown' is not assignable to type 'Readonly<{ scope: Readonly<{ applicationId: string; provider: string; paymentAccountId: string; environment: "production" | "sandbox"; }>; inputId: string; source: Readonly<{ kind: "authenticated_api" | "verified_webhook"; ... 10 more ...; query?: JsonValue; }>; observation: Observation; retainedRepresentation: Json...'.
+tests/integration/reconciliation.test.ts(7,72): error TS2307: Cannot find module '@agent-teams/payments-paddle' or its corresponding type declarations.
+tests/integration/reconciliation.test.ts(8,66): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.
+tests/integration/reconciliation.test.ts(51,17): error TS7022: 'body' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+tests/integration/reconciliation.test.ts(52,17): error TS7022: 'verified' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+tests/integration/reconciliation.test.ts(172,37): error TS7006: Parameter 'id' implicitly has an 'any' type.
+tests/integration/reconciliation.test.ts(181,38): error TS7006: Parameter 'id' implicitly has an 'any' type.
+tests/integration/recovery.test.ts(8,8): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.
+tests/integration/recovery.test.ts(9,83): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.
+tests/integration/recovery.test.ts(76,141): error TS18046: 'error' is of type 'unknown'.
+tests/integration/recovery.test.ts(123,141): error TS18046: 'error' is of type 'unknown'.
+tests/integration/recovery.test.ts(150,141): error TS18046: 'error' is of type 'unknown'.
+tests/integration/recovery.test.ts(205,80): error TS7006: Parameter 'value' implicitly has an 'any' type.
+tests/integration/recovery.test.ts(208,30): error TS7006: Parameter 'value' implicitly has an 'any' type.
+tests/integration/recovery.test.ts(209,32): error TS7006: Parameter 'value' implicitly has an 'any' type.
+qualification/observation/test-support.ts(7,38): error TS2307: Cannot find module '@agent-teams/payments-paddle' or its corresponding type declarations.
+qualification/observation/test-support.ts(8,66): error TS2307: Cannot find module '@agent-teams/payments-postgres' or its corresponding type declarations.
+qualification/observation/test-support.ts(69,52): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'Readonly<{ scope: Readonly<{ applicationId: string; provider: string; paymentAccountId: string; environment: "production" | "sandbox"; }>; inputId: string; source: Readonly<{ kind: "authenticated_api" | "verified_webhook"; ... 10 more ...; query?: JsonValue; }>; observation: Observation; retainedRepresentation: Json...'.
+qualification/observation/test-support.ts(70,50): error TS18046: 'input' is of type 'unknown'.
+[ELIFECYCLE] Command failed with exit code 1.

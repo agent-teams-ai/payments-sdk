@@ -28,6 +28,7 @@ The four packages currently declare version `0.2.0`; see the [migration notes](C
 - [Purchase observation](qualification/observation/README.md): optional public read projection, real Assembly/Resources/watch/load, and isolated packed qualification against the published registry train.
 - [Current upstream qualification](docs/upstream-qualification.md): exact dependency pins, published Get Modular observation train and artifact identities, and the official browser declaration blocker.
 - [Release process](docs/releasing.md): audited tarballs, checksums, exact-commit CI and GitHub prereleases.
+- [Final SDK 0.2 evidence](docs/reviews/sdk-0.2-completion/README.md): complete two-floor qualification, independent tooling/source reviews and production logical code metrics.
 
 Adapter-specific details stay in the [Paddle](packages/payments-paddle/README.md), [PostgreSQL](packages/payments-postgres/README.md) and [Get Modular](packages/payments-get-modular/README.md) package guides. The [accepted implementation plan](docs/implementation-plan.md) records design decisions and source provenance; current public signatures live in package exports and the compiled examples.
 

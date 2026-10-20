@@ -1,0 +1,18 @@
+{
+  "baseline_sha": "95e996ff0bbe8edb003fcd42ab66c6aa429a7253",
+  "baseline_tree": "975754efb236ba0552144a6d6e41ba056d18a573",
+  "source_archive": "/workspace/scratch/9e36ca3bbd13/research/continuation/cold-build/source-95e996ff0bbe8edb003fcd42ab66c6aa429a7253.tar.gz",
+  "source_archive_sha256": "67bc9eabb363be9f6d6684e570edb62f6fcb4108118ecdae96acb584a56abbcc",
+  "fixture": "/tmp/payments-cold-build-pmt69gqn",
+  "source": "/tmp/payments-cold-build-pmt69gqn/source",
+  "initial_generated_outputs": [],
+  "node": "/tmp/payments-cont-toolchain/node24/bin/node",
+  "pnpm": "/tmp/payments-cont-toolchain/pnpm/package/bin/pnpm.cjs",
+  "node_version": "24.21.0",
+  "pnpm_version": "11.25.0",
+  "own_store": "/tmp/payments-cold-build-pmt69gqn/store",
+  "network_credentials": "none; env allowlist; empty npm user/global configuration",
+  "home_handling": "inherited unchanged; unused empty fixture home directory removed",
+  "npm_userconfig": "/tmp/payments-cold-build-pmt69gqn/config/npmrc",
+  "npm_globalconfig": "/tmp/payments-cold-build-pmt69gqn/config/global-npmrc"
+}

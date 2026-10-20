@@ -30,13 +30,16 @@ feature-branch check cannot authorize the release.
 
 ## Explicit admission boundaries
 
-The SDK 0.2 integration has completed its full local checks on both supported
-Node floors at the exact source in the [qualification record](reviews/sdk-0.2/qualification.md).
-That record covers private Drizzle, published optional observation, canonical
-provider vocabulary, worker diagnostics and maximum-page IO corrections. The
-historical PR links above identify the original delivery; they do not imply
-that the later SDK 0.2 work has been pushed or merged. Exact-head hosted CI and
-remote delivery remain separate requirements.
+The SDK 0.2 integration is delivered for review through
+[PR #5](https://github.com/agent-teams-ai/payments-sdk/pull/5). Its
+[final qualification record](reviews/sdk-0.2-completion/README.md) binds complete
+local checks on both supported Node floors and successful exact-source hosted
+CI to private Drizzle, published observation, provider vocabulary, worker
+diagnostics, maximum-page IO corrections, direct node-or-bun tooling and the
+complete selected Foundation profile. The earlier
+[integration qualification](reviews/sdk-0.2/qualification.md) retains its own
+historical subject. PR state and the exact main-push release manifest establish
+subsequent merge and release delivery; a local result does not imply either.
 
 The post-integration [dependency correction and Node runtime investigation](security-qualification.md) are separate from the completed four implementation review waves. The development HTTP harness is qualified on Undici **7.30.1**. Production runtime admission remains blocked by an independently reproduced built-in `fetch` defect in the current Node floors and latest same-major official releases. Functional GitHub prerelease delivery is available; a corrected official runtime and its consumer qualification are required before production deployment.
 

@@ -1,0 +1,37 @@
+{
+  "step": "fixed-typecheck",
+  "command": [
+    "/tmp/payments-cont-toolchain/node24/bin/node",
+    "/tmp/payments-cont-toolchain/pnpm/package/bin/pnpm.cjs",
+    "typecheck"
+  ],
+  "cwd": "/tmp/payments-cold-build-pmt69gqn/source",
+  "started_at": "2026-10-20T12:08:16.159261+00:00",
+  "duration_seconds": 8.819,
+  "exit_code": 0,
+  "log": "/workspace/scratch/9e36ca3bbd13/research/continuation/cold-build/fixed-typecheck.log",
+  "log_sha256": "78638070c25e5bbaa5f8356e2549864ac00616570b781a7f193935db76401efe",
+  "environment_keys": [
+    "CI",
+    "HOME",
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "LANG",
+    "LC_ALL",
+    "NODE_EXTRA_CA_CERTS",
+    "NO_PROXY",
+    "NPM_CONFIG_GLOBALCONFIG",
+    "NPM_CONFIG_USERCONFIG",
+    "PATH",
+    "SSL_CERT_FILE",
+    "TMPDIR",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "npm_config_http_proxy",
+    "npm_config_https_proxy"
+  ],
+  "home_handling": "inherited unchanged",
+  "npm_configuration": "explicit empty user and global files",
+  "env_credentials": "not inherited"
+}

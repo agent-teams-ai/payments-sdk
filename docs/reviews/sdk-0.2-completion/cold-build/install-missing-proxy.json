@@ -1,0 +1,34 @@
+{
+  "step": "install-missing-proxy",
+  "command": [
+    "/tmp/payments-cont-toolchain/node24/bin/node",
+    "/tmp/payments-cont-toolchain/pnpm/package/bin/pnpm.cjs",
+    "install",
+    "--frozen-lockfile",
+    "--store-dir",
+    "/tmp/payments-cold-build-pmt69gqn/store",
+    "--package-import-method",
+    "copy"
+  ],
+  "cwd": "/tmp/payments-cold-build-pmt69gqn/source",
+  "started_at": "2026-10-20T12:06:56.367271+00:00",
+  "duration_seconds": 84.164,
+  "exit_code": -15,
+  "log": "/workspace/scratch/9e36ca3bbd13/research/continuation/cold-build/install-missing-proxy.log",
+  "log_sha256": "48c238f6ff94d06788a53dc4ad013f1ddfeeeeca8b70d5c4468cea694698034b",
+  "environment_keys": [
+    "CI",
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "NPM_CONFIG_GLOBALCONFIG",
+    "NPM_CONFIG_USERCONFIG",
+    "PATH",
+    "TMPDIR"
+  ],
+  "home_handling": "inherited unchanged",
+  "npm_configuration": "explicit empty user and global files",
+  "env_credentials": "not inherited",
+  "limitation": "Initial environment omitted required system proxy settings; terminated own install; no build result.",
+  "original_log_sha256_before_termination": "7718df00eb39560bf526bc6a1b8aa3d994a15501a6d181bb0ae2ab9b7f8525d6"
+}

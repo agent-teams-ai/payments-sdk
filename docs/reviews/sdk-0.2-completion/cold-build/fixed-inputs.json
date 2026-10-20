@@ -1,0 +1,20 @@
+{
+  "modified_paths": {
+    "tsconfig.checks.json": "ead663c843a01263fb768628f3057966492c38ab17cdcada37f5b909719a6637",
+    "qualification/observation/tsconfig.json": "00b16345291f9d0cab880a356c5d4793594d0fb7638ab384a839fc48b23e1e32",
+    "docs/foundation-adoption.md": "10caf602b8c8428890e8648332d7572e94b05b889b89baca1804be14b6a7f243"
+  },
+  "outputs_removed_after_baseline": [
+    "tsconfig.checks.tsbuildinfo",
+    "packages/payments-paddle/dist",
+    "packages/payments-paddle/tsconfig.tsbuildinfo",
+    "packages/payments-postgres/dist",
+    "packages/payments-postgres/tsconfig.tsbuildinfo",
+    "packages/payments-get-modular/dist",
+    "packages/payments-get-modular/tsconfig.tsbuildinfo",
+    "packages/payments-core/dist",
+    "packages/payments-core/tsconfig.tsbuildinfo",
+    "qualification/observation/tsconfig.tsbuildinfo"
+  ],
+  "outputs_before_fixed_typecheck": []
+}

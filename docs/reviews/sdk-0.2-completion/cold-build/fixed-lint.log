@@ -1,0 +1,3 @@
+$ oxlint --config .oxlintrc.json packages tests tools examples qualification
+Found 0 warnings and 0 errors.
+Finished in 2.0s on 78 files with 195 rules using 8 threads.

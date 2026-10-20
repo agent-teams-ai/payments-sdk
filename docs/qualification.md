@@ -9,8 +9,11 @@ CI, publication and production admission.
 
 The subsequent [Foundation profile completion](foundation-adoption.md) activates
 the shared typed lint baseline and corrects source validation/types accordingly.
-The earlier local qualification remains historical; the PR's final exact-head
-Checks run qualifies these additional source and tooling changes.
+The [final tooling and delivery record](reviews/sdk-0.2-completion/README.md)
+binds both complete local Node-floor runs and successful hosted CI to the new
+source, with raw logs, archive hashes, independent reviews and production code
+metrics. The earlier qualification remains historical. Each later delivery
+commit still requires its own exact-head hosted checks.
 
 ## Functional CI profile
 

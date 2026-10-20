@@ -1,0 +1,33 @@
+{
+  "workspace_links": [
+    {
+      "path": "node_modules/@agent-teams/engineering-foundation",
+      "link": "../.pnpm/@agent-teams+engineering-foundation@1.10.1_@types+node@24.13.3/node_modules/@agent-teams/engineering-foundation",
+      "realpath": "/tmp/payments-cold-build-pmt69gqn/source/node_modules/.pnpm/@agent-teams+engineering-foundation@1.10.1_@types+node@24.13.3/node_modules/@agent-teams/engineering-foundation"
+    },
+    {
+      "path": "node_modules/@agent-teams/payments-core",
+      "link": "../../packages/payments-core",
+      "realpath": "/tmp/payments-cold-build-pmt69gqn/source/packages/payments-core"
+    },
+    {
+      "path": "node_modules/@agent-teams/payments-get-modular",
+      "link": "../../packages/payments-get-modular",
+      "realpath": "/tmp/payments-cold-build-pmt69gqn/source/packages/payments-get-modular"
+    },
+    {
+      "path": "node_modules/@agent-teams/payments-paddle",
+      "link": "../../packages/payments-paddle",
+      "realpath": "/tmp/payments-cold-build-pmt69gqn/source/packages/payments-paddle"
+    },
+    {
+      "path": "node_modules/@agent-teams/payments-postgres",
+      "link": "../../packages/payments-postgres",
+      "realpath": "/tmp/payments-cold-build-pmt69gqn/source/packages/payments-postgres"
+    }
+  ],
+  "cold_outputs": [],
+  "lockfile_sha256": "48f67891884649613aae4d79ee28eb1ebe113816191502d979e7f15e85af86b8",
+  "npm_userconfig_bytes": 0,
+  "npm_globalconfig_bytes": 0
+}

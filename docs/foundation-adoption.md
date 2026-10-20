@@ -98,6 +98,10 @@ previous successful run does not certify a later lint, source or dependency
 change. Source-bound results belong to the review and qualification records;
 configured gates, live protection and successful executions are distinct facts.
 
+The [final qualification record](reviews/sdk-0.2-completion/README.md) retains
+both complete local Node-floor runs, successful exact-source hosted CI, the
+independent typed-backend and cold-build reviews, and original failure evidence.
+
 ## Explicitly deferred capabilities
 
 Full execution of the selected Foundation profile means its declared applicable

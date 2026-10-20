@@ -1,0 +1,48 @@
+diff --git a/docs/foundation-adoption.md b/docs/foundation-adoption.md
+index 39c8b32..552b303 100644
+--- a/docs/foundation-adoption.md
++++ b/docs/foundation-adoption.md
+@@ -37,6 +37,10 @@ The checks project owns tools, root tests, examples and package tests; the
+ observation project owns its packed consumer sources. Source projects retain
+ their own declaration emission. TypeScript build mode accepts the two no-emit
+ projects, and the ordinary typecheck remains an independent required gate.
++Both no-emit projects explicitly reference the four runtime projects they
++consume, so build mode produces package declarations before checking their
++consumers on a cold install. Listing the projects together in the root solution
++does not establish those dependency edges.
+ 
+ This reference graph is also available to the typed linter's project discovery.
+ The lint command covers `packages tests tools examples qualification`; it does
+diff --git a/qualification/observation/tsconfig.json b/qualification/observation/tsconfig.json
+index b6738a6..a533fa8 100644
+--- a/qualification/observation/tsconfig.json
++++ b/qualification/observation/tsconfig.json
+@@ -21,5 +21,11 @@
+   },
+   "include": [
+     "*.ts"
++  ],
++  "references": [
++    { "path": "../../packages/payments-core" },
++    { "path": "../../packages/payments-paddle" },
++    { "path": "../../packages/payments-postgres" },
++    { "path": "../../packages/payments-get-modular" }
+   ]
+ }
+diff --git a/tsconfig.checks.json b/tsconfig.checks.json
+index dfc1280..bc880e7 100644
+--- a/tsconfig.checks.json
++++ b/tsconfig.checks.json
+@@ -6,5 +6,11 @@
+     "declaration": false,
+     "declarationMap": false
+   },
+-  "include": ["tools/**/*.ts", "tests/**/*.ts", "examples/**/*.ts", "packages/*/test/**/*.ts", "packages/*/tests/**/*.ts"]
++  "include": ["tools/**/*.ts", "tests/**/*.ts", "examples/**/*.ts", "packages/*/test/**/*.ts", "packages/*/tests/**/*.ts"],
++  "references": [
++    { "path": "packages/payments-core" },
++    { "path": "packages/payments-paddle" },
++    { "path": "packages/payments-postgres" },
++    { "path": "packages/payments-get-modular" }
++  ]
+ }
