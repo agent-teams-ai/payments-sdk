@@ -5,7 +5,7 @@ import { auditPackageArchive, packPackages, repository } from './package-artifac
 const tarballs = await packPackages();
 const report = [];
 for (const [name, tarball] of tarballs) {
-  const { entries } = auditPackageArchive(tarball, name);
+  const { entries } = await auditPackageArchive(tarball, name);
   report.push({ name, tarball, entries });
 }
 await mkdir(join(repository, '.artifacts'), { recursive: true });

@@ -44,6 +44,8 @@
     "@types/pg": "catalog:",
     "pg": "catalog:",
     "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "node-or-bun": "catalog:",
     "typescript": "catalog:",
     "undici": "catalog:",
     "yaml": "catalog:"

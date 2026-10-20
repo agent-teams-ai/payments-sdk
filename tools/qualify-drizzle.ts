@@ -46,9 +46,9 @@ try {
   assert.ok(bytes.byteLength < 20_000_000, 'Unexpected Drizzle archive size');
   assert.equal(`sha512-${createHash('sha512').update(bytes).digest('base64')}`, artifact.integrity, 'Official archive SRI mismatch');
   await writeFile(archive, bytes);
-  const entries = command('tar', ['-tzf', archive]).trim().split('\n');
+  const entries = (await command('tar', ['-tzf', archive])).trim().split('\n');
   assert.ok(entries.every(entry => entry.startsWith('package/') && !entry.split('/').includes('..')), 'Unsafe archive path');
-  command('tar', ['-xzf', archive, '-C', temporary]);
+  await command('tar', ['-xzf', archive, '-C', temporary]);
   const original = join(temporary, 'package');
   const originalFiles = entries.filter(entry => !entry.endsWith('/')).map(entry => entry.slice('package/'.length)).sort();
   const installedFiles: string[] = [];
@@ -139,7 +139,7 @@ cockroachRole('invalid', { createRole: 'yes' });
       include: ['probe.ts'],
     }));
     await writeFile(join(temporary, 'probe.ts'), valid);
-    command(process.execPath, [join(repository, 'node_modules/typescript/bin/tsc'), '-p', 'tsconfig.json'], temporary);
+    await command(process.execPath, [join(repository, 'node_modules/typescript/bin/tsc'), '-p', 'tsconfig.json'], temporary);
     await writeFile(join(temporary, 'probe.ts'), invalid);
     const result = spawnSync(process.execPath, [join(repository, 'node_modules/typescript/bin/tsc'), '-p', 'tsconfig.json', '--pretty', 'false'],
       { cwd: temporary, encoding: 'utf8', timeout: 30_000 });
@@ -152,7 +152,7 @@ cockroachRole('invalid', { createRole: 'yes' });
   }
   const report = {
     node: process.versions.node,
-    subject: { commit: command('git', ['rev-parse', 'HEAD']).trim(), trackedChanges: command('git', ['status', '--porcelain', '--untracked-files=no']).trim() !== '' },
+    subject: { commit: (await command('git', ['rev-parse', 'HEAD'])).trim(), trackedChanges: (await command('git', ['status', '--porcelain', '--untracked-files=no'])).trim() !== '' },
     artifact: { version: artifact.version, integrity: artifact.integrity, sourceCommit: artifact.sourceCommit },
     patchSha256: artifact.patch.sha256, changedDeclarations: changed, runtime: { files: runtimeCount, sha256Manifest: hash(runtimeManifest), unchanged: true }, probes,
     officialDeclarations: { files: declarationCount, sha256Manifest: hash(declarationManifest) },

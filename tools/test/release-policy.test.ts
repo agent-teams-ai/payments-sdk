@@ -54,18 +54,18 @@ test('archive admission validates identity/version and rejects unresolved or dev
     await writeFile(join(directory, 'LICENSE'), 'Apache-2.0 fixture');
     const manifest = { name: '@agent-teams/payments-core', version: '0.1.0', license: 'Apache-2.0', exports: { '.': './dist/index.js' } };
     const tarball = join(root, 'fixture.tgz');
-    async function archive(body: unknown) { await writeFile(join(directory, 'package.json'), JSON.stringify(body)); command('tar', ['-czf', tarball, 'package'], root); }
+    async function archive(body: unknown) { await writeFile(join(directory, 'package.json'), JSON.stringify(body)); await command('tar', ['-czf', tarball, 'package'], root); }
     await archive(manifest);
-    assert.equal(auditPackageArchive(tarball, manifest.name, '0.1.0').manifest.version, '0.1.0');
-    assert.throws(() => auditPackageArchive(tarball, '@agent-teams/payments-paddle', '0.1.0'));
-    assert.throws(() => auditPackageArchive(tarball, manifest.name, '0.2.0'));
-    for (const dependencies of [{ '@agent-teams/payments-core': 'workspace:*' }, { pg: 'catalog:' }, { '@agent-teams/engineering-foundation': '1.10.0' }]) {
+    assert.equal((await auditPackageArchive(tarball, manifest.name, '0.1.0')).manifest.version, '0.1.0');
+    await assert.rejects(() => auditPackageArchive(tarball, '@agent-teams/payments-paddle', '0.1.0'));
+    await assert.rejects(() => auditPackageArchive(tarball, manifest.name, '0.2.0'));
+    for (const dependencies of [{ '@agent-teams/payments-core': 'workspace:*' }, { pg: 'catalog:' }, { '@agent-teams/engineering-foundation': '1.10.0' }, { 'node-or-bun': '0.2.2' }]) {
       await archive({ ...manifest, dependencies });
-      assert.throws(() => auditPackageArchive(tarball, manifest.name, '0.1.0'));
+      await assert.rejects(() => auditPackageArchive(tarball, manifest.name, '0.1.0'));
     }
     await archive(manifest);
     await mkdir(join(directory, 'src')); await writeFile(join(directory, 'src/leak.ts'), 'secret fixture');
     await archive(manifest);
-    assert.throws(() => auditPackageArchive(tarball, manifest.name, '0.1.0'), /development files/u);
+    await assert.rejects(() => auditPackageArchive(tarball, manifest.name, '0.1.0'), /development files/u);
   } finally { await rm(root, { recursive: true, force: true }); }
 });

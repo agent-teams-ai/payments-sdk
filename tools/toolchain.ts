@@ -28,7 +28,7 @@ const projects = ['tsconfig.checks.json', 'qualification/observation/tsconfig.js
 for await (const project of glob('packages/*/tsconfig.json', { cwd: root })) projects.push(project);
 for (const project of projects) {
   const configPath = resolve(root, project);
-  const parsed = JSON.parse(command(process.execPath, [resolve(root, 'node_modules/typescript/bin/tsc'), '-p', configPath, '--showConfig'])) as {
+  const parsed = JSON.parse(await command(process.execPath, [resolve(root, 'node_modules/typescript/bin/tsc'), '-p', configPath, '--showConfig'])) as {
     compilerOptions: { strict: boolean; skipLibCheck: boolean };
     files: readonly string[];
   };

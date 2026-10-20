@@ -1,0 +1,50 @@
+{
+  "readBackDate": "2026-10-20",
+  "scope": "workspace development dependencies only",
+  "nodeOrBun": {
+    "name": "node-or-bun",
+    "version": "0.2.2",
+    "registry": "https://registry.npmjs.org/node-or-bun/0.2.2",
+    "tarball": "https://registry.npmjs.org/node-or-bun/-/node-or-bun-0.2.2.tgz",
+    "integrity": "sha512-G9hgcgyv9eaD988TQ3DJ8p/LIvLKSFVtZQYQGLrNeDrPGinJ2QWAbfwa2G/QVvRHLx3jjRfAvUQ3z5rURUI8pg==",
+    "bytes": 34406,
+    "sha256": "2d357d1feca8413acf9cba27fe1818a2abb357d283493541314a94246f572e39",
+    "publishedAt": "2026-10-20T10:26:38.805Z",
+    "registryLatestAtReadBack": "0.2.2",
+    "sourceCommit": "2a0bbac6f80705e0b06e7eaeddf47439465b5646",
+    "upstreamReadBackCommit": "3e6a1c44195680761787e4377fc560dd0f22e223",
+    "runtimeDependencies": {},
+    "engines": {
+      "bun": ">=1.4.3",
+      "node": "^24.18.0 || ^26.0.0"
+    },
+    "attestationPayload": {
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/node-or-bun@0.2.2",
+      "subjectDigestMatchesArchive": true,
+      "sourceCommit": "2a0bbac6f80705e0b06e7eaeddf47439465b5646",
+      "workflow": "https://github.com/agent-teams-ai/node-or-bun/blob/2a0bbac6f80705e0b06e7eaeddf47439465b5646/.github/workflows/release.yml",
+      "invocation": "https://github.com/agent-teams-ai/node-or-bun/actions/runs/39407279362/attempts/1",
+      "independentSignatureVerification": false
+    }
+  },
+  "oxlintTsgolint": {
+    "name": "oxlint-tsgolint",
+    "version": "7.0.2001",
+    "registry": "https://registry.npmjs.org/oxlint-tsgolint/7.0.2001",
+    "tarball": "https://registry.npmjs.org/oxlint-tsgolint/-/oxlint-tsgolint-7.0.2001.tgz",
+    "integrity": "sha512-KjK/XLcXr1DSyonKhsuFqJRiuKqcyG9j3LJ8nkOsrLzGvodBPqzHOKauy10asLMDI0sUpvb+1sxlzff3udZvfg==",
+    "bytes": 5237,
+    "sha256": "39df25aa7ce8f7a62b9257a1d4b0bf86af6c827fb3bc2003f659d4bf39ee6179",
+    "publishedAt": "2026-07-21T14:33:13.210Z",
+    "registryLatestAtReadBack": "7.0.2004",
+    "selection": "Exact Engineering Foundation tooling profile requested for installed oxlint 1.83.0; not a newest-stable claim",
+    "optionalDependencies": {
+      "@oxlint-tsgolint/linux-x64": "7.0.2001",
+      "@oxlint-tsgolint/win32-x64": "7.0.2001",
+      "@oxlint-tsgolint/darwin-x64": "7.0.2001",
+      "@oxlint-tsgolint/linux-arm64": "7.0.2001",
+      "@oxlint-tsgolint/win32-arm64": "7.0.2001",
+      "@oxlint-tsgolint/darwin-arm64": "7.0.2001"
+    }
+  }
+}

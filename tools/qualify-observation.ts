@@ -34,7 +34,7 @@ assert.deepEqual(manifest.archives.map(item => item.name).sort(), [
   '@get-modular/observation', '@get-modular/resources',
 ]);
 assert.ok(process.env['DATABASE_URL'], 'DATABASE_URL is required: published observation qualification includes real PostgreSQL');
-command(process.execPath, ['tools/toolchain.ts']);
+await command(process.execPath, ['tools/toolchain.ts']);
 
 const digest = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const catalog = (parse(await readFile(join(repository, 'pnpm-workspace.yaml'), 'utf8')) as { catalog: Record<string, string> }).catalog;
@@ -79,7 +79,7 @@ try {
   await writeFile(join(root, 'package.json'), JSON.stringify({ private: true, type: 'module', packageManager: rootManifest.packageManager, dependencies }, null, 2));
   const overrides = Object.entries(dependencies).filter(([name]) => name.startsWith('@get-modular/') || name.startsWith('@agent-teams/payments-') || name === '@types/node');
   await writeFile(join(root, 'pnpm-workspace.yaml'), `engineStrict: true\nstrictPeerDependencies: true\noverrides:\n${overrides.map(([name, value]) => `  ${JSON.stringify(name)}: ${JSON.stringify(value)}`).join('\n')}\n`);
-  pnpm(['install', '--prefer-offline', '--ignore-scripts', '--lockfile=false', '--strict-peer-dependencies'], root);
+  await pnpm(['install', '--prefer-offline', '--ignore-scripts', '--lockfile=false', '--strict-peer-dependencies'], root);
   for (const archive of manifest.archives) {
     const installed = JSON.parse(await readFile(join(root, 'node_modules', archive.name, 'package.json'), 'utf8')) as RegistryVersion;
     assert.equal(installed.version, archive.version);
@@ -98,11 +98,11 @@ try {
       module: profile === 'Bundler' ? 'ESNext' : 'NodeNext', moduleResolution: profile,
       exactOptionalPropertyTypes: true, noUncheckedIndexedAccess: true,
     } }));
-    command(process.execPath, [compiler, '-p', join(consumer, config)], root);
+    await command(process.execPath, [compiler, '-p', join(consumer, config)], root);
   }
   const tests = (await readdir(consumer)).filter(name => name.endsWith('.test.ts')).sort();
   assert.ok(tests.length > 0, 'Published observation cannot qualify without scenarios');
-  const output = command(process.execPath, ['--test', '--test-reporter=spec', ...tests.map(name => join(consumer, name))], root);
+  const output = await command(process.execPath, ['--test', '--test-reporter=spec', ...tests.map(name => join(consumer, name))], root);
   console.log(output);
   const report = {
     status: 'passed', qualification: 'published-registry-release', npmPublicationProven: true,

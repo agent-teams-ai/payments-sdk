@@ -25,6 +25,7 @@ proposal is evidence to assess, not an automatically adopted requirement.
 | Persistence query/schema toolkit | **Drizzle inside `payments-postgres`**, approved by the owner on 2026-10-20; keep `pg` connection ownership and existing transaction/recovery guarantees |
 | Durable PostgreSQL work | Existing `pg-boss` adapter integration, including atomic enqueue through the payment transaction's public transport seam |
 | Optional composition | Get Modular inside `payments-get-modular`; use the coherent published peer profile and explicit observation release gate in its [guide](../packages/payments-get-modular/README.md) |
+| Captured development commands | Exact `node-or-bun` Node adapter inside the existing tooling helper; see [scope, artifact and process guarantees](node-or-bun-adoption.md); no SDK runtime or Bun admission |
 | Development architecture tooling | Engineering Foundation remains development-only, with repository-owned [source](../architecture/foundation/source-dependencies.yaml) and [dependency](../architecture/foundation/dependency-declarations.yaml) policies; FMS adoption remains opt-in |
 
 Exact admitted dependency versions belong to the workspace catalog, package
