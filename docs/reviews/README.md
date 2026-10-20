@@ -182,3 +182,10 @@ merges. Main requires the final aggregate CI check and an up-to-date PR; force
 push and deletion are disabled. Independent agent reports are the requested
 review process, without inventing human GitHub approvals.
 
+
+## SDK 0.2 integration review
+
+The [four additional independent reviews](sdk-0.2/README.md) cover published Get
+Modular observation, private Drizzle adoption, provider vocabulary, worker
+diagnostics and package/CI delivery. Their scope and source mapping are separate
+from the completed historical design and implementation waves.
