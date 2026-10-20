@@ -3,9 +3,13 @@ import test from 'node:test';
 import { migratePaymentSchema } from '../dist/index.js';
 import { withPaymentTransaction } from '../dist/database.js';
 import { PaymentRecords } from '../dist/records.js';
+import { paymentQueries, paymentTables } from '../dist/schema.js';
 import { databaseFixture, scope } from './helpers.ts';
 
 test('typed queries preserve existing schemaVersion 1 JSON bodies, no-op revisions and exact int8 range checks', async () => {
+  const publicRecords = paymentTables('public').records;
+  assert.match(paymentQueries.select({ id: publicRecords.id }).from(publicRecords).toSQL().sql, /from "public"\."records"/u,
+    'the existing public schema option stays explicit and independent of host search_path');
   const f = await databaseFixture();
   const records = new PaymentRecords(f.schema);
   try {

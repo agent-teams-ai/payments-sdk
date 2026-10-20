@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { customType, integer, jsonb, pgSchema, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
+import { customType, integer, jsonb, PgSchema, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import type { QueryResultRow } from 'pg';
 import type { PaymentSqlTransaction } from './database.js';
@@ -12,7 +12,10 @@ const revision = customType<{ data: string; driverData: string }>({ dataType: ()
 /** Runtime bindings for the existing schemaVersion 1. migrations.ts remains the DDL owner. */
 export function paymentTables(namespace: string) {
   sqlIdentifier(namespace);
-  const schema = pgSchema(namespace);
+  // Always qualify the configured namespace, including 'public'. The pgSchema()
+  // convenience factory rejects public and suggests unqualified tables, which would
+  // make correctness depend on the borrowed host connection's search_path.
+  const schema = new PgSchema(namespace, undefined);
   return {
     configuration: schema.table('configuration', {
       id: text().primaryKey(),
