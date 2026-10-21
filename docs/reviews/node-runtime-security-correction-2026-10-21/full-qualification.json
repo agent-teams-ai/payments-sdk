@@ -1,0 +1,441 @@
+{
+  "schemaVersion": 1,
+  "testedLocalCommit": "6f348df2d345edf5270ade0daebf67cc834de2de",
+  "testedTree": "8de7807f3fc4f1aa08d3a1df8fbeb661635d9832",
+  "mergedBaseCommit": "17dde3d75ac1e4e3a3218b236fca3f8a4d1ada7b",
+  "mergedBaseTree": "601be0a727b55a27fd851c49315ae0cc3477e236",
+  "qualification": "complete local frozen-install, forced build and pnpm check; not hosted CI",
+  "records": [
+    {
+      "node": "24.22.1",
+      "completeCheckSeconds": 155.868,
+      "database": "payments_portability_24_22_1_d013a5dd",
+      "testGroups": [
+        {
+          "command": "node --test tools/test/get-modular-adoption.test.ts",
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node --test tools/test/*.test.ts",
+          "tests": 32,
+          "pass": 32,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/run-tests.ts core",
+          "tests": 49,
+          "pass": 49,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/run-tests.ts paddle",
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/run-tests.ts modular",
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/run-tests.ts postgres",
+          "tests": 49,
+          "pass": 49,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/run-tests.ts e2e",
+          "tests": 81,
+          "pass": 81,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/qualify-observation.ts",
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/packed-consumers.ts npm",
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/packed-consumers.ts npm",
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ],
+      "retainedFiles": {
+        "drizzle-admission-node-24.22.1.json": {
+          "bytes": 1242,
+          "sha256": "3145d66f566709a78424c6063ede5955dfa47767666e7d7654f0226ccb0e15ed"
+        },
+        "full-check-node-24.22.1.json": {
+          "bytes": 1594,
+          "sha256": "44f25fb4f3d81305b5e03e64a6e23e267275805d3fb5806e2a7494df165c5b58"
+        },
+        "full-check-node-24.22.1.log": {
+          "bytes": 47658,
+          "sha256": "2a62c3a8c5e73044f8895da555f5ba33ce268a4293aa678847495334594e877a"
+        },
+        "observation-published-node-24.22.1.json": {
+          "bytes": 3424,
+          "sha256": "c536a008ae05d3f3c28401e7eceb87aa3763702a320a6ff3a7155b3afecc3c7e"
+        },
+        "observation-published-node-24.22.1.log": {
+          "bytes": 646,
+          "sha256": "3e0c5f7fa075251c3df4f6d8b4f1e5c5048dccda3a3f73b32eb445e3cc81b44b"
+        },
+        "package-identities.json": {
+          "bytes": 741,
+          "sha256": "ee78a266aa1d842082c3931fac70e42324633adca42305238846ac9941d673c2"
+        },
+        "packed-consumers.json": {
+          "bytes": 839,
+          "sha256": "64f9ad9875217b44f576a32e2928695684884ddf4ed1baa9e0b8b974cb308d3b"
+        },
+        "packed-npm-node-24.22.1.bundler.files.txt": {
+          "bytes": 33142,
+          "sha256": "08db6c8da9c6068cc3c9f4c9c0de0190e4ce68585a88d14446a28cf286b75b61"
+        },
+        "packed-npm-node-24.22.1.json": {
+          "bytes": 4129,
+          "sha256": "9589ce1a2d706f7486e754bb8e0ff9f04e4a8c9b44339f65ad5950fef1bcc3ad"
+        },
+        "packed-npm-node-24.22.1.log": {
+          "bytes": 384,
+          "sha256": "9742e97f37d967ae58319e636386a8998fb284836cb1f9761e68cf38a903d02e"
+        },
+        "packed-npm-node-24.22.1.nodenext.files.txt": {
+          "bytes": 33142,
+          "sha256": "08db6c8da9c6068cc3c9f4c9c0de0190e4ce68585a88d14446a28cf286b75b61"
+        },
+        "packed-npm-node-24.22.1.package-lock.json": {
+          "bytes": 23437,
+          "sha256": "ed2d46bec4fe62cc95b1384953a11d23358b6aa543fcdbaaa36ed6fc2314a0b4"
+        },
+        "packed-postgres-root-node-24.22.1.bundler.files.txt": {
+          "bytes": 14906,
+          "sha256": "e3401407626c6a8642aabb6a2aa90ca632a6d12f344a75426e091a4987f9907f"
+        },
+        "packed-postgres-root-node-24.22.1.json": {
+          "bytes": 2185,
+          "sha256": "68ed845d331e473eb958e98947e75e92f1d8f4bedc11815b0ea14f3ed91617c7"
+        },
+        "packed-postgres-root-node-24.22.1.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "packed-postgres-root-node-24.22.1.nodenext.files.txt": {
+          "bytes": 14906,
+          "sha256": "e3401407626c6a8642aabb6a2aa90ca632a6d12f344a75426e091a4987f9907f"
+        },
+        "packed-postgres-root-node-24.22.1.package-lock.json": {
+          "bytes": 7540,
+          "sha256": "8fb96e7374bda09b837c7c53323f01f04e9784597234a991660696e70e964a72"
+        },
+        "packed-queue-node-24.22.1.bundler.files.txt": {
+          "bytes": 25063,
+          "sha256": "fdb9ead6101ec3c374a4a371da0cfda4a35abe8a1f5d2a6437bb85a335d67052"
+        },
+        "packed-queue-node-24.22.1.json": {
+          "bytes": 2214,
+          "sha256": "879229769b4b158d044032dd76b377ba1bd43b4fd3a446db78b26873dd768907"
+        },
+        "packed-queue-node-24.22.1.log": {
+          "bytes": 645,
+          "sha256": "949e334b68361b9371b6158ce8c16de5529f1f960ff0a0512c47b1ee86c2e9ab"
+        },
+        "packed-queue-node-24.22.1.nodenext.files.txt": {
+          "bytes": 25063,
+          "sha256": "fdb9ead6101ec3c374a4a371da0cfda4a35abe8a1f5d2a6437bb85a335d67052"
+        },
+        "packed-queue-node-24.22.1.package-lock.json": {
+          "bytes": 14064,
+          "sha256": "e1c0732dccb071a1ecb45358b945790c4b99a1d245cebcb74fb9f86ec50bff6a"
+        },
+        "release-dry-run.json": {
+          "bytes": 923,
+          "sha256": "3b476bb27661fd7007fc64d1560b061a11fe0a4ad2f494bd7d393b09e1a8809e"
+        }
+      },
+      "packageIdentities": {
+        "commit": "6f348df2d345edf5270ade0daebf67cc834de2de",
+        "node": "24.22.1",
+        "packages": {
+          "agent-teams-payments-core-0.3.0.tgz": {
+            "bytes": 64693,
+            "sha256": "af05c232b8f7ddbcdac067ff8a6fa9008c15e2d9053a98aaa4abced9520edcff"
+          },
+          "agent-teams-payments-get-modular-0.3.0.tgz": {
+            "bytes": 21519,
+            "sha256": "ffdc7db6ca629547e7aed82041084f5508329ac8286ab4c6d8fd5351bccd1548"
+          },
+          "agent-teams-payments-paddle-0.3.0.tgz": {
+            "bytes": 26332,
+            "sha256": "831d614cb27b1bd554f17c7799615d04e6b0417096d975430f28cc7580f69fd8"
+          },
+          "agent-teams-payments-postgres-0.3.0.tgz": {
+            "bytes": 72473,
+            "sha256": "a1dd6febac7b7d565ab493404392ce7eb8d74143dd1aa40bdfa6b1212dc9dce0"
+          }
+        }
+      }
+    },
+    {
+      "node": "26.12.1",
+      "completeCheckSeconds": 147.287,
+      "database": "payments_portability_26_12_1_9098d99c",
+      "testGroups": [
+        {
+          "command": "node --test tools/test/get-modular-adoption.test.ts",
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node --test tools/test/*.test.ts",
+          "tests": 32,
+          "pass": 32,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/run-tests.ts core",
+          "tests": 49,
+          "pass": 49,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/run-tests.ts paddle",
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/run-tests.ts modular",
+          "tests": 13,
+          "pass": 13,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/run-tests.ts postgres",
+          "tests": 49,
+          "pass": 49,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/run-tests.ts e2e",
+          "tests": 81,
+          "pass": 81,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/qualify-observation.ts",
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/packed-consumers.ts npm",
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "command": "node tools/packed-consumers.ts npm",
+          "tests": 2,
+          "pass": 2,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ],
+      "retainedFiles": {
+        "drizzle-admission-node-26.12.1.json": {
+          "bytes": 1242,
+          "sha256": "f8adc43430bff77197ba5365ef8654b1db5755753e0d75715beca4bfaf489bfd"
+        },
+        "full-check-node-26.12.1.json": {
+          "bytes": 1594,
+          "sha256": "4154f0495541a37b8d88faca1baea7b2843534201e39465bf4f340e20e275ad0"
+        },
+        "full-check-node-26.12.1.log": {
+          "bytes": 47661,
+          "sha256": "002bc2d909227d299298c580f97a587b47dd21f9a32dddce584d5941c99dd4ea"
+        },
+        "observation-published-node-26.12.1.json": {
+          "bytes": 3424,
+          "sha256": "d2e467dece0f5cb7fc8b3a2bb1cc7b263e5c42bb7b4a9c0aae426690afcbbf67"
+        },
+        "observation-published-node-26.12.1.log": {
+          "bytes": 644,
+          "sha256": "28145789b14dfa5dc453143141434e57923aefad51bf57223fdbe749c9218234"
+        },
+        "package-identities.json": {
+          "bytes": 741,
+          "sha256": "10770cee1f95e6d8a68c8e6f45a7b81fb160d2228bfceba3819e2df4da521e62"
+        },
+        "packed-consumers.json": {
+          "bytes": 839,
+          "sha256": "64f9ad9875217b44f576a32e2928695684884ddf4ed1baa9e0b8b974cb308d3b"
+        },
+        "packed-npm-node-26.12.1.bundler.files.txt": {
+          "bytes": 33142,
+          "sha256": "0dc2a30b54dcae64f19f91eb41a9e6caaa713768ac883fdb5e1fcafce5e2895e"
+        },
+        "packed-npm-node-26.12.1.json": {
+          "bytes": 4129,
+          "sha256": "278810e386e03978df7b8f86529b5586f0d8d401e1255a30ff0dea0ad6df23a6"
+        },
+        "packed-npm-node-26.12.1.log": {
+          "bytes": 383,
+          "sha256": "c64b4975fb787fa82324a4c6cb34dbf58f4d69be6d4e265c8272cd97b86614b4"
+        },
+        "packed-npm-node-26.12.1.nodenext.files.txt": {
+          "bytes": 33142,
+          "sha256": "0dc2a30b54dcae64f19f91eb41a9e6caaa713768ac883fdb5e1fcafce5e2895e"
+        },
+        "packed-npm-node-26.12.1.package-lock.json": {
+          "bytes": 23437,
+          "sha256": "ed2d46bec4fe62cc95b1384953a11d23358b6aa543fcdbaaa36ed6fc2314a0b4"
+        },
+        "packed-postgres-root-node-26.12.1.bundler.files.txt": {
+          "bytes": 14906,
+          "sha256": "ed67d5351a0d7d6cdfe8c09ce37489614e9ad2b9cdcaa295c83e4265df059c60"
+        },
+        "packed-postgres-root-node-26.12.1.json": {
+          "bytes": 2185,
+          "sha256": "fae2584fb5e428a6c96c84188216d74427b620d9546d8c33ef47a3d2179b66fc"
+        },
+        "packed-postgres-root-node-26.12.1.log": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "packed-postgres-root-node-26.12.1.nodenext.files.txt": {
+          "bytes": 14906,
+          "sha256": "ed67d5351a0d7d6cdfe8c09ce37489614e9ad2b9cdcaa295c83e4265df059c60"
+        },
+        "packed-postgres-root-node-26.12.1.package-lock.json": {
+          "bytes": 7540,
+          "sha256": "8fb96e7374bda09b837c7c53323f01f04e9784597234a991660696e70e964a72"
+        },
+        "packed-queue-node-26.12.1.bundler.files.txt": {
+          "bytes": 25063,
+          "sha256": "c5d1ba1d3945a1b616387feb80c66e83af8cb425cba56e416557770aee0201a0"
+        },
+        "packed-queue-node-26.12.1.json": {
+          "bytes": 2214,
+          "sha256": "1715868c76efa4a335935b317a8d8f0585a46c8e3812fa96b435f52c242649d6"
+        },
+        "packed-queue-node-26.12.1.log": {
+          "bytes": 644,
+          "sha256": "16bff74123d1ed5b7ea8d594f6227b4c421276c13312b0850eaebbc9c6b8d400"
+        },
+        "packed-queue-node-26.12.1.nodenext.files.txt": {
+          "bytes": 25063,
+          "sha256": "c5d1ba1d3945a1b616387feb80c66e83af8cb425cba56e416557770aee0201a0"
+        },
+        "packed-queue-node-26.12.1.package-lock.json": {
+          "bytes": 14064,
+          "sha256": "e1c0732dccb071a1ecb45358b945790c4b99a1d245cebcb74fb9f86ec50bff6a"
+        },
+        "release-dry-run.json": {
+          "bytes": 923,
+          "sha256": "3b476bb27661fd7007fc64d1560b061a11fe0a4ad2f494bd7d393b09e1a8809e"
+        }
+      },
+      "packageIdentities": {
+        "commit": "6f348df2d345edf5270ade0daebf67cc834de2de",
+        "node": "26.12.1",
+        "packages": {
+          "agent-teams-payments-core-0.3.0.tgz": {
+            "bytes": 64693,
+            "sha256": "af05c232b8f7ddbcdac067ff8a6fa9008c15e2d9053a98aaa4abced9520edcff"
+          },
+          "agent-teams-payments-get-modular-0.3.0.tgz": {
+            "bytes": 21519,
+            "sha256": "ffdc7db6ca629547e7aed82041084f5508329ac8286ab4c6d8fd5351bccd1548"
+          },
+          "agent-teams-payments-paddle-0.3.0.tgz": {
+            "bytes": 26332,
+            "sha256": "831d614cb27b1bd554f17c7799615d04e6b0417096d975430f28cc7580f69fd8"
+          },
+          "agent-teams-payments-postgres-0.3.0.tgz": {
+            "bytes": 72473,
+            "sha256": "a1dd6febac7b7d565ab493404392ce7eb8d74143dd1aa40bdfa6b1212dc9dce0"
+          }
+        }
+      }
+    }
+  ],
+  "limits": [
+    "Test counts include parent/subtests and some deliberate repeated consumers; they are not unique scenario counts.",
+    "Independent review and full local qualification passed; final exact-head hosted Checks and merge remain pending.",
+    "No live Paddle credentials, payment, production ledger, physical PITR/HA, npm publication or deployment is qualified."
+  ]
+}

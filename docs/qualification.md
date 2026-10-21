@@ -9,7 +9,8 @@ four additional reviews and exact production metrics.
 [PR #6](https://github.com/agent-teams-ai/payments-sdk/pull/6) owns that remote
 delivery and its own hosted result. It does not qualify the subsequent
 [corrected-runtime candidate](runtime-security-admission.md) on **24.22.1 / 26.12.1**;
-those complete and exact-commit hosted gates remain separately owned. The earlier
+its [complete local gates](reviews/node-runtime-security-correction-2026-10-21/qualification.md)
+subsequently passed on the exact `6f348df` source; exact-commit hosted gates remain pending. The earlier
 [local hardening record](reviews/sdk-0.3-hardening/README.md), including its then
 blocked write access, remains historical.
 
@@ -47,7 +48,7 @@ Manifest engine ranges describe runtime compatibility, and the two exact Node ve
 
 Official security releases published on **2026-10-21** provide Node **24.22.1 LTS** with Undici **7.30.1**, and Node **26.12.1** with Undici **8.12.2**. The [current admission candidate](runtime-security-admission.md) records official archive checksums, actual binary versions, exact corrected-source comparisons and successful unmodified global-fetch process completion. The earlier affected runtime results remain in the [historical security record](security-qualification.md#node-bundled-transport-scope).
 
-This candidate raises manifest/toolchain floors and exact CI versions. It does not claim final production admission: independent review, complete qualification on both corrected floors and successful exact-commit hosted Checks remain required. The separate account, policy, backup and deployment gates below remain applicable. Development-only Undici and clean npm scans do not update a host's built-in fetch.
+This candidate raises manifest/toolchain floors and exact CI versions. It does not claim final production admission: independent review and complete local qualification passed on source `6f348df2d345edf5270ade0daebf67cc834de2de` under both corrected floors, as retained in the [qualification record](reviews/node-runtime-security-correction-2026-10-21/qualification.md); successful reviewed exact-commit hosted Checks remain required. The separate account, policy, backup and deployment gates below remain applicable. Development-only Undici and clean npm scans do not update a host's built-in fetch.
 
 ## What the automated gates establish
 

@@ -1,0 +1,44 @@
+{
+  "commit": "6f348df2d345edf5270ade0daebf67cc834de2de",
+  "sourceTree": "8de7807f3fc4f1aa08d3a1df8fbeb661635d9832",
+  "node": "24.22.1",
+  "command": "pnpm check",
+  "freshForcedBuild": true,
+  "serialPostgresLease": true,
+  "database": "payments_portability_24_22_1_d013a5dd",
+  "freshDisposableDatabase": true,
+  "postgres": {
+    "version": "PostgreSQL 18.4 (Ubuntu 18.4-1.pgdg24.04+1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit",
+    "fsync": "on",
+    "synchronous_commit": "on"
+  },
+  "testFileConcurrency": "unchanged Node default within each test group",
+  "registryAccess": "Node uses the existing environment proxy via NODE_USE_ENV_PROXY=1; original official registry URLs and integrity assertions are unchanged",
+  "started": "2026-10-21T12:40:59.063Z",
+  "stages": [
+    {
+      "name": "frozen-install",
+      "started": "2026-10-21T12:40:59.064Z",
+      "finished": "2026-10-21T12:40:59.562Z",
+      "exitCode": 0
+    },
+    {
+      "name": "forced-build",
+      "started": "2026-10-21T12:40:59.563Z",
+      "finished": "2026-10-21T12:41:03.995Z",
+      "exitCode": 0
+    },
+    {
+      "name": "complete-check",
+      "started": "2026-10-21T12:41:03.997Z",
+      "finished": "2026-10-21T12:43:39.865Z",
+      "exitCode": 0
+    }
+  ],
+  "finished": "2026-10-21T12:43:39.866Z",
+  "exitCode": 0,
+  "finishedCommit": "6f348df2d345edf5270ade0daebf67cc834de2de",
+  "finishedTree": "8de7807f3fc4f1aa08d3a1df8fbeb661635d9832",
+  "trackedChangesAfter": "",
+  "logSha256": "2a62c3a8c5e73044f8895da555f5ba33ce268a4293aa678847495334594e877a"
+}
