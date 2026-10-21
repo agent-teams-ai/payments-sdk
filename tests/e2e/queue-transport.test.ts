@@ -4,6 +4,7 @@ import test from 'node:test';
 import { Pool } from 'pg';
 import { canonicalJson, createPayments, digest } from '@agent-teams/payments-core';
 import type { EvidenceMessage, OfferSnapshot, PaymentOperation, PaymentProvider, PaymentScope, PaymentStore, VerifiedInput } from '@agent-teams/payments-core';
+import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
 import { createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema, PaymentDatabaseError } from '@agent-teams/payments-postgres';
 import { CreditFixture } from '../fixtures/consumers/index.ts';
 import type { Effect } from '../fixtures/consumers/index.ts';
@@ -39,14 +40,15 @@ async function prepare(store: PaymentStore, id: string): Promise<void> {
 async function fixture() {
   const connectionString = process.env['DATABASE_URL']; assert.ok(connectionString !== undefined && connectionString !== '', 'Queue-transport E2E requires disposable PostgreSQL18');
   const pool = new Pool({ connectionString, max: 10, connectionTimeoutMillis: 1000 });
+  const database = createNodePostgresPaymentDatabase(pool);
   const suffix = randomUUID().replaceAll('-', '').slice(0, 16), schema = `queue_pay_${suffix}`, wakeSchema = `queue_wake_${suffix}`, creditSchema = `queue_credit_${suffix}`;
-  await migratePaymentSchema({ pool, schema, scope });
+  await migratePaymentSchema({ database, schema, scope });
   const wakeups = sqlWakeupFixture({ pool, schema: wakeSchema, paymentSchema: schema, scope }); await wakeups.bootstrap();
   const errors: Error[] = [];
-  const options = { pool, paymentSchema: schema, scope, transport: wakeups.transport, onError: (error: Error) => { errors.push(error); } };
+  const options = { database, paymentSchema: schema, scope, transport: wakeups.transport, onError: (error: Error) => { errors.push(error); } };
   const jobs = createPostgresPaymentJobs(options);
-  const store = await createPostgresPaymentStore({ pool, schema, scope, queue: jobs.queue });
-  return { pool, schema, wakeSchema, creditSchema, wakeups, store, jobs, options, errors, connectionString, async close() {
+  const store = await createPostgresPaymentStore({ database, schema, scope, queue: jobs.queue });
+  return { pool, database, schema, wakeSchema, creditSchema, wakeups, store, jobs, options, errors, connectionString, async close() {
     await jobs.stop(); await jobs.drain();
     for (const name of [schema, wakeSchema, creditSchema]) {await pool.query(`DROP SCHEMA IF EXISTS "${name}" CASCADE`);}
     await pool.end();
@@ -75,7 +77,7 @@ void test('alternate durable transport uses the same store/runner for atomic adm
     // No transport metadata or payment identity changes across reconstruction; no pg-boss setup.
     const wakeups = sqlWakeupFixture({ pool: f.pool, schema: f.wakeSchema, paymentSchema: f.schema, scope });
     jobs = createPostgresPaymentJobs({ ...f.options, transport: wakeups.transport });
-    const store = await createPostgresPaymentStore({ pool: f.pool, schema: f.schema, scope, queue: jobs.queue });
+    const store = await createPostgresPaymentStore({ database: f.database, schema: f.schema, scope, queue: jobs.queue });
     payments = createPayments({ ...original.options, store });
     let receipts = 0;
     const consumer = async (message: EvidenceMessage) => {
@@ -119,7 +121,7 @@ void test('alternate transport repair excludes queued older work before LIMIT an
     assert.deepEqual((await f.pool.query<{ id: string }>(`SELECT id FROM "${f.wakeSchema}".wakeups ORDER BY id`)).rows.map(row => row.id), ['op-a', 'op-b', 'op-c']);
     const mismatched = { ...f.wakeups.transport, namespace: { paymentSchema: f.schema, scope: { ...scope, applicationId: 'foreign' } } };
     assert.throws(() => createPostgresPaymentJobs({ ...f.options, transport: mismatched }), /namespace mismatch/);
-    await assert.rejects(createPostgresPaymentStore({ pool: f.pool, schema: f.schema, scope, queue: mismatched }), /namespace mismatch/);
+    await assert.rejects(createPostgresPaymentStore({ database: f.database, schema: f.schema, scope, queue: mismatched }), /namespace mismatch/);
   } finally { await f.close(); }
 });
 
@@ -128,7 +130,7 @@ void test('alternate enqueue shares the real unknown COMMIT boundary and no wake
   const proxyPool = new Pool({ connectionString: proxy.connectionString, max: 3, connectionTimeoutMillis: 1000 });
   let context: ReturnType<typeof runtime> | undefined;
   try {
-    const store = await createPostgresPaymentStore({ pool: proxyPool, schema: f.schema, scope, queue: f.jobs.queue });
+    const store = await createPostgresPaymentStore({ database: createNodePostgresPaymentDatabase(proxyPool), schema: f.schema, scope, queue: f.jobs.queue });
     const dispatch = store.beginExternalDispatch.bind(store);
     store.beginExternalDispatch = async (...args) => {proxy.loseNextCommit(); return dispatch(...args);};
     context = runtime(store);
@@ -168,8 +170,8 @@ void test('alternate transport stop retains admitted consumer I/O until physical
     const stopped = await f.jobs.stop(10);
     assert.equal(stopped.transportStopped, true); assert.equal(stopped.admittedHandlers, 1);
     assert.equal((await context.payments.readDeliveries('credits')).length, 1, 'unconfirmed T3 remains pending');
-    await migratePaymentSchema({ pool: f.pool, schema: siblingSchema, scope: siblingScope });
-    const sibling = await createPostgresPaymentStore({ pool: f.pool, schema: siblingSchema, scope: siblingScope });
+    await migratePaymentSchema({ database: f.database, schema: siblingSchema, scope: siblingScope });
+    const sibling = await createPostgresPaymentStore({ database: f.database, schema: siblingSchema, scope: siblingScope });
     await sibling.registerConsumer(siblingScope, 'sibling-audit', false);
     assert.deepEqual(await sibling.listWork(siblingScope, 'inbox', 1), []);
     assert.equal(await sibling.readPurchase(siblingScope, 'buyer', checkout.value.intentId), undefined, 'a sibling namespace remains usable and independent');

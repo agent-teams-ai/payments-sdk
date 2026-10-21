@@ -4,6 +4,7 @@ import test from 'node:test';
 import { Pool } from 'pg';
 import { createPayments, digest, subscriptionStatuses, transactionOrigins } from '@agent-teams/payments-core';
 import type { EvidenceMessage, Field, OfferSnapshot, PaymentProvider, PaymentScope, Period, SubscriptionObservation, TransactionObservation, VerifiedInput } from '@agent-teams/payments-core';
+import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
 import { createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
 import { CreditFixture } from '../fixtures/consumers/index.ts';
 import type { Effect } from '../fixtures/consumers/index.ts';
@@ -100,14 +101,15 @@ void test('foreign provider vocabulary preserves public completion, renewal and 
   const databaseUrl = process.env['DATABASE_URL'];
   assert.ok((databaseUrl !== undefined && databaseUrl !== ''), 'Foreign-provider E2E requires disposable PostgreSQL18');
   const pool = new Pool({ connectionString: databaseUrl, max: 8, connectionTimeoutMillis: 1000 });
+  const database = createNodePostgresPaymentDatabase(pool);
   const suffix = randomUUID().replaceAll('-', '').slice(0, 16), schema = `foreign_${suffix}`, consumerSchema = `foreign_credit_${suffix}`;
   const scope: PaymentScope = { applicationId: 'foreign-contract', provider: 'foreign-fixture', paymentAccountId: 'foreign-account', environment: 'sandbox' };
   const producerNamespace = 'foreign-contract/1';
   const foreign = foreignProvider(scope);
   let payments: ReturnType<typeof createPayments> | undefined;
   try {
-    await migratePaymentSchema({ pool, schema, scope });
-    const store = await createPostgresPaymentStore({ pool, schema, scope });
+    await migratePaymentSchema({ database, schema, scope });
+    const store = await createPostgresPaymentStore({ database, schema, scope });
     const credit = new CreditFixture({ pool, schema: consumerSchema, trust: { scope, producerNamespace } });
     await credit.migrate();
     const catalog = { resolveOffer: async (_scope: PaymentScope, offerId: string): Promise<OfferSnapshot | undefined> => {

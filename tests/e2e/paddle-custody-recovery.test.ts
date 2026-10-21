@@ -7,6 +7,7 @@ import { MockAgent, getGlobalDispatcher, install, setGlobalDispatcher } from 'un
 import { createPayments } from '@agent-teams/payments-core';
 import type { CheckoutReady, EvidenceMessage, OperationResult, PaymentRuntimeOptions, VerifiedInput } from '@agent-teams/payments-core';
 import { createPaddleProvider } from '@agent-teams/payments-paddle';
+import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
 import { createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
 import { createNodeHttpHost } from '../../examples/node-http.ts';
 import { createFetchModularHost } from '../../examples/fetch-modular.ts';
@@ -57,6 +58,7 @@ async function post(host: Host, path: string, body: string, headers: Record<stri
 async function paymentHost(kind: HostKind) {
   const connectionString = process.env['DATABASE_URL']; assert.ok(connectionString !== undefined && connectionString !== '', 'DATABASE_URL is required');
   const pool = new Pool({ connectionString, max: 10, connectionTimeoutMillis: 1000 });
+  const database = createNodePostgresPaymentDatabase(pool);
   const prefix = `custody_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
   const trust = { producerNamespace, scope };
   const credit = new CreditFixture({ pool, schema: `${prefix}_credit`, trust });
@@ -65,12 +67,12 @@ async function paymentHost(kind: HostKind) {
   const operators = new Set<ReturnType<typeof createPayments>>();
   async function open(): Promise<void> {
     const provider = createPaddleProvider({ scope, apiKey: 'synthetic-never-valid-key', apiVersion: 1, webhook: { endpointId: 'custody-recovery-destination', secret, apiVersion: 1 } });
-    const store = await createPostgresPaymentStore({ pool, schema, scope });
+    const store = await createPostgresPaymentStore({ database, schema, scope });
     options = { scope, producerNamespace, provider, store, catalog: { resolveOffer: async () => offer } };
     const verify = provider.verifyWebhook.bind(provider);
     host = kind === 'node-http-factory' ? await createNodeHttpHost(options, verify, authenticateBuyer) : await createFetchModularHost(options, verify, authenticateBuyer);
   }
-  try { await migratePaymentSchema({ pool, schema, scope }); await credit.migrate(); await access.migrate(); await open(); }
+  try { await migratePaymentSchema({ database, schema, scope }); await credit.migrate(); await access.migrate(); await open(); }
   catch (error) { await pool.end(); throw error; }
   const current = (): Host => { assert.ok(host); return host; };
   async function deliver(consumerId: string, consumer: CreditFixture | AccessFixture, acknowledge = true): Promise<readonly EvidenceMessage[]> {

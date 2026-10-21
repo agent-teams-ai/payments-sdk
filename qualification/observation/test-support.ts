@@ -5,6 +5,7 @@ import { MockAgent, getGlobalDispatcher, install, setGlobalDispatcher } from 'un
 import { createPayments } from '@agent-teams/payments-core';
 import type { EvidenceMessage, OfferSnapshot, OperationResult, PaymentScope, Payments, ProviderResult } from '@agent-teams/payments-core';
 import { createPaddleProvider } from '@agent-teams/payments-paddle';
+import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
 import { createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
 import { AccessFixture, CreditFixture } from '../../tests/fixtures/consumers/index.ts';
 import { eventFixture, paddleIds } from '../../packages/payments-paddle/test/fixtures.ts';
@@ -45,6 +46,7 @@ export async function durableWorld() {
   const connectionString = process.env['DATABASE_URL'];
   if (connectionString === undefined || connectionString === '') {throw new Error('DATABASE_URL is mandatory: observation qualification requires real PostgreSQL18');}
   const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
+  const database = createNodePostgresPaymentDatabase(pool);
   const prefix = `observation_${randomUUID().replaceAll('-', '').slice(0, 14)}`;
   const schema = `${prefix}_payments`;
   const trust = { producerNamespace, scope };
@@ -54,10 +56,10 @@ export async function durableWorld() {
   try {
     const version = await pool.query<{ server_version_num: string }>('SHOW server_version_num');
     assert.equal(Math.floor(Number(version.rows[0]?.server_version_num) / 10_000), 18);
-    await migratePaymentSchema({ pool, schema, scope });
+    await migratePaymentSchema({ database, schema, scope });
     await credit.migrate();
     await access.migrate();
-    const store = await createPostgresPaymentStore({ pool, schema, scope });
+    const store = await createPostgresPaymentStore({ database, schema, scope });
     const payments = createPayments({ scope, producerNamespace, provider, store, catalog: { resolveOffer: async (_scope, id) => id === 'monthly' ? monthlyOffer : id === 'topup' ? topupOffer : undefined }, now: () => '2026-10-15T00:00:00Z' });
     let sequence = 100;
     return { pool, provider, payments, credit, access,

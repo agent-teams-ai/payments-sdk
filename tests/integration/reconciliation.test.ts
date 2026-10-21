@@ -5,6 +5,7 @@ import { Pool } from 'pg';
 import { MockAgent, getGlobalDispatcher, install, setGlobalDispatcher } from 'undici';
 import { createPaymentReconciler, createPayments, digest, inputRoutes, type OfferSnapshot, type PaymentScope, type ReconciliationQuery, type VerifiedInput } from '@agent-teams/payments-core';
 import { createPaddleProvider, createPaddleReconciliationSource } from '@agent-teams/payments-paddle';
+import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
 import { createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
 import { adjustmentFixture, eventFixture, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '../../packages/payments-paddle/test/fixtures.ts';
 
@@ -23,13 +24,14 @@ void test('durable reconciliation through actual public Paddle SDK and PostgreSQ
   install(); const agent = new MockAgent(); agent.disableNetConnect(); setGlobalDispatcher(agent);
   const api = agent.get('https://sandbox-api.paddle.com');
   const pool = new Pool({ connectionString, max: 8, connectionTimeoutMillis: 1000 });
+  const database = createNodePostgresPaymentDatabase(pool);
   const provider = createPaddleProvider({ scope, apiKey: 'synthetic-noncredential', apiVersion: 1, webhook: { endpointId: 'reconciliation-fixture', secret, apiVersion: 1 } });
   const source = createPaddleReconciliationSource(provider);
   async function isolated(run: (context: { schema: string; store: Awaited<ReturnType<typeof createPostgresPaymentStore>>; reconciler: ReturnType<typeof createPaymentReconciler> }) => Promise<void>) {
     const schema = `reconcile_${randomUUID().replaceAll('-', '').slice(0, 20)}`;
     try {
-      await migratePaymentSchema({ pool, schema, scope });
-      const store = await createPostgresPaymentStore({ pool, schema, scope });
+      await migratePaymentSchema({ database, schema, scope });
+      const store = await createPostgresPaymentStore({ database, schema, scope });
       await run({ schema, store, reconciler: createPaymentReconciler({ scope, store, source }) });
     } finally { await pool.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`); }
   }
@@ -66,7 +68,7 @@ void test('durable reconciliation through actual public Paddle SDK and PostgreSQ
         assert.equal(Number((await pool.query<{ count: string }>(`SELECT count(*) FROM "${schema}".records WHERE kind='inbox' AND body #>> '{input,source,kind}'='authenticated_api'`)).rows[0]?.count), 0);
         await pool.query(`DROP TRIGGER reject_large_page ON "${schema}".records`);
       }
-      const reloadedStore = await createPostgresPaymentStore({ pool, schema, scope });
+      const reloadedStore = await createPostgresPaymentStore({ database, schema, scope });
       const restarted = createPaymentReconciler({ scope, store: reloadedStore, source });
       api.intercept({ path, method: 'GET' }).reply(200, responseFixture(events));
       const acquired = await restarted.resumeScan('large-page'); assert.equal(acquired.kind, 'saved');
@@ -106,7 +108,7 @@ void test('durable reconciliation through actual public Paddle SDK and PostgreSQ
       assert.equal(Number((await pool.query<{ count: string }>(`SELECT count(*) FROM "${schema}".records WHERE kind='inbox'`)).rows[0]?.count), 0);
       await pool.query(`DROP TRIGGER reject_scan ON "${schema}".records`);
       api.intercept({ path: eventPath(), method: 'GET' }).reply(200, responseFixture(page, true));
-      const restarted = createPaymentReconciler({ scope, store: await createPostgresPaymentStore({ pool, schema, scope }), source });
+      const restarted = createPaymentReconciler({ scope, store: await createPostgresPaymentStore({ database, schema, scope }), source });
       assert.equal((await restarted.resumeScan('rollback')).kind, 'saved');
       const accepted = await store.listWork(scope, 'inbox', 100); assert.equal(accepted.length, 2);
       for (const id of accepted) {
@@ -134,7 +136,7 @@ void test('durable reconciliation through actual public Paddle SDK and PostgreSQ
       assert.equal(failed.lastFailure?.sdkVersion, '3.10.0'); assert.equal(failed.lastFailure.after, paddleIds.event);
       assert.equal((await store.listWork(scope, 'inbox', 100)).length, 1, 'no partially mapped member was returned or admitted');
       assert.equal((await pool.query<{ state: string }>(`SELECT state FROM "${schema}".obligations WHERE kind='scan' AND id='mapping'`)).rows[0]?.state, 'quarantined');
-      const restarted = createPaymentReconciler({ scope, store: await createPostgresPaymentStore({ pool, schema, scope }), source });
+      const restarted = createPaymentReconciler({ scope, store: await createPostgresPaymentStore({ database, schema, scope }), source });
       await restarted.retryScan('mapping');
       api.intercept({ path: eventPath(paddleIds.event, 'subscription.updated'), method: 'GET' }).reply(200, responseFixture([
         eventFixture('subscription.updated', subscriptionFixture(), paddleIds.secondEvent), eventFixture('subscription.updated', subscriptionFixture(), paddleIds.thirdEvent),
@@ -241,7 +243,7 @@ void test('durable reconciliation through actual public Paddle SDK and PostgreSQ
         const result = await reconciler.resumeScan('future-entities'); assert.equal(result.kind, 'saved');
         assert.equal(result.admitted, 2); assert.equal(result.checkpoint.status, 'complete'); assert.equal(result.checkpoint.after, paddleIds.thirdEvent);
       }
-      const reloadedStore = await createPostgresPaymentStore({ pool, schema, scope });
+      const reloadedStore = await createPostgresPaymentStore({ database, schema, scope });
       const restarted = createPayments({ ...runtimeOptions, store: reloadedStore });
       const pending = await reloadedStore.listWork(scope, 'inbox', 100); assert.equal(pending.length, 2);
       for (const id of pending) {
@@ -253,7 +255,7 @@ void test('durable reconciliation through actual public Paddle SDK and PostgreSQ
         else {assert.equal(digest(retained.retainedRepresentation), retained.source.representationDigest);}
         assert.equal(await restarted.processInbox(id), 'processed');
       }
-      const durable = createPayments({ ...runtimeOptions, store: await createPostgresPaymentStore({ pool, schema, scope }) });
+      const durable = createPayments({ ...runtimeOptions, store: await createPostgresPaymentStore({ database, schema, scope }) });
       const afterTransaction = (await durable.readPurchase('buyer-fixture', checkout.value.intentId))?.transactions[0];
       assert.deepEqual(afterTransaction?.completion, transaction.completion); assert.deepEqual(afterTransaction.flags, ['unsupported']);
       const afterSubscription = (await durable.readObservedSubscription('buyer-fixture', basis))?.observations[0];

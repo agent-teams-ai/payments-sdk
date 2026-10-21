@@ -9,6 +9,13 @@ qualification; see the [hardening plan](docs/reviews/sdk-0.3-hardening/plan.md).
 
 ### Queue composition
 
+- Give generic PostgreSQL APIs a checked-out connection capability and local
+  row/result contracts. Select the borrowed-pool `pg` adapter explicitly through
+  `payments-postgres/node-postgres`; generic runtime/declarations need no driver.
+- Keep pg-boss outside the package root's runtime and declaration import graph.
+  The bundled adapter is exported only from `payments-postgres/pg-boss`; its
+  exact qualified vendor is an optional peer explicitly installed by selecting
+  hosts. Another transport no longer installs or loads pg-boss.
 - Give the PostgreSQL store a transactional enqueue capability instead of a
   `PgBoss` instance. Keep payment obligations authoritative and allow the store
   to run without a queue.
@@ -41,8 +48,12 @@ qualification; see the [hardening plan](docs/reviews/sdk-0.3-hardening/plan.md).
 
 ### Migration from 0.2.0
 
-Upgrade the four SDK packages together. Construct
-`createPgBossPaymentTransport` at the host composition boundary, call its
+Upgrade the four SDK packages together. For node-postgres, install `pg@8.23.1`
+and `@types/pg@8.20.0`, import `createNodePostgresPaymentDatabase` from
+`@agent-teams/payments-postgres/node-postgres`, wrap the host-owned pool once,
+and replace generic `pool` options with `database`. Construct
+`createPgBossPaymentTransport` from `@agent-teams/payments-postgres/pg-boss`
+at the host composition boundary. Explicitly install `pg-boss@12.38.0`, call its
 explicit `bootstrap()` under the migration role, and pass the transport to
 `createPostgresPaymentJobs`. Give the store the runner's narrow `queue`
 capability. The generic worker no longer returns a raw `boss` or queue name,

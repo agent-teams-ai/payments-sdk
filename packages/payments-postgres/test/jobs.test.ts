@@ -5,7 +5,9 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { Pool } from 'pg';
 import { createPaymentReconciler, createPayments, digest, money } from '@agent-teams/payments-core';
 import type { EvidenceMessage, OfferSnapshot, PaymentProvider, PaymentScope, PaymentStore, ProviderResult, CheckoutReady, VerifiedInput } from '@agent-teams/payments-core';
-import { createPgBossPaymentTransport, createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema, PaymentJobHandlerError } from '../dist/index.js';
+import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
+import { createPgBossPaymentTransport } from '@agent-teams/payments-postgres/pg-boss';
+import { createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema, PaymentJobHandlerError } from '@agent-teams/payments-postgres';
 import { paymentBossFixture } from './pg-boss-fixture.ts';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -36,15 +38,16 @@ function input(transactionRef: string, id: string): VerifiedInput {
 async function fixture() {
   const suffix = randomUUID().replaceAll('-', '').slice(0, 16), paymentSchema = `pj_${suffix}`, jobSchema = `jq_${suffix}`;
   const pool = new Pool({ connectionString: databaseUrl, max: 8 });
+  const database = createNodePostgresPaymentDatabase(pool);
   const errors: Error[] = [], onError = (error: Error) => errors.push(error);
-  const namespace = { pool, paymentSchema, jobSchema, scope, onError };
-  await migratePaymentSchema({ pool, schema: paymentSchema, scope });
+  const namespace = { database, paymentSchema, jobSchema, scope, onError };
+  await migratePaymentSchema({ database, schema: paymentSchema, scope });
   const transport = createPgBossPaymentTransport(namespace);
   await transport.bootstrap();
   const boss = paymentBossFixture(namespace);
   const jobs = createPostgresPaymentJobs({ ...namespace, transport, cooldownSeconds: 1, maxCooldownSeconds: 2, pollingIntervalSeconds: 0.5 });
-  const store = await createPostgresPaymentStore({ pool, schema: paymentSchema, scope, queue: jobs.queue });
-  return { ...namespace, transport, boss, jobs, store, errors, async cleanup() { await jobs.stop(); await jobs.drain(); await pool.query(`DROP SCHEMA ${jobSchema} CASCADE`); await pool.query(`DROP SCHEMA ${paymentSchema} CASCADE`); await pool.end(); } };
+  const store = await createPostgresPaymentStore({ database, schema: paymentSchema, scope, queue: jobs.queue });
+  return { ...namespace, pool, transport, boss, jobs, store, errors, async cleanup() { await jobs.stop(); await jobs.drain(); await pool.query(`DROP SCHEMA ${jobSchema} CASCADE`); await pool.query(`DROP SCHEMA ${paymentSchema} CASCADE`); await pool.end(); } };
 }
 
 void test('bootstrap binds the namespace and runtime starts scheduling, work and supervision without DDL privileges', { timeout: 30_000 }, async () => {
@@ -61,10 +64,11 @@ void test('bootstrap binds the namespace and runtime starts scheduling, work and
     runtimePool = new Pool({ connectionString: url.toString(), max: 6 });
     await assert.rejects(runtimePool.query(`CREATE TABLE ${f.jobSchema}.forbidden (id text)`), /permission denied/);
     const errors: Error[] = [];
-    const runtimeNamespace = { ...f, pool: runtimePool, onError: (error: Error) => errors.push(error) };
+    const database = createNodePostgresPaymentDatabase(runtimePool);
+    const runtimeNamespace = { ...f, database, onError: (error: Error) => errors.push(error) };
     jobs = createPostgresPaymentJobs({ ...runtimeNamespace, transport: createPgBossPaymentTransport(runtimeNamespace) });
     const runtimeBoss = paymentBossFixture(runtimeNamespace);
-    const store = await createPostgresPaymentStore({ pool: runtimePool, schema: f.paymentSchema, scope, queue: jobs.queue });
+    const store = await createPostgresPaymentStore({ database, schema: f.paymentSchema, scope, queue: jobs.queue });
     const core = runtime(store);
     await jobs.start({ payments: core.payments, store });
     // Source-qualified create_queue(existing) is invoked by schedule:true. A new partition would
@@ -136,14 +140,15 @@ void test('a retained terminal pg-boss job cannot suppress its immediately requi
 
 void test('cold transactional pg-boss enqueue and startup repair use only a one-connection borrowed pool', { timeout: 15_000 }, async () => {
   const f = await fixture(), pool = new Pool({ connectionString: databaseUrl, max: 1, connectionTimeoutMillis: 1000 });
-  const namespace = { ...f, pool }, transport = createPgBossPaymentTransport(namespace);
+  const database = createNodePostgresPaymentDatabase(pool);
+  const namespace = { ...f, database }, transport = createPgBossPaymentTransport(namespace);
   const jobs = createPostgresPaymentJobs({ ...namespace, transport, pollingIntervalSeconds: 0.5 });
   let core: ReturnType<typeof runtime> | undefined;
   try {
-    const store = await createPostgresPaymentStore({ pool, schema: f.paymentSchema, scope, queue: jobs.queue });
+    const store = await createPostgresPaymentStore({ database, schema: f.paymentSchema, scope, queue: jobs.queue });
     // The worker vendor instance has never started or cached queue metadata.
     await prepare(store, 'cold-enqueue');
-    const unqueued = await createPostgresPaymentStore({ pool, schema: f.paymentSchema, scope });
+    const unqueued = await createPostgresPaymentStore({ database, schema: f.paymentSchema, scope });
     await prepare(unqueued, 'cold-repair');
     core = runtime(store); const payments = core.payments;
     await jobs.start({ payments, store });

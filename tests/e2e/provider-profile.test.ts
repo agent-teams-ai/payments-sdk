@@ -6,6 +6,7 @@ import { MockAgent, getGlobalDispatcher, install, setGlobalDispatcher } from 'un
 import { createPayments } from '@agent-teams/payments-core';
 import type { EvidenceMessage, OfferSnapshot, PaymentScope, ProviderResult, VerifiedInput } from '@agent-teams/payments-core';
 import { createPaddleProvider } from '@agent-teams/payments-paddle';
+import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
 import { createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
 import { AccessFixture } from '../fixtures/consumers/access.ts';
 import { eventFixture, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '../../packages/payments-paddle/test/fixtures.ts';
@@ -33,6 +34,7 @@ void test('provider profile end to end: actual public SDK, signed raw ingress, P
   install(); const agent = new MockAgent(); agent.disableNetConnect(); setGlobalDispatcher(agent);
   const api = agent.get('https://sandbox-api.paddle.com');
   const pool = new Pool({ connectionString, max: 6, connectionTimeoutMillis: 1000 });
+  const database = createNodePostgresPaymentDatabase(pool);
   const provider = createPaddleProvider({ scope, apiKey: 'synthetic-noncredential', apiVersion: 1, webhook: { endpointId: 'profile-destination', secret, apiVersion: 1 } });
   let eventNumber = 0;
   async function rawInput(type: string, data: FixtureObject): Promise<VerifiedInput> {
@@ -46,8 +48,8 @@ void test('provider profile end to end: actual public SDK, signed raw ingress, P
     const schema = `profile_${randomUUID().replaceAll('-', '').slice(0, 16)}`, accessSchema = `${schema}_access`;
     let payments: ReturnType<typeof createPayments> | undefined;
     try {
-      await migratePaymentSchema({ pool, schema, scope });
-      const store = await createPostgresPaymentStore({ pool, schema, scope });
+      await migratePaymentSchema({ database, schema, scope });
+      const store = await createPostgresPaymentStore({ database, schema, scope });
       const ids = ['intent-fixture', 'operation-fixture', 'basis-fixture', 'attempt-fixture'];
       payments = createPayments({ scope, producerNamespace: namespace, provider, store, catalog: { resolveOffer: async () => offer }, newId: () => ids.shift() ?? randomUUID() });
       const activePayments = payments;

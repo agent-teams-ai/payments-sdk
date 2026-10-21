@@ -1,15 +1,15 @@
 /** Durable Fetch composition. Host provides authentication, policies, T3 consumers and pools. */
-import type { Pool } from 'pg';
 import { createPayments } from '@agent-teams/payments-core';
 import type { Catalog, PaymentScope } from '@agent-teams/payments-core';
 import { createPaddleProvider } from '@agent-teams/payments-paddle';
 import type { PaddleProviderOptions } from '@agent-teams/payments-paddle';
-import { createPgBossPaymentTransport, createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
-import type { PaymentJobHandlers } from '@agent-teams/payments-postgres';
+import { createPgBossPaymentTransport } from '@agent-teams/payments-postgres/pg-boss';
+import { createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
+import type { PaymentPostgresDatabase, PaymentJobHandlers } from '@agent-teams/payments-postgres';
 import { handlePaymentRequest } from './node-http.ts';
 
 export type PaymentHostNamespace = Readonly<{
-  pool: Pool; paymentSchema: string; jobSchema: string; scope: PaymentScope; onError: (error: Error) => void;
+  database: PaymentPostgresDatabase; paymentSchema: string; jobSchema: string; scope: PaymentScope; onError: (error: Error) => void;
 }>;
 export type PaddlePostgresHostOptions = PaymentHostNamespace & Readonly<{
   producerNamespace: string;
@@ -24,7 +24,7 @@ export type PaddlePostgresHostOptions = PaymentHostNamespace & Readonly<{
 
 /** Use a migration-role pool. Do not invoke bootstrap from request handlers or runtime startup. */
 export async function bootstrapPaymentHost(namespace: PaymentHostNamespace): Promise<void> {
-  await migratePaymentSchema({ pool: namespace.pool, schema: namespace.paymentSchema, scope: namespace.scope });
+  await migratePaymentSchema({ database: namespace.database, schema: namespace.paymentSchema, scope: namespace.scope });
   await createPgBossPaymentTransport(namespace).bootstrap();
 }
 
@@ -32,7 +32,7 @@ export async function createPaddlePostgresHost(options: PaddlePostgresHostOption
   const provider = createPaddleProvider({ ...options.paddle, scope: options.scope });
   const transport = createPgBossPaymentTransport(options);
   const jobs = createPostgresPaymentJobs({ ...options, transport });
-  const store = await createPostgresPaymentStore({ pool: options.pool, schema: options.paymentSchema, scope: options.scope, queue: jobs.queue });
+  const store = await createPostgresPaymentStore({ database: options.database, schema: options.paymentSchema, scope: options.scope, queue: jobs.queue });
   const payments = createPayments({ scope: options.scope, producerNamespace: options.producerNamespace, provider, store, catalog: options.catalog });
   try {
     for (const consumerId of Object.keys(options.consumers)) {await payments.registerConsumer(consumerId);}

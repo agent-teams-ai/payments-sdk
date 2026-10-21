@@ -3,16 +3,64 @@
 `@agent-teams/payments-postgres` owns durable payment records and a transport-neutral
 PostgreSQL work runner. The host explicitly selects the bundled pinned
 `pg-boss@12.38.0` adapter or another implementation of the transactional transport
-contract. The host owns one `pg.Pool`. Neither the store nor the bundled transport
-opens a hidden pool or calls `pool.end()`. See [transport contracts and migration](../../docs/queue-transport.md).
+contract. The host supplies the checked-out PostgreSQL connection capability.
+When using node-postgres, it owns one borrowed `pg.Pool`; the driver adapter,
+store and bundled transport never open a hidden pool or call `pool.end()`. See [transport contracts and migration](../../docs/queue-transport.md).
+
+## Installation and transport selection
+
+Install the store and transport-neutral worker without a queue vendor:
+
+```sh
+npm install @agent-teams/payments-core @agent-teams/payments-postgres
+```
+
+The root entrypoint exports the store, runner, driver and transactional transport
+contracts. It imports and installs neither pg nor pg-boss. Supply a qualified
+`PaymentPostgresDatabase` and, when running workers, a `PaymentJobTransport`.
+The public processing methods can also run without the worker.
+
+For node-postgres, explicitly install the qualified optional driver peer:
+
+```sh
+npm install pg@8.23.1
+npm install --save-dev @types/pg@8.20.0
+```
+
+Wrap the host-owned pool once and pass the resulting `database` to migrations,
+store, recovery and worker/transport options:
+
+```ts
+import { Pool } from 'pg';
+import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
+
+const pool = new Pool({ connectionString });
+const database = createNodePostgresPaymentDatabase(pool);
+```
+
+Only the `/node-postgres` driver entrypoint has pg declarations. Another driver
+implements the checked-out connection contract directly; it must preserve the
+same transaction, timeout, discard and unknown-COMMIT guarantees. Its operational
+qualification remains the host's responsibility.
+
+For the bundled transport, explicitly install its qualified optional peer:
+
+```sh
+npm install pg-boss@12.38.0
+```
+
+Import its factory, options and retention settings from
+`@agent-teams/payments-postgres/pg-boss`. This subpath is the only public runtime
+entrypoint that loads pg-boss. The same four SDK packages remain the delivery
+units; hosts choose the optional transport at composition.
 
 ## Typed SQL and dependency admission
 
 The adapter uses private Drizzle schema bindings and typed PostgreSQL query
 builders for record reads, conditional record upserts, membership guards,
 obligation transitions, configuration updates and bounded keyset scans. The
-connection-free `drizzle.mock()` API only compiles statements with `toSQL()`;
-the existing checked-out `pg` transaction executes them. Drizzle does not own
+private driver-free Drizzle builder only compiles statements with `toSQL()`;
+the existing checked-out PostgreSQL connection executes them. Drizzle does not own
 transactions, connections, migrations or the pg-boss transport. Ordered advisory
 locks, PostgreSQL-specific JSON operations and repair locking retain explicit SQL.
 No Drizzle schema, inferred record, query or transaction type is part of the public
@@ -47,16 +95,17 @@ workspace's pnpm patch. Packed consumer qualification verifies that boundary.
 Run bootstrap explicitly with a migration role before starting application traffic:
 
 ```ts
-import { migratePaymentSchema, createPgBossPaymentTransport } from '@agent-teams/payments-postgres';
+import { migratePaymentSchema } from '@agent-teams/payments-postgres';
+import { createPgBossPaymentTransport } from '@agent-teams/payments-postgres/pg-boss';
 
 const namespace = {
-  pool,
+  database,
   paymentSchema: 'payments_application_a',
   jobSchema: 'payment_jobs_application_a',
   scope,
   onError: (error: Error) => logger.error(error),
 };
-await migratePaymentSchema({ pool, schema: namespace.paymentSchema, scope });
+await migratePaymentSchema({ database, schema: namespace.paymentSchema, scope });
 await createPgBossPaymentTransport(namespace).bootstrap();
 ```
 
@@ -76,12 +125,13 @@ Construct and start the runtime explicitly:
 
 ```ts
 import { createPayments } from '@agent-teams/payments-core';
-import { createPgBossPaymentTransport, createPostgresPaymentJobs, createPostgresPaymentStore } from '@agent-teams/payments-postgres';
+import { createPostgresPaymentJobs, createPostgresPaymentStore } from '@agent-teams/payments-postgres';
+import { createPgBossPaymentTransport } from '@agent-teams/payments-postgres/pg-boss';
 
 const transport = createPgBossPaymentTransport(namespace);
 const jobs = createPostgresPaymentJobs({ ...namespace, transport });
 const store = await createPostgresPaymentStore({
-  pool,
+  database,
   schema: namespace.paymentSchema,
   scope,
   queue: jobs.queue,

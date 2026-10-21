@@ -34,8 +34,8 @@ boundaries:
       runtimeReferences: []
   - id: payments.postgres
     roots: [packages/payments-postgres/src]
-    entrypoints: [packages/payments-postgres/src/index.ts]
-    packageExports: ['.']
+    entrypoints: [packages/payments-postgres/src/index.ts, packages/payments-postgres/src/job-transport.ts, packages/payments-postgres/src/node-postgres.ts]
+    packageExports: ['.', './pg-boss', './node-postgres']
     allow:
       boundaries: [payments.core]
       packages: ['@agent-teams/payments-core', pg, pg-boss, drizzle-orm]

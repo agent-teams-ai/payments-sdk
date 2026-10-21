@@ -3,7 +3,8 @@ import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { canonicalJson, createPayments, money, objectVersionKey, processInput, publishEvidence, reduceObservation } from '@agent-teams/payments-core';
 import type { AdjustmentObservation, CheckoutReady, EvidenceMessage, PaymentReadVersion, PaymentStore, ProviderResult, SubscriptionReclassification, TransactionAggregate, VerifiedInput } from '@agent-teams/payments-core';
-import { createPgBossPaymentTransport, createPostgresPaymentJobs, createPostgresPaymentStore, PaymentJobHandlerError } from '../dist/index.js';
+import { createPgBossPaymentTransport } from '@agent-teams/payments-postgres/pg-boss';
+import { createPostgresPaymentJobs, createPostgresPaymentStore, PaymentJobHandlerError } from '../dist/index.js';
 import { paymentBossFixture } from './pg-boss-fixture.ts';
 import { at, databaseFixture, deferred, known, observe, offer, receipt, runtime, scope, success, transaction } from './helpers.ts';
 
@@ -83,7 +84,7 @@ void test('real PostgreSQL reclassification resumes 205 acknowledged renewals, r
     assert.deepEqual(await cursor(f, bindingId), page);
     await f.store.setRecoveryFence(scope, false, 'fanout-resumed');
     await context.payments.drain();
-    const restarted = await createPostgresPaymentStore({ pool: f.pool, schema: f.schema, scope });
+    const restarted = await createPostgresPaymentStore({ database: f.database, schema: f.schema, scope });
     context = runtime(restarted); // No in-memory traversal state survives this replacement.
     await repairAll(context, f);
     assert.equal((await cursor(f, bindingId))?.complete, true);
@@ -135,7 +136,7 @@ void test('real PostgreSQL historical adjustment reparenting fences both parents
     await observe(payments, receipt({ ...v1, version: '2026-01-02T00:00:00Z', amount: money('USD', '200'), allocations: [{ providerLineRef: `line-${a.transactionRef}`, amount: money('USD', '200') }], source: { ...v1.source, receiptId: 'refund-v2' } }));
     const beforeA = (await payments.readPurchase('buyer', a.intentId))?.transactions[0]; assert.ok(beforeA?.completion);
     for (const message of await payments.readDeliveries('audit', 100)) {await payments.acknowledgeDelivery('audit', message.messageId, message.bodyDigest);}
-    const restarted = runtime(await createPostgresPaymentStore({ pool: f.pool, schema: f.schema, scope }));
+    const restarted = runtime(await createPostgresPaymentStore({ database: f.database, schema: f.schema, scope }));
     const contradictory = receipt({ ...v1, transactionRef: b.transactionRef, version: '2026-01-01T00:00:00.000001000+00:00', source: { ...v1.source, receiptId: 'contradictory-old-parent' } });
     success(await restarted.payments.ingestVerifiedInput(contradictory));
     const loaded = await f.store.loadReductionInput(scope, contradictory.inputId); assert.ok(loaded);
@@ -164,7 +165,7 @@ void test('real PostgreSQL historical adjustment reparenting fences both parents
 void test('real pg-boss rebuilds deleted reclassification jobs and successful pages do not spend the fault budget', { timeout: 40_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store, 25), jobSchema = `q_${f.schema}`;
   const errors: Error[] = [];
-  const namespace = { pool: f.pool, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
+  const namespace = { database: f.database, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
   let jobs: ReturnType<typeof createPostgresPaymentJobs> | undefined;
   try {
     const { bindingId } = await duplicateCheckout(context, f.store);
@@ -223,7 +224,7 @@ async function selectedInitial(context: Context): Promise<string> {
 
 for (const maxAttempts of [1, 2]) {void test(`ordinary renewal preserves exact reclassification ${maxAttempts === 1 ? 'quarantine' : 'cooldown'}; audited redrive and a new decision reset work`, { timeout: 25_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store), jobSchema = `q_${f.schema}`;
-  const errors: Error[] = [], namespace = { pool: f.pool, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
+  const errors: Error[] = [], namespace = { database: f.database, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
   let jobs: ReturnType<typeof createPostgresPaymentJobs> | undefined;
   try {
     const bindingId = await selectedInitial(context), decision = await cursor(f, bindingId);
@@ -259,7 +260,7 @@ for (const maxAttempts of [1, 2]) {void test(`ordinary renewal preserves exact r
 
 void test('an old failed claimant cannot quarantine replacement work claimed again at attempt one', { timeout: 25_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store), jobSchema = `q_${f.schema}`;
-  const errors: Error[] = [], namespace = { pool: f.pool, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
+  const errors: Error[] = [], namespace = { database: f.database, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
   const enteredOld = deferred<void>(), releaseOld = deferred<void>(), enteredNew = deferred<void>(), releaseNew = deferred<void>();
   let jobs: ReturnType<typeof createPostgresPaymentJobs> | undefined;
   try {

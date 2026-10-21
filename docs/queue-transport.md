@@ -5,6 +5,10 @@ contracts. `createPgBossPaymentTransport` selects the bundled pg-boss adapter at
 host composition. The same store, runner and core can run with a different
 transactional PostgreSQL wake-up implementation. Core has no queue or SQL API.
 
+The package root imports and installs no pg-boss. Hosts selecting that adapter
+explicitly install `pg-boss@12.38.0` and import its factory/types from
+`@agent-teams/payments-postgres/pg-boss`; its peer is optional for other transports.
+
 ## Ownership and guarantees
 
 `PaymentJobEnqueuer` receives a work identity and the current bounded
@@ -61,9 +65,13 @@ dependent scopes have actually drained. A transport must not close that pool.
 ## Migration from the 0.2 composition API
 
 This is an intentional 0.3 composition change. Replace the standalone bootstrap
-function with the explicitly selected adapter's bootstrap method:
+function with the explicitly selected adapter's bootstrap method. Install
+`pg-boss@12.38.0` explicitly and move its factory/type imports to the adapter
+subpath:
 
 ```ts
+import { createPgBossPaymentTransport } from '@agent-teams/payments-postgres/pg-boss';
+
 const transport = createPgBossPaymentTransport(namespace);
 // Migration-role setup only, after migratePaymentSchema:
 await transport.bootstrap();

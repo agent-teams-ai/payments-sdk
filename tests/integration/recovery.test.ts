@@ -70,7 +70,7 @@ void test('logical producer-only restore stays fenced below the consumer revisio
     assert.equal((await c.credit.owner.inspect<{ revision: string }>('evidence_projection'))[0]?.revision, '10');
     // Roll back only producer-owned rows; consumer correctness records remain at revision 10.
     await f.pool.query(`DELETE FROM "${f.schema}".records WHERE kind IN ('evidence','transactions')`); await seed(f, history.slice(0, 3));
-    const admin = await createPostgresPaymentRecovery({ pool: f.pool, schema: f.schema, scope, producerNamespace });
+    const admin = await createPostgresPaymentRecovery({ database: f.database, schema: f.schema, scope, producerNamespace });
     let session = await admin.begin({ sessionId: 'producer-only', externalFence, restore, restoredConsumerIds: [], audit });
     session = await requiredScans(admin, session);
     await assert.rejects(admin.resume(session.sessionId, session.revision, audit), error => error instanceof PaymentRecoveryBlockedError && error.reasons.includes('unverified_consumer:credit'));
@@ -116,7 +116,7 @@ void test('logical consumer-only restore explicitly reopens sender ACKs with ori
     assert.deepEqual(await f.store.listDeliveries(scope, 'credit', 100), []);
     // The isolated empty schema represents the whole consumer unit restored before its receipt/effect.
     const checkpoints = await consumerCheckpoints(restored.credit); assert.deepEqual(checkpoints, []);
-    const admin = await createPostgresPaymentRecovery({ pool: f.pool, schema: f.schema, scope, producerNamespace });
+    const admin = await createPostgresPaymentRecovery({ database: f.database, schema: f.schema, scope, producerNamespace });
     let session = await admin.begin({ sessionId: 'consumer-only', externalFence, restore, restoredConsumerIds: ['credit'], audit });
     session = await requiredScans(admin, session);
     session = await admin.startConsumerVerification(session.sessionId, session.revision, 'credit', manifest(checkpoints), audit);
@@ -143,7 +143,7 @@ void test('restore through a dispatch gap quarantines every prepared command inc
     const operation: PaymentOperation = { operationId: 'old-prepared', kind: 'purchase', buyerId: 'buyer', requestKey: 'old', fingerprint: 'old-fingerprint', intentId: 'old-intent', subscriptionBindingId: binding.bindingId, revision: 1, state: 'prepared', attempts: [], audits: [] };
     const intent: PurchaseIntent = { intentId: 'old-intent', buyerId: 'buyer', requestKey: 'old', fingerprint: operation.fingerprint, offer, operationId: operation.operationId, subscriptionBasisId: binding.bindingId, transactionRefs: [], createdAt: '2010-01-01T00:00:00Z' };
     assert.equal((await f.store.admitIntent(scope, { intent, operation, subscriptionBinding: binding })).kind, 'created');
-    const admin = await createPostgresPaymentRecovery({ pool: f.pool, schema: f.schema, scope, producerNamespace });
+    const admin = await createPostgresPaymentRecovery({ database: f.database, schema: f.schema, scope, producerNamespace });
     let session = await admin.begin({ sessionId: 'dispatch-gap', externalFence, restore, restoredConsumerIds: [], audit });
     session = await admin.scanProducerHistory(session.sessionId, session.revision, 100, audit);
     session = await admin.reviewArchives(session.sessionId, session.revision, { auditRef: 'manual-review', sources: ['restored-owner-unit'], limitations: 'Provider mutation outcome is unknown; lane must remain held' }, audit);
@@ -176,7 +176,7 @@ void test('administrative CAS, immutable audit records and 100-record recovery p
       await f.pool.query(`INSERT INTO "${f.schema}".records(kind,id,revision,body) VALUES('operations',$1,1,$2)`, [operation.operationId, JSON.stringify(operation)]);
     }
     await f.store.registerConsumer(scope, 'credit', false);
-    let admin = await createPostgresPaymentRecovery({ pool: f.pool, schema: f.schema, scope, producerNamespace });
+    let admin = await createPostgresPaymentRecovery({ database: f.database, schema: f.schema, scope, producerNamespace });
     let session = await admin.begin({ sessionId: 'bounded-recovery', externalFence, restore, restoredConsumerIds: ['credit'], audit });
     await assert.rejects(admin.exportCheckpoints({ limit: 101 }), RangeError);
     await assert.rejects(admin.scanUncertainOperations(session.sessionId, session.revision, 101, audit), RangeError);
@@ -187,7 +187,7 @@ void test('administrative CAS, immutable audit records and 100-record recovery p
     const stale = session.revision;
     session = await admin.scanProducerHistory(session.sessionId, session.revision, 100, audit); assert.equal(session.producerScan.processed, 100);
     await assert.rejects(admin.scanProducerHistory(session.sessionId, stale, 100, audit), PaymentRecoveryConflictError);
-    admin = await createPostgresPaymentRecovery({ pool: f.pool, schema: f.schema, scope, producerNamespace });
+    admin = await createPostgresPaymentRecovery({ database: f.database, schema: f.schema, scope, producerNamespace });
     session = (await admin.read(session.sessionId))!; assert.equal(session.producerScan.processed, 100);
     session = await admin.scanUncertainOperations(session.sessionId, session.revision, 100, audit);
     assert.equal(session.uncertaintyScan.processed, 100); assert.equal(session.uncertaintyScan.status, 'pending');

@@ -168,22 +168,22 @@ importers:
       '@agent-teams/payments-core':
         specifier: workspace:^
         version: link:../payments-core
-      '@types/pg':
-        specifier: 'catalog:'
-        version: 8.20.0
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.5-5935859(patch_hash=c0ac842c102d0e7a339e79a1676c02fa0dd803a11f6cc82e4b42007c8e153efb)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(mysql2@3.24.6(@types/node@24.13.3))(pg@8.23.1)
+    devDependencies:
+      '@types/pg':
+        specifier: 'catalog:'
+        version: 8.20.0
+      mysql2:
+        specifier: 'catalog:'
+        version: 3.24.6(@types/node@24.13.3)
       pg:
         specifier: 'catalog:'
         version: 8.23.1
       pg-boss:
         specifier: 'catalog:'
         version: 12.38.0(@opentelemetry/api@1.9.1)
-    devDependencies:
-      mysql2:
-        specifier: 'catalog:'
-        version: 3.24.6(@types/node@24.13.3)
 
 packages:
 
