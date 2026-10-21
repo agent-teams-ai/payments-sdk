@@ -114,10 +114,12 @@ fast and boundary gates. These rows are not summed into an invented unique
 scenario total. Compiler consumers retain `strict`,
 `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess` and `skipLibCheck:false`.
 
-Raw complete logs, stage reports, archive identities, summaries and installed
-consumer evidence are in [Node 24](local-evidence/24.21.0) and
-[Node 26](local-evidence/26.11.1). All four packed archives are byte-identical
-across the floors:
+Stage reports, archive identities, summaries and compact installed-consumer
+evidence remain in [Node 24](local-evidence/24.21.0) and
+[Node 26](local-evidence/26.11.1). Complete raw logs, disposable consumer locks
+and compiler file graphs are available through the
+[immutable evidence archive](../archived-evidence.md). All four packed archives
+are byte-identical across the floors:
 
 | Archive | Bytes | SHA-256 |
 | --- | ---: | --- |
@@ -136,8 +138,10 @@ versions and integrity checks are unchanged.
 
 The first full Node 24 run on `28ab088` passed through E2E, then failed with
 `EAI_AGAIN registry.npmjs.org` while fetching published Observation artifacts.
-Its [incomplete evidence](local-evidence/interrupted-registry-node24) remains
-recorded as exit 1. It does not qualify packaging or the later gate fix.
+Its [incomplete metadata](local-evidence/interrupted-registry-node24) remains
+recorded as exit 1, with the raw transcript in the
+[immutable evidence archive](../archived-evidence.md). It does not qualify
+packaging or the later gate fix.
 The complete successful runs above use the reviewed `16a6a503` subject and fresh
 databases. Enabling the environment's configured proxy resolved registry access;
 no SDK transport or assertion was replaced to obtain a pass.

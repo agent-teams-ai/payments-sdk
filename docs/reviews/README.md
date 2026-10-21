@@ -15,6 +15,14 @@ disposition below identifies its correction. Paths to scratch review worktrees
 inside the original reports record how a probe was obtained. The maintained
 regressions are in this repository's core, SDK, PostgreSQL and E2E suites.
 
+## Historical command evidence
+
+The [archive index](archived-evidence.md) routes bulky command logs, disposable
+consumer lockfiles and compiler file graphs from three superseded qualification
+records to their immutable Git history. Their compact reports, source identities,
+original digests and reviews remain here. The October 21 corrected-runtime
+evidence remains complete in the current tree.
+
 ## Design review
 
 All four design waves are complete. Their accepted decisions are incorporated

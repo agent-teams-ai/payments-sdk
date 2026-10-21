@@ -112,13 +112,16 @@ grants, zero held credits, two SDK mutation dispatches and empty pending work**.
 Observation closure does not stop financial delivery. No live Paddle credentials
 or real charges are involved.
 
-Each [local-evidence directory](local-evidence) retains the raw complete
-transcript, stage report, summary and installed-consumer/admission reports.
+Each [local-evidence directory](local-evidence) retains the stage reports,
+summaries and installed-consumer/admission reports. The complete transcripts
+and cold before/after command logs are available through the
+[immutable evidence archive](../archived-evidence.md).
 Original review memos also name disposable local probe/source-archive paths.
 Those temporary installations and the redundant source archive are not copied
 here; the named Git revisions and retained source hash manifests bind the
-reviewed inputs. The final complete logs and cold before/after records are
-included.
+reviewed inputs. The unchanged [evidence manifest](evidence-manifest.json)
+hashes the original archived files, including the original report copies;
+its hashes do not describe these later navigation edits.
 
 Database names are `payments_sdk_foundation_n24_95e996f` and
 `payments_sdk_foundation_n26_d303_final`; their labels are not source identities.
@@ -146,7 +149,9 @@ review are retained.
 
 An initial local Node26 process lost its execution session after Observation,
 while the packed pnpm gate was starting. Its [incomplete record](interrupted-node26/record.json)
-and raw transcript are retained; it has no final successful exit claim.
+remains local, and its raw transcript is in the
+[immutable evidence archive](../archived-evidence.md); it has no final
+successful exit claim.
 An old `fb9baa1` report discovered beside that transcript is explicitly not
 paired with it. The successful Node26 run reported above repeats the complete
 route on a new disposable database. Earlier SDK performance and diagnostic
