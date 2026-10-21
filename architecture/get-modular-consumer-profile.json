@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "status": "scoped-active",
+  "owner": "payments-sdk/composition",
+  "decision": "docs/get-modular-adoption.md#decision",
+  "standard": {
+    "repository": "agent-teams-ai/get-modular",
+    "commit": "ddf1e0b0053f546f12ca70190b237b4f7e78d09d",
+    "path": "docs/architecture/common-assembly.md",
+    "sha256": "c2fe582a14ff6e79620b232ca7ffc914afb0474ec21fd43f208251dd7252f4a3",
+    "guide": "docs/guides/module-authoring.md",
+    "guideSha256": "8d9e6ced096c3259ec8d7a35a1ee3c2f15e5832ba23c95da57f8cfc4c8622cfd"
+  },
+  "organization": {
+    "repository": "agent-teams-ai/.github",
+    "commit": "a34ecc6bc9bb165771f3962dccd25970dd5c0d98",
+    "path": "docs/engineering-quality-standard.md",
+    "sha256": "a65fb5150837b010a71abe36cefd26c32709eb9b9e89f3938498a647e72f5587"
+  },
+  "publishedArtifacts": {
+    "path": "qualification/observation/published-artifacts.json",
+    "sha256": "d7f7335f50a40a2e1afb47f5cc5d851ce7347ebb6875851f162b18b4fef88559"
+  },
+  "namespaces": ["agent-teams/payments"],
+  "entrypoints": [
+    "packages/payments-get-modular/src/index.ts",
+    "packages/payments-get-modular/src/observation/index.ts"
+  ],
+  "roots": ["paymentsModule", "purchaseProjectionModule", "purchaseProjectionDisplayModule"],
+  "authored": {
+    "packages/payments-get-modular/src/contracts.ts": {
+      "defineContract": ["PaymentsConfiguration", "Checkout", "Read", "Management", "Processing", "Delivery"]
+    },
+    "packages/payments-get-modular/src/module.ts": {
+      "declareModule": ["paymentsConfigurationDeclaration", "paymentsDeclaration"],
+      "input": ["paymentsConfiguration"],
+      "implement": ["paymentsModule"],
+      "group": ["paymentsGroup"]
+    },
+    "packages/payments-get-modular/src/observation/composition.ts": {
+      "defineContract": ["PurchaseReader", "ProjectionConfiguration", "ProjectionView", "ProjectionCommands", "ProjectionRenderer", "ProjectionDisplay"],
+      "declareModule": ["purchaseReadDeclaration", "projectionConfigurationDeclaration", "projectionRendererDeclaration", "purchaseProjectionDeclaration", "purchaseProjectionDisplayDeclaration"],
+      "input": ["purchaseReadInput", "projectionConfigurationInput", "projectionRendererInput"],
+      "implement": ["purchaseProjectionModule", "purchaseProjectionDisplayModule"],
+      "group": ["purchaseObservationGroup"]
+    }
+  },
+  "exceptions": [{
+    "id": "technical-adapter-layout",
+    "rule": "CMS feature layout and separate declaration/entry files",
+    "paths": [
+      "packages/payments-get-modular/src/contracts.ts",
+      "packages/payments-get-modular/src/module.ts",
+      "packages/payments-get-modular/src/observation/composition.ts",
+      "packages/payments-get-modular/src/observation/projection.ts"
+    ],
+    "owner": "payments-sdk/composition",
+    "rationale": "This delivery package is a public technical composition adapter. It owns no payment domain or persistence policy; descriptors, inline entries and the resource-aware projection keep their current small SDK layout.",
+    "decision": "docs/get-modular-adoption.md#decision",
+    "reviewTrigger": "A new authored module/descriptor, a new application feature, or a changed CMS layout contract"
+  }],
+  "outsideScope": [
+    { "boundary": "payments.core", "owner": "payments-sdk/core", "mechanism": "fixed public SDK contracts; no Get Modular imports", "reviewTrigger": "A new replaceable cross-owner relationship" },
+    { "boundary": "payments.paddle", "owner": "payments-sdk/paddle", "mechanism": "fixed core public contract and official provider SDK", "reviewTrigger": "A new replaceable cross-owner relationship" },
+    { "boundary": "payments.postgres", "owner": "payments-sdk/postgres", "mechanism": "fixed core public contract and private storage adapters", "reviewTrigger": "A new replaceable cross-owner relationship" }
+  ],
+  "verification": {
+    "adoption": "test:modular:adoption",
+    "sourceGraph": "foundation:check",
+    "runtime": "test:modular",
+    "packed": "test:observation",
+    "tests": [
+      "tools/test/get-modular-adoption.test.ts",
+      "tools/test/boundaries.test.ts",
+      "packages/payments-get-modular/test/modular.test.ts",
+      "packages/payments-get-modular/test/lifecycle.test.ts",
+      "packages/payments-get-modular/test/surface.types.ts",
+      "qualification/observation/identity.test.ts",
+      "qualification/observation/projection-lifecycle.test.ts"
+    ]
+  },
+  "fullApplicationFms": "not-adopted; separate owner decision and qualification required"
+}

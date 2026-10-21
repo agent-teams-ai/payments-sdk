@@ -39,7 +39,9 @@ const preparation = await assemblyFor<PaymentsCapabilities>().prepare({
   roots: { payments: paymentsModule },
 });
 if (preparation.status !== 'prepared') {
-  throw new Error(preparation.error.code);
+  throw new Error(preparation.error.code, {
+    cause: { error: preparation.error, diagnostics: preparation.diagnostics },
+  });
 }
 const prepared = preparation.prepared;
 
@@ -53,8 +55,9 @@ export async function createPaymentHost(options: PaymentRuntimeOptions, signal?:
   });
   if (outcome.status !== 'succeeded') {
     const report = await attempt.control.close();
-    if (!report.complete) throw new Error('Payment startup cleanup remains incomplete');
-    throw new Error(`Payment composition ${outcome.status}`);
+    throw new Error(`Payment composition ${outcome.status}; cleanup ${report.complete ? 'complete' : 'incomplete'}`, {
+      cause: { outcome, cleanup: report },
+    });
   }
   return {
     payments: outcome.roots.payments,
@@ -66,6 +69,8 @@ export async function createPaymentHost(options: PaymentRuntimeOptions, signal?:
 `PaymentRuntimeOptions.scope` and provider scope come from trusted server configuration. Authentication, local buyer authorization, offer ownership and customer-wide portal authorization remain Host responsibilities. A capability facet segregates API surface; it is not a security sandbox.
 
 A larger Host adds `paymentsGroup` to its one composition root and consumes only the descriptors it needs. `paymentsDeclaration` and `paymentsConfigurationDeclaration` are exported for namespace and independent wiring checks. `paymentsConfiguration` belongs in the preparation's `inputs`, not `modules`.
+
+Retain preparation causes and Core diagnostics in the Host's startup error path. An unresolved binding identifies its consumer, slot, capability, group path and candidate providers; a duplicate identifies every occurrence. Printing the code alone hides the information needed to repair a large root. Runtime factory causes and created capabilities remain opaque private Host data: do not serialize them wholesale or return them from an HTTP error response.
 
 ## Capability facets
 
@@ -90,6 +95,10 @@ The Host owns provider connections, the storage adapter, shared pools, HTTP ingr
 Register Host-owned borrowed infrastructure before dependent scopes. Create one child attempt scope per application/account/environment runtime. Register the Host worker after the payment module, so reverse cleanup stops new claims and producers before draining the payment runtime. On shutdown, stop HTTP ingress and new commands first. Stop the worker's claims/scheduling, await its actual handlers and cleanup, close the payment attempt, and close a shared pool only after every dependent sibling scope is complete. The module never invokes a borrowed pool's `end()` or a borrowed provider's disposer.
 
 An SDK deadline, an abort signal, or a worker stop timeout does not terminate a physical SDK promise. `close({ abandon })` can return `complete:false, settled:false` with debt while cleanup continues. Retain borrowed dependencies and join `close()` again after the work settles. `escalate` asks cleanup to release sooner; it does not erase unresolved work. A forced process termination leaves recovery obligations with the core/store protocol.
+
+Close dependent attempt/projection scopes first and inspect their complete reports before closing the runtime or shared pool. Resources continues earlier cleanup after a failed child debt; reverse registration order does not stop that continuation. In particular, Observation escalation can report `observation.load.still-running` while its borrowed read still runs. A single parent `close({ escalate })` must not be the only guard protecting the pool from that read. Keep the pool open while debt remains, then retry the dependent close after physical settlement before closing the pool.
+
+The exact published Resources `0.2.0` also has a known synchronous abort-reentry ordering defect, corrected on upstream main `ddf1e0b0053f546f12ca70190b237b4f7e78d09d` but not published as of 2026-10-21. Do not call an ancestor's `close()` synchronously from a scope abort listener; request Host shutdown outside the current abort notification, for example with `queueMicrotask`. Normal payment facet draining and staged Host close need no such listener. The [scoped adoption record](../../docs/get-modular-adoption.md) distinguishes this artifact limitation from the repaired source. No private patch or unpublished package is installed here.
 
 Assembly returns ordinary promises and a construction journal; it does not roll back or dispose created products. After any failed or cancelled run the Host closes the attempt scope. A failed partial startup uses the same close path. Closing one child does not close a sibling or their shared infrastructure. An exception raised by an optional Host startup step must also lead to attempt cleanup.
 

@@ -265,6 +265,12 @@ void test('missing declared input fails preparation; invalid runtime configurati
   const missing = await assemblyFor<PaymentsCapabilities>().prepare({ profileId: 'test/missing-input', modules: [paymentsGroup], roots: { payments: paymentsModule } });
   assert.equal(missing.status, 'failed');
   assert.equal(missing.error.code, 'assembly.prepare.unresolved-binding');
+  assert.deepEqual(missing.error.cause, [{
+    consumerImplementationId: 'agent-teams/payments/runtime/default', slotId: 'configuration',
+    capabilityId: 'agent-teams/payments/configuration', cardinality: 'required',
+    groupPath: ['payments'], candidates: [],
+  }], 'Host startup errors retain actionable wiring details instead of only the failure code');
+  assert.deepEqual(missing.diagnostics, [], 'binding completion and Core diagnostics remain separate');
   const host = fixture(), prepared = await compose();
   assert.equal(prepared.status, 'prepared');
   const attempt = createScope({ name: 'invalid-input' });

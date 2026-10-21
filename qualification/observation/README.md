@@ -54,7 +54,9 @@ const preparation = await assemblyFor<PurchaseObservationCapabilities>().prepare
     renderer: projectionRendererInput,
   },
 });
-if (preparation.status !== 'prepared') throw new Error(preparation.error.code);
+if (preparation.status !== 'prepared') throw new Error(preparation.error.code, {
+  cause: { error: preparation.error, diagnostics: preparation.diagnostics },
+});
 const hostOwner = createScope({ name: 'payment-host' });
 // Register Host-owned shared infrastructure before this existing runtime.
 hostOwner.resources.use({ [Symbol.asyncDispose]: async () => {
@@ -71,10 +73,18 @@ const outcome = await preparation.prepared.run({
   },
 });
 // The Host closes attempt.control after failed startup or when the view ends.
-// At Host shutdown, hostOwner.control.close() drains the child before the runtime.
+// At shutdown, first close the dependent view and inspect its report.
+const viewClose = await attempt.control.close({ escalate: shutdownEscalation });
+if (!viewClose.complete) {
+  // Retain hostOwner and the pool; join/retry this close after physical read settlement.
+  throw new Error('Purchase view cleanup remains incomplete', { cause: viewClose });
+}
+await hostOwner.control.close(); // Only after every dependent view has completed.
 ```
 
 The projection root provides `{ view, commands }` to the authorized Host. Other modules can receive only the `ProjectionView` descriptor. The display receives that readonly facet and a render port, explicitly renders its initial snapshot and then registers `watch`. Its root exposes only `current()`, which directly reads the latest output state. A Host needing only the projection can select `purchaseProjectionModule` by itself and omit the renderer input/display module.
+
+The shutdown fragment runs when that view ends, after stopping ingress or new work. A failed child cleanup does not stop Resources from releasing earlier entries in a parent close. Observation may return failed `observation.load.still-running` debt on escalation while its loader still uses the borrowed runtime/pool. Staging the dependent close before the parent protects that dependency. Retry only the close after the read settles; do not retry a financial mutation. With published Resources `0.2.0`, a Host also defers ancestor close requests made by abort listeners until the current synchronous abort notification returns; the source repair is not yet a published dependency.
 
 ## Observation semantics
 
