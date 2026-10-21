@@ -4,6 +4,7 @@ import { and, eq, gt, inArray, sql } from 'drizzle-orm';
 import type { PaymentSqlTransaction } from './database.js';
 import { sqlIdentifier } from './database.js';
 import { executePaymentStatement, paymentQueries, paymentTables, selectPaymentRows } from './schema.js';
+import type { PaymentJobWork } from './work-transport.js';
 
 export type OwnerConfiguration = {
   schemaVersion: number;
@@ -11,13 +12,14 @@ export type OwnerConfiguration = {
   consumers: string[];
   recoveryFenced: boolean;
   fenceAudits: { fenced: boolean; auditRef: string; at: string }[];
-  jobTransport?: { jobSchema: string; queueName: string };
+  /** Opaque installation metadata owned and validated by the selected transport adapter. */
+  jobTransport?: unknown;
   activeRecoverySessionId?: string;
 };
 export type StoredRecord<T> = Readonly<{ revision: number; body: T }>;
 export type RecordKey = Readonly<{ kind: string; id: string }>;
 export type RecordWrite = RecordKey & Readonly<{ body: unknown }>;
-export type DurableWork = Readonly<{ kind: 'inbox' | 'publication' | 'reclassification' | 'prepared' | 'unknown' | 'delivery' | 'scan'; id: string }>;
+export type DurableWork = PaymentJobWork;
 const maximumRecordSet = 512;
 
 function lockRank(kind: string): number { return kind === 'inbox' ? 0 : kind === 'versionEvidence' ? 1 : 2; }

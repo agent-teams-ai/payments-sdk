@@ -1,8 +1,10 @@
 # PostgreSQL payments adapter
 
-`@agent-teams/payments-postgres` owns durable payment records and uses the pinned
-`pg-boss@12.38.0` as a disposable transport. The host owns one `pg.Pool`. Neither the
-store nor the transport opens a hidden pool or calls `pool.end()`.
+`@agent-teams/payments-postgres` owns durable payment records and a transport-neutral
+PostgreSQL work runner. The host explicitly selects the bundled pinned
+`pg-boss@12.38.0` adapter or another implementation of the transactional transport
+contract. The host owns one `pg.Pool`. Neither the store nor the bundled transport
+opens a hidden pool or calls `pool.end()`. See [transport contracts and migration](../../docs/queue-transport.md).
 
 ## Typed SQL and dependency admission
 
@@ -45,7 +47,7 @@ workspace's pnpm patch. Packed consumer qualification verifies that boundary.
 Run bootstrap explicitly with a migration role before starting application traffic:
 
 ```ts
-import { migratePaymentSchema, bootstrapPostgresPaymentJobs } from '@agent-teams/payments-postgres';
+import { migratePaymentSchema, createPgBossPaymentTransport } from '@agent-teams/payments-postgres';
 
 const namespace = {
   pool,
@@ -55,7 +57,7 @@ const namespace = {
   onError: (error: Error) => logger.error(error),
 };
 await migratePaymentSchema({ pool, schema: namespace.paymentSchema, scope });
-await bootstrapPostgresPaymentJobs(namespace);
+await createPgBossPaymentTransport(namespace).bootstrap();
 ```
 
 Bootstrap durably binds the payment schema to the job schema and the exact
@@ -74,9 +76,10 @@ Construct and start the runtime explicitly:
 
 ```ts
 import { createPayments } from '@agent-teams/payments-core';
-import { createPostgresPaymentJobs, createPostgresPaymentStore } from '@agent-teams/payments-postgres';
+import { createPgBossPaymentTransport, createPostgresPaymentJobs, createPostgresPaymentStore } from '@agent-teams/payments-postgres';
 
-const jobs = createPostgresPaymentJobs(namespace);
+const transport = createPgBossPaymentTransport(namespace);
+const jobs = createPostgresPaymentJobs({ ...namespace, transport });
 const store = await createPostgresPaymentStore({
   pool,
   schema: namespace.paymentSchema,
@@ -115,9 +118,11 @@ terminal. Its `status()` and `drain()` retain every admitted core call, includin
 physical SDK request still unresolved after its logical deadline. Drain it before
 constructing a replacement; a second `start()` cannot replace that ownership.
 
-The store's optional queue sends use the already checked-out payment transaction
-through pg-boss's public `send(..., { db })` seam. This makes a T1/T2 record change
-and its enqueue atomic. Workers use ordinary `work`, with no SQL transaction held
+The store's optional `queue` accepts only the namespace-bound `PaymentJobEnqueuer`.
+It receives the already checked-out bounded payment transaction. The selected
+pg-boss adapter uses its public `send(..., { db })` seam; vendor options and job
+schema never enter the store or runner. This makes a T1/T2 record change and its
+enqueue atomic. Workers use ordinary `work`, with no SQL transaction held
 across provider or consumer I/O. The payment T2 or delivery ACK commits before the
 handler returns; pg-boss then completes the job. Replaying after a crash in this
 interval is safe. Do not combine these workers with `transactional:true` or manual
@@ -166,15 +171,16 @@ outcome, scan checkpoint, backfill cursor or delivery target. One bounded startu
 pass and the durable periodic repair schedule recreate missing or terminal jobs.
 Hosts can request another bounded pass with `jobs.repair(limit)`.
 
-Repair selects due obligations with `FOR UPDATE SKIP LOCKED`, excludes jobs still
-created/retrying/active before applying the batch limit, and enqueues in that same
+Repair selects due obligations with `FOR UPDATE SKIP LOCKED`, uses the transport's
+trusted PostgreSQL predicate to exclude runnable wake-ups before applying the
+batch limit, and enqueues in that same
 payment transaction. Replicas intentionally compete on one namespace. The job
 payload is only a wake-up identity; handlers re-read scope-owned records and the
 durable operation state before effects. A prepared job can dispatch only while
 the durable operation is still `prepared`. An unknown job cannot call that path.
 
 Logical attempts and cooldown live in the payment obligation, independently of
-pg-boss retries and job retention. Queue retry is disabled for this work; the
+transport retries and job retention. Pg-boss queue retry is disabled for this work; the
 bounded payment repair mechanism owns retry admission. Defaults allow eight
 logical attempts, with exponential cooldown from 30 seconds up to one hour.
 Persistent handler/configuration faults become durable quarantine instead of a

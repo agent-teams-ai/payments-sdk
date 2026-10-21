@@ -4,7 +4,7 @@ import { createPayments } from '@agent-teams/payments-core';
 import type { Catalog, PaymentScope } from '@agent-teams/payments-core';
 import { createPaddleProvider } from '@agent-teams/payments-paddle';
 import type { PaddleProviderOptions } from '@agent-teams/payments-paddle';
-import { bootstrapPostgresPaymentJobs, createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
+import { createPgBossPaymentTransport, createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
 import type { PaymentJobHandlers } from '@agent-teams/payments-postgres';
 import { handlePaymentRequest } from './node-http.ts';
 
@@ -25,12 +25,13 @@ export type PaddlePostgresHostOptions = PaymentHostNamespace & Readonly<{
 /** Use a migration-role pool. Do not invoke bootstrap from request handlers or runtime startup. */
 export async function bootstrapPaymentHost(namespace: PaymentHostNamespace): Promise<void> {
   await migratePaymentSchema({ pool: namespace.pool, schema: namespace.paymentSchema, scope: namespace.scope });
-  await bootstrapPostgresPaymentJobs(namespace);
+  await createPgBossPaymentTransport(namespace).bootstrap();
 }
 
 export async function createPaddlePostgresHost(options: PaddlePostgresHostOptions) {
   const provider = createPaddleProvider({ ...options.paddle, scope: options.scope });
-  const jobs = createPostgresPaymentJobs(options);
+  const transport = createPgBossPaymentTransport(options);
+  const jobs = createPostgresPaymentJobs({ ...options, transport });
   const store = await createPostgresPaymentStore({ pool: options.pool, schema: options.paymentSchema, scope: options.scope, queue: jobs.queue });
   const payments = createPayments({ scope: options.scope, producerNamespace: options.producerNamespace, provider, store, catalog: options.catalog });
   try {

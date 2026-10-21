@@ -4,7 +4,8 @@
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "types": ["node", "./packages/payments-postgres/dist/pg-boss-declarations.d.ts"]
   },
   "include": ["tools/**/*.ts", "tests/**/*.ts", "examples/**/*.ts", "packages/*/test/**/*.ts", "packages/*/tests/**/*.ts"],
   "references": [
