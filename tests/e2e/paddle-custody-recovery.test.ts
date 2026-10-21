@@ -103,9 +103,8 @@ async function paymentHost(kind: HostKind) {
   };
 }
 
-/** Independent fixture policy: one monthly purchase grants exactly 100 included units;
- * an observed active lifecycle plus the unexpired paid period permits new actions. */
-async function assertFulfilled(credit: CreditFixture, access: AccessFixture): Promise<string> {
+/** Independent fixture policy: one monthly purchase grants exactly 100 included units. */
+async function assertSingleGrant(credit: CreditFixture): Promise<string> {
   const decisions = await credit.decisions(); assert.equal(decisions.length, 1);
   const decision = decisions[0]!.body;
   assert.deepEqual([decision.bucket, decision.status, decision.allocated, decision.eligible, decision.held], ['included', 'issued', '100', '100', '0']);
@@ -113,11 +112,17 @@ async function assertFulfilled(credit: CreditFixture, access: AccessFixture): Pr
   const effects = (await credit.owner.inspect<{ body: Effect }>('effects')).map(row => row.body);
   assert.deepEqual(effects.map(effect => [effect.kind, effect.amount]), [['grant', '100']]);
   assert.equal(effects[0]!.effectKey, decision.originalGrant);
+  return decision.originalGrant;
+}
+
+/** Active lifecycle plus the unexpired paid period permits new actions. */
+async function assertFulfilled(credit: CreditFixture, access: AccessFixture): Promise<string> {
+  const originalGrant = await assertSingleGrant(credit);
   const permissions = await access.decisions(); assert.equal(permissions.length, 1);
   const permission = permissions[0]!.body;
   assert.deepEqual([permission.status, permission.newAction, permission.expand, permission.read, permission.export, permission.cancel], ['active', true, true, true, true, true]);
   assert.equal(permission.paidUntil, fixturePeriod.ends_at); assert.deepEqual(permission.restrictions, []);
-  return decision.originalGrant;
+  return originalGrant;
 }
 
 void test('permanently lost Paddle create replies recover through audited binding without redispatch at either public host', { timeout: 60_000 }, async t => {
@@ -263,6 +268,106 @@ void test('both HTTP hosts preserve signed raw bytes and retry failed durable cu
         assert.equal(replayed.transactions.filter(transaction => transaction.completion).length, 1);
         assert.equal(await assertFulfilled(restartedCredit, context.access), originalGrant);
         assert.equal((await context.payments.readDeliveries('credit', 100)).length, 0); assert.equal((await context.payments.readDeliveries('access', 100)).length, 0);
+      } finally { await context.close(); }
+    });}
+    agent.assertNoPendingInterceptors();
+  } finally { await emulation.close(); }
+});
+
+void test('lost Paddle cancellation replies retain the mutation lane while read-only lifecycle recovery restricts access', { timeout: 60_000 }, async t => {
+  const emulation = emulatePaddle(), { api, agent } = emulation;
+  let cancellations = 0, subscriptionReads = 0, intentId = '';
+  let providerSubscription = subscriptionFixture();
+  const canceledVersion = '2026-10-02T00:00:00.000001Z';
+  api.intercept({ path: path => new URL(path, 'https://sandbox-api.paddle.com').pathname === `/subscriptions/${paddleIds.subscription}`, method: 'GET' }).reply(200, () => {
+    subscriptionReads += 1; return responseFixture(providerSubscription);
+  }).persist();
+  api.intercept({ path: `/subscriptions/${paddleIds.subscription}/cancel`, method: 'POST' }).reply(200, request => {
+    cancellations += 1; assert.ok(typeof request.body === 'string');
+    assert.deepEqual(JSON.parse(request.body), { effective_from: 'immediately' });
+    providerSubscription = subscriptionFixture({ status: 'canceled', version: canceledVersion });
+    throw new Error('Synthetic provider canceled subscription; cancellation response permanently disconnected');
+  }).persist();
+  api.intercept({ path: path => new URL(path, 'https://sandbox-api.paddle.com').pathname === `/transactions/${paddleIds.transaction}`, method: 'GET' }).reply(200, () => responseFixture(transactionFixture({ intentId }))).persist();
+  try {
+    for (const kind of hosts) {await t.test(kind, async () => {
+      const context = await paymentHost(kind), beforeCancellations = cancellations;
+      providerSubscription = subscriptionFixture();
+      try {
+        await context.payments.registerConsumer('credit'); await context.payments.registerConsumer('access');
+        api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, request => {
+          assert.ok(typeof request.body === 'string'); const body = JSON.parse(request.body) as { custom_data: { payments: { intentId: string } } };
+          intentId = body.custom_data.payments.intentId;
+          return responseFixture(transactionFixture({ intentId, status: 'ready', customerRef: null }));
+        });
+        const checkout = success(JSON.parse((await context.post('/purchases', JSON.stringify({ offerId: 'monthly', requestKey: 'cancel-loss-paid' }))).body) as OperationResult<CheckoutReady>);
+        const completion = transactionFixture({ intentId });
+        assert.equal((await context.webhook(JSON.stringify(eventFixture('transaction.completed', completion)))).status, 200);
+        assert.equal((await context.webhook(JSON.stringify(eventFixture('subscription.activated', subscriptionFixture(), paddleIds.secondEvent)))).status, 200);
+        await context.flush();
+        const originalGrant = await assertFulfilled(context.credit, context.access);
+        const paid = await context.payments.readPurchase('buyer-a', checkout.intentId); assert.ok(paid);
+        const bindingId = paid.intent.subscriptionBasisId; assert.ok(bindingId !== undefined && bindingId !== '');
+        const factId = paid.transactions[0]!.completion!.factId;
+        const command = { buyerId: 'buyer-a', bindingId, requestKey: 'cancel-response-lost', timing: 'now' as const };
+        const unknown = await context.payments.requestCancellation(command); assert.equal(unknown.kind, 'outcome_unknown');
+        assert.equal(cancellations - beforeCancellations, 1);
+        const original = await context.operator().readOperation(unknown.operationId); assert.ok(original);
+        assert.equal(original.state, 'outcome_unknown'); assert.equal(original.attempts.length, 1);
+        assert.deepEqual(original.attempts[0]!.observations, [{ kind: 'outcome_unknown' }]);
+
+        await context.restart();
+        const admin = context.operator();
+        assert.deepEqual(await context.payments.requestCancellation(command), unknown);
+        assert.deepEqual(await admin.executeOperation(unknown.operationId), unknown);
+        const beforeReads = subscriptionReads;
+        assert.equal(success(await context.payments.refreshSubscription('buyer-a', bindingId)), 1);
+        assert.equal(subscriptionReads - beforeReads, 1, 'read-only SDK acquisition continues while cancellation is unknown');
+        const observed = await context.payments.readObservedSubscription('buyer-a', bindingId);
+        const canceled = observed?.observations.find(observation => observation.subscriptionRef === paddleIds.subscription)?.current;
+        assert.deepEqual(canceled?.status, { presence: 'known', value: 'canceled', provenance: 'observed' });
+        assert.equal(canceled.version, canceledVersion);
+        // Raw custody fills the mapped API's unknown null period. Both sources describe
+        // lifecycle state; neither receipt claims to settle the unknown command attempt.
+        assert.equal((await context.webhook(JSON.stringify(eventFixture('subscription.canceled', providerSubscription, paddleIds.thirdEvent)))).status, 200);
+        await context.flush();
+        assert.equal((await admin.readOperation(unknown.operationId))?.state, 'outcome_unknown');
+        const restricted = (await context.access.decisions())[0]!.body;
+        assert.deepEqual([restricted.status, restricted.newAction, restricted.expand, restricted.read, restricted.export, restricted.cancel], ['canceled', false, false, true, true, true]);
+        assert.ok(restricted.restrictions.includes('lifecycle_canceled'));
+        assert.equal(restricted.knownLastPeriod?.endsAt, fixturePeriod.ends_at);
+        assert.equal(await assertSingleGrant(context.credit), originalGrant, 'cancellation changes access without reversing a completed purchase');
+
+        const blocked = await context.payments.requestCancellation({ ...command, requestKey: 'fresh-key-cannot-bypass-unknown' }); assert.equal(blocked.kind, 'pending');
+        assert.notEqual(blocked.operationId, unknown.operationId);
+        const blockedOperation = await admin.readOperation(blocked.operationId); assert.ok(blockedOperation);
+        assert.equal(blockedOperation.state, 'prepared'); assert.equal(blockedOperation.attempts.length, 0);
+        await context.payments.repair(100);
+        assert.equal(cancellations - beforeCancellations, 1, 'fresh keys and repair cannot bypass the saved unknown mutation lane');
+        const readLane = async () => (await context.pool.query<{ body: { unresolvedOperationId?: string } }>(`SELECT body FROM "${context.schema}".records WHERE kind='lanes' AND id=$1`, [`subscription:${bindingId}`])).rows[0]?.body;
+        assert.equal((await readLane())?.unresolvedOperationId, unknown.operationId);
+        const historicalReplay = { ...eventFixture('transaction.completed', completion), notification_id: 'ntf_01j00000000000000000000002' };
+        assert.equal((await context.webhook(JSON.stringify(historicalReplay))).status, 200); await context.flush();
+        assert.equal((await context.access.decisions())[0]!.body.status, 'canceled');
+        assert.equal((await context.access.decisions())[0]!.body.newAction, false, 'older paid completion cannot reopen a canceled lifecycle');
+        assert.equal(await assertSingleGrant(context.credit), originalGrant);
+
+        const current = await admin.readOperation(unknown.operationId); assert.ok(current);
+        const resolution = { operationId: unknown.operationId, expectedRevision: current.revision, actorId: 'authorized-cancellation-owner', auditRef: 'proved-terminal-cancellation', reason: 'verified canceled lifecycle and original cancellation command', action: 'bind_outcome' as const, outcome: { kind: 'succeeded' as const, value: { kind: 'applied' as const, observedStatus: 'canceled' } } };
+        const resolved = success(await admin.resolveUnknownOperation(resolution));
+        assert.equal(resolved.state, 'succeeded'); assert.deepEqual(resolved.attempts, original.attempts);
+        assert.deepEqual(resolved.audits.map(audit => [audit.actorId, audit.action, audit.acceptedDuplicateRisk]), [['authorized-cancellation-owner', 'bind_outcome', false]]);
+        assert.equal((await readLane())?.unresolvedOperationId, undefined, 'only audited command resolution releases the mutation lane');
+        assert.deepEqual(await context.payments.requestCancellation(command), { kind: 'succeeded', value: { kind: 'applied', observedStatus: 'canceled' } });
+        assert.deepEqual(await admin.resolveUnknownOperation(resolution), { kind: 'rejected', code: 'conflict' });
+        assert.equal(cancellations - beforeCancellations, 1);
+        assert.equal(await assertSingleGrant(context.credit), originalGrant);
+        const finalPurchase = await context.payments.readPurchase('buyer-a', checkout.intentId);
+        assert.equal(finalPurchase?.transactions[0]?.completion?.factId, factId);
+        assert.equal((await context.access.decisions())[0]!.body.newAction, false);
+        // The competing command remains prepared. This fixture proves lane release,
+        // without dispatching an unnecessary second cancellation of a terminal entity.
+        assert.equal((await admin.readOperation(blocked.operationId))?.attempts.length, 0);
       } finally { await context.close(); }
     });}
     agent.assertNoPendingInterceptors();
