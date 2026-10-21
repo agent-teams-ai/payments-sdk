@@ -180,7 +180,7 @@ packed public entrypoint, coherent peers and real financial/lifecycle scenarios.
 The current published integration uses Core/Assembly `0.7.0`, Resources
 `0.2.1`, Conformance `0.5.0` and Observation `0.2.0`. The
 [current upstream record](upstream-qualification.md#october-21-published-get-modular-adoption)
-binds official archives and passing installed consumers on Linux x64 Node
+binds official archives and passing installed consumers on Linux ARM64 Node
 `24.22.1` and `26.12.1` with PostgreSQL `18`. Adoption is scoped to this technical
 adapter; full application FMS is not adopted. Its Observation contract
 reports an escalated active load while the original close awaits physical read

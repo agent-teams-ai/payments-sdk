@@ -87,7 +87,7 @@ The projection root provides `{ view, commands }` to the authorized Host. Other 
 
 The shutdown fragment runs when that view ends, after stopping ingress or new work. Under the successor report-and-await contract, escalation reports `observation.load.still-running` to the named error sink while the patient close waits for the physical read and its finally cleanup. A Host needing a bounded response retains `patientClose` and the attempt control, and may separately await `close({ abandon })` for an unsettled snapshot. That snapshot never authorizes closing the borrowed runtime or pool. Wait for the retained close; do not retry cleanup or a financial mutation automatically. Genuine failed cleanup still requires explicit Host recovery before releasing borrowed dependencies.
 
-The published successor passed the installed gate on Linux x64 Node `24.22.1` and `26.12.1` with PostgreSQL `18`, strict NodeNext/Bundler and identical four packed SDK archives. The [adoption record](../../docs/get-modular-adoption.md) retains the reviewed scope. Candidate archive tests remain historical evidence.
+The published successor passed the installed gate on Linux ARM64 Node `24.22.1` and `26.12.1` with PostgreSQL `18`, strict NodeNext/Bundler and identical four packed SDK archives. The [adoption record](../../docs/get-modular-adoption.md) retains the reviewed scope. Candidate archive tests remain historical evidence.
 
 ## Observation semantics
 

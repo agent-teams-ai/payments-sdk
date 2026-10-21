@@ -12,7 +12,7 @@ The source reference is Get Modular
 The published integration uses Core/Assembly `0.7.0`, Resources `0.2.1`,
 Conformance `0.5.0` and Observation `0.2.0`. Its
 [official installed qualification](upstream-qualification.md#october-21-published-get-modular-adoption)
-passed on Linux x64 Node `24.22.1` and `26.12.1` with PostgreSQL `18`. The
+passed on Linux ARM64 Node `24.22.1` and `26.12.1` with PostgreSQL `18`. The
 [October 20 artifact record](../qualification/observation/published-artifacts-2026-10-20.json)
 preserves the previous qualified published train. The
 [consumer adoption record](get-modular-adoption.md) defines the narrower local

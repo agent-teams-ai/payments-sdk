@@ -42,7 +42,7 @@ manifest. The [current artifact record](../qualification/observation/published-a
 retains their exact registry, dependency, peer and integrity identities; its
 SHA-256 is `6f6190afcfcee4d0fec1d9bbba210b12fc678ded4777e0664aba406517fee5ea`.
 
-The isolated official packed consumer passed on Linux x64 Node `24.22.1` and
+The isolated official packed consumer passed on Linux ARM64 Node `24.22.1` and
 `26.12.1` with PostgreSQL `18`, strict TypeScript `7.0.2` NodeNext/Bundler,
 physical peer identity and all four observation test files. Both reports record
 `npmPublicationProven:true`, the same official manifest digest and identical
@@ -50,9 +50,18 @@ SHA-256 values for all four SDK archives. The
 [consumer gate](../qualification/observation/README.md#qualification-boundary)
 retains the report/log artifact names. The profile is `scoped-active` for this
 technical composition adapter; full application FMS remains **not adopted**.
-SDK full checks, final exact-commit hosted CI and merge remain separate delivery
-gates. Production runtime security, Paddle account and deployment admission
+The complete `pnpm check` also passed on native ARM64 Node `26.12.1`.
+[Hosted Checks](https://github.com/agent-teams-ai/payments-sdk/actions/runs/39616581734)
+passed all five jobs on SDK source `2d11e4241de76eea3500c61ae0495ebd8691c70e`,
+including both floors on native AMD64. Later source changes still require their
+own exact-commit CI and independent review before merge. Production runtime security, Paddle account and deployment admission
 retain the restrictions above and in the [qualification guide](qualification.md).
+
+The local ARM64 Node archives matched the official SHA-256 manifests: `24.22.1`
+`dbabf7a1cbf947e6059ffad2c27b80041db97dea1e553b62afdee7f13fca336e`;
+`26.12.1` `42aa04922591ee5d4dbc7740d452621acf28508239daa512f5ee8c47ee224fdb`.
+Earlier local AMD64-emulated results were invalidated after a numeric-conformance
+probe failed; they do not own the qualification claim.
 
 ## Historical October 20 published observation adoption
 

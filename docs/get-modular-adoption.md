@@ -38,7 +38,7 @@ The reviewed delta adds report-and-await load shutdown guidance: escalation
 reports unresolved work while the original close keeps draining through physical
 settlement and finally cleanup. The module-authoring guide bytes are unchanged.
 The profile accepts the repaired published artifacts and exact catalog/lock pins.
-The isolated packed consumer passed on Linux x64 Node `24.22.1` and `26.12.1`
+The isolated packed consumer passed on Linux ARM64 Node `24.22.1` and `26.12.1`
 with PostgreSQL `18`, strict NodeNext/Bundler and identical four SDK archives.
 These are official registry runs; earlier candidate evidence stays historical.
 

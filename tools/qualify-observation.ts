@@ -106,7 +106,7 @@ try {
   console.log(output);
   const report = {
     status: 'passed', qualification: 'published-registry-release', npmPublicationProven: true,
-    node: process.version, typescript: pin('typescript'), publicSurface: '@agent-teams/payments-get-modular/observation',
+    node: process.version, platform: process.platform, arch: process.arch, typescript: pin('typescript'), publicSurface: '@agent-teams/payments-get-modular/observation',
     manifestSha256: digest(manifestBytes), paymentsArtifacts,
     archives: manifest.archives.map(({ name, version, sha256, integrity, tarball }) => ({ name, version, sha256, integrity, tarball })),
     resolvers: profiles.map(resolution => ({ resolution, strict: true, exactOptionalPropertyTypes: true, noUncheckedIndexedAccess: true, skipLibCheck: false, passed: true })),
