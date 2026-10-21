@@ -11,7 +11,36 @@ delta changes no package runtime source, CMS or observation contract document;
 direct watch/load/types/values/CMS reads retain the same blobs. The dated source
 and dependency qualification below remains its original reproducible snapshot.
 
-## October 20 published observation adoption
+## October 21 integration successor: publication and qualification pending
+
+The reviewed source is Get Modular
+[`fe4a2fdc878b46feebaececa3b0172b4534be935`](https://github.com/agent-teams-ai/get-modular/commit/fe4a2fdc878b46feebaececa3b0172b4534be935).
+It supplies the Resources close-reentry repair, Observation report-and-await
+load drain, typed preparation failures and bounded `formatFailure` text. The
+[consumer profile](../architecture/get-modular-consumer-profile.json) pins CMS
+SHA-256 `a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882`;
+the module-authoring guide remains byte-identical at SHA-256
+`8d9e6ced096c3259ec8d7a35a1ee3c2f15e5832ba23c95da57f8cfc4c8622cfd`.
+
+| Target package | Version | Admission state |
+| --- | --- | --- |
+| Core / Assembly | `0.7.0` | Official publication and installed qualification pending |
+| Resources | `0.2.1` | Official publication and installed qualification pending |
+| Conformance | `0.5.0` | Development-only; official publication and installed qualification pending |
+| Observation | `0.2.0` | Optional peer; official publication and installed qualification pending |
+
+An isolated consumer of all four SDK archives and five Get Modular candidate
+archives passed on Linux Node `26.11.1`, PostgreSQL `18`, strict TypeScript
+`7.0.2` NodeNext/Bundler and all four observation test files. This is candidate
+evidence, not an official registry run or proof of both supported Node floors.
+Final adoption requires actual official archive identities, coherent exact
+catalog/lock pins and the existing installed consumer gates on both Node
+floors. The profile remains `pending-release-qualification` until those agree.
+The [current artifact record](../qualification/observation/published-artifacts.json)
+still describes the old train until the new official read-back is retained.
+No candidate result is relabeled as a published run.
+
+## Historical October 20 published observation adoption
 
 A fresh official registry read-back on **2026-10-20** confirms the coordinated release is published. This supersedes the unpublished-train statements in the historical sections and [earlier continuation record](reviews/upstream-continuation-2026-10-20.md).
 
@@ -23,17 +52,17 @@ A fresh official registry read-back on **2026-10-20** confirms the coordinated r
 | [Conformance](https://registry.npmjs.org/@get-modular%2fconformance/0.4.0) | `0.4.0` | 08:18:54.515 | Core/Assembly `^0.6.0`, Resources `^0.2.0` peers |
 | [Observation](https://registry.npmjs.org/@get-modular%2fobservation/0.1.0) | `0.1.0` | 08:17:26.586 | Resources `^0.2.0` peer |
 
-All five official archives were downloaded freshly and checked against registry SHA-512 SRI and SHA-1. Their sizes and SHA-256 values exactly match the [original retained manifest](../qualification/observation/upstream-artifacts.json). Packed manifests agree with registry dependencies and peers. The [published artifact record](../qualification/observation/published-artifacts.json) retains exact registry URLs, hashes and read-back time. Archive equality establishes unchanged published runtime/declaration bytes, including `watch`, `load`, values and resource identity semantics; it does not relabel earlier tests as runs against npm.
+All five official archives were downloaded freshly and checked against registry SHA-512 SRI and SHA-1. Their sizes and SHA-256 values exactly match the [original retained manifest](../qualification/observation/upstream-artifacts.json). Packed manifests agree with registry dependencies and peers. The [October 20 published artifact record](../qualification/observation/published-artifacts-2026-10-20.json) retains exact registry URLs, hashes and read-back time. Archive equality establishes unchanged published runtime/declaration bytes, including `watch`, `load`, values and resource identity semantics; it does not relabel earlier tests as runs against npm.
 
 Official GitHub API read-back confirms [release preparation #199](https://github.com/agent-teams-ai/get-modular/pull/199) merged at **2026-10-19 22:14:37 UTC**, merge `10bb2de2880e38398c836f6660244fd4cb665822`. [Migration fixture correction #200](https://github.com/agent-teams-ai/get-modular/pull/200) merged at **21:16:51 UTC**, merge `f1a81300881eed64ac1d18e2f36423a24e6ecc34`; it changes historical migration test inputs, with no runtime contract change. Publication is established independently through the official registry above.
 
-The SDK adopts the exact coordinated pins and exports an optional public `@agent-teams/payments-get-modular/observation` subpath. Observation is an optional peer; the main static entry has no Observation import. The [maintained isolated consumer](../qualification/observation/README.md) now installs exact public versions beside all four packed payments packages, checks registry/archive identity, strict TypeScript `7.0.2` NodeNext/Bundler declarations and physical peer identity, and exercises the unchanged four scenario oracles against real PostgreSQL. The custom prepublication archive cache and duplicate qualification-source implementation are removed. Original candidate manifests, accepted ADRs and previous review/log evidence remain unchanged.
+At that checkpoint the SDK adopted the exact coordinated pins and exported an optional public `@agent-teams/payments-get-modular/observation` subpath. Observation remained an optional peer; the main static entry had no Observation import. The [maintained isolated consumer](../qualification/observation/README.md) installed exact public versions beside all four packed payments packages, checked registry/archive identity, strict TypeScript `7.0.2` NodeNext/Bundler declarations and physical peer identity, and exercised the four scenario oracles against real PostgreSQL. The custom prepublication archive cache and duplicate qualification-source implementation were removed. Original candidate manifests, accepted ADRs and previous review/log evidence remain unchanged.
 
 Paddle.js declaration and Node bundled-transport qualification retain their separately owned gates; this dependency adoption grants no additional production or live-account claim.
 
 ## Historical October 19 qualification
 
-The following dated sections record their original source and dependency snapshots. The published adoption above owns current Get Modular status.
+The following dated sections record their original source and dependency snapshots. The October 21 section above owns the current successor status.
 
 ## Qualified dependency change
 

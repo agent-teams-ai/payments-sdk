@@ -13,8 +13,8 @@ const repository = resolve(import.meta.dirname, '../..');
 const profilePath = 'architecture/get-modular-consumer-profile.json';
 const sourcePolicyPath = 'architecture/foundation/source-dependencies.yaml';
 const standard = {
-  repository: 'agent-teams-ai/get-modular', commit: 'ddf1e0b0053f546f12ca70190b237b4f7e78d09d',
-  path: 'docs/architecture/common-assembly.md', sha256: 'c2fe582a14ff6e79620b232ca7ffc914afb0474ec21fd43f208251dd7252f4a3',
+  repository: 'agent-teams-ai/get-modular', commit: 'fe4a2fdc878b46feebaececa3b0172b4534be935',
+  path: 'docs/architecture/common-assembly.md', sha256: 'a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882',
   guide: 'docs/guides/module-authoring.md', guideSha256: '8d9e6ced096c3259ec8d7a35a1ee3c2f15e5832ba23c95da57f8cfc4c8622cfd',
 };
 type Authored = Record<string, Record<string, string[]>>;
@@ -117,6 +117,9 @@ async function check(root: string): Promise<void> {
   assert.equal(scripts['foundation:check'], 'agent-teams-foundation check', 'Foundation graph command removed or retargeted');
   assert.equal(scripts['test:modular'], 'node tools/run-tests.ts modular', 'Modular runtime command removed or retargeted');
   assert.equal(scripts['test:observation'], 'node tools/qualify-observation.ts', 'packed Observation command removed or retargeted');
+  for (const name of ['check:fast', 'check']) {
+    assert.match(scripts[name] ?? '', /^pnpm [\w:-]+(?: && pnpm [\w:-]+)*$/u, `${name}: blocking command chain must use only pnpm scripts joined by &&`);
+  }
   for (const command of ['pnpm test:modular:adoption', 'pnpm foundation:check']) {assert.equal(scripts['check:fast']?.split('&&').map(part => part.trim()).includes(command), true, `fast chain lost ${command}`);}
   for (const command of ['pnpm check:fast', 'pnpm test:boundaries', 'pnpm test:modular', 'pnpm test:observation']) {assert.equal(scripts['check']?.split('&&').map(part => part.trim()).includes(command), true, `full chain lost ${command}`);}
 }
@@ -149,6 +152,8 @@ void test('scoped adoption permits owner-local helpers and rejects meaningful dr
     'no-op runtime command': async root => { const manifest = await json<{ scripts: Record<string, string> }>(root, 'package.json'); manifest.scripts['test:modular'] = 'node -e "process.exit(0)"'; await writeFile(join(root, 'package.json'), JSON.stringify(manifest)); },
     'no-op packed command': async root => { const manifest = await json<{ scripts: Record<string, string> }>(root, 'package.json'); manifest.scripts['test:observation'] = 'node -e "process.exit(0)"'; await writeFile(join(root, 'package.json'), JSON.stringify(manifest)); },
     'removed fast chain': async root => { const manifest = await json<{ scripts: Record<string, string> }>(root, 'package.json'); manifest.scripts['check:fast'] = 'pnpm typecheck'; await writeFile(join(root, 'package.json'), JSON.stringify(manifest)); },
+    'masked fast failure': async root => { const manifest = await json<{ scripts: Record<string, string> }>(root, 'package.json'); manifest.scripts['check:fast'] += ' && true || true'; await writeFile(join(root, 'package.json'), JSON.stringify(manifest)); },
+    'masked full failure': async root => { const manifest = await json<{ scripts: Record<string, string> }>(root, 'package.json'); manifest.scripts['check'] += ' && true || true'; await writeFile(join(root, 'package.json'), JSON.stringify(manifest)); },
   };
   const expected: Readonly<Record<string, RegExp>> = {
     'reviewed pin drift': /reviewed CMS\/guide pin drift/u,
@@ -160,6 +165,8 @@ void test('scoped adoption permits owner-local helpers and rejects meaningful dr
     'no-op runtime command': /Modular runtime command removed or retargeted/u,
     'no-op packed command': /packed Observation command removed or retargeted/u,
     'removed fast chain': /fast chain lost pnpm test:modular:adoption/u,
+    'masked fast failure': /check:fast: blocking command chain/u,
+    'masked full failure': /check: blocking command chain/u,
   };
   for (const [name, change] of Object.entries(changes)) {
     await context.test(name, async () => {

@@ -168,7 +168,7 @@ contract, not qualification of another production provider.
 The integration uses real published static modules, Assembly preparation/run inputs and Resources ownership. It creates the same plain core runtime and borrows provider/store/pool dependencies. Frozen checkout/read/management/processing/delivery facets segregate consumers' needs without inventing another payment service or authorization layer.
 
 The coordinated Observation release train was published on 2026-10-20. The
-[public registry record](../qualification/observation/published-artifacts.json)
+[historical registry record](../qualification/observation/published-artifacts-2026-10-20.json)
 binds exact versions, integrity and archive identity; the published bytes match
 the previously reviewed original candidates. The optional
 `@agent-teams/payments-get-modular/observation` entrypoint delivers one shared
@@ -176,5 +176,14 @@ purchase projection and Assembly composition. Static consumers can omit the
 Observation peer. The [integration guide](../packages/payments-get-modular/README.md)
 owns setup and `watch`/`load` semantics; `pnpm test:observation` checks the actual
 packed public entrypoint, coherent peers and real financial/lifecycle scenarios.
+
+The reviewed integration successor targets Core/Assembly `0.7.0`, Resources
+`0.2.1`, Conformance `0.5.0` and Observation `0.2.0`. Publication and official
+installed qualification remain pending in the
+[current upstream record](upstream-qualification.md). Its Observation contract
+reports an escalated active load while the original close awaits physical read
+settlement and cleanup; abandoning an observer wait does not release its
+borrowed runtime or pool. The earlier train and its qualification remain
+historical evidence.
 
 Hooks observe replaceable read projections of durably stored state. They cannot create checkout, publish financial evidence, grant/consume credits or replace T3/ACK. New providers implement the existing semantic ports and declare capabilities; new storage adapters must preserve the durable commit, read-set, uncertainty and replay guarantees. Foundation's [source-dependency policy](../architecture/foundation/source-dependencies.yaml) checks source import direction; scenario suites check the observable contract.

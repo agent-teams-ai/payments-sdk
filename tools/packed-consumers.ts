@@ -37,12 +37,7 @@ try {
         if (!plain || name === '@agent-teams/payments-core') {dependencies[name] = `file:${tarball}`;}
       }
       if (!plain) {
-        Object.assign(dependencies, {
-          '@get-modular/core': '0.6.0',
-          '@get-modular/assembly': '0.6.0',
-          '@get-modular/resources': '0.2.0',
-        });
-        for (const name of ['pg', '@types/pg', 'pg-boss']) {
+        for (const name of ['@get-modular/core', '@get-modular/assembly', '@get-modular/resources', 'pg', '@types/pg', 'pg-boss']) {
           const version = catalog[name];
           assert.ok(version !== undefined && /^\d+\.\d+\.\d+$/u.test(version), `Missing exact selected peer pin ${name}`);
           dependencies[name] = version;
