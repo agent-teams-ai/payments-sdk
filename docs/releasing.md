@@ -89,17 +89,25 @@ For Get Modular, add this fourth entry under the same `overrides` mapping:
   '@agent-teams/payments-get-modular': file:./payments-candidate/agent-teams-payments-get-modular-0.3.0.tgz
 ```
 
-Then install its matching SDK tarball and the qualified exact peers:
+The following Get Modular examples use the published, qualified Core/Assembly
+`0.7.0`, Resources `0.2.1`, Conformance `0.5.0` and Observation `0.2.0` train.
+The [current upstream record](upstream-qualification.md#october-21-published-get-modular-adoption)
+binds official archives and passing installed consumers on both supported Node
+floors. A new SDK release still requires its matching archive and exact-commit
+release gates above. The previous published train remains in the
+[October 20 record](../qualification/observation/published-artifacts-2026-10-20.json).
+
+Then install the matching SDK tarball and exact peers:
 
 ```sh
 pnpm add ./payments-candidate/agent-teams-payments-get-modular-0.3.0.tgz \
-  @get-modular/core@0.6.0 @get-modular/assembly@0.6.0 @get-modular/resources@0.2.0
+  @get-modular/core@0.7.0 @get-modular/assembly@0.7.0 @get-modular/resources@0.2.1
 ```
 
-Conformance `0.4.0` is development-only. Add `@get-modular/observation@0.1.0`
-when using the optional `/observation` public entrypoint. These are published
-registry artifacts; the [current official record](upstream-qualification.md)
-binds their exact identities. The repository's `test:packed` gate uses the same
+Conformance `0.5.0` is development-only. Add `@get-modular/observation@0.2.0`
+when using the optional `/observation` public entrypoint. The
+[official artifact record](../qualification/observation/published-artifacts.json)
+binds their exact registry identities. The repository's `test:packed` gate uses the same
 explicit local-package overrides for strict isolated consumers, while
 `test:observation` exercises the optional published integration.
 
@@ -117,10 +125,10 @@ application's `package.json` after downloading the matching release assets:
     "@agent-teams/payments-paddle": "file:./payments-candidate/agent-teams-payments-paddle-0.3.0.tgz",
     "@agent-teams/payments-postgres": "file:./payments-candidate/agent-teams-payments-postgres-0.3.0.tgz",
     "@agent-teams/payments-get-modular": "file:./payments-candidate/agent-teams-payments-get-modular-0.3.0.tgz",
-    "@get-modular/core": "0.6.0",
-    "@get-modular/assembly": "0.6.0",
-    "@get-modular/resources": "0.2.0",
-    "@get-modular/observation": "0.1.0",
+    "@get-modular/core": "0.7.0",
+    "@get-modular/assembly": "0.7.0",
+    "@get-modular/resources": "0.2.1",
+    "@get-modular/observation": "0.2.0",
     "pg": "8.23.1"
   },
   "overrides": {

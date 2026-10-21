@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "status": "published-registry-release",
+  "retrievedAt": "2026-10-20T09:00:07.091273+00:00",
+  "source": "https://github.com/agent-teams-ai/get-modular",
+  "releaseMerge": "10bb2de2880e38398c836f6660244fd4cb665822",
+  "migrationFixMerge": "f1a81300881eed64ac1d18e2f36423a24e6ecc34",
+  "retainedCandidateManifest": "upstream-artifacts.json",
+  "archivesIdenticalToRetainedCandidates": true,
+  "archives": [
+    {
+      "name": "@get-modular/core",
+      "version": "0.6.0",
+      "filename": "get-modular-core-0.6.0.tgz",
+      "bytes": 50852,
+      "sha256": "a1a64aeaadf5ae0f9143cf26038853cf42d90b060e083f5ff2f4acf7e2e8d1b0",
+      "dependencies": {},
+      "peerDependencies": {},
+      "publishedAt": "2026-10-20T08:18:30.311Z",
+      "registry": "https://registry.npmjs.org/@get-modular%2fcore/0.6.0",
+      "tarball": "https://registry.npmjs.org/@get-modular/core/-/core-0.6.0.tgz",
+      "integrity": "sha512-s7HmZAkQtioOAbUxBbeVgLCpmplDB7J36GdugMU0XkGWOEmNvUeSaLhKZWJ0uB49QDqCPPiXjcDf6EGlSFSXDA=="
+    },
+    {
+      "name": "@get-modular/assembly",
+      "version": "0.6.0",
+      "filename": "get-modular-assembly-0.6.0.tgz",
+      "bytes": 28893,
+      "sha256": "3330afe53ab9615a1dc81273cf9c45b8b9fb68b1d95571af060971e58a9be606",
+      "dependencies": {
+        "@get-modular/core": "0.6.0"
+      },
+      "peerDependencies": {},
+      "publishedAt": "2026-10-20T08:15:50.750Z",
+      "registry": "https://registry.npmjs.org/@get-modular%2fassembly/0.6.0",
+      "tarball": "https://registry.npmjs.org/@get-modular/assembly/-/assembly-0.6.0.tgz",
+      "integrity": "sha512-y7H5RQpwQnKPXoqj/SnUIiOnWMbg/CI4USIUIlL+arkl3+eJncDyLUSikBG0k85vNuv9QuKt3XztpUJK1GvF9Q=="
+    },
+    {
+      "name": "@get-modular/resources",
+      "version": "0.2.0",
+      "filename": "get-modular-resources-0.2.0.tgz",
+      "bytes": 14662,
+      "sha256": "2d1aaab67b0002a426fda69b01bda9f7697662ea9685a990b33a12d18658f46b",
+      "dependencies": {},
+      "peerDependencies": {},
+      "publishedAt": "2026-10-20T08:17:18.249Z",
+      "registry": "https://registry.npmjs.org/@get-modular%2fresources/0.2.0",
+      "tarball": "https://registry.npmjs.org/@get-modular/resources/-/resources-0.2.0.tgz",
+      "integrity": "sha512-G8PYU8o/DJTFBQcs9N12CgwxC9PJ+gOqFjariwYCbw+w7vGE+11lU2JiX2QrHBog6VpchKIenIinb7mBJtu/4g=="
+    },
+    {
+      "name": "@get-modular/conformance",
+      "version": "0.4.0",
+      "filename": "get-modular-conformance-0.4.0.tgz",
+      "bytes": 33467,
+      "sha256": "2182cf9702879b2ab78928646db59d91d8a7b128ee870c4b0a2283f51e0d352a",
+      "dependencies": {},
+      "peerDependencies": {
+        "@get-modular/core": "^0.6.0",
+        "@get-modular/assembly": "^0.6.0",
+        "@get-modular/resources": "^0.2.0"
+      },
+      "publishedAt": "2026-10-20T08:18:54.515Z",
+      "registry": "https://registry.npmjs.org/@get-modular%2fconformance/0.4.0",
+      "tarball": "https://registry.npmjs.org/@get-modular/conformance/-/conformance-0.4.0.tgz",
+      "integrity": "sha512-Ienld3tq0+XASpCGnd3fwvZbNxLTrViYspGzYGyu9mJAKnvBQLLoopyj2uumDeo4SJVzTI8Sl2oSFotr+BDslg=="
+    },
+    {
+      "name": "@get-modular/observation",
+      "version": "0.1.0",
+      "filename": "get-modular-observation-0.1.0.tgz",
+      "bytes": 33611,
+      "sha256": "083bed3ca61e586d6ce91c272be4b4d07c3c68ae00aa9b414febee20e60f1915",
+      "dependencies": {},
+      "peerDependencies": {
+        "@get-modular/resources": "^0.2.0"
+      },
+      "publishedAt": "2026-10-20T08:17:26.586Z",
+      "registry": "https://registry.npmjs.org/@get-modular%2fobservation/0.1.0",
+      "tarball": "https://registry.npmjs.org/@get-modular/observation/-/observation-0.1.0.tgz",
+      "integrity": "sha512-df9ki8A5Yi8rKR3SCpNeFwpnXLzSzEeawld8J24IYmxy98xVVr8a7xJCDyV37PBuOJJ10JltyVpmRJDJVsZhyg=="
+    }
+  ]
+}

@@ -8,11 +8,15 @@ capabilities and lifecycle ownership are useful; contract coordination and
 Host shutdown remain work the integrator must understand.
 
 The source reference is Get Modular
-[`ddf1e0b0053f546f12ca70190b237b4f7e78d09d`](https://github.com/agent-teams-ai/get-modular/commit/ddf1e0b0053f546f12ca70190b237b4f7e78d09d).
-Payments consumes the exact published versions in the
-[artifact record](../qualification/observation/published-artifacts.json), not
-unpublished main. The [consumer adoption record](get-modular-adoption.md)
-defines the narrower local enforcement scope.
+[`fe4a2fdc878b46feebaececa3b0172b4534be935`](https://github.com/agent-teams-ai/get-modular/commit/fe4a2fdc878b46feebaececa3b0172b4534be935).
+The published integration uses Core/Assembly `0.7.0`, Resources `0.2.1`,
+Conformance `0.5.0` and Observation `0.2.0`. Its
+[official installed qualification](upstream-qualification.md#october-21-published-get-modular-adoption)
+passed on Linux ARM64 Node `24.22.1` and `26.12.1` with PostgreSQL `18`. The
+[October 20 artifact record](../qualification/observation/published-artifacts-2026-10-20.json)
+preserves the previous qualified published train. The
+[consumer adoption record](get-modular-adoption.md) defines the narrower local
+`scoped-active` adapter scope; full application FMS is not adopted.
 
 ## What is already useful
 
@@ -100,26 +104,32 @@ module count alone is not evidence that it should be introduced.
 Retain structured preparation/run causes for the Host's diagnostic path.
 Reducing a preparation failure to its code discards module, slot and candidate
 details just when a larger graph makes them most useful. Do not blindly log
-opaque factory causes or configuration: they can contain secrets. An additive
-upstream discriminated type for known preparation causes would improve
-navigation without changing the composition model. Public result types are in
-[construction/types.ts](https://github.com/agent-teams-ai/get-modular/blob/ddf1e0b0053f546f12ca70190b237b4f7e78d09d/packages/assembly/src/features/construction/types.ts).
+opaque factory causes or configuration: they can contain secrets. The published
+integration supplies typed preparation failures and Assembly's `formatFailure`
+for bounded developer text. Default output omits Assembly authoring labels;
+`includeAuthoringContext: true` is for a private developer console. Keep the
+structured failure as the cause, and never send opt-in authoring context to
+public clients. See the
+[formatter contract](https://github.com/agent-teams-ai/get-modular/blob/fe4a2fdc878b46feebaececa3b0172b4534be935/packages/assembly/README.md#failure-text-for-host-diagnostics).
 
-Resources continues releasing earlier entries after a child reports failed
-cleanup. Observation escalation can report a still-running loader as debt.
-Therefore a Host must not infer from LIFO ordering that a single parent close
-will retain every borrowed dependency until all child work physically settles.
-Close dependent scopes, inspect completion, retain their runtime/pool while
-debt remains, then retry/join and close the dependencies. Payments' runtime
-also tracks actual in-flight work; preserve that ownership instead of racing
-the work against a cancellation signal. Sources:
-[Resources child release](https://github.com/agent-teams-ai/get-modular/blob/ddf1e0b0053f546f12ca70190b237b4f7e78d09d/packages/resources/src/features/scope/scope.ts),
-[Observation loader drain](https://github.com/agent-teams-ai/get-modular/blob/ddf1e0b0053f546f12ca70190b237b4f7e78d09d/packages/observation/src/features/store/load.ts).
+In Observation `0.2.0`, escalation reports
+`observation.load.still-running` through the owner's error sink while the drain
+keeps awaiting the loader promise, including its `finally` cleanup. Keep the
+patient close promise. A separate caller can abandon its wait and receive
+`complete:false, settled:false` with pending debt; earlier dependencies remain
+held until the load settles. Await the patient close before releasing the
+runtime/pool; no cleanup retry is needed for this active drain. Resources still
+continues earlier entries after genuinely failed cleanup callbacks, so inspect
+those debts separately. Payments' runtime also tracks actual in-flight work;
+cancellation is no substitute for physical settlement. Sources:
+[Resources child release](https://github.com/agent-teams-ai/get-modular/blob/fe4a2fdc878b46feebaececa3b0172b4534be935/packages/resources/src/features/scope/scope.ts),
+[Observation loader drain](https://github.com/agent-teams-ai/get-modular/blob/fe4a2fdc878b46feebaececa3b0172b4534be935/packages/observation/src/features/store/load.ts).
 
-The separate abort-reentry ordering defect was corrected in upstream main but
-is absent from the published Resources 0.2.0 artifact. The local adoption record
-distinguishes its counterexample from the exercised payments shutdown path.
-Merged source is not proof that an installed release contains the repair.
+Resources `0.2.1` includes the synchronous abort-reentry ordering repair;
+Observation `0.2.0` replaces the earlier terminal failed-debt load behavior with
+report-and-await. The installed lifecycle qualification covers these behaviors.
+The older Resources `0.2.0` / Observation `0.1.0` train remains historical
+evidence and does not establish the repaired shutdown guarantee.
 
 Observation notifications may coalesce. A slow uncancellable load delays the
 latest requested load. Keep finite projections, short-lived subscriber scopes

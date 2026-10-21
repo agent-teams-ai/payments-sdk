@@ -14,12 +14,16 @@ void test('projection supersession and close await actual PostgreSQL reads plus 
   const cleanupEntered = Promise.withResolvers<void>(), releaseCleanup = Promise.withResolvers<void>();
   const closeRead = Promise.withResolvers<void>(), releaseCloseRead = Promise.withResolvers<void>();
   const closeCleanup = Promise.withResolvers<void>(), releaseCloseCleanup = Promise.withResolvers<void>();
+  const stillRunning = Promise.withResolvers<ListenerError>();
   const calls: string[] = [], states: PurchaseProjectionState[] = [], reports: ListenerError[] = [];
   let concurrent = 0, maximumConcurrent = 0;
   let failRecoverableRead = true;
   const projection = createPurchaseProjection({
     initialQuery: { buyerId: 'buyer-a', intentId: 'old' },
-    reportError: report => { reports.push(report); },
+    reportError: report => {
+      reports.push(report);
+      if (report.cause instanceof Error && 'code' in report.cause && report.cause.code === 'observation.load.still-running') {stillRunning.resolve(report);}
+    },
     read: { async readPurchase(buyerId, intentId) {
       calls.push(intentId); concurrent += 1; maximumConcurrent = Math.max(maximumConcurrent, concurrent);
       try {
@@ -81,20 +85,30 @@ void test('projection supersession and close await actual PostgreSQL reads plus 
     projection.commands.select({ buyerId: 'buyer-a', intentId: 'close-held' });
     await closeRead.promise;
     let physicallyClosed = false;
-    const closing = owner.control.close().then(report => { physicallyClosed = true; return report; });
-    await delivered();
-    assert.equal(physicallyClosed, false, 'projection close drains the active borrowed read');
+    const closing = owner.control.close({ escalate: AbortSignal.abort('projection shutdown deadline') })
+      .then(report => { physicallyClosed = true; return report; });
+    const notice = await stillRunning.promise;
+    assert.equal(notice.source, 'payments-purchase/requests');
+    assert.equal(notice.subscription, 'payments-purchase/read');
+    const snapshot = await owner.control.close({ abandon: AbortSignal.abort('Host observer deadline') });
+    assert.equal(snapshot.complete, false);
+    assert.equal(snapshot.settled, false);
+    assert.ok(snapshot.debts.some(debt => debt.state === 'pending' && debt.path.slice(-2).join('/') === 'load:payments-purchase/read/drain'));
+    assert.equal(physicallyClosed, false, 'escalation reporting and observer abandonment do not finish the borrowed read');
+    assert.equal(world.payments.lifecycle().accepting, true);
     assert.equal((await world.pool.query<{ alive: number }>('SELECT 1 AS alive')).rows[0]?.alive, 1);
     releaseCloseRead.resolve();
     await closeCleanup.promise;
     await delivered();
     assert.equal(physicallyClosed, false, 'close also waits for the read port temporary cleanup');
+    assert.equal(world.payments.lifecycle().accepting, true);
+    assert.equal((await world.pool.query<{ alive: number }>('SELECT 1 AS alive')).rows[0]?.alive, 1, 'the pool remains usable during temporary cleanup');
     releaseCloseCleanup.resolve();
     assert.deepEqual(await closing, { complete: true, settled: true, debts: [] });
     assert.equal(concurrent, 0);
     assert.equal(liveSubscriptions(projection.view), 0);
     assert.equal(states.some(state => state.status === 'ready' && state.query.intentId === 'close-held'), false);
-    assert.equal(reports.length, 0, 'normal supersession and subscriber close do not manufacture listener failures');
+    assert.deepEqual(reports, [notice], 'only escalation of the physically held read emits a lifecycle report');
     assert.equal((await world.pool.query<{ alive: number }>('SELECT 1 AS alive')).rows[0]?.alive, 1, 'projection cleanup never owns the host pool');
     assert.equal(await world.payments.readPurchase('buyer-a', 'newest'), undefined, 'the borrowed payments owner remains accepting reads after projection close');
   } finally {

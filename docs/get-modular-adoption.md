@@ -29,25 +29,36 @@ tests; the main entry still imports without Observation installed.
 ## Reviewed authorities and actual artifacts
 
 The CMS and module-authoring guide were reviewed together at Get Modular
-[`ddf1e0b0053f546f12ca70190b237b4f7e78d09d`](https://github.com/agent-teams-ai/get-modular/commit/ddf1e0b0053f546f12ca70190b237b4f7e78d09d).
+[`fe4a2fdc878b46feebaececa3b0172b4534be935`](https://github.com/agent-teams-ai/get-modular/commit/fe4a2fdc878b46feebaececa3b0172b4534be935).
 The profile pins the complete CMS document SHA-256
-`c2fe582a14ff6e79620b232ca7ffc914afb0474ec21fd43f208251dd7252f4a3`
+`a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882`
 and guide SHA-256
 `8d9e6ced096c3259ec8d7a35a1ee3c2f15e5832ba23c95da57f8cfc4c8622cfd`.
+The reviewed delta adds report-and-await load shutdown guidance: escalation
+reports unresolved work while the original close keeps draining through physical
+settlement and finally cleanup. The module-authoring guide bytes are unchanged.
+The profile accepts the repaired published artifacts and exact catalog/lock pins.
+The isolated packed consumer passed on Linux ARM64 Node `24.22.1` and `26.12.1`
+with PostgreSQL `18`, strict NodeNext/Bundler and identical four SDK archives.
+These are official registry runs; earlier candidate evidence stays historical.
+
 The organization quality source is retained at
 [`a34ecc6bc9bb165771f3962dccd25970dd5c0d98`](https://github.com/agent-teams-ai/.github/blob/a34ecc6bc9bb165771f3962dccd25970dd5c0d98/docs/engineering-quality-standard.md),
 SHA-256 `a65fb5150837b010a71abe36cefd26c32709eb9b9e89f3938498a647e72f5587`.
 These are reviewed source identities, not moving branch aliases. The retained
 organization source does not silently replace accepted product decisions.
 
-The current qualified **published** artifacts are Core/Assembly `0.6.0`,
-Resources `0.2.0`, Conformance `0.4.0` and Observation `0.1.0`. Their exact
-publication, dependency, archive SHA-256 and SHA-512 identities remain in the
+The qualified **published** artifacts are Core/Assembly `0.7.0`, Resources
+`0.2.1`, Conformance `0.5.0` and Observation `0.2.0`. Their exact publication,
+dependency, SHA-256 and SHA-512 identities are in the
 [published artifact record](../qualification/observation/published-artifacts.json).
-Its own SHA-256 is pinned by the profile; the gate compares each archive's
-version/integrity with the workspace catalog and frozen lockfile. Registry
-read-back on 2026-10-21 found those versions still latest. A source commit,
-candidate archive or open upstream pull request is not an installed release.
+The source-bound [release workflow](https://github.com/agent-teams-ai/get-modular/actions/runs/39612969025)
+completed prepare, publish, installed verification and latest promotion on
+`7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333`. Registry read-back on 2026-10-21
+matched every archive against that release manifest. The profile pins the
+artifact-record digest; the gate compares catalog versions and lock integrity.
+The [October 20 record](../qualification/observation/published-artifacts-2026-10-20.json)
+preserves the earlier train.
 
 Engineering Foundation `1.10.1` remains the independently qualified development
 dependency described in [its existing adoption profile](foundation-adoption.md).
@@ -95,8 +106,8 @@ observes direct authored API calls, including aliased and namespace imports,
 and compares their names/paths with the profile. Semantic ownership and intent
 remain review obligations. Full application FMS adoption, application layout
 enforcement and independently deployed plugin lifecycle are outside this
-scope; they require an explicit owner decision and qualification. The profile's
-`scoped-active` status describes this adapter record and its executed guards.
+scope; they require an explicit owner decision and qualification. The profile's `scoped-active` status describes this adapter record and its
+executed guards.
 It is not a claim of complete application CMS/FMS conformance.
 
 ## Startup and shutdown guarantees
@@ -115,39 +126,27 @@ drains actual core/provider work. An SDK deadline does not terminate a physical
 promise. The optional projection borrows only a read port and cannot deliver
 financial evidence, grant benefits or acknowledge durable delivery.
 
-Resources reverse ordering does **not** mean stop-on-debt. It intentionally
-continues earlier cleanup after a child reports failed debt. Observation may
-report `observation.load.still-running` on escalation while a borrowed read
-still runs. Therefore the Host first closes dependent views/attempts and
-examines their complete reports, retaining the runtime/pool while debt remains.
-After actual read settlement it retries/joins the dependent close, then closes
-the runtime and finally the shared pool. A single parent close with escalation
-must not be the only guard protecting borrowed infrastructure. This is accepted
-upstream cleanup behavior, not a reason to change Resources semantics locally.
+The successor Observation contract reports `observation.load.still-running` on
+escalation while the original close keeps awaiting the loader and its finally
+cleanup. The Host retains that patient Promise. Bounded abandon ends only the
+caller's wait: it does not release the runtime, pool or pending cleanup. When
+the read and cleanup settle, the original close completes without retry and
+reverse ordering releases earlier dependencies. An unrelated genuinely failed
+cleanup still follows Resources debt semantics and requires Host retention.
 
-### Published Resources limitation
+### Published Resources migration
 
-Published Resources `0.2.0` has an upstream synchronous abort-reentry ordering
-defect. A focused public API counterexample on Linux Node `24.21.0` creates a
-scope with registered cleanup, adds an abort listener that calls that scope's
-`close()` synchronously, then closes with an already aborted escalation signal.
-The two callers join the same flight, but cleanup observes
-`escalate.aborted === false`; close still reports complete. Upstream main
-`ddf1e0b` repairs this ordering and contains public regressions. Its
-[pending patch changeset](https://github.com/agent-teams-ai/get-modular/blob/ddf1e0b0053f546f12ca70190b237b4f7e78d09d/.changeset/fix-resource-close-reentry.md)
-does not make the repaired implementation part of the published `0.2.0` bytes.
+Resources `0.2.0` has a synchronous abort-reentry ordering defect: a reentrant
+close can miss an already aborted escalation signal. The existing upstream
+repair is included in the target `0.2.1` release. The consumer regression now
+closes its ancestor synchronously from an abort listener and checks detach and
+cleanup order; it requires the repaired published bytes. No deferred-listener
+workaround or private Resources fork is retained.
 
-Normal payment module construction/drain installs no reentrant close listener
-and does not shorten physical drain because escalation occurred. An actual
-public projection/watch probe with borrowed dependencies registered before
-the subscriber child observed zero subscriptions at dependency release for
-both ordinary and reentrant close; no failure of that normal ordering is
-claimed. The delivered Host rule avoids synchronous ancestor/self-close inside
-abort listeners: request shutdown after the current notification, for example
-with `queueMicrotask`. Staged close also protects the separate failed-debt case.
-No private runtime patch, vendored Resources implementation or unpublished
-dependency is used. Adopting the repaired release remains pending its actual
-publication, identity read-back and consumer regression.
+Public archive read-back, exact catalog/lock pins and both official packed
+consumer gates now qualify this migration. Candidate success remains TEST
+evidence only. The previous train and its limitations remain in the
+[historical artifact record](../qualification/observation/published-artifacts-2026-10-20.json).
 
 ## Verification and remaining obligations
 
@@ -163,10 +162,10 @@ imports and public boundary bypasses.
 packages, independent wiring/namespaces, inert preparation, facet isolation,
 two runs, failed startup, cancellation and physical settlement. The new
 non-database lifecycle cases use the actual SDK projection and runtime: an
-escalated view retains failed debt while a storage read is held; staged Host
-shutdown retains its runtime and pool until the read settles and the dependent
-close succeeds. The deferred shutdown case detaches its real subscriber before
-dependency disposal. Barriers and public Observation waits replace sleep-based
+escalated view reports unresolved work while a storage read is held; bounded
+shutdown retains its runtime and pool through both read settlement and finally
+cleanup, then the patient close completes. The reentrant shutdown case detaches
+its real subscriber before dependency disposal. Barriers and public Observation waits replace sleep-based
 oracles.
 
 The packed [Observation consumer](../qualification/observation/README.md)

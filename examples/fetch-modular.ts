@@ -1,5 +1,5 @@
 /** Fetch handler with the published static Get Modular assembly, not a second payment runtime. */
-import { assemblyFor } from '@get-modular/assembly';
+import { assemblyFor, formatFailure } from '@get-modular/assembly';
 import { createScope } from '@get-modular/resources';
 import { PaymentsConfiguration, paymentsConfiguration, paymentsGroup, paymentsModule } from '@agent-teams/payments-get-modular';
 import type { PaymentsCapabilities } from '@agent-teams/payments-get-modular';
@@ -9,7 +9,7 @@ import type { HostedPayments, WebhookVerifier } from './node-http.ts';
 
 const preparation = await assemblyFor<PaymentsCapabilities>().prepare({ profileId: 'fixtures/fetch-payments-v1', bindings: [], modules: [paymentsGroup], roots: { payments: paymentsModule }, inputs: { configuration: paymentsConfiguration } });
 if (preparation.status !== 'prepared') {
-  throw new Error(`Static payment composition failed: ${preparation.error.code}`, {
+  throw new Error(`Static payment composition failed:\n${formatFailure(preparation, { includeAuthoringContext: true })}`, {
     cause: { error: preparation.error, diagnostics: preparation.diagnostics },
   });
 }
