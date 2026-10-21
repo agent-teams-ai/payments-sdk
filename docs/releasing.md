@@ -1,6 +1,6 @@
 # Release candidates and future registry publication
 
-The repository's [Release candidate workflow](../.github/workflows/release.yaml) produces four audited versioned package tarballs, `SHA256SUMS`, a source/CI manifest and a GitHub **prerelease**. It never invokes `npm publish`. Package version `0.2.0` in source does not imply an existing npm release, live Paddle qualification or production readiness.
+The repository's [Release candidate workflow](../.github/workflows/release.yaml) produces four audited versioned package tarballs, `SHA256SUMS`, a source/CI manifest and a GitHub **prerelease**. It never invokes `npm publish`. Package version `0.3.0` in source does not imply an existing npm release, live Paddle qualification or production readiness.
 
 **Current admission, 2026-10-19:** these artifacts support integration and fixture evaluation. Production deployment is blocked by the independently confirmed [Node built-in fetch security issue](security-qualification.md#node-bundled-transport-scope). Successful CI, archive audits and clean npm scans do not clear that runtime gate. Generated GitHub release notes expose this status before the artifact description; the workflow always creates a prerelease.
 
@@ -26,19 +26,19 @@ Protect `main` with Required checks, and restrict creation/update/deletion of `v
 
 ## Create a candidate
 
-The examples below target the next `0.2.0` candidate and become usable after its matching release exists. Existing `v0.1.0` artifacts remain unchanged. First merge the reviewed source and wait for its main-push Checks run to succeed. Its dry-run artifacts currently expire after seven days; an expired artifact requires rerunning the original main-push Checks run to produce the exact commit's packages, or choosing a newly qualified main commit. A manual Checks dispatch is a different event and cannot substitute for this main-push gate. A PR's green check alone is insufficient.
+The examples below target the next `0.3.0` candidate and become usable after its matching release exists. Existing `v0.1.0` and `v0.2.0` artifacts remain unchanged. First merge the reviewed source and wait for its main-push Checks run to succeed. Its dry-run artifacts currently expire after seven days; an expired artifact requires rerunning the original main-push Checks run to produce the exact commit's packages, or choosing a newly qualified main commit. A manual Checks dispatch is a different event and cannot substitute for this main-push gate. A PR's green check alone is insufficient.
 
 For an existing versioned main commit, an authorized maintainer can push an explicit tag:
 
 ```sh
-git tag v0.2.0 <full-main-commit-sha>
-git push origin v0.2.0
+git tag v0.3.0 <full-main-commit-sha>
+git push origin v0.3.0
 ```
 
 Or manually dispatch from trusted `main`, providing the exact tag and commit:
 
 ```sh
-gh workflow run release.yaml --ref main -f tag=v0.2.0 -f commit=<full-main-commit-sha>
+gh workflow run release.yaml --ref main -f tag=v0.3.0 -f commit=<full-main-commit-sha>
 ```
 
 Replace the placeholders before running commands. The workflow admits the commit and fails if manifests, tag target, CI status or archives disagree. A tag push racing its main Checks run can fail admission; rerun Release candidate after the exact main run finishes. A manual dispatch for an already published tag fails without changing the release.
@@ -50,7 +50,7 @@ If upload or GitHub release creation fails after the version tag exists, retain 
 Download the candidate assets, verify them in the same directory and inspect `release-manifest.json`:
 
 ```sh
-gh release download v0.2.0 --repo agent-teams-ai/payments-sdk --dir ./payments-candidate
+gh release download v0.3.0 --repo agent-teams-ai/payments-sdk --dir ./payments-candidate
 cd ./payments-candidate
 sha256sum --check SHA256SUMS
 cd ..
@@ -69,30 +69,30 @@ that workspace's `pnpm-workspace.yaml` (create the file if it does not exist):
 
 ```yaml
 overrides:
-  '@agent-teams/payments-core': file:./payments-candidate/agent-teams-payments-core-0.2.0.tgz
-  '@agent-teams/payments-paddle': file:./payments-candidate/agent-teams-payments-paddle-0.2.0.tgz
-  '@agent-teams/payments-postgres': file:./payments-candidate/agent-teams-payments-postgres-0.2.0.tgz
+  '@agent-teams/payments-core': file:./payments-candidate/agent-teams-payments-core-0.3.0.tgz
+  '@agent-teams/payments-paddle': file:./payments-candidate/agent-teams-payments-paddle-0.3.0.tgz
+  '@agent-teams/payments-postgres': file:./payments-candidate/agent-teams-payments-postgres-0.3.0.tgz
 ```
 
 Keep existing workspace packages, overrides and other settings. These paths are
 relative to that configuration file. Then install from the host application:
 
 ```sh
-pnpm add ./payments-candidate/agent-teams-payments-core-0.2.0.tgz \
-  ./payments-candidate/agent-teams-payments-paddle-0.2.0.tgz \
-  ./payments-candidate/agent-teams-payments-postgres-0.2.0.tgz pg@8.23.1
+pnpm add ./payments-candidate/agent-teams-payments-core-0.3.0.tgz \
+  ./payments-candidate/agent-teams-payments-paddle-0.3.0.tgz \
+  ./payments-candidate/agent-teams-payments-postgres-0.3.0.tgz pg@8.23.1
 ```
 
 For Get Modular, add this fourth entry under the same `overrides` mapping:
 
 ```yaml
-  '@agent-teams/payments-get-modular': file:./payments-candidate/agent-teams-payments-get-modular-0.2.0.tgz
+  '@agent-teams/payments-get-modular': file:./payments-candidate/agent-teams-payments-get-modular-0.3.0.tgz
 ```
 
 Then install its matching SDK tarball and the qualified exact peers:
 
 ```sh
-pnpm add ./payments-candidate/agent-teams-payments-get-modular-0.2.0.tgz \
+pnpm add ./payments-candidate/agent-teams-payments-get-modular-0.3.0.tgz \
   @get-modular/core@0.6.0 @get-modular/assembly@0.6.0 @get-modular/resources@0.2.0
 ```
 
@@ -113,10 +113,10 @@ application's `package.json` after downloading the matching release assets:
   "private": true,
   "type": "module",
   "dependencies": {
-    "@agent-teams/payments-core": "file:./payments-candidate/agent-teams-payments-core-0.2.0.tgz",
-    "@agent-teams/payments-paddle": "file:./payments-candidate/agent-teams-payments-paddle-0.2.0.tgz",
-    "@agent-teams/payments-postgres": "file:./payments-candidate/agent-teams-payments-postgres-0.2.0.tgz",
-    "@agent-teams/payments-get-modular": "file:./payments-candidate/agent-teams-payments-get-modular-0.2.0.tgz",
+    "@agent-teams/payments-core": "file:./payments-candidate/agent-teams-payments-core-0.3.0.tgz",
+    "@agent-teams/payments-paddle": "file:./payments-candidate/agent-teams-payments-paddle-0.3.0.tgz",
+    "@agent-teams/payments-postgres": "file:./payments-candidate/agent-teams-payments-postgres-0.3.0.tgz",
+    "@agent-teams/payments-get-modular": "file:./payments-candidate/agent-teams-payments-get-modular-0.3.0.tgz",
     "@get-modular/core": "0.6.0",
     "@get-modular/assembly": "0.6.0",
     "@get-modular/resources": "0.2.0",

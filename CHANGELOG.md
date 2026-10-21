@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.3.0 — explicit worker transport and custody qualification
+
+The four SDK packages advance together for the deliberate pre-1.0 worker
+composition change. Existing 0.2.0 artifacts and durable payment identities
+remain unchanged. A source version is not evidence of publication or completed
+qualification; see the [hardening plan](docs/reviews/sdk-0.3-hardening/plan.md).
+
+### Queue composition
+
+- Give the PostgreSQL store a transactional enqueue capability instead of a
+  `PgBoss` instance. Keep payment obligations authoritative and allow the store
+  to run without a queue.
+- Require an explicit transport when constructing the existing PostgreSQL
+  worker. Keep claim/settlement, replay, repair, receipt verification and drain
+  in that worker; confine pg-boss options, subscriptions and schema knowledge
+  to its implementation.
+- Preserve repair's bounded selection and fairness by excluding runnable
+  transport work before applying the batch limit.
+
+### Migration from 0.2.0
+
+Upgrade the four SDK packages together. Construct
+`createPgBossPaymentTransport` at the host composition boundary, call its
+explicit `bootstrap()` under the migration role, and pass the transport to
+`createPostgresPaymentJobs`. Give the store the runner's narrow `queue`
+capability. The generic worker no longer returns a raw `boss` or queue name,
+and `bootstrapPostgresPaymentJobs` is replaced by the transport's own
+bootstrap operation. There is one composition path, without a legacy wrapper.
+
+This change does not turn a remote broker into part of a PostgreSQL transaction.
+Another transport must preserve the documented transactional enqueue,
+namespace, pending-work and lifecycle contracts. Another storage engine still
+requires a separate `PaymentStore` implementation and durability qualification.
+Core payment commands, evidence/receipt protocols and persisted identities do
+not change.
+
 ## 0.2.0 — integration and fixture candidate
 
 The four SDK packages advance together. Existing `v0.1.0` release artifacts

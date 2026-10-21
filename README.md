@@ -15,7 +15,7 @@ The first supported commercial profile is **one no-trial monthly price, quantity
 | `@agent-teams/payments-postgres` | Owner-local durable transactions, private Drizzle queries, migrations, bounded repair, pg-boss transport and recovery administration | Core, `pg`, `drizzle-orm`, `pg-boss` |
 | `@agent-teams/payments-get-modular` | Static composition, optional purchase read projections, capability facets and explicit resource lifecycle | Core and qualified Get Modular peers |
 
-The four packages currently declare version `0.2.0`; see the [migration notes](CHANGELOG.md). A version in a manifest does not establish npm publication or a GitHub release. Use the [release candidate artifacts and verification instructions](docs/releasing.md) for an existing matching tag, or build this checkout.
+The four packages currently declare version `0.3.0`; see the [migration notes](CHANGELOG.md). A version in a manifest does not establish npm publication or a GitHub release. Use the [release candidate artifacts and verification instructions](docs/releasing.md) for an existing matching tag, or build this checkout.
 
 ## Start here
 
