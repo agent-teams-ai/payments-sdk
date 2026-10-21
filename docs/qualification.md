@@ -2,12 +2,15 @@
 
 This page describes reproducible evidence and its limits. A test file is not a recorded passing run. Use the exact commit's successful **Checks → Required checks** run and its logs/artifacts as the release evidence. Counts and dates are intentionally not copied here: the workflow result is authoritative, and a later commit needs its own qualification.
 
-The current [SDK 0.3 driver/queue and subscription record](reviews/sdk-0.3-portability/README.md)
-binds complete checks on both admitted Node floors, production-only package
-isolation, connected monthly/top-up scenarios, four additional reviews and exact
-production metrics. [PR #6](https://github.com/agent-teams-ai/payments-sdk/pull/6)
-owns remote delivery through the authorized GitHub plugin; its live state and
-exact-head checks establish the current hosted result. The earlier
+The [SDK 0.3 driver/queue and subscription record](reviews/sdk-0.3-portability/README.md)
+binds earlier complete checks on the then-admitted Node **24.21.0 / 26.11.1**
+floors, production-only package isolation, connected monthly/top-up scenarios,
+four additional reviews and exact production metrics.
+[PR #6](https://github.com/agent-teams-ai/payments-sdk/pull/6) owns that remote
+delivery and its own hosted result. It does not qualify the subsequent
+[corrected-runtime candidate](runtime-security-admission.md) on **24.22.1 / 26.12.1**;
+its [complete local gates](reviews/node-runtime-security-correction-2026-10-21/qualification.md)
+subsequently passed on the exact `6f348df` source; exact-commit hosted gates remain pending. The earlier
 [local hardening record](reviews/sdk-0.3-hardening/README.md), including its then
 blocked write access, remains historical.
 
@@ -28,7 +31,7 @@ commit still requires its own exact-head hosted checks.
 
 | Component | Exact qualification inputs |
 | --- | --- |
-| Platform | Linux; Node `24.21.0` and `26.11.1` |
+| Platform | Linux; Node `24.22.1` and `26.12.1` |
 | Tooling | TypeScript `7.0.2`, strict projects, `skipLibCheck:false`, maintained `.ts` sources; pnpm `11.25.0` |
 | Durable storage | PostgreSQL `18`, logged correctness tables, `fsync=on`, local `synchronous_commit=on` |
 | PostgreSQL driver | Adapter-owned exclusive-session contract; explicit `/node-postgres` wrapper, qualified with text-mode `pg` `8.23.1` pools and default exact-int8/JSON decoding; custom codecs require separate qualification |
@@ -41,16 +44,17 @@ commit still requires its own exact-head hosted checks.
 
 Manifest engine ranges describe runtime compatibility, and the two exact Node versions above are the functional CI matrix. They do not establish production security admission. Other operating systems, PostgreSQL majors, versions within a manifest range and deployment topologies require their own evidence. The [lockfile](../pnpm-lock.yaml) pins the actual dependency closure. The [current upstream record](upstream-qualification.md) identifies the Foundation patch scope, exact local qualification subject, current Get Modular publication gate and official browser blocker.
 
-## Production runtime security admission: blocked
+## Production runtime security admission: corrected candidate, final gates pending
 
-As of **2026-10-19**, the qualified Node floors and latest published same-major releases retain a built-in `fetch` defect covered by [GHSA-xjj6-f33q-929c](https://github.com/nodejs/undici/security/advisories/GHSA-xjj6-f33q-929c). Independent source comparison and a bounded local malformed-response probe establish that catching the fetch rejection does not prevent the tested Node process from terminating. No malicious Paddle response or live account exploit was demonstrated.
+Official security releases published on **2026-10-21** provide Node **24.22.1 LTS** with Undici **7.30.1**, and Node **26.12.1** with Undici **8.12.2**. The [current admission candidate](runtime-security-admission.md) records official archive checksums, actual binary versions, exact corrected-source comparisons and successful unmodified global-fetch process completion. The earlier affected runtime results remain in the [historical security record](security-qualification.md#node-bundled-transport-scope).
 
-The development-only Undici **7.30.1** correction and clean npm scans do not patch Node's bundled implementation. GitHub prerelease artifacts remain available for integration and fixture evaluation. **Production deployment remains blocked** until an official corrected runtime passes the explicit [runtime security admission requirements](security-qualification.md#node-bundled-transport-scope), together with the deployment gates below. The announced future Node security release is not evidence that a fix is already published or qualified.
+This candidate raises manifest/toolchain floors and exact CI versions. It does not claim final production admission: independent review and complete local qualification passed on source `6f348df2d345edf5270ade0daebf67cc834de2de` under both corrected floors, as retained in the [qualification record](reviews/node-runtime-security-correction-2026-10-21/qualification.md); successful reviewed exact-commit hosted Checks remain required. The separate account, policy, backup and deployment gates below remain applicable. Development-only Undici and clean npm scans do not update a host's built-in fetch.
 
 ## What the automated gates establish
 
 | Gate | Evidence exercised | Material limit |
 | --- | --- | --- |
+| `test:runtime-security` | Fresh child, unmodified built-in fetch, bounded loopback malformed response and normal process exit through the shared captured-command helper | This regression probe is not a complete transport security certification |
 | `toolchain:check`, `typecheck`, `lint` | Runtime/compiler policy; strict ownership for every maintained source; actual compiled examples and declarations | Compilation cannot prove provider settlement or production authorization |
 | Foundation checks and `test:boundaries` | Inward package dependencies, source ownership/exports, forbidden runtime imports and development-only tooling closure | Boundary checks complement behavioral tests |
 | `test:modular:adoption` within fast/boundary checks | Reviewed CMS/artifact pins, actual authored boundaries from the Foundation inventory and TypeScript AST, owned exceptions, rejecting drift fixtures and required command reachability | Scoped composition-adapter checks; semantic ownership and application-wide FMS remain separate review responsibilities |

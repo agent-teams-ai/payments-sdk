@@ -1,0 +1,79 @@
+{
+  "readBackAt": "2026-10-21T12:34:07.719724+00:00",
+  "retrieval": "Official GitHub advisory pages through web primary-source reads; GitHub plugin fetch rejects security/advisories endpoint. Official release bodies and tagged sources were read through GitHub plugin.",
+  "scope": "Eight October15 Undici advisories from the retained runtime investigation; this is not a general security certification",
+  "advisories": [
+    {
+      "id": "GHSA-xjj6-f33q-929c",
+      "url": "https://github.com/nodejs/undici/security/advisories/GHSA-xjj6-f33q-929c",
+      "affected7": ">=7.18.0 <7.30.1",
+      "affected8": ">=8.0.0 <8.12.2",
+      "patched7": "7.30.1",
+      "patched8": "8.12.2",
+      "assessment": "Relevant fetch path; source comparison and actual corrected/control process probe"
+    },
+    {
+      "id": "GHSA-qrxm-fqhp-jwvm",
+      "url": "https://github.com/nodejs/undici/security/advisories/GHSA-qrxm-fqhp-jwvm",
+      "affected7": ">=7.0.0 <7.30.1",
+      "affected8": ">=8.0.0 <8.12.2",
+      "patched7": "7.30.1",
+      "patched8": "8.12.2",
+      "assessment": "Conditional TLS1.2 path; patched source, no attack reproduction"
+    },
+    {
+      "id": "GHSA-2m5v-pch6-74hx",
+      "url": "https://github.com/nodejs/undici/security/advisories/GHSA-2m5v-pch6-74hx",
+      "affected7": ">=7.0.0 <7.30.1",
+      "affected8": ">=8.0.0 <8.12.2",
+      "patched7": "7.30.1",
+      "patched8": "8.12.2",
+      "assessment": "Adapter does not configure custom Agent TLS callback; patched Agent source"
+    },
+    {
+      "id": "GHSA-4w7w-5xrc-9h26",
+      "url": "https://github.com/nodejs/undici/security/advisories/GHSA-4w7w-5xrc-9h26",
+      "affected7": ">=7.0.0 <7.30.1",
+      "affected8": ">=8.0.0 <8.12.2",
+      "patched7": "7.30.1",
+      "patched8": "8.12.2",
+      "assessment": "Affected shared-cache/redirect interceptor composition absent from adapter"
+    },
+    {
+      "id": "GHSA-55wc-3pg8-jfw6",
+      "url": "https://github.com/nodejs/undici/security/advisories/GHSA-55wc-3pg8-jfw6",
+      "affected7": ">=7.15.0 <7.30.1",
+      "affected8": ">=8.0.0 <8.12.2",
+      "patched7": "7.30.1",
+      "patched8": "8.12.2",
+      "assessment": "Affected decompression interceptor/throwing handler composition absent"
+    },
+    {
+      "id": "GHSA-f72v-6w45-q472",
+      "url": "https://github.com/nodejs/undici/security/advisories/GHSA-f72v-6w45-q472",
+      "affected7": ">=7.15.0 <7.30.1",
+      "affected8": ">=8.0.0 <8.12.2",
+      "patched7": "7.30.1",
+      "patched8": "8.12.2",
+      "assessment": "Fetch integrity metadata absent from Paddle requests"
+    },
+    {
+      "id": "GHSA-4qv8-2p9j-2685",
+      "url": "https://github.com/nodejs/undici/security/advisories/GHSA-4qv8-2p9j-2685",
+      "affected7": ">=7.0.0 <7.30.1",
+      "affected8": ">=8.0.0 <8.12.2",
+      "patched7": "7.30.1",
+      "patched8": "8.12.2",
+      "assessment": "No EventSource use in adapter"
+    },
+    {
+      "id": "GHSA-9fm3-97px-rjf6",
+      "url": "https://github.com/nodejs/undici/security/advisories/GHSA-9fm3-97px-rjf6",
+      "affected7": ">=7.0.0 <7.30.1",
+      "affected8": ">=8.0.0 <8.12.2",
+      "patched7": "7.30.1",
+      "patched8": "8.12.2",
+      "assessment": "No WebSocket use in adapter"
+    }
+  ]
+}

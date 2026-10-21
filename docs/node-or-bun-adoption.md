@@ -19,9 +19,7 @@ Node built-ins and hosted-runner executables.
 This is a tooling adoption. None of the four published SDK packages imports or
 declares `node-or-bun`. Archive admission rejects it in published dependency or
 peer dependency declarations, and packed plain-core and production npm consumer
-probes require it to be absent. The SDK's qualified Linux Node versions,
-TypeScript minimum and [production runtime security blocker](security-qualification.md#node-bundled-transport-scope)
-remain unchanged. No Bun runtime qualification is claimed.
+probes require it to be absent. This tooling adoption does not select runtime floors; the [current runtime admission candidate](runtime-security-admission.md) owns the subsequent Node security correction. TypeScript and dependency pins remain unchanged. No Bun runtime qualification is claimed.
 
 ## Selected artifact and source
 
@@ -80,6 +78,8 @@ The deadline initiates cleanup rather than proving immediate process-tree
 termination. Capture reaching forced close after the EOF deadline rejects with
 an honest cleanup error. These are development command guarantees, not payment
 mutation cancellation or production runtime guarantees.
+
+`tools/runtime-security-probe.ts` reuses this helper for its fresh child and normal-exit assertion. The child imports only Node built-ins, uses unmodified global fetch against a loopback malformed response, and owns a five-second watchdog that destroys its sockets, closes its server and exits nonzero. The helper retains its outer direct-child timeout/cleanup contract; no second process abstraction or production workaround is introduced.
 
 `tools/run-tests.ts` keeps inherited stdio and signal forwarding because its
 streaming contract is outside this captured-command API. The intentional

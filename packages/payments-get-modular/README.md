@@ -12,7 +12,7 @@ Optional Get Modular composition for the provider-neutral payment runtime. The H
 | `@get-modular/conformance` | `0.4.0` | Development tests only |
 | `@get-modular/observation` | `0.1.0` | Optional Host peer; required only by `./observation` |
 
-Keep one physical Resources package identity and a compatible Core/Assembly peer set. `scoped` validates the run scope using package-local identity; an independent nested Resources copy is incompatible even if its version matches. The package manifest uses the workspace's exact catalog pins for qualification. The package is ESM and targets Linux Node `>=24.21.0 <25 || >=26.11.1 <27`. Maintained source and tests are ordinary `.ts`, checked with TypeScript `7.0.2`, strict options and `skipLibCheck:false`.
+Keep one physical Resources package identity and a compatible Core/Assembly peer set. `scoped` validates the run scope using package-local identity; an independent nested Resources copy is incompatible even if its version matches. The package manifest uses the workspace's exact catalog pins for qualification. The package is ESM and targets Linux Node `>=24.22.1 <25 || >=26.12.1 <27`. Maintained source and tests are ordinary `.ts`, checked with TypeScript `7.0.2`, strict options and `skipLibCheck:false`.
 
 A framework-neutral application can use `payments-core` directly and omit this package and all Get Modular peers.
 

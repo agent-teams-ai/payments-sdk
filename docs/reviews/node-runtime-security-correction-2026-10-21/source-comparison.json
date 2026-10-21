@@ -1,0 +1,259 @@
+{
+  "readBackAt": "2026-10-21T12:32:43.340570+00:00",
+  "status": "exact-patched-source-comparisons-passed",
+  "records": [
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/node/v24.22.1/deps/undici/src/package.json",
+      "file": "node-v24.22.1-package.json",
+      "utf8Bytes": 6333,
+      "sha256": "0e62f63508558cd8bc44dbf61baee562907ff4bbd147bf837ded998c2bf62a28",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/node/v24.22.1/deps/undici/src/lib/web/fetch/index.js",
+      "file": "node-v24.22.1-lib__web__fetch__index.js",
+      "utf8Bytes": 89638,
+      "sha256": "2cf8903bb2c17d83794edbd800adac4e8077cf9a21d315acf812d2f614e24bd6",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/undici/v7.30.1/lib/web/fetch/index.js",
+      "file": "undici-v7.30.1-lib__web__fetch__index.js",
+      "utf8Bytes": 89638,
+      "sha256": "2cf8903bb2c17d83794edbd800adac4e8077cf9a21d315acf812d2f614e24bd6",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/node/v24.22.1/deps/undici/src/lib/dispatcher/client-h1.js",
+      "file": "node-v24.22.1-lib__dispatcher__client-h1.js",
+      "utf8Bytes": 45292,
+      "sha256": "fa69241601d9e1444898b9e2923e7a2064294f8b13a90ab058d886c11c6d256e",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/undici/v7.30.1/lib/dispatcher/client-h1.js",
+      "file": "undici-v7.30.1-lib__dispatcher__client-h1.js",
+      "utf8Bytes": 45292,
+      "sha256": "fa69241601d9e1444898b9e2923e7a2064294f8b13a90ab058d886c11c6d256e",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/node/v24.22.1/deps/undici/src/lib/dispatcher/client-h2.js",
+      "file": "node-v24.22.1-lib__dispatcher__client-h2.js",
+      "utf8Bytes": 29990,
+      "sha256": "e992a732c30c582676caf23193fb58097b4233ab328d0a77b7ff2c0338ad1eca",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/undici/v7.30.1/lib/dispatcher/client-h2.js",
+      "file": "undici-v7.30.1-lib__dispatcher__client-h2.js",
+      "utf8Bytes": 29990,
+      "sha256": "e992a732c30c582676caf23193fb58097b4233ab328d0a77b7ff2c0338ad1eca",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/node/v24.22.1/deps/undici/src/lib/dispatcher/agent.js",
+      "file": "node-v24.22.1-lib__dispatcher__agent.js",
+      "utf8Bytes": 4819,
+      "sha256": "1b05aeaae1a23bcde54c200211d6292991b30f3a8c39c2dfca3efaa439caf5d7",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/undici/v7.30.1/lib/dispatcher/agent.js",
+      "file": "undici-v7.30.1-lib__dispatcher__agent.js",
+      "utf8Bytes": 4819,
+      "sha256": "1b05aeaae1a23bcde54c200211d6292991b30f3a8c39c2dfca3efaa439caf5d7",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://api.github.com/repos/nodejs/undici/releases/tags/v7.30.1",
+      "file": "release-v7.30.1.json",
+      "utf8Bytes": 7356,
+      "sha256": "bda3ec69f905fb07ff76f82f7a1b8eaaf7c26bcbbd89b0733a5db4daec87130b",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/node/v26.12.1/deps/undici/src/package.json",
+      "file": "node-v26.12.1-package.json",
+      "utf8Bytes": 6406,
+      "sha256": "16723528eaa06df7f3b29ea52584e9127608fd9e8de066c39339aa806ad9da84",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/node/v26.12.1/deps/undici/src/lib/web/fetch/index.js",
+      "file": "node-v26.12.1-lib__web__fetch__index.js",
+      "utf8Bytes": 92459,
+      "sha256": "e3cc1063bb3bb8353f918d2b1c54b8d6991a71b06c4278959f0c2ef412a433b1",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/undici/v8.12.2/lib/web/fetch/index.js",
+      "file": "undici-v8.12.2-lib__web__fetch__index.js",
+      "utf8Bytes": 92459,
+      "sha256": "e3cc1063bb3bb8353f918d2b1c54b8d6991a71b06c4278959f0c2ef412a433b1",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/node/v26.12.1/deps/undici/src/lib/dispatcher/client-h1.js",
+      "file": "node-v26.12.1-lib__dispatcher__client-h1.js",
+      "utf8Bytes": 49853,
+      "sha256": "b4473e4ef9e6a3fb5ca0de69fd705c3797d138e7586e40beb49fa13b58c8a370",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/undici/v8.12.2/lib/dispatcher/client-h1.js",
+      "file": "undici-v8.12.2-lib__dispatcher__client-h1.js",
+      "utf8Bytes": 49853,
+      "sha256": "b4473e4ef9e6a3fb5ca0de69fd705c3797d138e7586e40beb49fa13b58c8a370",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/node/v26.12.1/deps/undici/src/lib/dispatcher/client-h2.js",
+      "file": "node-v26.12.1-lib__dispatcher__client-h2.js",
+      "utf8Bytes": 53138,
+      "sha256": "9acfef9064b7639a937d5f279e93bafb831ca2e3c018b4e3864b198f97368fb9",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/undici/v8.12.2/lib/dispatcher/client-h2.js",
+      "file": "undici-v8.12.2-lib__dispatcher__client-h2.js",
+      "utf8Bytes": 53138,
+      "sha256": "9acfef9064b7639a937d5f279e93bafb831ca2e3c018b4e3864b198f97368fb9",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/node/v26.12.1/deps/undici/src/lib/dispatcher/agent.js",
+      "file": "node-v26.12.1-lib__dispatcher__agent.js",
+      "utf8Bytes": 5454,
+      "sha256": "da798dc8fa3a8e03582ea002639bf7bec249910f6bdac7ea69ceca8772e58d86",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/nodejs/undici/v8.12.2/lib/dispatcher/agent.js",
+      "file": "undici-v8.12.2-lib__dispatcher__agent.js",
+      "utf8Bytes": 5454,
+      "sha256": "da798dc8fa3a8e03582ea002639bf7bec249910f6bdac7ea69ceca8772e58d86",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    },
+    {
+      "url": "https://api.github.com/repos/nodejs/undici/releases/tags/v8.12.2",
+      "file": "release-v8.12.2.json",
+      "utf8Bytes": 6747,
+      "sha256": "377cea7f7bd70b8799721ed0dde517a3e9bb4b3139d455d0d554a8a0ffdb2397",
+      "retrievedAt": "2026-10-21T12:32:43.340570+00:00",
+      "retrieval": "GitHub plugin fetch"
+    }
+  ],
+  "comparisons": [
+    {
+      "node": "v24.22.1",
+      "undici": "v7.30.1",
+      "file": "lib/web/fetch/index.js",
+      "byteIdenticalToPatchedTag": true,
+      "sha256": "2cf8903bb2c17d83794edbd800adac4e8077cf9a21d315acf812d2f614e24bd6"
+    },
+    {
+      "node": "v24.22.1",
+      "undici": "v7.30.1",
+      "file": "lib/dispatcher/client-h1.js",
+      "byteIdenticalToPatchedTag": true,
+      "sha256": "fa69241601d9e1444898b9e2923e7a2064294f8b13a90ab058d886c11c6d256e"
+    },
+    {
+      "node": "v24.22.1",
+      "undici": "v7.30.1",
+      "file": "lib/dispatcher/client-h2.js",
+      "byteIdenticalToPatchedTag": true,
+      "sha256": "e992a732c30c582676caf23193fb58097b4233ab328d0a77b7ff2c0338ad1eca"
+    },
+    {
+      "node": "v24.22.1",
+      "undici": "v7.30.1",
+      "file": "lib/dispatcher/agent.js",
+      "byteIdenticalToPatchedTag": true,
+      "sha256": "1b05aeaae1a23bcde54c200211d6292991b30f3a8c39c2dfca3efaa439caf5d7"
+    },
+    {
+      "node": "v26.12.1",
+      "undici": "v8.12.2",
+      "file": "lib/web/fetch/index.js",
+      "byteIdenticalToPatchedTag": true,
+      "sha256": "e3cc1063bb3bb8353f918d2b1c54b8d6991a71b06c4278959f0c2ef412a433b1"
+    },
+    {
+      "node": "v26.12.1",
+      "undici": "v8.12.2",
+      "file": "lib/dispatcher/client-h1.js",
+      "byteIdenticalToPatchedTag": true,
+      "sha256": "b4473e4ef9e6a3fb5ca0de69fd705c3797d138e7586e40beb49fa13b58c8a370"
+    },
+    {
+      "node": "v26.12.1",
+      "undici": "v8.12.2",
+      "file": "lib/dispatcher/client-h2.js",
+      "byteIdenticalToPatchedTag": true,
+      "sha256": "9acfef9064b7639a937d5f279e93bafb831ca2e3c018b4e3864b198f97368fb9"
+    },
+    {
+      "node": "v26.12.1",
+      "undici": "v8.12.2",
+      "file": "lib/dispatcher/agent.js",
+      "byteIdenticalToPatchedTag": true,
+      "sha256": "da798dc8fa3a8e03582ea002639bf7bec249910f6bdac7ea69ceca8772e58d86"
+    }
+  ],
+  "patchedReleases": [
+    {
+      "tag": "v7.30.1",
+      "url": "https://github.com/nodejs/undici/releases/tag/v7.30.1",
+      "targetCommit": "7507102a675b082a71437f0a00681e537875556c",
+      "publishedAt": "2026-10-15T14:17:21Z",
+      "securityAdvisories": [
+        "GHSA-qrxm-fqhp-jwvm",
+        "GHSA-2m5v-pch6-74hx",
+        "GHSA-4w7w-5xrc-9h26",
+        "GHSA-xjj6-f33q-929c",
+        "GHSA-55wc-3pg8-jfw6",
+        "GHSA-f72v-6w45-q472",
+        "GHSA-4qv8-2p9j-2685",
+        "GHSA-9fm3-97px-rjf6"
+      ]
+    },
+    {
+      "tag": "v8.12.2",
+      "url": "https://github.com/nodejs/undici/releases/tag/v8.12.2",
+      "targetCommit": "bb6cc0ae9b6827ed273ed5ba344148273629638f",
+      "publishedAt": "2026-10-15T15:04:01Z",
+      "securityAdvisories": [
+        "GHSA-qrxm-fqhp-jwvm",
+        "GHSA-2m5v-pch6-74hx",
+        "GHSA-4w7w-5xrc-9h26",
+        "GHSA-xjj6-f33q-929c",
+        "GHSA-55wc-3pg8-jfw6",
+        "GHSA-f72v-6w45-q472",
+        "GHSA-4qv8-2p9j-2685",
+        "GHSA-9fm3-97px-rjf6"
+      ]
+    }
+  ],
+  "limits": "Selected fetch, HTTP1/HTTP2 dispatcher and Agent source comparisons; not independent certification of all Node code or live TLS exploitation"
+}

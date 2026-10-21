@@ -2,6 +2,11 @@
 
 Recorded 2026-10-20. This is a focused local release-tooling qualification. All assembled provenance is **TEST ONLY**; synthetic `CHECKS_RUN_ID=1` does not admit a release.
 
+The per-command raw logs are available through the
+[immutable evidence archive](../../archived-evidence.md). This directory retains
+the source binding, exact diff and compact result reports; the outcomes and
+original execution subjects below are unchanged.
+
 ## Finding and correction
 
 `tools/release-candidate.ts` imports the shared `tools/package-artifacts.ts` helper. That helper statically imports the admitted development dependency `node-or-bun` 0.2.2 and its Node adapter. Both release jobs previously checked out trusted `main` and installed Node but never installed workspace dependencies. A dependency-cold source archive therefore failed with `ERR_MODULE_NOT_FOUND` for `node-or-bun`, before candidate assembly could run. The same import affects the publication job.
@@ -54,19 +59,19 @@ The exact-SHA main-push Checks admission code, Required checks requirement, trus
 
 ## Pinned action source read-back
 
-The public pinned primary sources were retrieved through read-only GitHub API calls and retained here:
+The public pinned primary sources were retrieved through read-only GitHub API calls and retained in the original disposable fixture:
 
 - `pnpm-action-setup-readme.md`, `pnpm-action-setup-action.yml.txt`, `pnpm-action-setup-install.ts.txt`: `pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1`. Omitting `version` reads the root `packageManager`; default `run_install` is null, so this action does not run workspace lifecycle installation before the explicit controlled step.
 - `setup-node-cache.md`, `setup-node-cache-restore.ts.txt`: `actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020`. The action caches package-manager data rather than `node_modules`, reads the root lockfile by default, and keys its pnpm cache by runner OS, architecture, package manager and lockfile hash. Checks and both release jobs therefore use the same cache mechanism and key inputs. Cache availability remains an optimization rather than an admission condition.
 
 ## Harness corrections and environmental attempts
 
-The first isolated install attempt was denied network socket access by the default local sandbox and downloaded no dependencies. Its log and result are retained together as `candidate-install-network-sandbox-attempt.*`; this is not a package-install or workflow failure. The subsequent authorized network-enabled install completed successfully into `candidate-online` with a different initially empty fixture-owned store.
+The first isolated install attempt was denied network socket access by the default local sandbox and downloaded no dependencies. Its raw log remains available in the archive as `candidate-install-network-sandbox-attempt.log`; this is not a package-install or workflow failure. The subsequent authorized network-enabled install completed successfully into `candidate-online` with a different initially empty fixture-owned store.
 
-After that successful install, an overbroad harness assertion inspected all dependency-owned `.tsbuildinfo` files. Published dependency archives can legitimately contain such metadata. The harness was corrected to inspect the SDK package roots, retaining and reusing the successful install log. `run-probes.py --resume-candidate-install` records this continuation explicitly. No implementation or dependency change was needed for this harness correction.
+After that successful install, an overbroad harness assertion inspected all dependency-owned `.tsbuildinfo` files. Published dependency archives can legitimately contain such metadata. The harness was corrected to inspect the SDK package roots, retaining and reusing the successful install log, now in the archive. The original fixture's `run-probes.py --resume-candidate-install` records this continuation explicitly. No implementation or dependency change was needed for this harness correction.
 
 ## Evidence and limits
 
-`before-install.json`, `results.json`, `source-binding.json`, `run-probes.py`, the per-command raw logs, and `SHA256SUMS` bind the results. `test-only-assembled-release-manifest.json` and `test-only-assembled-SHA256SUMS` are local fixture outputs only. Their commit field names the source fixture and their Checks URL uses synthetic run ID 1. They must never be used as an admitted bundle or publication input.
+The retained `before-install.json`, `results.json` and `source-binding.json`, the archived per-command raw logs, and the original fixture's `run-probes.py` and `SHA256SUMS` bind the results. The fixture driver and checksum file were not copied into this repository. `test-only-assembled-release-manifest.json` and `test-only-assembled-SHA256SUMS` are original local fixture outputs only. Their commit field names the source fixture and their Checks URL uses synthetic run ID 1. They must never be used as an admitted bundle or publication input.
 
 No database, full `pnpm check`, shared-root install/build, GitHub mutation, release admission verification, tag creation, release creation or npm publication ran for this correction. The local shared store probe does not execute GitHub's cache service or Actions runners. The real release must run after reviewed merge and successful exact-commit main-push Checks. Existing production runtime security and live Paddle qualification limits remain unchanged.

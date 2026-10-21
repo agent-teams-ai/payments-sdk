@@ -1,0 +1,10 @@
+✔ packed payments and installed observation: absent, failing and closed screens preserve real T1/T2/T3 delivery and Q100/T25 effects (545.684969ms)
+✔ the optional pg-boss entrypoint bootstraps, dispatches prepared work and drains on a borrowed pool (267.256167ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1012.221598

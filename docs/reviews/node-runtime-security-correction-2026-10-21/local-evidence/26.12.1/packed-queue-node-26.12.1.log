@@ -1,0 +1,12 @@
+✔ alternate durable transport uses the same store/runner for atomic admission, restart repair, independent T3 and exact ACK (245.76809ms)
+✔ alternate transport repair excludes queued older work before LIMIT and competing passes advance later obligations (56.392157ms)
+✔ alternate enqueue shares the real unknown COMMIT boundary and no wake-up can redispatch its marker (94.423184ms)
+✔ alternate transport stop retains admitted consumer I/O until physical drain and preserves a sibling on the borrowed pool (147.861453ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 757.993696

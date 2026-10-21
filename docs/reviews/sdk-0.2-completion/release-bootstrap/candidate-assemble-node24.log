@@ -1,8 +1,0 @@
-TEST ONLY; no authoritative Checks provenance or release admission.
-Command: ["/tmp/payments-cont-toolchain/node24/bin/node", "tools/release-candidate.ts", "assemble"]
-Working directory: /tmp/payments-release-bootstrap-probe/candidate-online
-
-Audited 4 package archives into release
-
-Exit: 0
-Elapsed seconds: 0.192

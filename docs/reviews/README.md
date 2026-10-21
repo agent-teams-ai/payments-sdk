@@ -1,5 +1,9 @@
 # Independent architecture and implementation reviews
 
+## October 21 corrected-runtime successor
+
+The [new runtime candidate](../runtime-security-admission.md) replaces the affected Node floors with official **24.22.1 LTS / 26.12.1**, verifies checksums and relevant source, and records normal unmodified-fetch process completion with old-floor rejecting controls. [Its evidence](node-runtime-security-correction-2026-10-21/README.md) is separate from the dated investigations and portability reports below. Independent review and complete local new-floor qualification passed on source `6f348df2d345edf5270ade0daebf67cc834de2de`, with [exact-source evidence](node-runtime-security-correction-2026-10-21/qualification.md); final exact-commit hosted Checks remain required and historical results are not relabeled.
+
 The design and implementation each receive four waves of four independent
 GPT-6.1-sol reviewers at xhigh reasoning effort. Reviewers use isolated checkouts
 and identify their exact frozen revision. Implementers fix accepted findings in
@@ -10,6 +14,14 @@ changes in an old report does not describe the current implementation; the
 disposition below identifies its correction. Paths to scratch review worktrees
 inside the original reports record how a probe was obtained. The maintained
 regressions are in this repository's core, SDK, PostgreSQL and E2E suites.
+
+## Historical command evidence
+
+The [archive index](archived-evidence.md) routes bulky command logs, disposable
+consumer lockfiles and compiler file graphs from three superseded qualification
+records to their immutable Git history. Their compact reports, source identities,
+original digests and reviews remain here. The October 21 corrected-runtime
+evidence remains complete in the current tree.
 
 ## Design review
 

@@ -5,7 +5,7 @@
   "description": "Optional Get Modular composition and explicit resource ownership for payments",
   "license": "Apache-2.0",
   "engines": {
-    "node": ">=24.21.0 <25 || >=26.11.1 <27"
+    "node": ">=24.22.1 <25 || >=26.12.1 <27"
   },
   "files": [
     "dist",

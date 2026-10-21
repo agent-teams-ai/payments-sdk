@@ -7,6 +7,11 @@ composition change. Existing 0.2.0 artifacts and durable payment identities
 remain unchanged. A source version is not evidence of publication or completed
 qualification; see the [hardening plan](docs/reviews/sdk-0.3-hardening/plan.md).
 
+### Corrected runtime floors
+
+- Require official Linux Node `>=24.22.1 <25 || >=26.12.1 <27` after the October 21 security release. Upgrade the host Node installation as well as package dependencies; development-only Undici cannot update built-in fetch. Existing affected binaries are no longer admitted by manifests, tooling or CI.
+- Add a bounded loopback regression gate with a fresh unmodified-fetch child and normal-exit assertion through the existing captured-command helper. See the [admission candidate](docs/runtime-security-admission.md) for official artifact/source/probe evidence and pending final hosted qualification. Payment APIs, persisted data and dependency pins are unchanged.
+
 ### Queue composition
 
 - Give generic PostgreSQL APIs a checked-out connection capability and local
