@@ -18,6 +18,26 @@ qualification; see the [hardening plan](docs/reviews/sdk-0.3-hardening/plan.md).
   to its implementation.
 - Preserve repair's bounded selection and fairness by excluding runnable
   transport work before applying the batch limit.
+- Keep cold pg-boss admission on the supplied bounded transaction, including
+  vendor queue metadata reads. A retained terminal job no longer suppresses a
+  replacement wake-up. Retry failed transport cleanup while preserving truthful
+  shutdown status and waiting for admitted physical work.
+
+### Custody and lifecycle qualification
+
+- Exercise permanent lost checkout and cancellation responses through both
+  HTTP hosts, real PostgreSQL and the official Paddle SDK's synthetic transport.
+  Restart, repair and new request keys cannot bypass an unresolved mutation;
+  independently justified audited binding resolves it without another dispatch.
+- Exercise exact raw webhook bytes, signature rejection after reserialization,
+  failed inbox commit and successful redelivery, duplicate consumer delivery and
+  independent credit/access acknowledgements.
+- Preserve structured Get Modular preparation causes and qualify staged host
+  shutdown with a held public purchase read. Record the published Resources
+  lifecycle limit without substituting unpublished upstream bytes.
+- Add a scoped Get Modular adoption record and executable boundary/artifact
+  checks using the existing Foundation source graph and pinned TypeScript AST.
+  The record does not claim application-wide FMS or full semantic CMS checking.
 
 ### Migration from 0.2.0
 
