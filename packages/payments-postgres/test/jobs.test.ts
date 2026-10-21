@@ -6,6 +6,7 @@ import { Pool } from 'pg';
 import { createPaymentReconciler, createPayments, digest, money } from '@agent-teams/payments-core';
 import type { EvidenceMessage, OfferSnapshot, PaymentProvider, PaymentScope, PaymentStore, ProviderResult, CheckoutReady, VerifiedInput } from '@agent-teams/payments-core';
 import { createNodePostgresPaymentDatabase } from '../dist/node-postgres.js';
+import { createPaymentSqlExecutor } from '../dist/database.js';
 import { createPgBossPaymentTransport } from '../dist/job-transport.js';
 import { createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema, PaymentJobHandlerError } from '../dist/index.js';
 import { paymentBossFixture } from './pg-boss-fixture.ts';
@@ -160,6 +161,7 @@ void test('cold transactional pg-boss enqueue and startup repair use only a one-
 
 void test('logical cooldown and quarantine survive queue deletion; unknown commands never redispatch; operator redrive is durable', { timeout: 30_000 }, async () => {
   const f = await fixture();
+  const firstInspectionSettled = deferred<void>(), releaseFirstInspection = deferred<void>();
   let calls = 0;
   const core = runtime(f.store, async () => { calls += 1; return { kind: 'outcome_unknown' }; });
   const jobs = createPostgresPaymentJobs({ ...f, maxAttempts: 2, cooldownSeconds: 2, maxCooldownSeconds: 2, pollingIntervalSeconds: 0.5 });
@@ -181,13 +183,57 @@ void test('logical cooldown and quarantine survive queue deletion; unknown comma
     await f.boss.deleteAllJobs();
     // A failing read-only inspection is retried only through persisted logical attempt state.
     let inspected = 0, resumed = 0;
+    let firstInspectionAt: string | undefined;
     const inspectionFailure = new Error('persistent decoder fault');
-    await jobs.start({ payments: core.payments, store: f.store, inspectUnknown: async () => { inspected += 1; throw inspectionFailure; }, resumeScan: async saved => { resumed += 1; assert.equal((await reconciler.resumeScan(saved)).kind, 'saved'); } });
-    await until(async () => (await f.pool.query<{ attempts: number }>(`SELECT attempts FROM ${f.paymentSchema}.obligations WHERE kind = 'unknown'`)).rows[0]?.attempts === 1, 'first unknown inspection');
-    await f.boss.deleteAllJobs();
+    const startTransport = f.transport.start.bind(f.transport);
+    f.transport.start = async (handlers, worker) => startTransport({ ...handlers, work: async payload => {
+      await handlers.work(payload);
+      if (payload !== null && typeof payload === 'object' && 'kind' in payload && payload.kind === 'unknown'
+        && 'id' in payload && payload.id === unknown.operationId && inspected === 1) {
+        firstInspectionSettled.resolve();
+        await releaseFirstInspection.promise;
+      }
+    } }, worker);
+    await jobs.start({ payments: core.payments, store: f.store, inspectUnknown: async () => {
+      inspected += 1;
+      if (inspected === 1) {
+        firstInspectionAt = (await f.pool.query<{ at: string }>('SELECT clock_timestamp()::text AS at')).rows[0]?.at;
+        assert.ok(firstInspectionAt !== undefined && firstInspectionAt !== '');
+      }
+      throw inspectionFailure;
+    }, resumeScan: async saved => { resumed += 1; assert.equal((await reconciler.resumeScan(saved)).kind, 'saved'); } });
+    // Hold the first wake-up active after logical settlement, so scheduled repair cannot race
+    // another attempt. Verify the real two-second cooldown against the inspection's database
+    // clock, then park it so the queue-loss oracle does not depend on wall-clock test speed.
+    await firstInspectionSettled.promise;
+    assert.ok(firstInspectionAt !== undefined);
+    type Cooldown = { state: string; attempts: number; issue: string; revision: string; nextAttemptAt: string };
+    const observed = (await f.pool.query<Cooldown & { configuredCooldown: boolean }>(`WITH settled AS MATERIALIZED (
+        SELECT o.kind, o.id, o.next_attempt_at >= $2::timestamptz + interval '2 seconds' AS "configuredCooldown"
+        FROM ${f.paymentSchema}.obligations o
+        WHERE o.kind = 'unknown' AND o.id = $1 AND o.state = 'pending' AND o.attempts = 1 AND o.issue = 'handler_failed'
+        AND EXISTS (SELECT 1 FROM ${f.jobSchema}.job j WHERE j.name = 'payments_work' AND j.state = 'active'
+          AND j.data ->> 'kind' = o.kind AND j.data ->> 'id' = o.id)
+        FOR UPDATE OF o
+      ) UPDATE ${f.paymentSchema}.obligations o SET next_attempt_at = clock_timestamp() + interval '1 hour'
+      FROM settled s WHERE o.kind = s.kind AND o.id = s.id
+      RETURNING o.state, o.attempts, o.issue, o.revision::text, o.next_attempt_at::text AS "nextAttemptAt", s."configuredCooldown"`, [unknown.operationId, firstInspectionAt])).rows[0];
+    assert.ok(observed, 'the first unknown inspection settled while its wake-up remains active');
+    const { configuredCooldown, ...cooldown } = observed;
+    assert.equal(configuredCooldown, true, 'the failed inspection persisted its configured two-second cooldown');
+    releaseFirstInspection.resolve();
+    await until(async () => (await f.pool.query(`SELECT 1 FROM ${f.jobSchema}.job
+      WHERE name = 'payments_work' AND state = 'completed' AND data ->> 'kind' = 'unknown' AND data ->> 'id' = $1`, [unknown.operationId])).rows.length === 1, 'first unknown wake-up completion');
+    // pg-boss's unnamed deleteAllJobs uses TRUNCATE, whose ACCESS EXCLUSIVE lock races live
+    // readers. Lose every queue row with bounded DML while preserving the active-worker scenario.
+    await createPaymentSqlExecutor(f.database).executeSql(`DELETE FROM ${f.jobSchema}.job`);
     await jobs.repair();
+    assert.deepEqual((await f.pool.query<Cooldown>(`SELECT state, attempts, issue, revision::text, next_attempt_at::text AS "nextAttemptAt"
+      FROM ${f.paymentSchema}.obligations WHERE kind = 'unknown' AND id = $1`, [unknown.operationId])).rows[0], cooldown);
     assert.equal((await f.pool.query<{ count: number }>(`SELECT count(*)::int AS count FROM ${f.jobSchema}.job WHERE data ->> 'kind' = 'unknown'`)).rows[0]?.count, 0);
     assert.equal(calls, 1); assert.equal(inspected, 1);
+    await f.pool.query(`UPDATE ${f.paymentSchema}.obligations SET next_attempt_at = clock_timestamp() - interval '1 second'
+      WHERE kind = 'unknown' AND id = $1`, [unknown.operationId]);
     await until(async () => { await jobs.repair(); return (await f.pool.query<{ state: string }>(`SELECT state FROM ${f.paymentSchema}.obligations WHERE kind = 'unknown'`)).rows[0]?.state === 'quarantined'; }, 'persistent quarantine');
     assert.equal(inspected, 2); assert.equal(calls, 1);
     await until(async () => f.errors.length === 2, 'bounded inspection diagnostics');
@@ -204,7 +250,7 @@ void test('logical cooldown and quarantine survive queue deletion; unknown comma
     assert.equal((await f.pool.query<{ count: number }>(`SELECT count(*)::int AS count FROM ${f.paymentSchema}.records WHERE kind = 'jobRedrives'`)).rows[0]?.count, 1);
     assert.equal((await f.pool.query<{ state: string }>(`SELECT state FROM ${f.paymentSchema}.obligations WHERE kind = 'delivery' AND id = 'missing-target'`)).rows[0]?.state, 'quarantined');
     assert.equal(calls, 1);
-  } finally { core.payments.stop(); await jobs.stop(); await jobs.drain(); await f.cleanup(); }
+  } finally { releaseFirstInspection.resolve(); core.payments.stop(); await jobs.stop(); await jobs.drain(); await f.cleanup(); }
 });
 
 for (const sink of ['throws', 'rejects'] as const) {

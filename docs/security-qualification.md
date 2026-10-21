@@ -1,5 +1,7 @@
 # Dependency and Node runtime security qualification
 
+**Current successor, 2026-10-21:** the [corrected-runtime admission candidate](runtime-security-admission.md) verifies newly published official Node 24.22.1/26.12.1 binaries and owns subsequent runtime floors, probe evidence and pending final gates. The dated investigation and qualification below retain their original subjects and results.
+
 Official source and local qualification read-back: **2026-10-19 UTC**. This
 change qualifies the exact development-only Undici pin from **7.24.0** to
 **7.30.1**, against the combined runtime and documentation baseline

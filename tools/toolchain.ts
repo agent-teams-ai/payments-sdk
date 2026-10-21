@@ -7,7 +7,7 @@ import { command } from './package-artifacts.ts';
 
 const root = resolve(import.meta.dirname, '..');
 const [major, minor, patch] = process.versions.node.split('.').map(Number);
-assert.ok((major === 24 && (minor ?? 0) >= 21) || (major === 26 && ((minor ?? 0) > 11 || (minor === 11 && (patch ?? 0) >= 1))), `Unsupported qualification runtime ${process.versions.node}`);
+assert.ok((major === 24 && ((minor ?? 0) > 22 || (minor === 22 && (patch ?? 0) >= 1))) || (major === 26 && ((minor ?? 0) > 12 || (minor === 12 && (patch ?? 0) >= 1))), `Unsupported qualification runtime ${process.versions.node}`);
 assert.equal(process.platform, 'linux', 'The initial qualification profile is Linux');
 
 function admittedCompiler(version: string): boolean {

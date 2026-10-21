@@ -1,0 +1,843 @@
+
+[qualification stage: frozen-install]
+Scope: all 5 workspace projects
+Already up to date
+Done in 390ms using pnpm v11.25.0
+
+[qualification stage: forced-build]
+
+[qualification stage: complete-check]
+$ pnpm check:fast && pnpm test:runtime-security && pnpm foundation:assert-dev-only && pnpm foundation:assert-registry && pnpm test:boundaries && pnpm test:drizzle:admission && pnpm test:core && pnpm test:paddle && pnpm test:modular && pnpm test:postgres && pnpm test:e2e && pnpm test:observation && pnpm test:packed && pnpm test:packed:npm && pnpm release:dry-run
+$ pnpm toolchain:check && pnpm typecheck && pnpm lint && pnpm foundation:check && pnpm test:modular:adoption
+$ node tools/toolchain.ts
+Qualified Linux Node 26.12.1, TypeScript 7.0.2, and 91 strictly owned .ts sources
+$ tsc -b && tsc -p tsconfig.checks.json
+$ oxlint --config .oxlintrc.json packages tests tools examples qualification
+$ agent-teams-foundation check
+Foundation check: passed
+Foundation version: 1.10.1
+Coverage: full
+Diagnostics: 0 error(s), 0 warning(s), 0 info
+
+architecture.source-dependencies: passed
+
+workspace.dependency-declarations: passed
+$ node --test tools/test/get-modular-adoption.test.ts
+✔ the scoped Modular record matches actual boundaries, reviewed artifacts and blocking commands (569.922963ms)
+▶ scoped adoption permits owner-local helpers and rejects meaningful drift
+  ✔ reviewed pin drift (328.948994ms)
+  ✔ unknown authored module (509.89666ms)
+  ✔ hidden input in existing file (489.102227ms)
+  ✔ missing owned path (283.013404ms)
+  ✔ unknown exception (414.137256ms)
+  ✔ no-op command (524.638303ms)
+  ✔ no-op runtime command (494.657504ms)
+  ✔ no-op packed command (552.611718ms)
+  ✔ removed fast chain (551.172041ms)
+✔ scoped adoption permits owner-local helpers and rejects meaningful drift (4151.143171ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4916.764561
+$ node tools/runtime-security-probe.ts
+{"node":"v26.12.1","undici":"8.12.2","mode":"unmodified-global-fetch","rejectionCaught":true,"serverClosed":true}
+Runtime security child completed with exit code 0
+$ agent-teams-foundation assert-dev-only
+Foundation dependency policy: DEV_ONLY
+Consumer: /workspace/scratch/9e36ca3bbd13/implementation/payments-sdk
+Declared version: 1.10.1
+$ agent-teams-foundation assert-registry
+Foundation mode: REGISTRY
+Consumer: /workspace/scratch/9e36ca3bbd13/implementation/payments-sdk
+Declared version: 1.10.1
+Installed version: 1.10.1
+Installed path: /workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/node_modules/.pnpm/@agent-teams+engineering-foundation@1.10.1_@types+node@24.13.3/node_modules/@agent-teams/engineering-foundation
+Lockfile: /workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/pnpm-lock.yaml
+Locked package: @agent-teams/engineering-foundation@1.10.1
+$ node --test tools/test/*.test.ts
+✔ installed Foundation permits the actual source graph and same-owner imports (1424.956939ms)
+✔ installed Foundation rejects core importing @agent-teams/payments-paddle (2719.240159ms)
+✔ installed Foundation rejects core importing @agent-teams/payments-postgres (2409.950203ms)
+✔ installed Foundation rejects core importing @agent-teams/payments-get-modular (2205.296913ms)
+✔ installed Foundation rejects core importing @agent-teams/engineering-foundation (2523.396682ms)
+✔ installed Foundation rejects source without an owner inside the selected package universe (2341.762226ms)
+✔ installed Foundation rejects a new ungoverned package inside the selected universe (2728.884923ms)
+✔ installed Foundation rejects cross-package bypass @agent-teams/payments-core/internal (2900.367343ms)
+✔ installed Foundation rejects cross-package bypass ../../payments-core/src/index.js (2823.656943ms)
+✔ installed Foundation rejects a runtime import of an allowlisted development-only dependency (2976.783766ms)
+✔ captured development commands preserve literal argv, cwd, environment and stdout (281.697633ms)
+✔ nonzero exits reject after retaining both captured diagnostic streams (68.384656ms)
+✔ signal termination cannot be mistaken for a successful command (66.59763ms)
+✔ launch failures preserve the native ProcessRuntimeError and original cause (3.411686ms)
+✔ independent stream budgets accept 3 MiB stdout plus 3 MiB stderr (122.083006ms)
+✔ stdout overflow remains a bounded runtime failure instead of a partial success (94.106037ms)
+✔ stderr overflow remains a bounded runtime failure instead of a partial success (89.960775ms)
+✔ the scoped Modular record matches actual boundaries, reviewed artifacts and blocking commands (646.786728ms)
+▶ scoped adoption permits owner-local helpers and rejects meaningful drift
+  ✔ reviewed pin drift (382.089196ms)
+  ✔ unknown authored module (654.020052ms)
+context canceled
+  ✔ hidden input in existing file (769.946511ms)
+  ✔ missing owned path (407.971469ms)
+  ✔ unknown exception (477.831535ms)
+  ✔ no-op command (629.042989ms)
+  ✔ no-op runtime command (663.45347ms)
+  ✔ no-op packed command (615.865747ms)
+  ✔ removed fast chain (589.470603ms)
+✔ scoped adoption permits owner-local helpers and rejects meaningful drift (5194.733888ms)
+✔ release workflow validates as YAML and confines writing to the dependent publication job (16.822049ms)
+✔ release admits a full exact main commit and successful required Checks, never a nearby run (2.420864ms)
+✔ release target syntax excludes abbreviated SHAs and shell/path/tag ambiguity (0.685462ms)
+✔ archive admission validates identity/version and rejects unresolved or development dependencies (252.455853ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25258.564069
+$ node tools/qualify-drizzle.ts
+{
+  "node": "26.12.1",
+  "subject": {
+    "commit": "6f348df2d345edf5270ade0daebf67cc834de2de",
+    "trackedChanges": false
+  },
+  "artifact": {
+    "version": "1.0.0-rc.5-5935859",
+    "integrity": "sha512-PkVjyxhamD7IOVfpDMn3BmV9afyvj3eeLvIPind3NmPv+cfv6/jh6GN0fHP0zzgrprGx/jGE4mkE0ttRFlzHwA==",
+    "sourceCommit": "59358596b5be6a79f9cc1a2a20d39d276f6ab4b5"
+  },
+  "patchSha256": "c0ac842c102d0e7a339e79a1676c02fa0dd803a11f6cc82e4b42007c8e153efb",
+  "changedDeclarations": [
+    "cockroach-core/policies.d.cts",
+    "cockroach-core/policies.d.ts",
+    "cockroach-core/roles.d.cts",
+    "cockroach-core/roles.d.ts",
+    "pg-core/policies.d.cts",
+    "pg-core/policies.d.ts",
+    "pg-core/roles.d.cts",
+    "pg-core/roles.d.ts"
+  ],
+  "runtime": {
+    "files": 1743,
+    "sha256Manifest": "b55c1e931df5efbcae510e60fd12b6018b75fa13b5f0431286fb67195ef10292",
+    "unchanged": true
+  },
+  "probes": [
+    {
+      "resolution": "NodeNext",
+      "valid": true,
+      "rejectedInvalidInputs": 5
+    },
+    {
+      "resolution": "Bundler",
+      "valid": true,
+      "rejectedInvalidInputs": 5
+    }
+  ],
+  "officialDeclarations": {
+    "files": 1742,
+    "sha256Manifest": "9ec1dfc99dc72ef18ec08b114ecb54f19858985def6c6d576ad4f2384b3ac1f4"
+  }
+}
+$ node tools/run-tests.ts core
+✔ minor-unit values retain arbitrary precision and reject implicit scaling or currency mixing (1.905586ms)
+✔ runtime identifiers and scopes reject malformed values independently of TypeScript declarations (0.526672ms)
+✔ provider version ordering preserves nanoseconds and timezone equivalence (0.533433ms)
+✔ request key repeats immutable order despite later catalog version; changed request conflicts (5.483648ms)
+✔ unconfirmed dispatch commit cannot authorize SDK call; repair sends only a prepared operation (1.830383ms)
+✔ unknown mutation is never automatically retried and late old success does not overwrite a new attempt (8.316269ms)
+✔ normal API-only one-time completion can prove profile with unknown optional subscription/period (6.461645ms)
+✔ zero-value commercial policy, management completion and trials remain distinct (10.198375ms)
+✔ paid is intermediate; distinct source deliveries produce one immutable completion (9.963888ms)
+✔ same-version compatible partial evidence upgrades; contradictory known evidence holds (8.380346ms)
+✔ newer subscription unknown does not carry old scheduled change into current projection (12.087753ms)
+✔ adverse T1 admission invalidates an already prepared completion reduction (3.505973ms)
+✔ bounded evidence overflow publishes held control with original facts retained (39.159823ms)
+✔ delivery identity includes digest and independent consumer acknowledgement (3.196368ms)
+✔ scope, ownership, unsupported capability and recovery fence fail closed (1.235959ms)
+✔ binding arriving after processed early completion reclassifies stored history through durable publication repair (9.118936ms)
+✔ late duplicate initial durably reclassifies an acknowledged renewal without rewriting completion or replaying receipt (38.827995ms)
+✔ bounded stream selection traversal restarts on reselection and new members classify against the current decision (125.023549ms)
+✔ shutdown tracks physical safe reads and cleanup, including nested producer promises (2.292269ms)
+✔ unknown final line profile is incomplete and a fuller same-version receipt positively recovers (2.709045ms)
+✔ late success before an authorized retry is dispatched prevents a gratuitous second create (1.652927ms)
+✔ payment update recovers the original recurring period and method updates remain noncommercial (28.345251ms)
+✔ conflicting raw event identity holds its original route even when the conflicting payload changes transaction (8.963123ms)
+✔ audited cancellation retry preserves its pinned provider subject across independent stream selection (34.895279ms)
+✔ audited payment update retry preserves its pinned provider subject across independent stream selection (29.05284ms)
+✔ public refresh preserves exact acquired receipts and honestly rejects providers without custody capability (7.761786ms)
+✔ refresh rejects a substituted body under an otherwise valid receipt digest (0.755126ms)
+✔ known subscription customer mismatch blocks both mutations without reusing historical ownership (6.006755ms)
+✔ authority read set fences a customer mismatch committed between preflight and dispatch marker (8.561988ms)
+✔ billing eligibility holds do not remove proven authority to cancel, and failed preflight never dispatches (22.05846ms)
+✔ same-event certified headers and entity identity conflict symmetrically across raw and API acquisitions (57.061056ms)
+✔ same-event partial raw/API evidence and equivalent instants remain compatible without invented wire equality (6.248208ms)
+✔ merged certified identity preserves richer evidence so pairwise partial compatibility cannot hide a contradiction (0.803188ms)
+✔ merging partial unsupported identities retains a certified route for later contradictions (0.33262ms)
+✔ quarantined preflight custody cannot authorize dispatch using an older matching projection (6.980109ms)
+✔ an acknowledged subscription feed receives a higher revision for a newly retained stale ownership hold (10.632142ms)
+✔ subscription exact-version contradictions remain held across watermark advancement, acknowledgement and restart (22.897022ms)
+✔ adjustment exact-version contradictions cannot disappear behind an approved newer watermark (17.252671ms)
+✔ an exact-version adjustment parent contradiction atomically holds both acknowledged payment routes and retains original certification (34.348757ms)
+✔ historical exact-version partial summaries merge compatible knowledge and nanosecond-equivalent spellings (12.764309ms)
+✔ oversized version certification retains custody and a bounded persistent hold tombstone (104.719088ms)
+✔ audited payment update outcomes bind the same durable purpose and reclassify early evidence (29.539172ms)
+✔ invalid audited successful outcomes preserve the unknown operation and cannot expose checkout (10.189067ms)
+✔ memory admission fences a certified historical adjustment parent before stale T2 and cleans both receipt markers (16.190754ms)
+✔ begin persists the complete immutable query before acquisition; one resume commits all receipt custody and cursor (4.675473ms)
+✔ invalid page, changed scope, and broken receipt digest cannot admit a prefix or advance cursor (4.065305ms)
+✔ failed acquisition records durable SDK/cursor evidence and explicit redrive reads the original cursor (2.346309ms)
+✔ concurrent page reads use CAS so a stale page never admits inputs (4.239758ms)
+✔ coverage requires independent mandatory types, overlapping exclusive windows, retained history and adjustment scans (2.584878ms)
+ℹ tests 49
+ℹ suites 0
+ℹ pass 49
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 905.299438
+$ node tools/run-tests.ts paddle
+▶ official SDK contract probes with synthetic API1 fixtures and no network
+  ✔ test-only official fetch installation rejects every unmocked origin without network (5.75295ms)
+  ✔ create serializes server lines/correlation and pins API1; checkout is not payment (8.794529ms)
+  ✔ API-only monthly, renewal, top-up, and zero commercial observations retain exact monetary evidence (9.803298ms)
+  ✔ closed transaction status meanings preserve every documented noncompletion and distinguish unknown values (16.894802ms)
+  ✔ subscription profile preserves required child presence and distinct raw/API source identities (7.938591ms)
+  ✔ raw field absence stays unknown; mapped selected nulls are explicit assumptions (1.258114ms)
+  ✔ official signature checks exact body immediately; durable raw replay never rechecks old signature (0.939825ms)
+  ✔ same event with another notification has stable raw envelope identity; unknown retains original key casing (0.771641ms)
+  ✔ unsupported raw and actual SDK events retain only validated entity routes and complete custody (13.164417ms)
+  ✔ same merchant customer does not give another app ownership; environment is trusted endpoint configuration (0.632752ms)
+  ✔ adjustment actions, separate reverse identity, signed exact allocations, and adverse routing survive SDK (1.504004ms)
+  ✔ scheduled cancellation preserves explicit requested timing and exact effective timestamp (2.517891ms)
+  ✔ payment update GET has mutation uncertainty and no automatic retry (1.138935ms)
+  ✔ network/non-JSON create outcomes remain unknown; known validation rejection stays rejected (1.682022ms)
+  ✔ portal requires explicit customer-wide authority; subscription IDs are only navigation (1.004352ms)
+  ✔ SDK mapper poison leaves gap and fresh retry uses durable pre-page cursor, never private next link (1.839579ms)
+  ✔ empty nonterminal/invalid order pages remain gaps; unknown mapped events are admitted with loss profile (1.859399ms)
+✔ official SDK contract probes with synthetic API1 fixtures and no network (83.761182ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 403.374509
+$ node tools/run-tests.ts modular
+✔ staged Host shutdown retains the payment runtime and borrowed pool after an escalated projection debt (22.374438ms)
+✔ Host defers ancestor shutdown requested from an abort listener until the projection subscriber detaches (2.224338ms)
+✔ published composition prepares without effects and matches an independent namespace/wiring oracle (15.414445ms)
+✔ real isolation exposes segregated immutable capability facets and disposes the runtime (13.764421ms)
+✔ conformance smoke releases real scoped modules for success, injected failure and cancellation (8.757412ms)
+✔ one prepared template keeps two run inputs and sibling lifetimes isolated under a borrowed owner (5.388222ms)
+✔ shutdown retains borrowed dependencies until an expired provider call physically settles (30.219793ms)
+✔ shutdown waits for admitted read calls before borrowed storage can be released (2.692503ms)
+✔ financial facts and delivery advance only through explicit durable commands, with no observation hooks (11.712031ms)
+✔ a public Assembly runtime can audit and select duplicate initial subscription streams (62.053985ms)
+✔ a later factory failure leaves cleanup to Host control and preserves the construction journal (2.785654ms)
+✔ cancelled acquisition waits for physical setup and cleans its late resource before settlement (1.784507ms)
+✔ missing declared input fails preparation; invalid runtime configuration fails run without provider effects (1.460538ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 317.941187
+$ node tools/run-tests.ts postgres
+✔ node-postgres composition reuses a Drizzle host pool and preserves result and checkout semantics (93.954901ms)
+✔ private Drizzle compilation cannot execute outside the bounded payment connection (2.299462ms)
+✔ per-input record batches retain per-key revisions, JSON null and atomic rollback across chunks (186.408393ms)
+✔ typed queries preserve existing schemaVersion 1 JSON bodies, no-op revisions and exact int8 range checks (94.695591ms)
+✔ typed obligation upserts preserve attempts, quarantine and cooldown until an explicit reset (63.825951ms)
+✔ one locked admission page retains sequential duplicate/conflict identity and processed receipts (255.272083ms)
+✔ PostgreSQL ownership and durability are qualified without changing a borrowed host session (79.908816ms)
+✔ a lost real COMMIT reply cannot authorize a Paddle-style external mutation or an automatic retry (171.212192ms)
+✔ database acquisition, lock and blackholed socket deadlines leave no borrowed connection debt (435.404493ms)
+✔ late old checkout evidence cannot release a newer unresolved subscription mutation lane (406.523412ms)
+✔ T1 adverse custody invalidates a prepared T2 read set and cross-source conflicts fence both routes (277.553094ms)
+✔ bounded overflow publishes an immutable held revision and preserves existing financial history (153.930161ms)
+✔ historical exact-version contradictions survive restart, acknowledgement and newer watermarks (391.220599ms)
+✔ bootstrap binds the namespace and runtime starts scheduling, work and supervision without DDL privileges (1450.466092ms)
+✔ deleted jobs are rebuilt from payment obligations; T2 replay and exact independent delivery targets stay idempotent (1370.910026ms)
+✔ a retained terminal pg-boss job cannot suppress its immediately required repair wake-up (253.019362ms)
+✔ cold transactional pg-boss enqueue and startup repair use only a one-connection borrowed pool (299.923314ms)
+✔ logical cooldown and quarantine survive queue deletion; unknown commands never redispatch; operator redrive is durable (5851.490521ms)
+✔ consumer failure preserves retry/quarantine and its cause when the diagnostic sink throws (2715.875418ms)
+✔ consumer failure preserves retry/quarantine and its cause when the diagnostic sink rejects (2720.932859ms)
+✔ shutdown reports a physically unresolved SDK call and leaves the shared pool and sibling namespace usable (386.108096ms)
+✔ partial worker startup retains physical SDK debt and cannot replace its drain owner (222.317919ms)
+✔ real PostgreSQL reclassification resumes 205 acknowledged renewals, rejects stale CAS, and covers new members behind its cursor (23973.474923ms)
+✔ real PostgreSQL historical adjustment reparenting fences both parents after restart and preserves the certified original version (475.080197ms)
+✔ real pg-boss rebuilds deleted reclassification jobs and successful pages do not spend the fault budget (13113.245205ms)
+✔ ordinary renewal preserves exact reclassification quarantine; audited redrive and a new decision reset work (239.775418ms)
+✔ ordinary renewal preserves exact reclassification cooldown; audited redrive and a new decision reset work (285.916904ms)
+✔ an old failed claimant cannot quarantine replacement work claimed again at attempt one (752.780575ms)
+✔ authenticated T1 fences both historical adjustment parents before stale publication T2; cleanup and page rollback stay atomic (374.642866ms)
+✔ webhook T1 fences both historical adjustment parents before stale publication T2; cleanup and page rollback stay atomic (252.667449ms)
+✔ reconciliation T1 fences both historical adjustment parents before stale publication T2; cleanup and page rollback stay atomic (794.998987ms)
+✔ T1 parent discovery waits for a concurrent first exact-version certification and then fences its retained parent (213.009527ms)
+✔ a duplicate pending receipt fences a historical parent certified since its first admission (267.309705ms)
+▶ durable reconciliation through actual public Paddle SDK and PostgreSQL
+  ✔ actual SDK 101-member pages retain every receipt and atomically advance the durable cursor (257.435274ms)
+  ✔ actual SDK 200-member pages retain every receipt and atomically advance the durable cursor (1613.46166ms)
+  ✔ begin creates a durable obligation; failed atomic commit retains cursor and rolls back every input (73.883742ms)
+  ✔ SDK mapping fails after its internal cursor advance; restart and redrive reread the original durable cursor (69.133761ms)
+  ✔ 429 and transport failure retain the accepted durable cursor and explicit coverage gap (98.311581ms)
+  ✔ compatible raw and mapped events keep complete custody; contradictory identity fences both routes (96.121987ms)
+  ✔ independent completed-transaction adjustment sweep retains financial inputs and bounded terminal cursor (41.602081ms)
+  ✔ returned unsupported adjustment members retain adverse custody and do not block cursor progress (36.088927ms)
+  ✔ future raw entity events survive restart and publish higher unsupported evidence (207.708072ms)
+  ✔ future mapped entity events survive restart and publish higher unsupported evidence (225.107027ms)
+  ✔ public refresh preserves official SDK transaction and subscription receipt bodies and digests (141.427235ms)
+✔ durable reconciliation through actual public Paddle SDK and PostgreSQL (2869.242077ms)
+✔ logical producer-only restore stays fenced below the consumer revision 10 until original immutable history and counters match (549.284153ms)
+✔ logical consumer-only restore explicitly reopens sender ACKs with original message and effect identities (152.77743ms)
+✔ restore through a dispatch gap quarantines every prepared command including old intents; lane hold survives late settlement (120.557143ms)
+✔ administrative CAS, immutable audit records and 100-record recovery pages survive restart without skipped work (2075.724889ms)
+ℹ tests 49
+ℹ suites 0
+ℹ pass 49
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 41203.688279
+$ node tools/run-tests.ts e2e
+▶ independent credit owner preserves causal history across full-refund delivery permutations
+  ✔ producer revisions 4→3→4 (148.324324ms)
+  ✔ producer revisions 3→4→4 (146.792168ms)
+✔ independent credit owner preserves causal history across full-refund delivery permutations (297.048911ms)
+✔ T3 is atomic before ACK, duplicate deliveries/restart preserve one effect and both owners are independent (328.777235ms)
+▶ duplicate paid support is held in either order, resolved locally with whole-readset CAS and immutable issuance
+  ✔ refunded-A-first (158.694063ms)
+  ✔ paid-B-first (190.48541ms)
+✔ duplicate paid support is held in either order, resolved locally with whole-readset CAS and immutable issuance (350.142653ms)
+✔ control overflow, unknown schema and conflicts hold monotonically; unknown/untrusted envelopes remain unacked (417.691811ms)
+▶ a first unrouted held or unknown-schema source fences older complete evidence across restart in both owners
+  ✔ held (167.532921ms)
+  ✔ unknown-schema (94.517143ms)
+✔ a first unrouted held or unknown-schema source fences older complete evidence across restart in both owners (264.000069ms)
+✔ initial stream guard, distinct renewal periods and intentional top-ups preserve separate stable benefit identities (139.89435ms)
+▶ initial, renewal and recovery share one exact paid-period decision in either order across restart
+  ✔ renewal, initial first, identical spellings (68.496599ms)
+  ✔ renewal, initial first, equivalent RFC3339 spellings (97.49939ms)
+  ✔ renewal, recurring first, identical spellings (102.485294ms)
+  ✔ renewal, recurring first, equivalent RFC3339 spellings (316.636206ms)
+  ✔ recovery, initial first, identical spellings (238.093765ms)
+  ✔ recovery, initial first, equivalent RFC3339 spellings (174.611219ms)
+  ✔ recovery, recurring first, identical spellings (133.511834ms)
+  ✔ recovery, recurring first, equivalent RFC3339 spellings (184.621681ms)
+✔ initial, renewal and recovery share one exact paid-period decision in either order across restart (1318.877528ms)
+✔ reentrant initial support A→B→A→B conserves one allocation across restart, replay and partial adverse evidence (345.250284ms)
+✔ a resolution of one initial period invalidates a stale competing period decision through their shared guard (88.511417ms)
+✔ access lifecycle serializes with paid evidence, preserves known periods and never paywalls read/export/cancel (104.197527ms)
+✔ partial and unqualified reversal evidence stays held; authorized owner policy redrives after ACK/restart without a fake payment revision (72.265348ms)
+✔ a buyer membership guard covers phantom contributions without serializing independent beneficiaries (70.896954ms)
+✔ new higher revision with malformed payload or changed beneficiary holds the original contribution without routing it elsewhere (88.828319ms)
+✔ foreign provider vocabulary preserves public completion, renewal and management semantics with durable replay and one grant per cause (1219.952229ms)
+▶ full public payments system: real Paddle SDK, durable PostgreSQL and two independent host environments
+  ✔ node-http-factory (3664.446675ms)
+  ✔ fetch-static-gm (1998.356364ms)
+✔ full public payments system: real Paddle SDK, durable PostgreSQL and two independent host environments (5667.259076ms)
+▶ both public hosts hold distinct initial and renewal transactions for equivalent RFC3339 paid periods in either delivery order
+  ✔ node-http-factory, initial first (289.534473ms)
+  ✔ node-http-factory, renewal first (282.948862ms)
+  ✔ fetch-static-gm, initial first (294.293136ms)
+  ✔ fetch-static-gm, renewal first (372.789549ms)
+✔ both public hosts hold distinct initial and renewal transactions for equivalent RFC3339 paid periods in either delivery order (1242.814141ms)
+✔ actual SDK unknown outcome and approved duplicate-risk retry retain one reentrant initial allocation (406.64134ms)
+▶ both public hosts qualify the whole reversal snapshot for independent credit and access owners across restart
+  ✔ node-http-factory, unmatched reverse before matching pair (461.591519ms)
+  ✔ node-http-factory, unmatched reverse after matching pair (434.680749ms)
+  ✔ fetch-static-gm, unmatched reverse before matching pair (444.611722ms)
+  ✔ fetch-static-gm, unmatched reverse after matching pair (546.603122ms)
+✔ both public hosts qualify the whole reversal snapshot for independent credit and access owners across restart (1889.429776ms)
+▶ permanently lost Paddle create replies recover through audited binding without redispatch at either public host
+  ✔ node-http-factory (1122.440715ms)
+  ✔ fetch-static-gm (562.659179ms)
+✔ permanently lost Paddle create replies recover through audited binding without redispatch at either public host (1689.503241ms)
+▶ both HTTP hosts preserve signed raw bytes and retry failed durable custody without duplicate consumer effects
+  ✔ node-http-factory (1520.247696ms)
+  ✔ fetch-static-gm (597.784754ms)
+✔ both HTTP hosts preserve signed raw bytes and retry failed durable custody without duplicate consumer effects (2119.799028ms)
+▶ lost Paddle cancellation replies retain the mutation lane while read-only lifecycle recovery restricts access
+  ✔ node-http-factory (1129.484514ms)
+  ✔ fetch-static-gm (1080.06112ms)
+✔ lost Paddle cancellation replies retain the mutation lane while read-only lifecycle recovery restricts access (2213.156318ms)
+▶ provider profile end to end: actual public SDK, signed raw ingress, PostgreSQL and independent access owner
+  ✔ raw: future transaction status holds current evidence, preserves completion and recovers only at a newer supported version (984.704912ms)
+  ✔ raw: quantity_two subscription publishes a hold and a supported newer lifecycle resolves it (644.015575ms)
+  ✔ raw: manual_collection subscription publishes a hold and a supported newer lifecycle resolves it (1522.60881ms)
+  ✔ raw: missing_quantity subscription publishes a hold and a supported newer lifecycle resolves it (587.003666ms)
+  ✔ api: future transaction status holds current evidence, preserves completion and recovers only at a newer supported version (632.93901ms)
+  ✔ api: quantity_two subscription publishes a hold and a supported newer lifecycle resolves it (442.858142ms)
+  ✔ api: manual_collection subscription publishes a hold and a supported newer lifecycle resolves it (518.910786ms)
+  ✔ api: missing_quantity subscription publishes a hold and a supported newer lifecycle resolves it (453.591779ms)
+  ✔ supported noncompleted statuses preserve paid history, while known lifecycle transitions retain their explicit meaning (839.380978ms)
+  ✔ raw/API exact-version profile contradictions remain retained after a newer supported lifecycle (336.613575ms)
+✔ provider profile end to end: actual public SDK, signed raw ingress, PostgreSQL and independent access owner (6978.031423ms)
+✔ alternate durable transport uses the same store/runner for atomic admission, restart repair, independent T3 and exact ACK (409.001955ms)
+✔ alternate transport repair excludes queued older work before LIMIT and competing passes advance later obligations (148.211349ms)
+✔ alternate enqueue shares the real unknown COMMIT boundary and no wake-up can redispatch its marker (195.725525ms)
+✔ alternate transport stop retains admitted consumer I/O until physical drain and preserves a sibling on the borrowed pool (619.927487ms)
+▶ monthly credits remain one grant per paid period through SDK/webhook cross-receipts, stale lifecycle and restart at both hosts
+  ✔ node-http-factory (3100.115799ms)
+  ✔ fetch-static-gm (1775.013259ms)
+✔ monthly credits remain one grant per paid period through SDK/webhook cross-receipts, stale lifecycle and restart at both hosts (4885.321737ms)
+▶ independent credit purchases survive restricted subscription states; refunds and chargebacks correct only their causal grants
+  ✔ node-http-factory (2136.240019ms)
+  ✔ fetch-static-gm (1509.687772ms)
+✔ independent credit purchases survive restricted subscription states; refunds and chargebacks correct only their causal grants (3647.420208ms)
+▶ past-due payment update uses the existing unpaid recurring transaction and recovers its original paid period exactly once
+  ✔ node-http-factory (756.686081ms)
+  ✔ fetch-static-gm (600.272879ms)
+✔ past-due payment update uses the existing unpaid recurring transaction and recovers its original paid period exactly once (1358.368161ms)
+▶ period-end cancellation closes access on the explicit owner clock before its terminal webhook and transient SDK reads preserve history
+  ✔ node-http-factory (440.383712ms)
+  ✔ fetch-static-gm (492.459584ms)
+✔ period-end cancellation closes access on the explicit owner clock before its terminal webhook and transient SDK reads preserve history (934.275211ms)
+▶ bound purchases with zero, incomplete or foreign-account completed evidence stay unfulfilled through cross-channel replay
+  ✔ node-http-factory (449.11939ms)
+  ✔ fetch-static-gm (447.389732ms)
+✔ bound purchases with zero, incomplete or foreign-account completed evidence stay unfulfilled through cross-channel replay (897.939395ms)
+ℹ tests 81
+ℹ suites 0
+ℹ pass 81
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12562.157466
+$ node tools/qualify-observation.ts
+✔ packed payments and installed observation: absent, failing and closed screens preserve real T1/T2/T3 delivery and Q100/T25 effects (583.990185ms)
+✔ installed public observation surface uses one physical GM peer graph without development tooling (7.835396ms)
+✔ installed observation catches read/watch gaps, coalesces, attributes callback failure and detaches both scope lifetimes (8.493887ms)
+✔ projection supersession and close await actual PostgreSQL reads plus cleanup; obsolete results never publish (114.915413ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1064.03416
+
+{
+  "status": "passed",
+  "qualification": "published-registry-release",
+  "npmPublicationProven": true,
+  "node": "v26.12.1",
+  "typescript": "7.0.2",
+  "publicSurface": "@agent-teams/payments-get-modular/observation",
+  "manifestSha256": "d7f7335f50a40a2e1afb47f5cc5d851ce7347ebb6875851f162b18b4fef88559",
+  "paymentsArtifacts": [
+    {
+      "name": "@agent-teams/payments-core",
+      "sha256": "af05c232b8f7ddbcdac067ff8a6fa9008c15e2d9053a98aaa4abced9520edcff"
+    },
+    {
+      "name": "@agent-teams/payments-paddle",
+      "sha256": "831d614cb27b1bd554f17c7799615d04e6b0417096d975430f28cc7580f69fd8"
+    },
+    {
+      "name": "@agent-teams/payments-postgres",
+      "sha256": "a1dd6febac7b7d565ab493404392ce7eb8d74143dd1aa40bdfa6b1212dc9dce0"
+    },
+    {
+      "name": "@agent-teams/payments-get-modular",
+      "sha256": "ffdc7db6ca629547e7aed82041084f5508329ac8286ab4c6d8fd5351bccd1548"
+    }
+  ],
+  "archives": [
+    {
+      "name": "@get-modular/core",
+      "version": "0.6.0",
+      "sha256": "a1a64aeaadf5ae0f9143cf26038853cf42d90b060e083f5ff2f4acf7e2e8d1b0",
+      "integrity": "sha512-s7HmZAkQtioOAbUxBbeVgLCpmplDB7J36GdugMU0XkGWOEmNvUeSaLhKZWJ0uB49QDqCPPiXjcDf6EGlSFSXDA==",
+      "tarball": "https://registry.npmjs.org/@get-modular/core/-/core-0.6.0.tgz"
+    },
+    {
+      "name": "@get-modular/assembly",
+      "version": "0.6.0",
+      "sha256": "3330afe53ab9615a1dc81273cf9c45b8b9fb68b1d95571af060971e58a9be606",
+      "integrity": "sha512-y7H5RQpwQnKPXoqj/SnUIiOnWMbg/CI4USIUIlL+arkl3+eJncDyLUSikBG0k85vNuv9QuKt3XztpUJK1GvF9Q==",
+      "tarball": "https://registry.npmjs.org/@get-modular/assembly/-/assembly-0.6.0.tgz"
+    },
+    {
+      "name": "@get-modular/resources",
+      "version": "0.2.0",
+      "sha256": "2d1aaab67b0002a426fda69b01bda9f7697662ea9685a990b33a12d18658f46b",
+      "integrity": "sha512-G8PYU8o/DJTFBQcs9N12CgwxC9PJ+gOqFjariwYCbw+w7vGE+11lU2JiX2QrHBog6VpchKIenIinb7mBJtu/4g==",
+      "tarball": "https://registry.npmjs.org/@get-modular/resources/-/resources-0.2.0.tgz"
+    },
+    {
+      "name": "@get-modular/conformance",
+      "version": "0.4.0",
+      "sha256": "2182cf9702879b2ab78928646db59d91d8a7b128ee870c4b0a2283f51e0d352a",
+      "integrity": "sha512-Ienld3tq0+XASpCGnd3fwvZbNxLTrViYspGzYGyu9mJAKnvBQLLoopyj2uumDeo4SJVzTI8Sl2oSFotr+BDslg==",
+      "tarball": "https://registry.npmjs.org/@get-modular/conformance/-/conformance-0.4.0.tgz"
+    },
+    {
+      "name": "@get-modular/observation",
+      "version": "0.1.0",
+      "sha256": "083bed3ca61e586d6ce91c272be4b4d07c3c68ae00aa9b414febee20e60f1915",
+      "integrity": "sha512-df9ki8A5Yi8rKR3SCpNeFwpnXLzSzEeawld8J24IYmxy98xVVr8a7xJCDyV37PBuOJJ10JltyVpmRJDJVsZhyg==",
+      "tarball": "https://registry.npmjs.org/@get-modular/observation/-/observation-0.1.0.tgz"
+    }
+  ],
+  "resolvers": [
+    {
+      "resolution": "NodeNext",
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "skipLibCheck": false,
+      "passed": true
+    },
+    {
+      "resolution": "Bundler",
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "skipLibCheck": false,
+      "passed": true
+    }
+  ],
+  "tests": [
+    "financial.test.ts",
+    "identity.test.ts",
+    "lifecycle.test.ts",
+    "projection-lifecycle.test.ts"
+  ],
+  "scenarioOutputSha256": "28145789b14dfa5dc453143141434e57923aefad51bf57223fdbe749c9218234"
+}
+$ node tools/packed-consumers.ts
+[
+  {
+    "consumer": "plain",
+    "resolution": "NodeNext",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": false,
+    "passed": true
+  },
+  {
+    "consumer": "plain",
+    "resolution": "Bundler",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": false,
+    "passed": true
+  },
+  {
+    "consumer": "adapters",
+    "resolution": "NodeNext",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": false,
+    "passed": true
+  },
+  {
+    "consumer": "adapters",
+    "resolution": "Bundler",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": false,
+    "passed": true
+  }
+]
+$ node tools/packed-consumers.ts npm
+
+{
+  "status": "passed",
+  "consumer": "production-only-npm-postgres-root",
+  "node": "v26.12.1",
+  "install": {
+    "omitDev": true,
+    "ignoreScripts": true,
+    "strictPeerDependencies": true,
+    "optionalPackagesOmitted": false,
+    "pgBossPresent": false,
+    "nodePostgresExplicitlyInstalled": false
+  },
+  "packages": [
+    {
+      "name": "@agent-teams/payments-core",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-core-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-core",
+        "@agent-teams/payments-core/testing"
+      ],
+      "sha256": "af05c232b8f7ddbcdac067ff8a6fa9008c15e2d9053a98aaa4abced9520edcff"
+    },
+    {
+      "name": "@agent-teams/payments-postgres",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-postgres-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-postgres",
+        "@agent-teams/payments-postgres/pg-boss",
+        "@agent-teams/payments-postgres/node-postgres"
+      ],
+      "sha256": "a1dd6febac7b7d565ab493404392ce7eb8d74143dd1aa40bdfa6b1212dc9dce0"
+    }
+  ],
+  "publicEntrypoint": "@agent-teams/payments-postgres",
+  "resolvers": [
+    {
+      "resolution": "NodeNext",
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "skipLibCheck": false,
+      "pgBossDeclarationsReachable": false,
+      "listFilesSha256": "ed67d5351a0d7d6cdfe8c09ce37489614e9ad2b9cdcaa295c83e4265df059c60",
+      "passed": true
+    },
+    {
+      "resolution": "Bundler",
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "skipLibCheck": false,
+      "pgBossDeclarationsReachable": false,
+      "listFilesSha256": "ed67d5351a0d7d6cdfe8c09ce37489614e9ad2b9cdcaa295c83e4265df059c60",
+      "passed": true
+    }
+  ],
+  "scenario": null,
+  "scenarioOutputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "lockSha256": "8fb96e7374bda09b837c7c53323f01f04e9784597234a991660696e70e964a72"
+}
+✔ alternate durable transport uses the same store/runner for atomic admission, restart repair, independent T3 and exact ACK (245.76809ms)
+✔ alternate transport repair excludes queued older work before LIMIT and competing passes advance later obligations (56.392157ms)
+✔ alternate enqueue shares the real unknown COMMIT boundary and no wake-up can redispatch its marker (94.423184ms)
+✔ alternate transport stop retains admitted consumer I/O until physical drain and preserves a sibling on the borrowed pool (147.861453ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 757.993696
+
+{
+  "status": "passed",
+  "consumer": "production-only-npm-custom-queue",
+  "node": "v26.12.1",
+  "install": {
+    "omitDev": true,
+    "ignoreScripts": true,
+    "strictPeerDependencies": true,
+    "optionalPackagesOmitted": false,
+    "pgBossPresent": false,
+    "nodePostgresExplicitlyInstalled": true
+  },
+  "packages": [
+    {
+      "name": "@agent-teams/payments-core",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-core-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-core",
+        "@agent-teams/payments-core/testing"
+      ],
+      "sha256": "af05c232b8f7ddbcdac067ff8a6fa9008c15e2d9053a98aaa4abced9520edcff"
+    },
+    {
+      "name": "@agent-teams/payments-postgres",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-postgres-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-postgres",
+        "@agent-teams/payments-postgres/pg-boss",
+        "@agent-teams/payments-postgres/node-postgres"
+      ],
+      "sha256": "a1dd6febac7b7d565ab493404392ce7eb8d74143dd1aa40bdfa6b1212dc9dce0"
+    }
+  ],
+  "publicEntrypoint": "@agent-teams/payments-postgres",
+  "resolvers": [
+    {
+      "resolution": "NodeNext",
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "skipLibCheck": false,
+      "pgBossDeclarationsReachable": false,
+      "listFilesSha256": "c5d1ba1d3945a1b616387feb80c66e83af8cb425cba56e416557770aee0201a0",
+      "passed": true
+    },
+    {
+      "resolution": "Bundler",
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "skipLibCheck": false,
+      "pgBossDeclarationsReachable": false,
+      "listFilesSha256": "c5d1ba1d3945a1b616387feb80c66e83af8cb425cba56e416557770aee0201a0",
+      "passed": true
+    }
+  ],
+  "scenario": "tests/e2e/queue-transport.test.ts",
+  "scenarioOutputSha256": "16bff74123d1ed5b7ea8d594f6227b4c421276c13312b0850eaebbc9c6b8d400",
+  "lockSha256": "e1c0732dccb071a1ecb45358b945790c4b99a1d245cebcb74fb9f86ec50bff6a"
+}
+✔ packed payments and installed observation: absent, failing and closed screens preserve real T1/T2/T3 delivery and Q100/T25 effects (520.341912ms)
+✔ the optional pg-boss entrypoint bootstraps, dispatches prepared work and drains on a borrowed pool (245.546915ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 986.972112
+
+{
+  "status": "passed",
+  "consumer": "production-only-npm",
+  "node": "v26.12.1",
+  "npm": "11.20.0",
+  "typescript": "Version 7.0.2",
+  "install": {
+    "omitDev": true,
+    "ignoreScripts": true,
+    "strictPeerDependencies": true,
+    "maintainerPatchConfiguration": false,
+    "mysql2Present": false
+  },
+  "packages": [
+    {
+      "name": "@agent-teams/payments-core",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-core-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-core",
+        "@agent-teams/payments-core/testing"
+      ],
+      "sha256": "af05c232b8f7ddbcdac067ff8a6fa9008c15e2d9053a98aaa4abced9520edcff"
+    },
+    {
+      "name": "@agent-teams/payments-paddle",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-paddle-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-paddle"
+      ],
+      "sha256": "831d614cb27b1bd554f17c7799615d04e6b0417096d975430f28cc7580f69fd8"
+    },
+    {
+      "name": "@agent-teams/payments-postgres",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-postgres-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-postgres",
+        "@agent-teams/payments-postgres/pg-boss",
+        "@agent-teams/payments-postgres/node-postgres"
+      ],
+      "sha256": "a1dd6febac7b7d565ab493404392ce7eb8d74143dd1aa40bdfa6b1212dc9dce0"
+    },
+    {
+      "name": "@agent-teams/payments-get-modular",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-get-modular-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-get-modular",
+        "@agent-teams/payments-get-modular/observation"
+      ],
+      "sha256": "ffdc7db6ca629547e7aed82041084f5508329ac8286ab4c6d8fd5351bccd1548"
+    }
+  ],
+  "publicEntrypoints": [
+    "@agent-teams/payments-core",
+    "@agent-teams/payments-core/testing",
+    "@agent-teams/payments-paddle",
+    "@agent-teams/payments-postgres",
+    "@agent-teams/payments-postgres/pg-boss",
+    "@agent-teams/payments-postgres/node-postgres",
+    "@agent-teams/payments-get-modular",
+    "@agent-teams/payments-get-modular/observation"
+  ],
+  "drizzle": {
+    "version": "1.0.0-rc.5-5935859",
+    "integrity": "sha512-PkVjyxhamD7IOVfpDMn3BmV9afyvj3eeLvIPind3NmPv+cfv6/jh6GN0fHP0zzgrprGx/jGE4mkE0ttRFlzHwA==",
+    "manifestSha256": "a0c98fa732cd389f5b4d983390cfb3fc47d797f0f4651b5c511dea8f6dfe7e1a",
+    "correctedDeclarationTargetsUnpatched": 8,
+    "declarationFilesUnpatched": 1742,
+    "declarationManifestSha256": "9ec1dfc99dc72ef18ec08b114ecb54f19858985def6c6d576ad4f2384b3ac1f4",
+    "runtimeFiles": 1743,
+    "runtimeManifestSha256": "b55c1e931df5efbcae510e60fd12b6018b75fa13b5f0431286fb67195ef10292"
+  },
+  "resolvers": [
+    {
+      "resolution": "NodeNext",
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "skipLibCheck": false,
+      "ormDeclarationsReachable": false,
+      "listFilesSha256": "0dc2a30b54dcae64f19f91eb41a9e6caaa713768ac883fdb5e1fcafce5e2895e",
+      "passed": true
+    },
+    {
+      "resolution": "Bundler",
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "skipLibCheck": false,
+      "ormDeclarationsReachable": false,
+      "listFilesSha256": "0dc2a30b54dcae64f19f91eb41a9e6caaa713768ac883fdb5e1fcafce5e2895e",
+      "passed": true
+    }
+  ],
+  "lockSha256": "ed2d46bec4fe62cc95b1384953a11d23358b6aa543fcdbaaa36ed6fc2314a0b4",
+  "inputManifestSha256": "7bd47e5b511525ea8398a95c0e873fab26f8fb2c540f66d37d9296eb9e29ea5d",
+  "financialScenario": "qualification/observation/financial.test.ts",
+  "pgBossScenario": "qualification/queue/pg-boss.test.ts",
+  "pgBossExplicitlyInstalled": true,
+  "scenarioOutputSha256": "c64b4975fb787fa82324a4c6cb34dbf58f4d69be6d4e265c8272cd97b86614b4"
+}
+$ node tools/release-dry-run.ts
+{
+  "published": false,
+  "packages": [
+    {
+      "name": "@agent-teams/payments-core",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-core-0.3.0.tgz",
+      "entries": 34
+    },
+    {
+      "name": "@agent-teams/payments-paddle",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-paddle-0.3.0.tgz",
+      "entries": 23
+    },
+    {
+      "name": "@agent-teams/payments-postgres",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-postgres-0.3.0.tgz",
+      "entries": 52
+    },
+    {
+      "name": "@agent-teams/payments-get-modular",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-get-modular-0.3.0.tgz",
+      "entries": 27
+    }
+  ]
+}

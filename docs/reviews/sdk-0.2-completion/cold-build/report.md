@@ -1,5 +1,9 @@
 # Cold build dependency repair
 
+Command logs and installed compiler help from this historical reproduction are
+in the [immutable evidence archive](../../archived-evidence.md). The source
+manifest, exact patch, command metadata and outcomes remain in this directory.
+
 ## Result and source identity
 
 The CI failure is reproduced on the exact clean source at
@@ -51,7 +55,8 @@ were excluded. Only required system proxy/certificate settings were retained
 for registry access. No user configuration or credentials were copied.
 
 The first install omitted those proxy settings and failed to download packages;
-that attempt was terminated and retained separately as `install-missing-proxy`.
+that attempt was terminated and recorded separately as `install-missing-proxy`,
+with its metadata here and log in the archive.
 It is installation evidence only. `install-frozen` is the successful independent
 frozen install used for both compiler outcomes.
 
@@ -71,7 +76,7 @@ The two initial sandbox Foundation invocations stopped at runtime admission.
 A direct probe found the sandbox returned `spawnSync ... EPERM` for the Node
 identity subprocess, even with an explicit admitted Node executable. The same
 existing check passed outside the sandbox. Raw unsuccessful and successful logs
-are retained; no gate or policy was weakened.
+remain available in the archive; no gate or policy was weakened.
 
 ## Scope and limits
 

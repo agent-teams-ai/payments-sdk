@@ -1,0 +1,22 @@
+{
+  "commit": "6f348df2d345edf5270ade0daebf67cc834de2de",
+  "node": "24.22.1",
+  "packages": {
+    "agent-teams-payments-core-0.3.0.tgz": {
+      "bytes": 64693,
+      "sha256": "af05c232b8f7ddbcdac067ff8a6fa9008c15e2d9053a98aaa4abced9520edcff"
+    },
+    "agent-teams-payments-get-modular-0.3.0.tgz": {
+      "bytes": 21519,
+      "sha256": "ffdc7db6ca629547e7aed82041084f5508329ac8286ab4c6d8fd5351bccd1548"
+    },
+    "agent-teams-payments-paddle-0.3.0.tgz": {
+      "bytes": 26332,
+      "sha256": "831d614cb27b1bd554f17c7799615d04e6b0417096d975430f28cc7580f69fd8"
+    },
+    "agent-teams-payments-postgres-0.3.0.tgz": {
+      "bytes": 72473,
+      "sha256": "a1dd6febac7b7d565ab493404392ce7eb8d74143dd1aa40bdfa6b1212dc9dce0"
+    }
+  }
+}

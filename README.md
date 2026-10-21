@@ -1,59 +1,98 @@
 # Payments SDK
 
-An embeddable TypeScript SDK for payment operations and durable payment evidence. Paddle Billing is the first provider. An optional PostgreSQL adapter supplies durable storage and background work; the core depends on its own storage contract. Get Modular composition is optional. The payment owner, commercial access, credit accounting and operational usage keep independent data and transaction boundaries.
+An embeddable TypeScript SDK for applications that need reliable payment operations and durable payment evidence. Paddle Billing is the first provider. Use it to prepare checkout, verify and reconcile provider observations, manage supported subscriptions, and deliver versioned evidence to your application's access and credit owners.
 
-**Prerelease deployment status, 2026-10-19:** integration and fixture qualification are available; production deployment remains blocked by an upstream Node runtime security issue. A bounded malformed-response probe terminates the tested Node processes through built-in `fetch`, including the latest published same-major releases. The development-only Undici correction does not patch production transport. The [security qualification record](docs/security-qualification.md#node-bundled-transport-scope) gives the evidence, its Paddle applicability limits and the admission requirements for a corrected official runtime.
+The SDK keeps payment state separate from commercial access, credit accounting and usage. Your application owns authentication, prices, quota sizes, entitlement rules, credit consumption and refund-to-credit policy. Checkout preparation does not confirm payment or grant a benefit.
 
-The first supported commercial profile is **one no-trial monthly price, quantity one**, with **separate one-time top-ups**. Checkout preparation is not payment confirmation. Server-verified completed transactions, saved ownership and offer bindings, and versioned evidence support downstream decisions. Prices, quota sizes, access policy, credit consumption and refund-to-credit policy belong to the application.
+## Supported profile
 
-## Packages
+- **Subscriptions:** one monthly recurring price, quantity **1**, with no trial.
+- **Top-ups:** separate one-time purchases, independent of the subscription.
+- **Operations:** checkout, verified webhook intake, provider reads and reconciliation, cancellation, payment-method updates and authorized customer management links.
+- **Recovery:** durable inbox and evidence delivery, replay protection, and explicit unknown outcomes. After a durable dispatch marker, an uncertain external mutation is never retried automatically.
 
-| Package | Responsibility | Runtime dependencies |
-| --- | --- | --- |
-| `@agent-teams/payments-core` | Operations, evidence reduction, immutable delivery protocol, reconciliation contracts | Node built-ins; no Paddle, database or framework |
-| `@agent-teams/payments-paddle` | Official Paddle SDK adapter, signature verification, normalized source-aware evidence | Core and `@paddle/paddle-node-sdk` 3.10.0 |
-| `@agent-teams/payments-postgres` | Owner-local durable transactions, private Drizzle queries, migrations, worker contracts and recovery administration | Core and `drizzle-orm`; `pg` and `pg-boss` are optional peers for explicit `/node-postgres` and `/pg-boss` entries |
-| `@agent-teams/payments-get-modular` | Static composition, optional purchase read projections, capability facets and explicit resource lifecycle | Core and qualified Get Modular peers |
+Trials, mixed baskets/seats, plan-change/proration commands, pause/resume, manual invoices, off-session charging, provider usage billing and refund initiation are outside the supported command profile. Unsupported external changes remain observable and can hold fulfillment; they are not silently accepted. See [architecture and guarantees](docs/architecture.md).
 
-The four packages currently declare version `0.3.0`; see the [migration notes](CHANGELOG.md). A version in a manifest does not establish npm publication or a GitHub release. Use the [release candidate artifacts and verification instructions](docs/releasing.md) for an existing matching tag, or build this checkout.
+## Choose your packages
+
+| Package | Use it for |
+| --- | --- |
+| `@agent-teams/payments-core` | Provider-neutral operations, evidence and delivery contracts. Supply your own `PaymentProvider`, `PaymentStore` and `Catalog`; no database or framework is required by core. |
+| `@agent-teams/payments-paddle` | Paddle Billing through the official Paddle Node SDK, including signature verification and evidence normalization. |
+| `@agent-teams/payments-postgres` | Durable PostgreSQL storage, migrations, workers and recovery. Drizzle stays private to this adapter. |
+| `@agent-teams/payments-get-modular` | Optional static Assembly composition, Resources lifecycle and capability facets. Its optional `/observation` entry supplies read projections. |
+
+For Paddle with durable storage, choose core + Paddle + PostgreSQL. The PostgreSQL root requires neither `pg` nor `pg-boss`: select the optional `/node-postgres` driver wrapper and `/pg-boss` transport explicitly, or supply the adapter-owned database and transactional transport contracts. The driver wrapper can borrow an existing host pool, including one used by Drizzle. Get Modular is optional for every other package; observation hooks do not replace durable financial delivery.
+
+All four packages currently declare **`0.3.0`** and emit ESM JavaScript and declarations. This version is **not published to npm**. Build this checkout, or use matching verified prerelease tarballs when available. The [release and installation guide](docs/releasing.md) covers checksums, package overrides and installation; [migration notes](CHANGELOG.md) cover breaking changes.
+
+**Current qualification:** Linux Node **24.22.1 LTS** and **26.12.1** are the corrected runtime floors. Local qualification passed on the recorded source; reviewed exact-commit hosted checks and separate deployment/Paddle-account gates remain required. See [runtime admission status](docs/runtime-security-admission.md) and [qualification](docs/qualification.md) before production use.
 
 ## Start here
 
-- [Getting started](docs/getting-started.md): trusted configuration, catalog, checkout, webhook custody and consumer delivery.
-- [Architecture and guarantees](docs/architecture.md): ownership, T1/T2/T3, uncertainty, identities and extension boundaries.
-- [Storage and driver portability](docs/storage-portability.md): reuse a Drizzle pool, select a driver or queue, and distinguish those changes from another database engine.
-- [Queue transport contract](docs/queue-transport.md): explicit pg-boss composition, transactional substitution, and boundaries for a future remote broker.
-- [Get Modular growth assessment](docs/get-modular-growth.md): integration convenience, concrete graph limits, contract upgrades and Host lifecycle responsibilities.
-- [Operations and recovery runbook](docs/operations.md): migrations, concurrency, shutdown, reconciliation and independent restore.
-- [Qualification and deployment gates](docs/qualification.md): what the automated suites prove and what needs a real deployment or Paddle sandbox.
-- [Subscription and credit scenario matrix](docs/reviews/subscription-credits-e2e-matrix.md): connected renewals, independent purchases, recovery, cancellation, refunds and chargeback reversal, with explicit policy limits.
-- [Current SDK 0.3 evidence](docs/reviews/sdk-0.3-portability/README.md): driver/queue isolation, complete two-floor qualification and the additional review/fix cycle.
-- [Dependency and Node runtime security](docs/security-qualification.md): the qualified development dependency correction and the separate blocked production runtime admission.
-- [Implementation and review status](docs/implementation-status.md): P0–P7 plan traceability, independent review reports and correction evidence.
-- [Purchase observation](qualification/observation/README.md): optional public read projection, real Assembly/Resources/watch/load, and isolated packed qualification against the published registry train.
-- [Current upstream qualification](docs/upstream-qualification.md): exact dependency pins, published Get Modular observation train and artifact identities, and the official browser declaration blocker.
-- [Release process](docs/releasing.md): audited tarballs, checksums, exact-commit CI and GitHub prereleases.
-- [Final SDK 0.2 evidence](docs/reviews/sdk-0.2-completion/README.md): complete two-floor qualification, independent tooling/source reviews and production logical code metrics.
+The following compilable host skeleton receives **host-built configuration**: trusted `scope` and `producerNamespace`, a provider, a store and a server-controlled catalog through `PaymentRuntimeOptions`. It is not a standalone demo. Construct it once per host lifetime; authenticate the buyer before calling `startCheckout`.
 
-Adapter-specific details stay in the [Paddle](packages/payments-paddle/README.md), [PostgreSQL](packages/payments-postgres/README.md) and [Get Modular](packages/payments-get-modular/README.md) package guides. The [accepted implementation plan](docs/implementation-plan.md) records design decisions and source provenance; current public signatures live in package exports and the compiled examples.
+```ts
+import { createPayments } from '@agent-teams/payments-core';
+import type { PaymentRuntimeOptions } from '@agent-teams/payments-core';
+
+export function createCheckoutHost(options: PaymentRuntimeOptions) {
+  const payments = createPayments(options);
+
+  return {
+    payments,
+    startCheckout(buyerId: string, offerId: string, requestKey: string) {
+      return payments.startPurchase({ buyerId, offerId, requestKey });
+    },
+    async close() {
+      payments.stop();
+      await payments.drain();
+    },
+  };
+}
+```
+
+Reuse the same `requestKey` for retries of one logical purchase. A `succeeded` result contains `value.intentId`, `value.transactionRef` and the provider's `value.checkout` descriptor (optional URL/token). It means checkout is prepared. Preserve the distinct `pending`, `outcome_unknown`, `rejected` and `unsupported` results instead of treating them as confirmation or starting another mutation.
+
+A complete integration also needs verified webhook custody, background processing and delivery to independent consumers. [Getting started](docs/getting-started.md) walks through trusted identities, catalog snapshots, migrations, checkout, webhooks and consumer acknowledgement. Each consumer commits its receipt plus effect or durable held obligation in its own transaction before acknowledgement; the SDK exposes no shared payment-plus-credit transaction.
+
+Use these maintained, typechecked examples for the host you are building:
+
+| Example | What it composes |
+| --- | --- |
+| [`examples/node-http.ts`](examples/node-http.ts) | Plain core factory and bounded Node HTTP ingress; host authentication stays explicit. |
+| [`examples/paddle-postgres.ts`](examples/paddle-postgres.ts) | Paddle, durable PostgreSQL, separate bootstrap, worker startup and shutdown; host supplies pools, authentication and consumers. |
+| [`examples/fetch-modular.ts`](examples/fetch-modular.ts) | Fetch handler with the published Get Modular Assembly/Resources runtime. |
+
+Stop HTTP ingress and other producers before shutdown. Keep borrowed pools open until workers and payment calls have physically drained; the complete durable example owns that ordering.
+
+## Documentation
+
+| Need | Guide |
+| --- | --- |
+| Build an integration | [Getting started](docs/getting-started.md), plus the [Paddle](packages/payments-paddle/README.md), [PostgreSQL](packages/payments-postgres/README.md) and [Get Modular](packages/payments-get-modular/README.md) package guides |
+| Understand guarantees and boundaries | [Architecture](docs/architecture.md), [storage portability](docs/storage-portability.md) and [queue transports](docs/queue-transport.md) |
+| Operate and recover | [Operations runbook](docs/operations.md) and [qualification/deployment gates](docs/qualification.md) |
+| Verify dependencies or release artifacts | [Upstream qualification](docs/upstream-qualification.md), [security qualification](docs/security-qualification.md) and [releasing](docs/releasing.md) |
+| Review implementation evidence | [Implementation status](docs/implementation-status.md) and the [review index](docs/reviews/README.md) |
+
+The [accepted implementation plan](docs/implementation-plan.md) records design decisions. Package public exports and the compiled examples own current API signatures; historical review records qualify their recorded source and artifacts.
 
 ## Examples and development
 
-The maintained `.ts` examples use the actual public APIs:
-
-- [`examples/node-http.ts`](examples/node-http.ts): plain core factory and bounded Node HTTP ingress.
-- [`examples/paddle-postgres.ts`](examples/paddle-postgres.ts): Paddle + durable PostgreSQL + explicit worker lifecycle, with host-supplied authentication and consumers.
-- [`examples/fetch-modular.ts`](examples/fetch-modular.ts): Fetch handler using the real published static Assembly/Resources runtime.
-
-Qualification targets Linux Node `24.21.0` and `26.11.1`, TypeScript `7.0.2`, pnpm `11.25.0` and PostgreSQL `18`. All maintained runtime, test and tool sources are `.ts`. Engineering Foundation `1.10.1` is a development dependency and must not enter a package's runtime closure.
+Use Linux Node **24.22.1** or **26.12.1**, pnpm **11.25.0**, TypeScript **7.0.2**, and PostgreSQL **18** for integration tests. Maintained runtime, test and tool sources are ordinary `.ts`; Engineering Foundation is development-only. Read [AGENTS.md](AGENTS.md) and the [developer stack](docs/developer-stack.md) before contributing.
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm check:fast
-# Use a disposable PostgreSQL 18 database; the integration suites create schemas.
+
+# Full qualification: use a disposable PostgreSQL 18 database.
+# Integration suites create schemas in this database.
 DATABASE_URL=postgresql://postgres:test-only@127.0.0.1:5432/payments pnpm check
 ```
 
-Fixture suites use the official Paddle SDK with network-disabled synthetic transport. They need no live Paddle credentials and make no real charges. [Qualification](docs/qualification.md) explains the scope and limits of that evidence.
+`check:fast` checks the toolchain, strict types, lint, Foundation and Get Modular adoption. `check` adds runtime security, behavior, real PostgreSQL/E2E, packed-consumer and release-archive gates. Fixture tests use the official Paddle SDK with network-disabled synthetic transport: **no live Paddle credentials or real charges are needed**. Their scope and remaining deployment checks are documented in [qualification](docs/qualification.md).
 
-License: [Apache-2.0](LICENSE).
+## License
+
+[Apache-2.0](LICENSE).

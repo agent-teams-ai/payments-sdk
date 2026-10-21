@@ -1,0 +1,53 @@
+{
+  "readBackAt": "2026-10-21T12:32:20.510638+00:00",
+  "probe": "tools/runtime-security-probe.ts",
+  "probeSha256": "242fd494b2b65c7fc9288fdf0ed19c9afe4d7e5e1f396df0bd0492745a21422d",
+  "capture": "Each maintained gate invokes the shared node-or-bun command helper and checks actual child exit; recording wrapper only retains outer CLI streams",
+  "network": "127.0.0.1 only; no credentials or external provider calls",
+  "results": [
+    {
+      "binary": "/tmp/payments-audit-toolchain/node24-security/bin/node",
+      "role": "corrected-candidate",
+      "command": [
+        "/tmp/payments-audit-toolchain/node24-security/bin/node",
+        "tools/runtime-security-probe.ts"
+      ],
+      "exitCode": 0,
+      "stdout": "{\"node\":\"v24.22.1\",\"undici\":\"7.30.1\",\"mode\":\"unmodified-global-fetch\",\"rejectionCaught\":true,\"serverClosed\":true}\nRuntime security child completed with exit code 0\n",
+      "stderr": ""
+    },
+    {
+      "binary": "/tmp/payments-audit-toolchain/node26-security/bin/node",
+      "role": "corrected-candidate",
+      "command": [
+        "/tmp/payments-audit-toolchain/node26-security/bin/node",
+        "tools/runtime-security-probe.ts"
+      ],
+      "exitCode": 0,
+      "stdout": "{\"node\":\"v26.12.1\",\"undici\":\"8.12.2\",\"mode\":\"unmodified-global-fetch\",\"rejectionCaught\":true,\"serverClosed\":true}\nRuntime security child completed with exit code 0\n",
+      "stderr": ""
+    },
+    {
+      "binary": "/tmp/payments-audit-toolchain/node24/bin/node",
+      "role": "affected-rejecting-control",
+      "command": [
+        "/tmp/payments-audit-toolchain/node24/bin/node",
+        "tools/runtime-security-probe.ts"
+      ],
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: /tmp/payments-audit-toolchain/node-v24.21.0-linux-x64/bin/node /workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/tools/runtime-security-probe.ts --child (signal: none)\n\nnode:events:505\n    throw er; // Unhandled 'error' event\n    ^\n\nResponseContentLengthMismatchError: Response body length does not match content-length header\n    at Parser.createError (node:internal/deps/undici/undici:7409:18)\n    at Parser.finish (node:internal/deps/undici/undici:7404:21)\n    at Socket.onHttpSocketEnd (node:internal/deps/undici/undici:7827:34)\n    at Socket.emit (node:events:526:24)\n    at endReadableNT (node:internal/streams/readable:1764:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\nEmitted 'error' event on Readable instance at:\n    at emitErrorNT (node:internal/streams/destroy:170:8)\n    at emitErrorCloseNT (node:internal/streams/destroy:129:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'UND_ERR_RES_CONTENT_LENGTH_MISMATCH'\n}\n\nNode.js v24.21.0\n\n\n1 !== 0\n\n    at command (file:///workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/tools/package-artifacts.ts:40:10)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/tools/runtime-security-probe.ts:51:18 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: 1,\n  expected: 0,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n\nNode.js v24.21.0\n"
+    },
+    {
+      "binary": "/tmp/payments-audit-toolchain/node26/bin/node",
+      "role": "affected-rejecting-control",
+      "command": [
+        "/tmp/payments-audit-toolchain/node26/bin/node",
+        "tools/runtime-security-probe.ts"
+      ],
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "node:internal/modules/run_main:111\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: /tmp/payments-audit-toolchain/node-v26.11.1-linux-x64/bin/node /workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/tools/runtime-security-probe.ts --child (signal: none)\n\nnode:events:505\n    throw er; // Unhandled 'error' event\n    ^\n\nResponseContentLengthMismatchError: Response body length does not match content-length header\n    at Parser.createError (node:internal/deps/undici/undici:7447:18)\n    at Parser.finish (node:internal/deps/undici/undici:7442:21)\n    at Socket.onHttpSocketEnd (node:internal/deps/undici/undici:7871:34)\n    at Socket.emit (node:events:526:24)\n    at endReadableNT (node:internal/streams/readable:2147:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)\nEmitted 'error' event on Readable instance at:\n    at emitErrorNT (node:internal/streams/destroy:170:8)\n    at emitErrorCloseNT (node:internal/streams/destroy:129:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {\n  code: 'UND_ERR_RES_CONTENT_LENGTH_MISMATCH'\n}\n\nNode.js v26.11.1\n\n\n1 !== 0\n\n    at command (file:///workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/tools/package-artifacts.ts:40:10)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/tools/runtime-security-probe.ts:51:18 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: 1,\n  expected: 0,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n\nNode.js v26.11.1\n"
+    }
+  ]
+}

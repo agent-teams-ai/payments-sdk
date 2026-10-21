@@ -16,7 +16,7 @@ adapter-local Drizzle choice, source authority and qualification requirements.
 
 ## Language and tooling
 
-Maintained runtime, tests and tooling use TypeScript `.ts` only. No `.mjs` or `.mts` source. TypeScript compiler/parser minimum is 7.0.2. Emit ESM JavaScript and declarations. Tests and tools belong to strict projects; packed NodeNext and Bundler consumers use skipLibCheck:false. Engineering Foundation is development-only. Runtime target Linux Node >=24.21.0 <25 || >=26.11.1 <27 and PostgreSQL 18, subject to explicit qualification.
+Maintained runtime, tests and tooling use TypeScript `.ts` only. No `.mjs` or `.mts` source. TypeScript compiler/parser minimum is 7.0.2. Emit ESM JavaScript and declarations. Tests and tools belong to strict projects; packed NodeNext and Bundler consumers use skipLibCheck:false. Engineering Foundation is development-only. Runtime target Linux Node >=24.22.1 <25 || >=26.12.1 <27 and PostgreSQL 18, subject to explicit qualification.
 
 ## Scope and invariants
 

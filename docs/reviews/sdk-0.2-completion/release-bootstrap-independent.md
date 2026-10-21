@@ -1,5 +1,11 @@
 # Independent review: release tooling bootstrap
 
+Historical raw-log links below resolve to the
+[immutable evidence archive](../archived-evidence.md). References to the original
+disposable fixture's harness, checksum and ancillary files describe that review's
+execution environment. This navigation update preserves the reviewed source,
+outcomes and original digest values.
+
 Date: 2026-10-20. Scope: the three-file release bootstrap fix for payments PR #5.
 
 ## Disposition
@@ -58,8 +64,8 @@ cannot start on a dependency-free runner; dispatching to a different operation
 does not avoid module resolution.
 
 The [before-install record](release-bootstrap/before-install.json) and
-[Node 24](release-bootstrap/node24-before-install.log)/
-[Node 26](release-bootstrap/node26-before-install.log) raw logs reproduce
+[Node 24](https://github.com/agent-teams-ai/payments-sdk/blob/17dde3d75ac1e4e3a3218b236fca3f8a4d1ada7b/docs/reviews/sdk-0.2-completion/release-bootstrap/node24-before-install.log)/
+[Node 26](https://github.com/agent-teams-ai/payments-sdk/blob/17dde3d75ac1e4e3a3218b236fca3f8a4d1ada7b/docs/reviews/sdk-0.2-completion/release-bootstrap/node26-before-install.log) raw logs reproduce
 `ERR_MODULE_NOT_FOUND` for `node-or-bun` at both qualified floors, with no
 checkout `node_modules`. This is a release workflow bootstrap responsibility.
 It does not justify a second executor, copying the library implementation or
@@ -100,12 +106,12 @@ passed, including the successful and separately retained failed-install records.
 
 | Probe | Observed result and significance |
 | --- | --- |
-| Empty-store candidate install | [candidate-install.log](release-bootstrap/candidate-install.log): Node 24.21.0 and pnpm 11.25.0, explicit frozen install with scripts disabled, 91 downloaded/installed packages, exit 0 in 4.645 seconds. |
-| Independent release checkout | [release-install-shared-store.log](release-bootstrap/release-install-shared-store.log): starts without checkout dependencies, uses the same isolated store, reuses 91 packages, downloads zero and exits 0 in 1.897 seconds. This demonstrates installation after a populated store rather than a borrowed warm `node_modules`. |
-| Actual archive assembly, both floors | [Node 24](release-bootstrap/candidate-assemble-node24.log) and [Node 26](release-bootstrap/candidate-assemble-node26.log) each report four audited archives and exit 0 through the unchanged actual release CLI/helper. The output copies, manifest digests and checksum checks agree with all four existing input archives. |
-| Real command helper, both floors | [Node 24](release-bootstrap/release-import-node24.log) and [Node 26](release-bootstrap/release-import-node26.log) import the actual shared helper in the independent release checkout and capture `release-captured-command-ok` from a real child process. Both exit 0. |
-| Actual release CLI import, both floors | [Node 24](release-bootstrap/release-cli-load-node24.log) and [Node 26](release-bootstrap/release-cli-load-node26.log) load the actual CLI with no operation and reach its expected usage error, exit 1. This expected failure proves static imports resolve without invoking admission or publication. |
-| Workflow parse | [workflow-yaml-parse.log](release-bootstrap/workflow-yaml-parse.log) records successful YAML parsing. The independent source review also confirms action pinning and step order. |
+| Empty-store candidate install | [candidate-install.log](https://github.com/agent-teams-ai/payments-sdk/blob/17dde3d75ac1e4e3a3218b236fca3f8a4d1ada7b/docs/reviews/sdk-0.2-completion/release-bootstrap/candidate-install.log): Node 24.21.0 and pnpm 11.25.0, explicit frozen install with scripts disabled, 91 downloaded/installed packages, exit 0 in 4.645 seconds. |
+| Independent release checkout | [release-install-shared-store.log](https://github.com/agent-teams-ai/payments-sdk/blob/17dde3d75ac1e4e3a3218b236fca3f8a4d1ada7b/docs/reviews/sdk-0.2-completion/release-bootstrap/release-install-shared-store.log): starts without checkout dependencies, uses the same isolated store, reuses 91 packages, downloads zero and exits 0 in 1.897 seconds. This demonstrates installation after a populated store rather than a borrowed warm `node_modules`. |
+| Actual archive assembly, both floors | [Node 24](https://github.com/agent-teams-ai/payments-sdk/blob/17dde3d75ac1e4e3a3218b236fca3f8a4d1ada7b/docs/reviews/sdk-0.2-completion/release-bootstrap/candidate-assemble-node24.log) and [Node 26](https://github.com/agent-teams-ai/payments-sdk/blob/17dde3d75ac1e4e3a3218b236fca3f8a4d1ada7b/docs/reviews/sdk-0.2-completion/release-bootstrap/candidate-assemble-node26.log) each report four audited archives and exit 0 through the unchanged actual release CLI/helper. The output copies, manifest digests and checksum checks agree with all four existing input archives. |
+| Real command helper, both floors | [Node 24](https://github.com/agent-teams-ai/payments-sdk/blob/17dde3d75ac1e4e3a3218b236fca3f8a4d1ada7b/docs/reviews/sdk-0.2-completion/release-bootstrap/release-import-node24.log) and [Node 26](https://github.com/agent-teams-ai/payments-sdk/blob/17dde3d75ac1e4e3a3218b236fca3f8a4d1ada7b/docs/reviews/sdk-0.2-completion/release-bootstrap/release-import-node26.log) import the actual shared helper in the independent release checkout and capture `release-captured-command-ok` from a real child process. Both exit 0. |
+| Actual release CLI import, both floors | [Node 24](https://github.com/agent-teams-ai/payments-sdk/blob/17dde3d75ac1e4e3a3218b236fca3f8a4d1ada7b/docs/reviews/sdk-0.2-completion/release-bootstrap/release-cli-load-node24.log) and [Node 26](https://github.com/agent-teams-ai/payments-sdk/blob/17dde3d75ac1e4e3a3218b236fca3f8a4d1ada7b/docs/reviews/sdk-0.2-completion/release-bootstrap/release-cli-load-node26.log) load the actual CLI with no operation and reach its expected usage error, exit 1. This expected failure proves static imports resolve without invoking admission or publication. |
+| Workflow parse | [workflow-yaml-parse.log](https://github.com/agent-teams-ai/payments-sdk/blob/17dde3d75ac1e4e3a3218b236fca3f8a4d1ada7b/docs/reviews/sdk-0.2-completion/release-bootstrap/workflow-yaml-parse.log) records successful YAML parsing. The independent source review also confirms action pinning and step order. |
 
 The first restricted-network installation attempt failed and is retained
 separately as `candidate-install-network-sandbox-attempt.log` and `.json`.

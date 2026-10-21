@@ -2,7 +2,7 @@
 
 The repository's [Release candidate workflow](../.github/workflows/release.yaml) produces four audited versioned package tarballs, `SHA256SUMS`, a source/CI manifest and a GitHub **prerelease**. It never invokes `npm publish`. Package version `0.3.0` in source does not imply an existing npm release, live Paddle qualification or production readiness.
 
-**Current admission, 2026-10-19:** these artifacts support integration and fixture evaluation. Production deployment is blocked by the independently confirmed [Node built-in fetch security issue](security-qualification.md#node-bundled-transport-scope). Successful CI, archive audits and clean npm scans do not clear that runtime gate. Generated GitHub release notes expose this status before the artifact description; the workflow always creates a prerelease.
+**Current runtime candidate, 2026-10-21:** official corrected Node 24.22.1 LTS and 26.12.1 binaries pass the bounded unmodified-fetch probe. The [successor admission record](runtime-security-admission.md) owns their checksum/source evidence and the remaining reviewed exact-commit hosted qualification. These artifacts remain integration/fixture prereleases; separate account and deployment gates still apply. Generated release notes link the candidate status and do not claim production admission.
 
 ## Exact-commit release admission
 

@@ -117,15 +117,17 @@ executes quality and two scenario jobs in parallel, and cancels obsolete PR
 runs. New package-isolation locks, type graphs and logs are retained as CI
 artifacts. No required check, strict flag or boundary rejection was disabled.
 
-Retained raw evidence:
+Retained metadata and archived raw evidence:
 
 - [Node 24 metadata](local-evidence/24.21.0/full-check-node-24.21.0.json)
-  and [complete log](local-evidence/24.21.0/full-check-node-24.21.0.log).
+  and [complete log](https://github.com/agent-teams-ai/payments-sdk/blob/17dde3d75ac1e4e3a3218b236fca3f8a4d1ada7b/docs/reviews/sdk-0.3-portability/local-evidence/24.21.0/full-check-node-24.21.0.log).
 - [Node 26 metadata](local-evidence/26.11.1/full-check-node-26.11.1.json)
-  and [complete log](local-evidence/26.11.1/full-check-node-26.11.1.log).
-- Each directory also retains the three production npm profile reports, ordinary
-  package locks, both strict compiler file graphs, Observation and Drizzle
-  evidence, package identities and release dry-run result.
+  and [complete log](https://github.com/agent-teams-ai/payments-sdk/blob/17dde3d75ac1e4e3a3218b236fca3f8a4d1ada7b/docs/reviews/sdk-0.3-portability/local-evidence/26.11.1/full-check-node-26.11.1.log).
+- Each directory retains the three production npm profile reports, Observation
+  and Drizzle reports, package identities and release dry-run result. Ordinary
+  consumer locks, both strict compiler file graphs and raw command logs are
+  available through the [immutable evidence archive](../archived-evidence.md).
+  Their recorded digests and qualification subjects are unchanged.
 
 The archive hashes in those directories belong to the fully checked `b6fd1a6`
 subject. The later recovery/parser documentation correction also changes the
