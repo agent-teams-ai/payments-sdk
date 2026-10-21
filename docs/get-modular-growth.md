@@ -9,13 +9,14 @@ Host shutdown remain work the integrator must understand.
 
 The source reference is Get Modular
 [`fe4a2fdc878b46feebaececa3b0172b4534be935`](https://github.com/agent-teams-ai/get-modular/commit/fe4a2fdc878b46feebaececa3b0172b4534be935).
-The reviewed successor targets Core/Assembly `0.7.0`, Resources `0.2.1`,
-Conformance `0.5.0` and Observation `0.2.0`; official publication and installed
-registry qualification remain pending. The
+The published integration uses Core/Assembly `0.7.0`, Resources `0.2.1`,
+Conformance `0.5.0` and Observation `0.2.0`. Its
+[official installed qualification](upstream-qualification.md#october-21-published-get-modular-adoption)
+passed on Linux x64 Node `24.22.1` and `26.12.1` with PostgreSQL `18`. The
 [October 20 artifact record](../qualification/observation/published-artifacts-2026-10-20.json)
 preserves the previous qualified published train. The
 [consumer adoption record](get-modular-adoption.md) defines the narrower local
-scope and pending status; merged source alone does not complete adoption.
+`scoped-active` adapter scope; full application FMS is not adopted.
 
 ## What is already useful
 
@@ -103,15 +104,15 @@ module count alone is not evidence that it should be introduced.
 Retain structured preparation/run causes for the Host's diagnostic path.
 Reducing a preparation failure to its code discards module, slot and candidate
 details just when a larger graph makes them most useful. Do not blindly log
-opaque factory causes or configuration: they can contain secrets. The reviewed
-successor supplies typed preparation failures and Assembly's `formatFailure`
+opaque factory causes or configuration: they can contain secrets. The published
+integration supplies typed preparation failures and Assembly's `formatFailure`
 for bounded developer text. Default output omits Assembly authoring labels;
 `includeAuthoringContext: true` is for a private developer console. Keep the
 structured failure as the cause, and never send opt-in authoring context to
 public clients. See the
 [formatter contract](https://github.com/agent-teams-ai/get-modular/blob/fe4a2fdc878b46feebaececa3b0172b4534be935/packages/assembly/README.md#failure-text-for-host-diagnostics).
 
-In the reviewed Observation successor, escalation reports
+In Observation `0.2.0`, escalation reports
 `observation.load.still-running` through the owner's error sink while the drain
 keeps awaiting the loader promise, including its `finally` cleanup. Keep the
 patient close promise. A separate caller can abandon its wait and receive
@@ -124,11 +125,11 @@ cancellation is no substitute for physical settlement. Sources:
 [Resources child release](https://github.com/agent-teams-ai/get-modular/blob/fe4a2fdc878b46feebaececa3b0172b4534be935/packages/resources/src/features/scope/scope.ts),
 [Observation loader drain](https://github.com/agent-teams-ai/get-modular/blob/fe4a2fdc878b46feebaececa3b0172b4534be935/packages/observation/src/features/store/load.ts).
 
-The previous published Resources `0.2.0` lacks the synchronous abort-reentry
-ordering repair targeted for `0.2.1`; Observation `0.1.0` retains the earlier
-terminal failed-debt behavior. Updated lifecycle tests target the successor.
-Its official artifact read-back and consumer qualification remain pending;
-the older published train cannot establish the new shutdown guarantee.
+Resources `0.2.1` includes the synchronous abort-reentry ordering repair;
+Observation `0.2.0` replaces the earlier terminal failed-debt load behavior with
+report-and-await. The installed lifecycle qualification covers these behaviors.
+The older Resources `0.2.0` / Observation `0.1.0` train remains historical
+evidence and does not establish the repaired shutdown guarantee.
 
 Observation notifications may coalesce. A slow uncancellable load delays the
 latest requested load. Keep finite projections, short-lived subscriber scopes

@@ -15,7 +15,7 @@ delta changes no package runtime source, CMS or observation contract document;
 direct watch/load/types/values/CMS reads retain the same blobs. The dated source
 and dependency qualification below remains its original reproducible snapshot.
 
-## October 21 integration successor: publication and qualification pending
+## October 21 published Get Modular adoption
 
 The reviewed source is Get Modular
 [`fe4a2fdc878b46feebaececa3b0172b4534be935`](https://github.com/agent-teams-ai/get-modular/commit/fe4a2fdc878b46feebaececa3b0172b4534be935).
@@ -26,23 +26,33 @@ SHA-256 `a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882`;
 the module-authoring guide remains byte-identical at SHA-256
 `8d9e6ced096c3259ec8d7a35a1ee3c2f15e5832ba23c95da57f8cfc4c8622cfd`.
 
-| Target package | Version | Admission state |
+| Published package | Version | Consumer role |
 | --- | --- | --- |
-| Core / Assembly | `0.7.0` | Official publication and installed qualification pending |
-| Resources | `0.2.1` | Official publication and installed qualification pending |
-| Conformance | `0.5.0` | Development-only; official publication and installed qualification pending |
-| Observation | `0.2.0` | Optional peer; official publication and installed qualification pending |
+| Core / Assembly | `0.7.0` | Static composition |
+| Resources | `0.2.1` | Resource ownership |
+| Conformance | `0.5.0` | Development-only |
+| Observation | `0.2.0` | Optional peer |
 
-An isolated consumer of all four SDK archives and five Get Modular candidate
-archives passed on Linux Node `26.11.1`, PostgreSQL `18`, strict TypeScript
-`7.0.2` NodeNext/Bundler and all four observation test files. This is candidate
-evidence, not an official registry run or proof of both supported Node floors.
-Final adoption requires actual official archive identities, coherent exact
-catalog/lock pins and the existing installed consumer gates on both Node
-floors. The profile remains `pending-release-qualification` until those agree.
-The [current artifact record](../qualification/observation/published-artifacts.json)
-still describes the old train until the new official read-back is retained.
-No candidate result is relabeled as a published run.
+The [release workflow](https://github.com/agent-teams-ai/get-modular/actions/runs/39612969025)
+completed prepare, publish, installed verification and latest promotion on
+[`7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333`](https://github.com/agent-teams-ai/get-modular/commit/7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333).
+Official registry read-back at **2026-10-21 14:14:57 UTC** confirmed all five
+`latest` versions and matched every downloaded archive against the release
+manifest. The [current artifact record](../qualification/observation/published-artifacts.json)
+retains their exact registry, dependency, peer and integrity identities; its
+SHA-256 is `6f6190afcfcee4d0fec1d9bbba210b12fc678ded4777e0664aba406517fee5ea`.
+
+The isolated official packed consumer passed on Linux x64 Node `24.22.1` and
+`26.12.1` with PostgreSQL `18`, strict TypeScript `7.0.2` NodeNext/Bundler,
+physical peer identity and all four observation test files. Both reports record
+`npmPublicationProven:true`, the same official manifest digest and identical
+SHA-256 values for all four SDK archives. The
+[consumer gate](../qualification/observation/README.md#qualification-boundary)
+retains the report/log artifact names. The profile is `scoped-active` for this
+technical composition adapter; full application FMS remains **not adopted**.
+SDK full checks, final exact-commit hosted CI and merge remain separate delivery
+gates. Production runtime security, Paddle account and deployment admission
+retain the restrictions above and in the [qualification guide](qualification.md).
 
 ## Historical October 20 published observation adoption
 

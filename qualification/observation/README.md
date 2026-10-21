@@ -1,8 +1,8 @@
 # Published purchase observation consumer
 
-This required qualification suite consumes `@agent-teams/payments-get-modular/observation` from the packed SDK archive. It installs the exact official registry releases Core/Assembly `0.6.0`, Resources `0.2.0`, Conformance `0.4.0` and Observation `0.1.0`. The [published artifact record](published-artifacts.json) binds official version metadata, SHA-512 integrity, SHA-256, archive sizes and packed peer/dependency contracts. The runner checks those official bytes and metadata before ordinary public-version installation.
+This required qualification suite consumes `@agent-teams/payments-get-modular/observation` from the packed SDK archive. It installs the exact official registry releases Core/Assembly `0.7.0`, Resources `0.2.1`, Conformance `0.5.0` and Observation `0.2.0`. The [published artifact record](published-artifacts.json) binds official version metadata, SHA-512 integrity, SHA-256, archive sizes and packed peer/dependency contracts. The runner checks those official bytes and metadata before ordinary public-version installation.
 
-All five published archives are byte-identical to the original upstream candidates retained at `c5c314ab98c57d2c73448f0c3c9860424a993d8a`. The original [candidate manifest](upstream-artifacts.json) and [prepublication review/evidence files](../../docs/reviews/observation) remain immutable historical records. They are not relabeled as published runs. Current qualification replaces the earlier custom candidate download/cache pathway; there is one delivered projection implementation and one maintained isolated consumer gate.
+The October 20 train and its equality with the original upstream candidates remain in the [historical published record](published-artifacts-2026-10-20.json). The original [candidate manifest](upstream-artifacts.json) and [prepublication review/evidence files](../../docs/reviews/observation) remain historical records. The current manifest binds the new official archives to release merge `7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333` and its successful publication workflow. One maintained isolated consumer gate checks the delivered projection implementation.
 
 ## API and ownership
 
@@ -87,7 +87,7 @@ The projection root provides `{ view, commands }` to the authorized Host. Other 
 
 The shutdown fragment runs when that view ends, after stopping ingress or new work. Under the successor report-and-await contract, escalation reports `observation.load.still-running` to the named error sink while the patient close waits for the physical read and its finally cleanup. A Host needing a bounded response retains `patientClose` and the attempt control, and may separately await `close({ abandon })` for an unsettled snapshot. That snapshot never authorizes closing the borrowed runtime or pool. Wait for the retained close; do not retry cleanup or a financial mutation automatically. Genuine failed cleanup still requires explicit Host recovery before releasing borrowed dependencies.
 
-The successor semantics and synchronous abort-reentry repair are pending official artifact qualification in the [adoption record](../../docs/get-modular-adoption.md). Candidate archive tests do not establish a published release.
+The published successor passed the installed gate on Linux x64 Node `24.22.1` and `26.12.1` with PostgreSQL `18`, strict NodeNext/Bundler and identical four packed SDK archives. The [adoption record](../../docs/get-modular-adoption.md) retains the reviewed scope. Candidate archive tests remain historical evidence.
 
 ## Observation semantics
 

@@ -6,11 +6,11 @@ Optional Get Modular composition for the provider-neutral payment runtime. The H
 
 | Package | Qualified artifact | Role |
 | --- | --- | --- |
-| `@get-modular/core` | `0.6.0` | Host peer |
-| `@get-modular/assembly` | `0.6.0` | Host peer; descriptors, entries, groups, preparation, runs |
-| `@get-modular/resources` | `0.2.0` | Host peer; explicit resource custody and close reports |
-| `@get-modular/conformance` | `0.4.0` | Development tests only |
-| `@get-modular/observation` | `0.1.0` | Optional Host peer; required only by `./observation` |
+| `@get-modular/core` | `0.7.0` | Host peer |
+| `@get-modular/assembly` | `0.7.0` | Host peer; descriptors, entries, groups, preparation, runs |
+| `@get-modular/resources` | `0.2.1` | Host peer; explicit resource custody and close reports |
+| `@get-modular/conformance` | `0.5.0` | Development tests only |
+| `@get-modular/observation` | `0.2.0` | Optional Host peer; required only by `./observation` |
 
 Keep one physical Resources package identity and a compatible Core/Assembly peer set. `scoped` validates the run scope using package-local identity; an independent nested Resources copy is incompatible even if its version matches. The package manifest uses the workspace's exact catalog pins for qualification. The package is ESM and targets Linux Node `>=24.22.1 <25 || >=26.12.1 <27`. Maintained source and tests are ordinary `.ts`, checked with TypeScript `7.0.2`, strict options and `skipLibCheck:false`.
 
@@ -96,15 +96,15 @@ Register Host-owned borrowed infrastructure before dependent scopes. Create one 
 
 An SDK deadline, an abort signal, or a worker stop timeout does not terminate a physical SDK promise. Keep a patient `close()` promise while a separate `close({ abandon })` call provides a bounded observer snapshot. That snapshot can return `complete:false, settled:false` with pending debt while cleanup continues. Retain borrowed dependencies and await the patient close before releasing them. `escalate` asks cleanup to release sooner; it does not erase unresolved work. A forced process termination leaves recovery obligations with the core/store protocol.
 
-Close dependent attempt/projection scopes first and inspect their complete reports before closing the runtime or shared pool. In the Observation successor targeted by the updated lifecycle tests, escalation reports `observation.load.still-running` through the configured `reportError` sink and leaves the original close pending until the borrowed read and its `finally` cleanup settle. Abandonment ends only the observer's wait; it does not advance reverse cleanup. The original patient close then completes without a retry. Resources still continues earlier cleanup after genuinely failed cleanup callbacks, so inspect their debts independently.
+Close dependent attempt/projection scopes first and inspect their complete reports before closing the runtime or shared pool. In Observation `0.2.0`, escalation reports `observation.load.still-running` through the configured `reportError` sink and leaves the original close pending until the borrowed read and its `finally` cleanup settle. Abandonment ends only the observer's wait; it does not advance reverse cleanup. The original patient close then completes without a retry. Resources still continues earlier cleanup after genuinely failed cleanup callbacks, so inspect their debts independently.
 
-The currently pinned published Resources `0.2.0` has a synchronous abort-reentry ordering defect repaired in upstream main `ddf1e0b0053f546f12ca70190b237b4f7e78d09d`; pinned Observation `0.1.0` still turns an escalated active load into a terminal failed debt. The updated lifecycle tests target the repaired Resources release and the breaking Observation minor described above. Their exact published versions and installed qualification are pending; the table above remains the earlier qualified artifact profile until that upgrade. Do not infer the successor shutdown guarantee from those older pins. The [scoped adoption record](../../docs/get-modular-adoption.md) retains the published limitations; no private runtime patch is installed here.
+Resources `0.2.1` includes the synchronous abort-reentry ordering repair. Observation `0.2.0` replaces the earlier terminal failed-debt behavior with report-and-await; migrate an escalated load to the error sink and a retained patient close instead of cleanup retry. Exact published archive identities and installed qualification belong to the [scoped adoption record](../../docs/get-modular-adoption.md). No private runtime patch is installed here.
 
 Assembly returns ordinary promises and a construction journal; it does not roll back or dispose created products. After any failed or cancelled run the Host closes the attempt scope. A failed partial startup uses the same close path. Closing one child does not close a sibling or their shared infrastructure. An exception raised by an optional Host startup step must also lead to attempt cleanup.
 
 ## Optional purchase observation
 
-The public `@agent-teams/payments-get-modular/observation` subpath supplies one replaceable purchase read projection and an optional Assembly display consumer. Install Observation `0.1.0` when using that subpath. The main package entry remains a static composition surface and can be installed, typechecked and imported without Observation. Its optional peer metadata preserves that boundary; all participating modules must still share one physical Resources identity.
+The public `@agent-teams/payments-get-modular/observation` subpath supplies one replaceable purchase read projection and an optional Assembly display consumer. Install Observation `0.2.0` when using that subpath. The main package entry remains a static composition surface and can be installed, typechecked and imported without Observation. Its optional peer metadata preserves that boundary; all participating modules must still share one physical Resources identity.
 
 ```ts
 import { createScope } from '@get-modular/resources';
@@ -139,7 +139,7 @@ For Assembly composition, the subpath exports declared read/configuration/render
 
 Checkout, charge, refund, granting or consuming rights/credits and durable evidence publication remain explicit financial commands and delivery protocols. A hook is a display/diagnostic projection, with no durable acknowledgement, replay or retry. Financial processing works when observation is absent, failing or already closed. No lifecycle event bus or provider retry is installed.
 
-The coordinated official registry release is Core/Assembly `0.6.0`, Resources `0.2.0`, Conformance `0.4.0` and Observation `0.1.0`. [Registry identities](../../qualification/observation/published-artifacts.json) include SHA-512 integrity, SHA-256, publication timestamps and peers. Every published archive is byte-identical to the original retained upstream candidate; the [historical manifest](../../qualification/observation/upstream-artifacts.json) and earlier evidence remain unchanged. The [upstream qualification record](../../docs/upstream-qualification.md) distinguishes this published adoption from those historical prepublication results.
+The coordinated official registry release is Core/Assembly `0.7.0`, Resources `0.2.1`, Conformance `0.5.0` and Observation `0.2.0`. [Registry identities](../../qualification/observation/published-artifacts.json) include SHA-512 integrity, SHA-256, publication timestamps and peers, verified against the source-bound release manifest. The [October 20 record](../../qualification/observation/published-artifacts-2026-10-20.json), original [candidate manifest](../../qualification/observation/upstream-artifacts.json) and earlier evidence remain historical. The [upstream qualification record](../../docs/upstream-qualification.md) owns current installed-consumer admission.
 
 ## Verification
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "pending-release-qualification",
+  "status": "scoped-active",
   "owner": "payments-sdk/composition",
   "decision": "docs/get-modular-adoption.md#decision",
   "standard": {
@@ -19,7 +19,7 @@
   },
   "publishedArtifacts": {
     "path": "qualification/observation/published-artifacts.json",
-    "sha256": "d7f7335f50a40a2e1afb47f5cc5d851ce7347ebb6875851f162b18b4fef88559"
+    "sha256": "6f6190afcfcee4d0fec1d9bbba210b12fc678ded4777e0664aba406517fee5ea"
   },
   "namespaces": ["agent-teams/payments"],
   "entrypoints": [

@@ -66,7 +66,7 @@ async function check(root: string): Promise<void> {
   assert.equal(profile.status, 'scoped-active');
   assert.deepEqual(profile.standard, standard, 'reviewed CMS/guide pin drift');
   assert.deepEqual(profile.organization, { repository: 'agent-teams-ai/.github', commit: 'a34ecc6bc9bb165771f3962dccd25970dd5c0d98', path: 'docs/engineering-quality-standard.md', sha256: 'a65fb5150837b010a71abe36cefd26c32709eb9b9e89f3938498a647e72f5587' }, 'organization source pin drift');
-  assert.deepEqual(profile.publishedArtifacts, { path: 'qualification/observation/published-artifacts.json', sha256: 'd7f7335f50a40a2e1afb47f5cc5d851ce7347ebb6875851f162b18b4fef88559' }, 'published artifact record drift');
+  assert.deepEqual(profile.publishedArtifacts, { path: 'qualification/observation/published-artifacts.json', sha256: '6f6190afcfcee4d0fec1d9bbba210b12fc678ded4777e0664aba406517fee5ea' }, 'published artifact record drift');
   const artifactsText = await read(root, profile.publishedArtifacts.path);
   assert.equal(createHash('sha256').update(artifactsText).digest('hex'), profile.publishedArtifacts.sha256, 'published archive identities changed');
   const artifacts = JSON.parse(artifactsText) as { archives: { name: string; version: string; integrity: string }[] };

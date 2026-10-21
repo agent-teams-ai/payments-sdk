@@ -89,12 +89,13 @@ For Get Modular, add this fourth entry under the same `overrides` mapping:
   '@agent-teams/payments-get-modular': file:./payments-candidate/agent-teams-payments-get-modular-0.3.0.tgz
 ```
 
-The following Get Modular examples target Core/Assembly `0.7.0`, Resources
-`0.2.1`, Conformance `0.5.0` and Observation `0.2.0`. Publication and official
-registry qualification are pending. Run them only after the
-[current upstream record](upstream-qualification.md) confirms the target train
-and the matching SDK archive passed its consumer gates. The previous published
-train remains in the [October 20 record](../qualification/observation/published-artifacts-2026-10-20.json).
+The following Get Modular examples use the published, qualified Core/Assembly
+`0.7.0`, Resources `0.2.1`, Conformance `0.5.0` and Observation `0.2.0` train.
+The [current upstream record](upstream-qualification.md#october-21-published-get-modular-adoption)
+binds official archives and passing installed consumers on both supported Node
+floors. A new SDK release still requires its matching archive and exact-commit
+release gates above. The previous published train remains in the
+[October 20 record](../qualification/observation/published-artifacts-2026-10-20.json).
 
 Then install the matching SDK tarball and exact peers:
 
@@ -104,8 +105,9 @@ pnpm add ./payments-candidate/agent-teams-payments-get-modular-0.3.0.tgz \
 ```
 
 Conformance `0.5.0` is development-only. Add `@get-modular/observation@0.2.0`
-when using the optional `/observation` public entrypoint. The current official
-record must bind their exact registry identities before adoption. The repository's `test:packed` gate uses the same
+when using the optional `/observation` public entrypoint. The
+[official artifact record](../qualification/observation/published-artifacts.json)
+binds their exact registry identities. The repository's `test:packed` gate uses the same
 explicit local-package overrides for strict isolated consumers, while
 `test:observation` exercises the optional published integration.
 

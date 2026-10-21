@@ -37,9 +37,10 @@ and guide SHA-256
 The reviewed delta adds report-and-await load shutdown guidance: escalation
 reports unresolved work while the original close keeps draining through physical
 settlement and finally cleanup. The module-authoring guide bytes are unchanged.
-The profile is pending release qualification until repaired published artifacts,
-exact catalog/lock pins and the isolated Linux/PostgreSQL consumer gate agree.
-Candidate archives are TEST evidence and do not establish publication.
+The profile accepts the repaired published artifacts and exact catalog/lock pins.
+The isolated packed consumer passed on Linux x64 Node `24.22.1` and `26.12.1`
+with PostgreSQL `18`, strict NodeNext/Bundler and identical four SDK archives.
+These are official registry runs; earlier candidate evidence stays historical.
 
 The organization quality source is retained at
 [`a34ecc6bc9bb165771f3962dccd25970dd5c0d98`](https://github.com/agent-teams-ai/.github/blob/a34ecc6bc9bb165771f3962dccd25970dd5c0d98/docs/engineering-quality-standard.md),
@@ -47,14 +48,17 @@ SHA-256 `a65fb5150837b010a71abe36cefd26c32709eb9b9e89f3938498a647e72f5587`.
 These are reviewed source identities, not moving branch aliases. The retained
 organization source does not silently replace accepted product decisions.
 
-The last qualified **published** artifacts are Core/Assembly `0.6.0`,
-Resources `0.2.0`, Conformance `0.4.0` and Observation `0.1.0`. Their exact
-publication, dependency, archive SHA-256 and SHA-512 identities remain in the
+The qualified **published** artifacts are Core/Assembly `0.7.0`, Resources
+`0.2.1`, Conformance `0.5.0` and Observation `0.2.0`. Their exact publication,
+dependency, SHA-256 and SHA-512 identities are in the
 [published artifact record](../qualification/observation/published-artifacts.json).
-Its own SHA-256 is pinned by the profile; the gate compares each archive's
-version/integrity with the workspace catalog and frozen lockfile. Registry
-read-back on 2026-10-21 found those versions still latest. A source commit,
-candidate archive or open upstream pull request is not an installed release.
+The source-bound [release workflow](https://github.com/agent-teams-ai/get-modular/actions/runs/39612969025)
+completed prepare, publish, installed verification and latest promotion on
+`7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333`. Registry read-back on 2026-10-21
+matched every archive against that release manifest. The profile pins the
+artifact-record digest; the gate compares catalog versions and lock integrity.
+The [October 20 record](../qualification/observation/published-artifacts-2026-10-20.json)
+preserves the earlier train.
 
 Engineering Foundation `1.10.1` remains the independently qualified development
 dependency described in [its existing adoption profile](foundation-adoption.md).
@@ -102,8 +106,8 @@ observes direct authored API calls, including aliased and namespace imports,
 and compares their names/paths with the profile. Semantic ownership and intent
 remain review obligations. Full application FMS adoption, application layout
 enforcement and independently deployed plugin lifecycle are outside this
-scope; they require an explicit owner decision and qualification. Once qualification completes, the profile's `scoped-active` status describes
-this adapter record and its executed guards.
+scope; they require an explicit owner decision and qualification. The profile's `scoped-active` status describes this adapter record and its
+executed guards.
 It is not a claim of complete application CMS/FMS conformance.
 
 ## Startup and shutdown guarantees
@@ -139,10 +143,10 @@ closes its ancestor synchronously from an abort listener and checks detach and
 cleanup order; it requires the repaired published bytes. No deferred-listener
 workaround or private Resources fork is retained.
 
-This migration remains pending public archive read-back, exact catalog/lock
-pins and the official packed consumer gates. Candidate success establishes
-TEST behavior only. The previous qualified release and its limitations remain
-in the [historical artifact record](../qualification/observation/published-artifacts-2026-10-20.json).
+Public archive read-back, exact catalog/lock pins and both official packed
+consumer gates now qualify this migration. Candidate success remains TEST
+evidence only. The previous train and its limitations remain in the
+[historical artifact record](../qualification/observation/published-artifacts-2026-10-20.json).
 
 ## Verification and remaining obligations
 

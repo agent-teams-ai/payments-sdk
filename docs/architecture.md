@@ -177,10 +177,12 @@ Observation peer. The [integration guide](../packages/payments-get-modular/READM
 owns setup and `watch`/`load` semantics; `pnpm test:observation` checks the actual
 packed public entrypoint, coherent peers and real financial/lifecycle scenarios.
 
-The reviewed integration successor targets Core/Assembly `0.7.0`, Resources
-`0.2.1`, Conformance `0.5.0` and Observation `0.2.0`. Publication and official
-installed qualification remain pending in the
-[current upstream record](upstream-qualification.md). Its Observation contract
+The current published integration uses Core/Assembly `0.7.0`, Resources
+`0.2.1`, Conformance `0.5.0` and Observation `0.2.0`. The
+[current upstream record](upstream-qualification.md#october-21-published-get-modular-adoption)
+binds official archives and passing installed consumers on Linux x64 Node
+`24.22.1` and `26.12.1` with PostgreSQL `18`. Adoption is scoped to this technical
+adapter; full application FMS is not adopted. Its Observation contract
 reports an escalated active load while the original close awaits physical read
 settlement and cleanup; abandoning an observer wait does not release its
 borrowed runtime or pool. The earlier train and its qualification remain
