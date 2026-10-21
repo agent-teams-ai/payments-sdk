@@ -5,9 +5,9 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { Pool } from 'pg';
 import { createPaymentReconciler, createPayments, digest, money } from '@agent-teams/payments-core';
 import type { EvidenceMessage, OfferSnapshot, PaymentProvider, PaymentScope, PaymentStore, ProviderResult, CheckoutReady, VerifiedInput } from '@agent-teams/payments-core';
-import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
-import { createPgBossPaymentTransport } from '@agent-teams/payments-postgres/pg-boss';
-import { createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema, PaymentJobHandlerError } from '@agent-teams/payments-postgres';
+import { createNodePostgresPaymentDatabase } from '../dist/node-postgres.js';
+import { createPgBossPaymentTransport } from '../dist/job-transport.js';
+import { createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema, PaymentJobHandlerError } from '../dist/index.js';
 import { paymentBossFixture } from './pg-boss-fixture.ts';
 
 const databaseUrl = process.env.DATABASE_URL;

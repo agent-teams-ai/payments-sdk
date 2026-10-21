@@ -70,8 +70,11 @@ function with the explicitly selected adapter's bootstrap method. Install
 subpath:
 
 ```ts
+import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
 import { createPgBossPaymentTransport } from '@agent-teams/payments-postgres/pg-boss';
 
+const database = createNodePostgresPaymentDatabase(pool);
+const namespace = { database, paymentSchema, jobSchema, scope, onError };
 const transport = createPgBossPaymentTransport(namespace);
 // Migration-role setup only, after migratePaymentSchema:
 await transport.bootstrap();
@@ -83,7 +86,7 @@ At runtime, select the adapter explicitly and pass it to the same runner:
 const transport = createPgBossPaymentTransport(namespace);
 const jobs = createPostgresPaymentJobs({ ...namespace, transport });
 const store = await createPostgresPaymentStore({
-  pool,
+  database: namespace.database,
   schema: namespace.paymentSchema,
   scope,
   queue: jobs.queue,

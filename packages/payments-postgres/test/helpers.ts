@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { canonicalJson, createPayments, digest, money } from '@agent-teams/payments-core';
 import type { Field, JsonValue, Observation, OfferSnapshot, OperationResult, PaymentProvider, PaymentScope, PaymentStore, ProviderResult, SubscriptionObservation, TransactionObservation, VerifiedInput } from '@agent-teams/payments-core';
-import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
+import { createNodePostgresPaymentDatabase } from '../dist/node-postgres.js';
 import { createPostgresPaymentStore, migratePaymentSchema } from '../dist/index.js';
 
 export const scope: PaymentScope = { applicationId: 'database-proof', provider: 'fixture', paymentAccountId: 'fixture-merchant', environment: 'sandbox' };

@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { parse } from 'yaml';
 import { command, packPackages, pnpm, repository } from './package-artifacts.ts';
 import { qualifyNpmConsumer, qualifyNpmQueueConsumer, type ConsumerPackage } from './packed-npm.ts';
 
@@ -20,6 +21,7 @@ for (const [name, tarball] of tarballs) {
 const root = await mkdtemp(join(tmpdir(), 'payments-packed-'));
 const compiler = join(repository, 'node_modules/typescript/bin/tsc');
 const profiles = ['NodeNext', 'Bundler'] as const;
+const catalog = (parse(await readFile(join(repository, 'pnpm-workspace.yaml'), 'utf8')) as { catalog: Record<string, string> }).catalog;
 const report = [];
 try {
   if (process.argv[2] === 'npm') {
@@ -34,14 +36,18 @@ try {
       for (const [name, tarball] of tarballs) {
         if (!plain || name === '@agent-teams/payments-core') {dependencies[name] = `file:${tarball}`;}
       }
-      if (!plain) {Object.assign(dependencies, {
-        '@get-modular/core': '0.6.0',
-        '@get-modular/assembly': '0.6.0',
-        '@get-modular/resources': '0.2.0',
-        'pg-boss': '12.38.0',
-        'pg': '8.23.1',
-        '@types/pg': '8.20.0',
-      });}
+      if (!plain) {
+        Object.assign(dependencies, {
+          '@get-modular/core': '0.6.0',
+          '@get-modular/assembly': '0.6.0',
+          '@get-modular/resources': '0.2.0',
+        });
+        for (const name of ['pg', '@types/pg', 'pg-boss']) {
+          const version = catalog[name];
+          assert.ok(version !== undefined && /^\d+\.\d+\.\d+$/u.test(version), `Missing exact selected peer pin ${name}`);
+          dependencies[name] = version;
+        }
+      }
       await writeFile(join(target, 'package.json'), JSON.stringify({ private: true, type: 'module', dependencies, packageManager: 'pnpm@11.25.0' }));
       // Every internal transitive dependency must resolve to this build, before these versions
       // exist in a registry. pnpm 11 reads overrides from the workspace file, not package.json.

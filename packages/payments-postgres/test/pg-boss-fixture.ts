@@ -1,6 +1,6 @@
 import { PgBoss } from 'pg-boss';
-import { paymentJobRetention } from '@agent-teams/payments-postgres/pg-boss';
-import type { PgBossPaymentTransportOptions } from '@agent-teams/payments-postgres/pg-boss';
+import { paymentJobRetention } from '../dist/job-transport.js';
+import type { PgBossPaymentTransportOptions } from '../dist/job-transport.js';
 import { createPaymentSqlExecutor } from '../dist/database.js';
 
 /** Independent vendor administration for integration oracles, never a public runner capability. */

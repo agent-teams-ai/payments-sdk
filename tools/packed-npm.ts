@@ -133,7 +133,7 @@ export async function qualifyNpmConsumer(target: string, packages: readonly Cons
 export async function qualifyNpmQueueConsumer(target: string, packages: readonly ConsumerPackage[], compiler: string, withNodePostgres: boolean): Promise<void> {
   assert.ok(process.env['DATABASE_URL'] !== undefined && process.env['DATABASE_URL'] !== '', 'DATABASE_URL is required: the queue consumer runs the real PostgreSQL transport scenario');
   const reportBase = join(repository, `.artifacts/packed-${withNodePostgres ? 'queue' : 'postgres-root'}-node-${process.versions.node}`);
-  for (const suffix of ['json', 'log', 'package-lock.json']) {await rm(`${reportBase}.${suffix}`, { force: true });}
+  for (const suffix of ['json', 'log', 'package-lock.json', 'nodenext.files.txt', 'bundler.files.txt']) {await rm(`${reportBase}.${suffix}`, { force: true });}
   await mkdir(target);
   const selected = packages.filter(item => ['@agent-teams/payments-core', '@agent-teams/payments-postgres'].includes(item.name));
   assert.equal(selected.length, 2);
@@ -180,7 +180,9 @@ export async function qualifyNpmQueueConsumer(target: string, packages: readonly
       if (!withNodePostgres) {assert.equal(/(?:^|[/\\])(?:pg|@types[/\\]pg)(?:[/\\]|$)/u.test(path), false, `Driver declarations leaked through the root export: ${path}`);}
       assert.equal(forbiddenTypePath.test(path) || /(?:^|[/\\])pg-boss(?:[/\\]|$)/u.test(path), false, `Unselected vendor declarations leaked through the root export: ${path}`);
     }
-    resolvers.push({ resolution, skipLibCheck: false, pgBossDeclarationsReachable: false, passed: true });
+    await mkdir(join(repository, '.artifacts'), { recursive: true });
+    await writeFile(`${reportBase}.${resolution.toLowerCase()}.files.txt`, files);
+    resolvers.push({ resolution, strict: true, exactOptionalPropertyTypes: true, noUncheckedIndexedAccess: true, skipLibCheck: false, pgBossDeclarationsReachable: false, listFilesSha256: digest(files), passed: true });
   }
   await command(process.execPath, ['index.ts'], target);
   const output = withNodePostgres ? await command(process.execPath, ['--test', '--test-reporter=spec', 'tests/e2e/queue-transport.test.ts'], target) : '';

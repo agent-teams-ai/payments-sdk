@@ -3,7 +3,7 @@ import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { canonicalJson, createPayments, money, objectVersionKey, processInput, publishEvidence, reduceObservation } from '@agent-teams/payments-core';
 import type { AdjustmentObservation, CheckoutReady, EvidenceMessage, PaymentReadVersion, PaymentStore, ProviderResult, SubscriptionReclassification, TransactionAggregate, VerifiedInput } from '@agent-teams/payments-core';
-import { createPgBossPaymentTransport } from '@agent-teams/payments-postgres/pg-boss';
+import { createPgBossPaymentTransport } from '../dist/job-transport.js';
 import { createPostgresPaymentJobs, createPostgresPaymentStore, PaymentJobHandlerError } from '../dist/index.js';
 import { paymentBossFixture } from './pg-boss-fixture.ts';
 import { at, databaseFixture, deferred, known, observe, offer, receipt, runtime, scope, success, transaction } from './helpers.ts';
