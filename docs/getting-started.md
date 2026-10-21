@@ -2,7 +2,7 @@
 
 This guide composes the supported profile from the four package boundaries. The complete, typechecked durable example is [`examples/paddle-postgres.ts`](../examples/paddle-postgres.ts); the two HTTP host examples are exercised in the [full-system suite](../tests/e2e/full-system.test.ts). Credentials and application policies are explicit inputs.
 
-**Use the corrected Node 24.22.1 LTS or 26.12.1 runtime floors.** The [current runtime admission candidate](runtime-security-admission.md) verifies official binaries, corrected source and normal completion of the bounded unmodified-fetch probe. Reviewed exact-commit hosted qualification and the separate account/deployment gates remain required before production use.
+**Use the corrected Node 24.22.1 LTS or 26.12.1 runtime floors.** The [current runtime qualification](runtime-security-admission.md) verifies official binaries, corrected source and normal completion of the bounded unmodified-fetch probe. The [reviewed hosted baselines](qualification.md#reviewed-hosted-baselines) passed; qualify each later revision and complete the separate account/deployment gates before production use.
 
 ## 1. Choose a package set
 

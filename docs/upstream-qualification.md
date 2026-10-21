@@ -2,7 +2,7 @@
 
 ## October 21 official Node security correction candidate
 
-The [current runtime admission candidate](runtime-security-admission.md) supersedes the historical Node-floor snapshot below: official Node **24.22.1 LTS** / **26.12.1** contain corrected Undici **7.30.1** / **8.12.2**, with verified archive checksums, exact tagged source comparisons and successful bounded unmodified-fetch process completion. Manifest/toolchain floors and exact CI versions move to those releases. Final reviewed exact-commit hosted qualification remains pending; dependency pins and separate live-account/deployment gates are unchanged.
+The [current runtime qualification](runtime-security-admission.md) supersedes the historical Node-floor snapshot below: official Node **24.22.1 LTS** / **26.12.1** contain corrected Undici **7.30.1** / **8.12.2**, with verified archive checksums, exact tagged source comparisons and successful bounded unmodified-fetch process completion. Manifest/toolchain floors and exact CI versions use those releases, and the [reviewed hosted baselines](qualification.md#reviewed-hosted-baselines) passed. Each later revision requires its own checks; dependency pins and separate live-account/deployment gates are unchanged.
 
 This record separates admitted upstream source, published dependencies and local consumer qualification. Official-source read-back: **2026-10-19 20:25:36 UTC**. The accepted implementation plan and earlier review records retain their original snapshots; this record owns subsequent dependency and release-status updates.
 
