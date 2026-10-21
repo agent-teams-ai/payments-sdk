@@ -6,7 +6,7 @@
   "license": "Apache-2.0",
   "packageManager": "pnpm@11.25.0",
   "engines": {
-    "node": ">=24.21.0 <25 || >=26.11.1 <27",
+    "node": ">=24.22.1 <25 || >=26.12.1 <27",
     "pnpm": ">=11.25.0 <12"
   },
   "scripts": {
@@ -20,6 +20,7 @@
     "foundation:detach": "agent-teams-foundation detach",
     "foundation:assert-dev-only": "agent-teams-foundation assert-dev-only",
     "foundation:assert-registry": "agent-teams-foundation assert-registry",
+    "test:runtime-security": "node tools/runtime-security-probe.ts",
     "test:boundaries": "node --test tools/test/*.test.ts",
     "test:core": "node tools/run-tests.ts core",
     "test:paddle": "node tools/run-tests.ts paddle",
@@ -32,7 +33,7 @@
     "test:drizzle:admission": "node tools/qualify-drizzle.ts",
     "release:dry-run": "node tools/release-dry-run.ts",
     "check:fast": "pnpm toolchain:check && pnpm typecheck && pnpm lint && pnpm foundation:check && pnpm test:modular:adoption",
-    "check": "pnpm check:fast && pnpm foundation:assert-dev-only && pnpm foundation:assert-registry && pnpm test:boundaries && pnpm test:drizzle:admission && pnpm test:core && pnpm test:paddle && pnpm test:modular && pnpm test:postgres && pnpm test:e2e && pnpm test:observation && pnpm test:packed && pnpm test:packed:npm && pnpm release:dry-run",
+    "check": "pnpm check:fast && pnpm test:runtime-security && pnpm foundation:assert-dev-only && pnpm foundation:assert-registry && pnpm test:boundaries && pnpm test:drizzle:admission && pnpm test:core && pnpm test:paddle && pnpm test:modular && pnpm test:postgres && pnpm test:e2e && pnpm test:observation && pnpm test:packed && pnpm test:packed:npm && pnpm release:dry-run",
     "test:observation": "node tools/qualify-observation.ts"
   },
   "devDependencies": {

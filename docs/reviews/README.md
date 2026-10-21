@@ -1,5 +1,9 @@
 # Independent architecture and implementation reviews
 
+## October 21 corrected-runtime successor
+
+The [new runtime candidate](../runtime-security-admission.md) replaces the affected Node floors with official **24.22.1 LTS / 26.12.1**, verifies checksums and relevant source, and records normal unmodified-fetch process completion with old-floor rejecting controls. [Its evidence](node-runtime-security-correction-2026-10-21/README.md) is separate from the dated investigations and portability reports below. Final independent review, complete new-floor qualification and exact-commit hosted Checks remain required; historical results are not relabeled.
+
 The design and implementation each receive four waves of four independent
 GPT-6.1-sol reviewers at xhigh reasoning effort. Reviewers use isolated checkouts
 and identify their exact frozen revision. Implementers fix accepted findings in

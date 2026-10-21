@@ -2,7 +2,7 @@
 
 An embeddable TypeScript SDK for payment operations and durable payment evidence. Paddle Billing is the first provider. An optional PostgreSQL adapter supplies durable storage and background work; the core depends on its own storage contract. Get Modular composition is optional. The payment owner, commercial access, credit accounting and operational usage keep independent data and transaction boundaries.
 
-**Prerelease deployment status, 2026-10-19:** integration and fixture qualification are available; production deployment remains blocked by an upstream Node runtime security issue. A bounded malformed-response probe terminates the tested Node processes through built-in `fetch`, including the latest published same-major releases. The development-only Undici correction does not patch production transport. The [security qualification record](docs/security-qualification.md#node-bundled-transport-scope) gives the evidence, its Paddle applicability limits and the admission requirements for a corrected official runtime.
+**Runtime security candidate, 2026-10-21:** official Node **24.22.1 LTS** and **26.12.1** replace the affected runtime floors. Their verified binaries contain corrected Undici and complete the bounded unmodified global-fetch probe normally. The [current admission record](docs/runtime-security-admission.md) owns artifact/source evidence and remaining gates. Final reviewed exact-commit hosted qualification and separate account/deployment gates remain required before production use; local probe success is not production admission.
 
 The first supported commercial profile is **one no-trial monthly price, quantity one**, with **separate one-time top-ups**. Checkout preparation is not payment confirmation. Server-verified completed transactions, saved ownership and offer bindings, and versioned evidence support downstream decisions. Prices, quota sizes, access policy, credit consumption and refund-to-credit policy belong to the application.
 
@@ -45,7 +45,7 @@ The maintained `.ts` examples use the actual public APIs:
 - [`examples/paddle-postgres.ts`](examples/paddle-postgres.ts): Paddle + durable PostgreSQL + explicit worker lifecycle, with host-supplied authentication and consumers.
 - [`examples/fetch-modular.ts`](examples/fetch-modular.ts): Fetch handler using the real published static Assembly/Resources runtime.
 
-Qualification targets Linux Node `24.21.0` and `26.11.1`, TypeScript `7.0.2`, pnpm `11.25.0` and PostgreSQL `18`. All maintained runtime, test and tool sources are `.ts`. Engineering Foundation `1.10.1` is a development dependency and must not enter a package's runtime closure.
+Qualification targets Linux Node `24.22.1` and `26.12.1`, TypeScript `7.0.2`, pnpm `11.25.0` and PostgreSQL `18`. All maintained runtime, test and tool sources are `.ts`. Engineering Foundation `1.10.1` is a development dependency and must not enter a package's runtime closure.
 
 ```sh
 pnpm install --frozen-lockfile

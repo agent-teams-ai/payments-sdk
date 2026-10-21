@@ -298,7 +298,7 @@ host pool. A sibling scope using the same pool remains usable. If an SDK promise
 remains unresolved forever, draining it remains the host's operational decision;
 an unknown durable outcome must not be treated as safe to resend.
 
-Supported qualification targets are Linux Node 24.21.0 and 26.11.1 with PostgreSQL
+Supported qualification targets are Linux Node 24.22.1 and 26.12.1 with PostgreSQL
 18. The durable profile requires logged tables, `fsync=on`, durable WAL and one
 primary without automatic lossy failover. Restore or possible WAL loss requires
 the documented recovery fence and owner-led reconciliation; queue repair cannot
