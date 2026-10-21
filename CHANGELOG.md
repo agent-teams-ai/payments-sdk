@@ -25,12 +25,12 @@ qualification; see the [hardening plan](docs/reviews/sdk-0.3-hardening/plan.md).
 
 ### Custody and lifecycle qualification
 
-- Exercise permanent lost checkout and cancellation responses through both
-  HTTP hosts, real PostgreSQL and the official Paddle SDK's synthetic transport.
+- Exercise permanent lost checkout and cancellation responses under both
+  host compositions, real PostgreSQL and the official Paddle SDK's synthetic transport.
   Restart, repair and new request keys cannot bypass an unresolved mutation;
   independently justified audited binding resolves it without another dispatch.
 - Exercise exact raw webhook bytes, signature rejection after reserialization,
-  failed inbox commit and successful redelivery, duplicate consumer delivery and
+  failed inbox admission and successful redelivery, duplicate consumer delivery and
   independent credit/access acknowledgements.
 - Preserve structured Get Modular preparation causes and qualify staged host
   shutdown with a held public purchase read. Record the published Resources
