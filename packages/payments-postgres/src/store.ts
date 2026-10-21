@@ -9,22 +9,21 @@ import type {
   ScanCheckpoint, StoreCommitResult, SubscriptionAggregate, SubscriptionBinding, SubscriptionReclassification,
   TransactionAggregate, TransactionBinding, VerifiedInput,
 } from '@agent-teams/payments-core';
-import type { Pool } from 'pg';
-import type { PgBoss } from 'pg-boss';
 import { assertPostgresDurability, withPaymentTransaction } from './database.js';
-import type { DatabaseTimeouts, PaymentSqlTransaction } from './database.js';
+import type { DatabaseTimeouts, PaymentPostgresDatabase, PaymentSqlTransaction } from './database.js';
 import { assertBatchLimit, PaymentRecords } from './records.js';
 import type { DurableWork, RecordKey, RecordWrite, StoredRecord } from './records.js';
+import type { PaymentJobEnqueuer } from './work-transport.js';
 
 export type PostgresPaymentStoreOptions = Readonly<{
-  pool: Pool;
+  database: PaymentPostgresDatabase;
   schema: string;
   scope: PaymentScope;
   timeouts?: DatabaseTimeouts;
   maxWorkingSetRecords?: number;
   maxWorkingSetBytes?: number;
   /** Optional job transport. Durable obligations remain authoritative when no worker is running. */
-  queue?: Readonly<{ boss: PgBoss; name: string }>;
+  queue?: PaymentJobEnqueuer;
 }>;
 
 const mutableTables = ['intents', 'operations', 'bindings', 'subscriptionBindings', 'reclassifications', 'transactions', 'subscriptions', 'inbox', 'versionEvidence'] as const;
@@ -37,7 +36,7 @@ const fenced = { kind: 'recovery_fenced' } as const;
 
 /** Factory performs read-only qualification; bootstrap remains a separate migration-role action. */
 export async function createPostgresPaymentStore(options: PostgresPaymentStoreOptions): Promise<PaymentStore> {
-  await assertPostgresDurability(options.pool, options.schema);
+  await assertPostgresDurability(options.database, options.schema);
   const store = new PostgresPaymentStore(options);
   await store.qualify();
   return store;
@@ -53,6 +52,7 @@ class PostgresPaymentStore implements PaymentStore {
   private readonly records: PaymentRecords;
 
   constructor(options: PostgresPaymentStoreOptions) {
+    if (options.queue && (options.queue.namespace.paymentSchema !== options.schema || canonicalJson(options.queue.namespace.scope) !== canonicalJson(options.scope))) {throw new Error('Payment store transport namespace mismatch');}
     this.options = options;
     this.records = new PaymentRecords(options.schema);
     const maxRecords = options.maxWorkingSetRecords ?? 128;
@@ -68,16 +68,13 @@ class PostgresPaymentStore implements PaymentStore {
 
   private tx<T>(scope: PaymentScope, action: (tx: PaymentSqlTransaction) => Promise<T>): Promise<T> {
     if (canonicalJson(scope) !== canonicalJson(this.options.scope)) {throw new Error('Payment store scope mismatch');}
-    return withPaymentTransaction(this.options.pool, action, this.options.timeouts);
+    return withPaymentTransaction(this.options.database, action, this.options.timeouts);
   }
 
   private async work(tx: PaymentSqlTransaction, work: DurableWork, state: 'pending' | 'quarantined' | 'complete' = 'pending', reset = false): Promise<void> {
     await this.records.obligation(tx, work, state, reset);
     if (state === 'pending' && this.options.queue) {
-      await this.options.queue.boss.send(this.options.queue.name, work, {
-        db: { executeSql: (text, values) => tx.query(text, values) },
-        singletonKey: digest(work), singletonSeconds: 30,
-      });
+      await this.options.queue.enqueue(work, tx);
     }
   }
 
@@ -630,7 +627,7 @@ class PostgresPaymentStore implements PaymentStore {
     assertBatchLimit(limit);
     return this.tx(scope, async tx => {
       await this.records.configuration(tx, scope);
-      // Completed pg-boss jobs are disposable. These obligations outlive all job retention.
+      // Completed transport jobs are disposable. These obligations outlive all job retention.
       return this.records.pendingWork(tx, kind, limit);
     });
   }

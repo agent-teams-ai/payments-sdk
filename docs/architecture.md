@@ -14,7 +14,9 @@ flowchart TD
   SQL --> Core
   GM --> Core
   Paddle --> SDK["Official Paddle SDK"]
-  SQL --> PG["pg and pg-boss"]
+  SQL --> Drizzle["Private Drizzle query compilation"]
+  Host --> Drivers["Optional node-postgres and pg-boss adapters"]
+  Drivers --> SQL
   GM --> Modular["Published Assembly, Resources and optional Observation"]
 ```
 
@@ -50,13 +52,39 @@ separate database server. A different adapter must preserve the port's confirmed
 commit, concurrency, uncertainty and replay contract. The [developer stack](developer-stack.md)
 owns the approved adapter-local query toolkit; ORM objects never cross this port.
 
-The existing PostgreSQL worker uses `pg-boss` for replaceable wake-ups. Payment
-records and obligations remain authoritative after every queue job is deleted;
-bounded repair recreates runnable work. Queue enqueue may share the existing
-payment transaction through pg-boss's public `db` seam. Workers re-read saved
-authority before execution, and a queue retry never authorizes an unknown
-external mutation. [The adapter guide](../packages/payments-postgres/README.md)
-owns its operational configuration and recovery procedure.
+Inside that infrastructure boundary, `PaymentPostgresDatabase` acquires an
+exclusive PostgreSQL session through an adapter-owned rows-only query contract.
+`createNodePostgresPaymentDatabase` at `/node-postgres` wraps a borrowed host pool;
+the store's generic root does not import or install that driver. Reusing a
+Drizzle node-postgres pool does not join the application's ORM transaction to a
+payment commit. PostgreSQL locks, exact numeric parsing, transaction deadlines
+and recovery still need equivalent behavior from any replacement driver. Other
+database engines implement `PaymentStore`; Drizzle's multi-dialect API alone
+does not establish that equivalence. The [storage guide](storage-portability.md)
+documents these separate extension boundaries and the concrete migration.
+
+The PostgreSQL store receives a narrow transactional `PaymentJobEnqueuer`;
+the supplied worker receives an explicit `PaymentJobTransport`. Both contracts
+belong to the PostgreSQL infrastructure package. Core sees neither SQL nor a
+queue object. The host can select `createPgBossPaymentTransport`; its private
+implementation owns vendor options, subscriptions and job-schema knowledge.
+That implementation is exported only at `/pg-boss`, with an optional peer that
+the host installs explicitly. The generic package root and an alternate-queue
+consumer do not install or load pg-boss.
+The same store and worker are exercised with a second durable SQL wake-up
+transport fixture. That fixture is substitution evidence, not another
+production queue product.
+
+Payment records and obligations remain authoritative after every wake-up is
+deleted; bounded repair recreates runnable work. The transport supplies a
+trusted parameterized PostgreSQL predicate so the runner excludes existing
+runnable wake-ups before applying its batch limit. Enqueue uses the existing
+bounded payment transaction, through pg-boss's public `db` seam for that
+implementation. Workers re-read saved authority before execution, and a queue
+retry never authorizes an unknown external mutation. The
+[transport contract](queue-transport.md) owns the substitution obligations and
+the [adapter guide](../packages/payments-postgres/README.md) owns its operational
+configuration and recovery procedure.
 
 | Mechanism | Contract and owner |
 | --- | --- |
@@ -70,7 +98,8 @@ mandatory external broker is exposed by core. A future broker integration must
 relay durable obligations, tolerate duplicate/out-of-order delivery, preserve
 the consumer receipt boundary and recover from crashes between send and receipt.
 It must not dual-write PostgreSQL and a remote broker as if they shared one
-transaction. That broker adapter and cross-process receipt path are not currently
+transaction. The new transactional transport port remains PostgreSQL-specific;
+it is not an atomic remote-broker dual-write abstraction. That broker adapter and cross-process receipt path are not currently
 implemented or qualified; a TypeScript port alone would not prove them.
 
 ## Mutation uncertainty and local concurrency

@@ -12,17 +12,22 @@ The first supported commercial profile is **one no-trial monthly price, quantity
 | --- | --- | --- |
 | `@agent-teams/payments-core` | Operations, evidence reduction, immutable delivery protocol, reconciliation contracts | Node built-ins; no Paddle, database or framework |
 | `@agent-teams/payments-paddle` | Official Paddle SDK adapter, signature verification, normalized source-aware evidence | Core and `@paddle/paddle-node-sdk` 3.10.0 |
-| `@agent-teams/payments-postgres` | Owner-local durable transactions, private Drizzle queries, migrations, bounded repair, pg-boss transport and recovery administration | Core, `pg`, `drizzle-orm`, `pg-boss` |
+| `@agent-teams/payments-postgres` | Owner-local durable transactions, private Drizzle queries, migrations, worker contracts and recovery administration | Core and `drizzle-orm`; `pg` and `pg-boss` are optional peers for explicit `/node-postgres` and `/pg-boss` entries |
 | `@agent-teams/payments-get-modular` | Static composition, optional purchase read projections, capability facets and explicit resource lifecycle | Core and qualified Get Modular peers |
 
-The four packages currently declare version `0.2.0`; see the [migration notes](CHANGELOG.md). A version in a manifest does not establish npm publication or a GitHub release. Use the [release candidate artifacts and verification instructions](docs/releasing.md) for an existing matching tag, or build this checkout.
+The four packages currently declare version `0.3.0`; see the [migration notes](CHANGELOG.md). A version in a manifest does not establish npm publication or a GitHub release. Use the [release candidate artifacts and verification instructions](docs/releasing.md) for an existing matching tag, or build this checkout.
 
 ## Start here
 
 - [Getting started](docs/getting-started.md): trusted configuration, catalog, checkout, webhook custody and consumer delivery.
 - [Architecture and guarantees](docs/architecture.md): ownership, T1/T2/T3, uncertainty, identities and extension boundaries.
+- [Storage and driver portability](docs/storage-portability.md): reuse a Drizzle pool, select a driver or queue, and distinguish those changes from another database engine.
+- [Queue transport contract](docs/queue-transport.md): explicit pg-boss composition, transactional substitution, and boundaries for a future remote broker.
+- [Get Modular growth assessment](docs/get-modular-growth.md): integration convenience, concrete graph limits, contract upgrades and Host lifecycle responsibilities.
 - [Operations and recovery runbook](docs/operations.md): migrations, concurrency, shutdown, reconciliation and independent restore.
 - [Qualification and deployment gates](docs/qualification.md): what the automated suites prove and what needs a real deployment or Paddle sandbox.
+- [Subscription and credit scenario matrix](docs/reviews/subscription-credits-e2e-matrix.md): connected renewals, independent purchases, recovery, cancellation, refunds and chargeback reversal, with explicit policy limits.
+- [Current SDK 0.3 evidence](docs/reviews/sdk-0.3-portability/README.md): driver/queue isolation, complete two-floor qualification and the additional review/fix cycle.
 - [Dependency and Node runtime security](docs/security-qualification.md): the qualified development dependency correction and the separate blocked production runtime admission.
 - [Implementation and review status](docs/implementation-status.md): P0–P7 plan traceability, independent review reports and correction evidence.
 - [Purchase observation](qualification/observation/README.md): optional public read projection, real Assembly/Resources/watch/load, and isolated packed qualification against the published registry train.

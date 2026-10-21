@@ -1,0 +1,62 @@
+{
+  "status": "passed",
+  "consumer": "production-only-npm-custom-queue",
+  "node": "v26.11.1",
+  "install": {
+    "omitDev": true,
+    "ignoreScripts": true,
+    "strictPeerDependencies": true,
+    "optionalPackagesOmitted": false,
+    "pgBossPresent": false,
+    "nodePostgresExplicitlyInstalled": true
+  },
+  "packages": [
+    {
+      "name": "@agent-teams/payments-core",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-core-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-core",
+        "@agent-teams/payments-core/testing"
+      ],
+      "sha256": "06a962cae231f01f844d3682f3f914f92633916e806224e224810b3a8663dcfe"
+    },
+    {
+      "name": "@agent-teams/payments-postgres",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-postgres-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-postgres",
+        "@agent-teams/payments-postgres/pg-boss",
+        "@agent-teams/payments-postgres/node-postgres"
+      ],
+      "sha256": "0db2d2abeea5528a34ac54cceb3556f4218a59b271e88a805ef6fae8b105535d"
+    }
+  ],
+  "publicEntrypoint": "@agent-teams/payments-postgres",
+  "resolvers": [
+    {
+      "resolution": "NodeNext",
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "skipLibCheck": false,
+      "pgBossDeclarationsReachable": false,
+      "listFilesSha256": "58bfad0052d0f1f6d004663bbf0b5470df009ff48968d12b1fca7b2df1a5b252",
+      "passed": true
+    },
+    {
+      "resolution": "Bundler",
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "skipLibCheck": false,
+      "pgBossDeclarationsReachable": false,
+      "listFilesSha256": "58bfad0052d0f1f6d004663bbf0b5470df009ff48968d12b1fca7b2df1a5b252",
+      "passed": true
+    }
+  ],
+  "scenario": "tests/e2e/queue-transport.test.ts",
+  "scenarioOutputSha256": "28a6c6bce4f33bb72176a19f777fcddbd83406b8c1ab89e5088201e2f544e92a",
+  "lockSha256": "b614ed5fad5095c9ff9f7de44507053a83e5cdd07646efd4e98bf6f1e7a466ea"
+}

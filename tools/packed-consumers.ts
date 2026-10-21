@@ -3,8 +3,9 @@ import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { parse } from 'yaml';
 import { command, packPackages, pnpm, repository } from './package-artifacts.ts';
-import { qualifyNpmConsumer, type ConsumerPackage } from './packed-npm.ts';
+import { qualifyNpmConsumer, qualifyNpmQueueConsumer, type ConsumerPackage } from './packed-npm.ts';
 
 assert.ok(process.argv[2] === undefined || process.argv[2] === 'npm', 'Expected packed-consumers.ts [npm]');
 const tarballs = await packPackages();
@@ -20,9 +21,12 @@ for (const [name, tarball] of tarballs) {
 const root = await mkdtemp(join(tmpdir(), 'payments-packed-'));
 const compiler = join(repository, 'node_modules/typescript/bin/tsc');
 const profiles = ['NodeNext', 'Bundler'] as const;
+const catalog = (parse(await readFile(join(repository, 'pnpm-workspace.yaml'), 'utf8')) as { catalog: Record<string, string> }).catalog;
 const report = [];
 try {
   if (process.argv[2] === 'npm') {
+    await qualifyNpmQueueConsumer(join(root, 'npm-postgres-root'), packages, compiler, false);
+    await qualifyNpmQueueConsumer(join(root, 'npm-queue'), packages, compiler, true);
     await qualifyNpmConsumer(join(root, 'npm'), packages, compiler);
   } else {
     for (const plain of [true, false]) {
@@ -32,11 +36,18 @@ try {
       for (const [name, tarball] of tarballs) {
         if (!plain || name === '@agent-teams/payments-core') {dependencies[name] = `file:${tarball}`;}
       }
-      if (!plain) {Object.assign(dependencies, {
-        '@get-modular/core': '0.6.0',
-        '@get-modular/assembly': '0.6.0',
-        '@get-modular/resources': '0.2.0',
-      });}
+      if (!plain) {
+        Object.assign(dependencies, {
+          '@get-modular/core': '0.6.0',
+          '@get-modular/assembly': '0.6.0',
+          '@get-modular/resources': '0.2.0',
+        });
+        for (const name of ['pg', '@types/pg', 'pg-boss']) {
+          const version = catalog[name];
+          assert.ok(version !== undefined && /^\d+\.\d+\.\d+$/u.test(version), `Missing exact selected peer pin ${name}`);
+          dependencies[name] = version;
+        }
+      }
       await writeFile(join(target, 'package.json'), JSON.stringify({ private: true, type: 'module', dependencies, packageManager: 'pnpm@11.25.0' }));
       // Every internal transitive dependency must resolve to this build, before these versions
       // exist in a registry. pnpm 11 reads overrides from the workspace file, not package.json.
@@ -57,7 +68,7 @@ try {
       }
       await command(process.execPath, ['--input-type=module', '-e', source], target);
       if (plain) {
-        await command(process.execPath, ['--input-type=module', '-e', "for (const dependency of ['@get-modular/core','@get-modular/observation','@paddle/paddle-node-sdk','pg','drizzle-orm','mysql2','@agent-teams/engineering-foundation','node-or-bun']) { try { import.meta.resolve(dependency); throw new Error('Unexpected optional dependency '+dependency); } catch (error) { if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error; } }"], target);
+        await command(process.execPath, ['--input-type=module', '-e', "for (const dependency of ['@get-modular/core','@get-modular/observation','@paddle/paddle-node-sdk','pg','pg-boss','drizzle-orm','mysql2','@agent-teams/engineering-foundation','node-or-bun']) { try { import.meta.resolve(dependency); throw new Error('Unexpected optional dependency '+dependency); } catch (error) { if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error; } }"], target);
       } else {
         // The installed peer graph must resolve one physical Resources copy for every GM consumer.
         const expected = (await command(process.execPath, ['--input-type=module', '-e', "import {realpathSync} from 'node:fs'; import {fileURLToPath} from 'node:url'; console.log(realpathSync(fileURLToPath(import.meta.resolve('@get-modular/resources'))));"], target)).trim();

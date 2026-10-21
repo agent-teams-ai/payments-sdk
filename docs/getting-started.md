@@ -6,9 +6,9 @@ This guide composes the supported profile from the four package boundaries. The 
 
 ## 1. Choose a package set
 
-A plain application can use `payments-core` with its own implementations of the core-owned `PaymentProvider`, `PaymentStore` and `Catalog` ports. For Paddle with PostgreSQL, install the matching core, Paddle and PostgreSQL tarballs from one [release candidate](releasing.md), plus `pg`. Add `payments-get-modular` and its exact qualified peers only when the host uses Get Modular. These packages emit ESM JavaScript and declarations; consume their public exports instead of importing workspace source or private SDK paths.
+A plain application can use `payments-core` with its own implementations of the core-owned `PaymentProvider`, `PaymentStore` and `Catalog` ports. For Paddle with PostgreSQL, install the matching core, Paddle and PostgreSQL tarballs from one [release candidate](releasing.md), plus the explicitly selected driver (`pg@8.23.1` with `@types/pg@8.20.0` for TypeScript hosts). Install `pg-boss@12.38.0` only when selecting its worker transport. The PostgreSQL package root installs neither vendor. Add `payments-get-modular` and its exact qualified peers only when the host uses Get Modular. These packages emit ESM JavaScript and declarations; consume their public exports instead of importing workspace source or private SDK paths.
 
-For SDK `0.2.0`, the qualified published Get Modular set is Core/Assembly `0.6.0`, Resources `0.2.0` and development-only Conformance `0.4.0`. Add Observation `0.1.0` when importing `@agent-teams/payments-get-modular/observation`; the base integration does not require it. Preserve one physical instance of the host's branded peers. The [package guide](../packages/payments-get-modular/README.md) owns Assembly composition, Resources cleanup, `watch` and latest-only `load`. The [current upstream record](upstream-qualification.md) gives the exact artifacts and consumer qualification.
+For SDK `0.3.0`, the qualified published Get Modular set is Core/Assembly `0.6.0`, Resources `0.2.0` and development-only Conformance `0.4.0`. Add Observation `0.1.0` when importing `@agent-teams/payments-get-modular/observation`; the base integration does not require it. Preserve one physical instance of the host's branded peers. The [package guide](../packages/payments-get-modular/README.md) owns Assembly composition, Resources cleanup, `watch` and latest-only `load`. The [current upstream record](upstream-qualification.md) gives the exact artifacts and consumer qualification.
 
 Drizzle is an internal runtime dependency of `payments-postgres`. It does not change the core ports or require applications to adopt an ORM. The PostgreSQL [adapter guide](../packages/payments-postgres/README.md) explains the exact prerelease, transaction ownership and separate maintainer declaration correction; packed npm consumers use the original registry package without that correction.
 
@@ -44,9 +44,16 @@ Use real server-configured price references matching the intended profile. The c
 
 ## 3. Bootstrap separately, then construct a runtime
 
-Bootstrap with a migration-role pool before accepting traffic. `migratePaymentSchema` and `bootstrapPostgresPaymentJobs` install and bind the stable schema pair. Use a separate least-privilege runtime role afterwards. The [PostgreSQL guide](../packages/payments-postgres/README.md#runtime-role) gives the qualified grants and SQL budgets; startup does not perform DDL.
+For node-postgres, import `createNodePostgresPaymentDatabase` from
+`@agent-teams/payments-postgres/node-postgres` and wrap each host-owned pool once.
+Pass the resulting `database` to the store, migrations, recovery and job options.
+Import `createPgBossPaymentTransport` from `@agent-teams/payments-postgres/pg-boss`
+when selecting that optional transport. The [PostgreSQL installation guide](../packages/payments-postgres/README.md#installation-and-transport-selection)
+shows both selections.
 
-The durable example exports `bootstrapPaymentHost(namespace)` for migration and `createPaddlePostgresHost(options)` for normal operation. Its exported types enumerate the pool, trusted namespaces, Paddle configuration, catalog, authentication callback, consumer handlers and error listener. Supply migration and runtime pools explicitly. The returned Fetch handler can be mounted in the application's HTTP environment. The host still owns request timeouts, transport body-read limits, authentication/CSRF policy, secrets, logs and shared pool disposal.
+Bootstrap with a migration-role database capability before accepting traffic. `migratePaymentSchema` and `createPgBossPaymentTransport(namespace).bootstrap()` install and bind the stable schema pair. Construct the runtime transport with a separate least-privilege runtime-role pool and pass it explicitly to `createPostgresPaymentJobs`. The [PostgreSQL guide](../packages/payments-postgres/README.md#runtime-role) gives the qualified grants and SQL budgets; startup does not perform DDL. The [transport guide](queue-transport.md) explains the optional queue and replacement contract.
+
+The durable example exports `bootstrapPaymentHost(namespace)` for migration and `createPaddlePostgresHost(options)` for normal operation. Its exported types enumerate the database capability, trusted namespaces, Paddle configuration, catalog, authentication callback, consumer handlers and error listener. Supply capabilities wrapping separate migration and runtime pools explicitly. The returned Fetch handler can be mounted in the application's HTTP environment. The host still owns request timeouts, transport body-read limits, authentication/CSRF policy, secrets, logs and shared pool disposal.
 
 For a plain custom composition, the actual core entry point is:
 

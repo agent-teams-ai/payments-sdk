@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { canonicalJson, createPayments, digest, money } from '@agent-teams/payments-core';
 import type { Field, JsonValue, Observation, OfferSnapshot, OperationResult, PaymentProvider, PaymentScope, PaymentStore, ProviderResult, SubscriptionObservation, TransactionObservation, VerifiedInput } from '@agent-teams/payments-core';
+import { createNodePostgresPaymentDatabase } from '../dist/node-postgres.js';
 import { createPostgresPaymentStore, migratePaymentSchema } from '../dist/index.js';
 
 export const scope: PaymentScope = { applicationId: 'database-proof', provider: 'fixture', paymentAccountId: 'fixture-merchant', environment: 'sandbox' };
@@ -51,9 +52,10 @@ export async function databaseFixture(options: { maxWorkingSetBytes?: number } =
   assert.ok((connectionString !== undefined && connectionString !== ''), 'DATABASE_URL is required for PostgreSQL qualification');
   const schema = `pgproof_${randomUUID().replaceAll('-', '').slice(0, 20)}`;
   const pool = new Pool({ connectionString, max: 10, connectionTimeoutMillis: 1000 });
-  await migratePaymentSchema({ pool, schema, scope });
-  const store = await createPostgresPaymentStore({ pool, schema, scope, ...options });
-  return { pool, schema, store, connectionString, async close() { await pool.query(`DROP SCHEMA "${schema}" CASCADE`); await pool.end(); } };
+  const database = createNodePostgresPaymentDatabase(pool);
+  await migratePaymentSchema({ database, schema, scope });
+  const store = await createPostgresPaymentStore({ database, schema, scope, ...options });
+  return { pool, database, schema, store, connectionString, async close() { await pool.query(`DROP SCHEMA "${schema}" CASCADE`); await pool.end(); } };
 }
 
 export async function observe(payments: ReturnType<typeof runtime>['payments'], input: VerifiedInput): Promise<void> {

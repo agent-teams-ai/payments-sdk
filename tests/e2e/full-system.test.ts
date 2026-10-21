@@ -6,6 +6,7 @@ import { Pool } from 'pg';
 import { MockAgent, getGlobalDispatcher, install, setGlobalDispatcher } from 'undici';
 import { createPayments } from '@agent-teams/payments-core';
 import { createPaddleProvider } from '@agent-teams/payments-paddle';
+import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
 import { createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
 import type { CheckoutReady, EvidenceMessage, OfferSnapshot, OperationResult, PaymentRuntimeOptions } from '@agent-teams/payments-core';
 import { createNodeHttpHost } from '../../examples/node-http.ts';
@@ -59,6 +60,7 @@ void test('full public payments system: real Paddle SDK, durable PostgreSQL and 
       await t.test(kind, async () => {
         const connectionString = process.env['DATABASE_URL']; if (!(connectionString !== undefined && connectionString !== '')) {throw new Error('DATABASE_URL is required for the mandatory full-system suite');}
         const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
+        const database = createNodePostgresPaymentDatabase(pool);
         const prefix = `system_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
         const trust = { producerNamespace, scope };
         const credit = new CreditFixture({ pool, schema: `${prefix}_credit`, trust });
@@ -66,8 +68,8 @@ void test('full public payments system: real Paddle SDK, durable PostgreSQL and 
         const access = new AccessFixture({ pool, schema: `${prefix}_access`, trust, now: () => now });
         const provider = createPaddleProvider({ scope, apiKey: 'synthetic-never-valid-key', apiVersion: 1, webhook: { endpointId: 'e2e-destination', secret: SECRET, apiVersion: 1 } });
         let id = 0;
-        await migratePaymentSchema({ pool, schema, scope }); await credit.migrate(); await access.migrate();
-        const store = await createPostgresPaymentStore({ pool, schema, scope });
+        await migratePaymentSchema({ database, schema, scope }); await credit.migrate(); await access.migrate();
+        const store = await createPostgresPaymentStore({ database, schema, scope });
         const topup: OfferSnapshot = { ...offer, offerId: 'topup', profile: 'one_time', lines: [{ providerPriceRef: paddleIds.price, benefitSlotId: 'purchased', quantity: 1 }] };
         const zero: OfferSnapshot = { ...topup, offerId: 'free', allowZeroTotal: true };
         const runtimeOptions: PaymentRuntimeOptions = { scope, producerNamespace, provider, store, catalog: { resolveOffer: async (_scope, offerId) => ({ monthly: offer, topup, free: zero } as Record<string, OfferSnapshot>)[offerId] }, now: () => now, newId: () => `host-${++id}`, operationTimeoutMs: 15_000 };
@@ -243,10 +245,11 @@ void test('both public hosts hold distinct initial and renewal transactions for 
       await t.test(`${kind}, ${initialFirst ? 'initial first' : 'renewal first'}`, async () => {
         const connectionString = process.env['DATABASE_URL']; if (!(connectionString !== undefined && connectionString !== '')) {throw new Error('DATABASE_URL is required');}
         const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
+        const database = createNodePostgresPaymentDatabase(pool);
         const prefix = `period_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
         const trust = { producerNamespace, scope }, credit = new CreditFixture({ pool, schema: `${prefix}_credit`, trust });
-        await migratePaymentSchema({ pool, schema, scope }); await credit.migrate();
-        const store = await createPostgresPaymentStore({ pool, schema, scope });
+        await migratePaymentSchema({ database, schema, scope }); await credit.migrate();
+        const store = await createPostgresPaymentStore({ database, schema, scope });
         const provider = createPaddleProvider({ scope, apiKey: 'synthetic-never-valid-key', apiVersion: 1, webhook: { endpointId: 'period-destination', secret: SECRET, apiVersion: 1 } });
         const runtimeOptions: PaymentRuntimeOptions = { scope, producerNamespace, provider, store, catalog: { resolveOffer: async () => offer } };
         const verify = provider.verifyWebhook.bind(provider);
@@ -319,11 +322,12 @@ void test('actual SDK unknown outcome and approved duplicate-risk retry retain o
   const emulation = paddleEmulation(), { api, agent } = emulation;
   const connectionString = process.env['DATABASE_URL']; if (!(connectionString !== undefined && connectionString !== '')) {throw new Error('DATABASE_URL is required');}
   const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
+  const database = createNodePostgresPaymentDatabase(pool);
   const prefix = `transfer_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
   const trust = { producerNamespace, scope }, credit = new CreditFixture({ pool, schema: `${prefix}_credit`, trust });
-  await migratePaymentSchema({ pool, schema, scope }); await credit.migrate();
+  await migratePaymentSchema({ database, schema, scope }); await credit.migrate();
   const provider = createPaddleProvider({ scope, apiKey: 'synthetic-never-valid-key', apiVersion: 1, webhook: { endpointId: 'transfer-destination', secret: SECRET, apiVersion: 1 } });
-  const store = await createPostgresPaymentStore({ pool, schema, scope });
+  const store = await createPostgresPaymentStore({ database, schema, scope });
   const payments = createPayments({ scope, producerNamespace, provider, store, catalog: { resolveOffer: async () => offer }, operationTimeoutMs: 100 });
   let release!: () => void;
   let intentId = '';
@@ -384,11 +388,12 @@ void test('both public hosts qualify the whole reversal snapshot for independent
       await t.test(`${kind}, unmatched reverse ${orphanFirst ? 'before' : 'after'} matching pair`, async () => {
         const connectionString = process.env['DATABASE_URL']; if (!(connectionString !== undefined && connectionString !== '')) {throw new Error('DATABASE_URL is required');}
         const pool = new Pool({ connectionString, max: 12, connectionTimeoutMillis: 1000 });
+        const database = createNodePostgresPaymentDatabase(pool);
         const prefix = `reverse_${randomUUID().replaceAll('-', '').slice(0, 16)}`, schema = `${prefix}_payments`;
         const trust = { producerNamespace, scope }, credit = new CreditFixture({ pool, schema: `${prefix}_credit`, trust });
         const now = '2026-10-15T00:00:00Z', access = new AccessFixture({ pool, schema: `${prefix}_access`, trust, now: () => now });
-        await migratePaymentSchema({ pool, schema, scope }); await credit.migrate(); await access.migrate();
-        const store = await createPostgresPaymentStore({ pool, schema, scope });
+        await migratePaymentSchema({ database, schema, scope }); await credit.migrate(); await access.migrate();
+        const store = await createPostgresPaymentStore({ database, schema, scope });
         const provider = createPaddleProvider({ scope, apiKey: 'synthetic-never-valid-key', apiVersion: 1, webhook: { endpointId: 'reverse-destination', secret: SECRET, apiVersion: 1 } });
         const options: PaymentRuntimeOptions = { scope, producerNamespace, provider, store, catalog: { resolveOffer: async () => offer }, now: () => now };
         const verify = provider.verifyWebhook.bind(provider);

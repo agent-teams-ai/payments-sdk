@@ -1,0 +1,23 @@
+# Final SDK 0.3 evidence readback
+
+Read-only review on 2026-10-21 of `docs/reviews/sdk-0.3-hardening` in payments-sdk at qualification subject `16a6a5038383e54d3c740adcf87487e113498847`, tree `8bae9fbc98598e5defa10408c77d51ebe240d329`. No implementation retesting, build, installation, database operation or network action was performed. This supplemental memo is the only write.
+
+## Disposition
+
+**No material false claim, evidence mismatch or broken Markdown relative-file link found in the reviewed final record.** The README and PR draft correctly distinguish local qualification from remote delivery and production admission. The preliminary metric commit-label concern in the earlier claims memo is resolved by the retained exact-subject `production-loc.json`; that earlier memo remains a historical review rather than a rewritten execution record.
+
+## Independently verified
+
+- Both full-check logs hash exactly to their stage report's `logSha256` and summary's `fullCheckLogSha256`: Node 24 `03a954e209db66b4b21b3ef983e0feaf768c0fa7e083fa3dc612720ddcbe1b37`; Node 26 `cc843f590253b4d59d7fd7506c07ea1e3011527434180f558c0216c39f45c90a`.
+- Reading all raw Node summary blocks yields **11, 32, 49, 18, 13, 47, 66, 4, 1** on each floor, exactly matching the summary JSON and README table. Every block reports zero failure, cancellation, skip and todo. Both logs state 85 strictly owned `.ts` sources and show the complete command chain. The README correctly avoids summing repeated adoption tests or parent/subtest nodes into a unique-scenario count.
+- Both complete stage reports record zero exits for frozen install, forced build and full check; their start/end commit and tree labels match the actual retained Git object, and their tracked-change fields are clean. Node 24 finished at 10:26:26Z before Node 26 started at 10:26:37Z; the database identifiers are distinct and the reported PostgreSQL 18.4 durability fields agree. The currently tracked working-tree diff is only `docs/qualification.md`; additional untracked deliverables are documentation/evidence.
+- All eight retained `.artifacts/hardening/{floor}/packages/*.tgz` files match the recorded byte sizes and SHA-256 values. The four archives are byte-identical across floors. Their package manifests are 0.3.0, and tar entry counts match both release-dry-run records. The README's four byte/hash rows match these same identities.
+- The five copied result JSON values per floor (Drizzle, published Observation, packed consumers, production npm consumer and release dry run) are present unchanged in each complete raw log. Observation/npm payment-input hashes match the retained package identities. Observation and npm scenario-output logs match their recorded hashes; npm lockfiles and both resolver file lists match their recorded hashes. Dry-run records retain `published:false`.
+- The interrupted Node 24 log matches its recorded `b9adf7c5f12ddd4761c383f43f5ad79aabd154c02cc03197fc06d3becfbe27f2` SHA-256, records exit 1 at `28ab088`, and contains the stated registry `EAI_AGAIN`. It is clearly separated from both successful `16a6a503` runs.
+- The regenerated production metric names `16a6a503`; all included/excluded maintained source hashes match actual files. Its table remains consistent with the earlier LOC review: 28 production files, 3,657 runtime/module units, 1,015 type/signature units, 4,672 combined units, 3,797 physical noncomment lines.
+- All 26 tabulated source identities in the queue, GM and Paddle review memos match their actual stated historical Git objects. The queue memo's six exact source hashes also match the integrated current files. The fixed GM gate matches both `e2226890d269ec4e783657583206a95cddc09a40` and its rereview hash `d49772201c7ae681eb5ac28b6bac56773e90796b08f1f77e93fe65af78e7668f`. The README preserves author-branch review labels rather than falsely naming every review as an integrated-head execution.
+- Markdown relative-file links across the new top-level evidence Markdown files resolve locally. The current branch name matches `feat/sdk-queue-portability-0.3`. The remote-access record and PR draft consistently state that no push, PR, hosted check, merge or release occurred.
+
+## Limits of this readback
+
+This verifies retained evidence consistency and source/artifact identity, not a fresh execution of qualification or a fresh observation of GitHub authorization. The HTTP 403 and connector identity are reported from the owner's retained access record; this reviewer did not retry the remote action. Later evidence commits must continue to be labeled documentation-only and must not be described as separately executed full-gate subjects.

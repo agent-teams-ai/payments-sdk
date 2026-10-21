@@ -1,0 +1,98 @@
+{
+  "commit": "16a6a5038383e54d3c740adcf87487e113498847",
+  "node": "26.11.1",
+  "groups": {
+    "modular-adoption": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "boundaries": {
+      "tests": 32,
+      "pass": 32,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "core": {
+      "tests": 49,
+      "pass": 49,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "paddle": {
+      "tests": 18,
+      "pass": 18,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "modular": {
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "postgres": {
+      "tests": 47,
+      "pass": 47,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "e2e": {
+      "tests": 66,
+      "pass": 66,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "observation": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "npm-financial": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "archives": {
+    "agent-teams-payments-core-0.3.0.tgz": {
+      "bytes": 64696,
+      "sha256": "06a962cae231f01f844d3682f3f914f92633916e806224e224810b3a8663dcfe"
+    },
+    "agent-teams-payments-get-modular-0.3.0.tgz": {
+      "bytes": 21523,
+      "sha256": "fdb0fff53a5134c5cf979502f4d92e91b19dcf651ddfccb0aa7da15c156eac12"
+    },
+    "agent-teams-payments-paddle-0.3.0.tgz": {
+      "bytes": 26309,
+      "sha256": "431c6970df5dfd118d08f1caf89c67168d297fec036641f3832230f0b2db4ab5"
+    },
+    "agent-teams-payments-postgres-0.3.0.tgz": {
+      "bytes": 70294,
+      "sha256": "139242de20cf4cd1c97db7066a0d8ca56cc35eb88228168292c9b9b575b960b9"
+    }
+  },
+  "fullCheckLogSha256": "cc843f590253b4d59d7fd7506c07ea1e3011527434180f558c0216c39f45c90a",
+  "note": "Node test counts include parent tests; modular-adoption is included again in boundaries and is not an additional unique total."
+}

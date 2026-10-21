@@ -1,12 +1,12 @@
 import type { PaymentScope } from '@agent-teams/payments-core';
 import { canonicalJson } from '@agent-teams/payments-core';
-import type { Pool } from 'pg';
 import { sqlIdentifier, withPaymentTransaction } from './database.js';
+import type { PaymentPostgresDatabase } from './database.js';
 
 /** Bootstrap is an explicit deployment operation performed with the migration role. */
-export async function migratePaymentSchema(options: Readonly<{ pool: Pool; schema: string; scope: PaymentScope }>): Promise<void> {
+export async function migratePaymentSchema(options: Readonly<{ database: PaymentPostgresDatabase; schema: string; scope: PaymentScope }>): Promise<void> {
   const schema = sqlIdentifier(options.schema);
-  await withPaymentTransaction(options.pool, async tx => {
+  await withPaymentTransaction(options.database, async tx => {
     await tx.query(`CREATE SCHEMA IF NOT EXISTS ${schema}`);
     await tx.query(`CREATE TABLE IF NOT EXISTS ${schema}.configuration (
       id text PRIMARY KEY CHECK (id = 'owner'),

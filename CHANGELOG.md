@@ -1,5 +1,72 @@
 # Changelog
 
+## 0.3.0 — explicit worker transport and custody qualification
+
+The four SDK packages advance together for the deliberate pre-1.0 worker
+composition change. Existing 0.2.0 artifacts and durable payment identities
+remain unchanged. A source version is not evidence of publication or completed
+qualification; see the [hardening plan](docs/reviews/sdk-0.3-hardening/plan.md).
+
+### Queue composition
+
+- Give generic PostgreSQL APIs a checked-out connection capability and local
+  row/result contracts. Select the borrowed-pool `pg` adapter explicitly through
+  `payments-postgres/node-postgres`; generic runtime/declarations need no driver.
+- Keep pg-boss outside the package root's runtime and declaration import graph.
+  The bundled adapter is exported only from `payments-postgres/pg-boss`; its
+  exact qualified vendor is an optional peer explicitly installed by selecting
+  hosts. Another transport no longer installs or loads pg-boss.
+- Give the PostgreSQL store a transactional enqueue capability instead of a
+  `PgBoss` instance. Keep payment obligations authoritative and allow the store
+  to run without a queue.
+- Require an explicit transport when constructing the existing PostgreSQL
+  worker. Keep claim/settlement, replay, repair, receipt verification and drain
+  in that worker; confine pg-boss options, subscriptions and schema knowledge
+  to its implementation.
+- Preserve repair's bounded selection and fairness by excluding runnable
+  transport work before applying the batch limit.
+- Keep cold pg-boss admission on the supplied bounded transaction, including
+  vendor queue metadata reads. A retained terminal job no longer suppresses a
+  replacement wake-up. Retry failed transport cleanup while preserving truthful
+  shutdown status and waiting for admitted physical work.
+
+### Custody and lifecycle qualification
+
+- Exercise permanent lost checkout and cancellation responses under both
+  host compositions, real PostgreSQL and the official Paddle SDK's synthetic transport.
+  Restart, repair and new request keys cannot bypass an unresolved mutation;
+  independently justified audited binding resolves it without another dispatch.
+- Exercise exact raw webhook bytes, signature rejection after reserialization,
+  failed inbox admission and successful redelivery, duplicate consumer delivery and
+  independent credit/access acknowledgements.
+- Preserve structured Get Modular preparation causes and qualify staged host
+  shutdown with a held public purchase read. Record the published Resources
+  lifecycle limit without substituting unpublished upstream bytes.
+- Add a scoped Get Modular adoption record and executable boundary/artifact
+  checks using the existing Foundation source graph and pinned TypeScript AST.
+  The record does not claim application-wide FMS or full semantic CMS checking.
+
+### Migration from 0.2.0
+
+Upgrade the four SDK packages together. For node-postgres, install `pg@8.23.1`
+and `@types/pg@8.20.0`, import `createNodePostgresPaymentDatabase` from
+`@agent-teams/payments-postgres/node-postgres`, wrap the host-owned pool once,
+and replace generic `pool` options with `database`. Construct
+`createPgBossPaymentTransport` from `@agent-teams/payments-postgres/pg-boss`
+at the host composition boundary. Explicitly install `pg-boss@12.38.0`, call its
+explicit `bootstrap()` under the migration role, and pass the transport to
+`createPostgresPaymentJobs`. Give the store the runner's narrow `queue`
+capability. The generic worker no longer returns a raw `boss` or queue name,
+and `bootstrapPostgresPaymentJobs` is replaced by the transport's own
+bootstrap operation. There is one composition path, without a legacy wrapper.
+
+This change does not turn a remote broker into part of a PostgreSQL transaction.
+Another transport must preserve the documented transactional enqueue,
+namespace, pending-work and lifecycle contracts. Another storage engine still
+requires a separate `PaymentStore` implementation and durability qualification.
+Core payment commands, evidence/receipt protocols and persisted identities do
+not change.
+
 ## 0.2.0 — integration and fixture candidate
 
 The four SDK packages advance together. Existing `v0.1.0` release artifacts

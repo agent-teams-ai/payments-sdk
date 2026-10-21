@@ -5,7 +5,10 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { Pool } from 'pg';
 import { createPaymentReconciler, createPayments, digest, money } from '@agent-teams/payments-core';
 import type { EvidenceMessage, OfferSnapshot, PaymentProvider, PaymentScope, PaymentStore, ProviderResult, CheckoutReady, VerifiedInput } from '@agent-teams/payments-core';
-import { bootstrapPostgresPaymentJobs, createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema, PaymentJobHandlerError } from '../dist/index.js';
+import { createNodePostgresPaymentDatabase } from '../dist/node-postgres.js';
+import { createPgBossPaymentTransport } from '../dist/job-transport.js';
+import { createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema, PaymentJobHandlerError } from '../dist/index.js';
+import { paymentBossFixture } from './pg-boss-fixture.ts';
 
 const databaseUrl = process.env.DATABASE_URL;
 assert.ok((databaseUrl !== undefined && databaseUrl !== ''), 'PostgreSQL 18 integration tests require DATABASE_URL');
@@ -35,13 +38,16 @@ function input(transactionRef: string, id: string): VerifiedInput {
 async function fixture() {
   const suffix = randomUUID().replaceAll('-', '').slice(0, 16), paymentSchema = `pj_${suffix}`, jobSchema = `jq_${suffix}`;
   const pool = new Pool({ connectionString: databaseUrl, max: 8 });
+  const database = createNodePostgresPaymentDatabase(pool);
   const errors: Error[] = [], onError = (error: Error) => errors.push(error);
-  const namespace = { pool, paymentSchema, jobSchema, scope, onError };
-  await migratePaymentSchema({ pool, schema: paymentSchema, scope });
-  await bootstrapPostgresPaymentJobs(namespace);
-  const jobs = createPostgresPaymentJobs({ ...namespace, cooldownSeconds: 1, maxCooldownSeconds: 2, pollingIntervalSeconds: 0.5 });
-  const store = await createPostgresPaymentStore({ pool, schema: paymentSchema, scope, queue: jobs.queue });
-  return { ...namespace, jobs, store, errors, async cleanup() { await jobs.stop(); await jobs.drain(); await pool.query(`DROP SCHEMA ${jobSchema} CASCADE`); await pool.query(`DROP SCHEMA ${paymentSchema} CASCADE`); await pool.end(); } };
+  const namespace = { database, paymentSchema, jobSchema, scope, onError };
+  await migratePaymentSchema({ database, schema: paymentSchema, scope });
+  const transport = createPgBossPaymentTransport(namespace);
+  await transport.bootstrap();
+  const boss = paymentBossFixture(namespace);
+  const jobs = createPostgresPaymentJobs({ ...namespace, transport, cooldownSeconds: 1, maxCooldownSeconds: 2, pollingIntervalSeconds: 0.5 });
+  const store = await createPostgresPaymentStore({ database, schema: paymentSchema, scope, queue: jobs.queue });
+  return { ...namespace, pool, transport, boss, jobs, store, errors, async cleanup() { await jobs.stop(); await jobs.drain(); await pool.query(`DROP SCHEMA ${jobSchema} CASCADE`); await pool.query(`DROP SCHEMA ${paymentSchema} CASCADE`); await pool.end(); } };
 }
 
 void test('bootstrap binds the namespace and runtime starts scheduling, work and supervision without DDL privileges', { timeout: 30_000 }, async () => {
@@ -58,22 +64,25 @@ void test('bootstrap binds the namespace and runtime starts scheduling, work and
     runtimePool = new Pool({ connectionString: url.toString(), max: 6 });
     await assert.rejects(runtimePool.query(`CREATE TABLE ${f.jobSchema}.forbidden (id text)`), /permission denied/);
     const errors: Error[] = [];
-    jobs = createPostgresPaymentJobs({ ...f, pool: runtimePool, onError: error => errors.push(error) });
-    const store = await createPostgresPaymentStore({ pool: runtimePool, schema: f.paymentSchema, scope, queue: jobs.queue });
+    const database = createNodePostgresPaymentDatabase(runtimePool);
+    const runtimeNamespace = { ...f, database, onError: (error: Error) => errors.push(error) };
+    jobs = createPostgresPaymentJobs({ ...runtimeNamespace, transport: createPgBossPaymentTransport(runtimeNamespace) });
+    const runtimeBoss = paymentBossFixture(runtimeNamespace);
+    const store = await createPostgresPaymentStore({ database, schema: f.paymentSchema, scope, queue: jobs.queue });
     const core = runtime(store);
     await jobs.start({ payments: core.payments, store });
     // Source-qualified create_queue(existing) is invoked by schedule:true. A new partition would
     // require DDL; runtime owns neither the schema nor its tables and has no CREATE privilege.
-    await jobs.queue.boss.supervise();
-    assert.equal((await jobs.queue.boss.getSchedule('payments_repair', 'durable_obligations'))?.cron, '* * * * *');
+    await runtimeBoss.supervise();
+    assert.equal((await runtimeBoss.getSchedule('payments_repair', 'durable_obligations'))?.cron, '* * * * *');
     await prepare(store, 'runtime-role');
     await until(async () => (await core.payments.readOperation('operation-runtime-role'))?.state === 'succeeded', 'runtime-role prepared worker');
     assert.equal(core.calls(), 1);
     assert.deepEqual(errors, []);
     assert.equal((await jobs.stop()).transportStopped, true);
     assert.equal((await runtimePool.query<{ usable: number }>('SELECT 1 AS usable')).rows[0]?.usable, 1);
-    await assert.rejects(bootstrapPostgresPaymentJobs({ ...f, scope: { ...scope, applicationId: 'another' } }), /scope mismatch/);
-    await assert.rejects(bootstrapPostgresPaymentJobs({ ...f, jobSchema: `${f.jobSchema}_other` }), /another job namespace/);
+    await assert.rejects(createPgBossPaymentTransport({ ...f, scope: { ...scope, applicationId: 'another' } }).bootstrap(), /scope mismatch/);
+    await assert.rejects(createPgBossPaymentTransport({ ...f, jobSchema: `${f.jobSchema}_other` }).bootstrap(), /another job namespace/);
   } finally {
     await jobs?.stop(); await jobs?.drain(); await runtimePool?.end();
     await f.pool.query(`DROP OWNED BY ${role}`); await f.pool.query(`DROP ROLE ${role}`); await f.cleanup();
@@ -90,18 +99,18 @@ void test('deleted jobs are rebuilt from payment obligations; T2 replay and exac
     const checkout = await core.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'already-dispatched' });
     assert.equal(checkout.kind, 'succeeded');
     await core.payments.ingestVerifiedInput(input(checkout.value.transactionRef, 'inbox-pending'));
-    await f.jobs.queue.boss.deleteAllJobs();
+    await f.boss.deleteAllJobs();
     assert.equal((await f.pool.query<{ count: number }>(`SELECT count(*)::int AS count FROM ${f.jobSchema}.job`)).rows[0]?.count, 0);
     assert.ok((await f.jobs.repair()).enqueued >= 2);
     // A real claimed job commits T2, then loses queue settlement. Replay is the actual ordinary
     // work path, with the domain obligation already complete and evidence/deliveries preserved.
-    const claimed = await f.jobs.queue.boss.fetch<{ kind: string; id: string }>('payments_work', { batchSize: 100 });
+    const claimed = await f.boss.fetch<{ kind: string; id: string }>('payments_work', { batchSize: 100 });
     const inbox = claimed.find(job => job.data.kind === 'inbox'); assert.ok(inbox);
     assert.equal(await core.payments.processInbox(inbox.data.id), 'processed');
     await f.pool.query(`DELETE FROM ${f.jobSchema}.job WHERE data ->> 'kind' = 'delivery'`);
     assert.equal((await f.jobs.repair()).enqueued, 2);
-    await f.jobs.queue.boss.fail('payments_work', claimed);
-    await f.jobs.queue.boss.retry('payments_work', claimed.map(job => job.id));
+    await f.boss.fail('payments_work', claimed);
+    await f.boss.retry('payments_work', claimed.map(job => job.id));
     await f.jobs.start({ payments: core.payments, store: f.store, consumers: { credits: consume('credits'), access: consume('access') } });
     await until(async () => (await core.payments.readOperation('operation-prepared'))?.state === 'succeeded' && (await core.payments.readDeliveries('credits')).length === 0 && (await core.payments.readDeliveries('access')).length === 0, 'prepared and independent consumer delivery');
     assert.equal(core.calls(), 2);
@@ -115,6 +124,40 @@ void test('deleted jobs are rebuilt from payment obligations; T2 replay and exac
   } finally { core.payments.stop(); await f.cleanup(); }
 });
 
+void test('a retained terminal pg-boss job cannot suppress its immediately required repair wake-up', { timeout: 15_000 }, async () => {
+  const f = await fixture(), core = runtime(f.store);
+  try {
+    await prepare(f.store, 'terminal');
+    const claimed = await f.boss.fetch('payments_work', { batchSize: 1 }); assert.equal(claimed.length, 1);
+    await f.boss.fail('payments_work', claimed);
+    assert.equal((await f.pool.query<{ state: string }>(`SELECT state FROM ${f.jobSchema}.job WHERE id = $1`, [claimed[0]?.id])).rows[0]?.state, 'failed');
+    assert.equal((await f.jobs.repair(1)).enqueued, 1, 'a terminal row is retained, but repair creates a new runnable row now');
+    await f.jobs.start({ payments: core.payments, store: f.store });
+    await until(async () => (await core.payments.readOperation('operation-terminal'))?.state === 'succeeded', 'terminal wake-up repair');
+    assert.equal(core.calls(), 1);
+  } finally {core.payments.stop(); await f.cleanup();}
+});
+
+void test('cold transactional pg-boss enqueue and startup repair use only a one-connection borrowed pool', { timeout: 15_000 }, async () => {
+  const f = await fixture(), pool = new Pool({ connectionString: databaseUrl, max: 1, connectionTimeoutMillis: 1000 });
+  const database = createNodePostgresPaymentDatabase(pool);
+  const namespace = { ...f, database }, transport = createPgBossPaymentTransport(namespace);
+  const jobs = createPostgresPaymentJobs({ ...namespace, transport, pollingIntervalSeconds: 0.5 });
+  let core: ReturnType<typeof runtime> | undefined;
+  try {
+    const store = await createPostgresPaymentStore({ database, schema: f.paymentSchema, scope, queue: jobs.queue });
+    // The worker vendor instance has never started or cached queue metadata.
+    await prepare(store, 'cold-enqueue');
+    const unqueued = await createPostgresPaymentStore({ database, schema: f.paymentSchema, scope });
+    await prepare(unqueued, 'cold-repair');
+    core = runtime(store); const payments = core.payments;
+    await jobs.start({ payments, store });
+    await until(async () => (await payments.readOperation('operation-cold-enqueue'))?.state === 'succeeded'
+      && (await payments.readOperation('operation-cold-repair'))?.state === 'succeeded', 'one-checkout cold enqueue and repair');
+    assert.equal(core.calls(), 2); assert.equal(pool.totalCount, 1); assert.deepEqual(f.errors, []);
+  } finally {core?.payments.stop(); await jobs.stop(); await jobs.drain(); await pool.end(); await f.cleanup();}
+});
+
 void test('logical cooldown and quarantine survive queue deletion; unknown commands never redispatch; operator redrive is durable', { timeout: 30_000 }, async () => {
   const f = await fixture();
   let calls = 0;
@@ -123,7 +166,7 @@ void test('logical cooldown and quarantine survive queue deletion; unknown comma
   try {
     const unknown = await core.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'unknown' });
     assert.equal(unknown.kind, 'outcome_unknown');
-    await jobs.queue.boss.deleteAllJobs();
+    await f.boss.deleteAllJobs();
     await f.pool.query(`INSERT INTO ${f.paymentSchema}.obligations (kind, id) VALUES ('delivery', 'missing-target')`);
     let acquired = 0;
     const reconciler = createPaymentReconciler({ scope, store: f.store, source: { scope, readPage: async (query, after) => {
@@ -135,13 +178,13 @@ void test('logical cooldown and quarantine survive queue deletion; unknown comma
     } } });
     const begun = await reconciler.beginScan({ scanId: 'scan-fixture', epoch: 'epoch-fixture', query: { kind: 'events', from: '2026-09-30T00:00:00Z', to: '2026-10-03T00:00:00Z', perPage: 2, eventType: 'transaction.updated', queryVersion: 'events/1', purpose: 'catch_up' } });
     assert.equal(begun.kind, 'saved'); assert.equal(acquired, 0);
-    await jobs.queue.boss.deleteAllJobs();
+    await f.boss.deleteAllJobs();
     // A failing read-only inspection is retried only through persisted logical attempt state.
     let inspected = 0, resumed = 0;
     const inspectionFailure = new Error('persistent decoder fault');
     await jobs.start({ payments: core.payments, store: f.store, inspectUnknown: async () => { inspected += 1; throw inspectionFailure; }, resumeScan: async saved => { resumed += 1; assert.equal((await reconciler.resumeScan(saved)).kind, 'saved'); } });
     await until(async () => (await f.pool.query<{ attempts: number }>(`SELECT attempts FROM ${f.paymentSchema}.obligations WHERE kind = 'unknown'`)).rows[0]?.attempts === 1, 'first unknown inspection');
-    await jobs.queue.boss.deleteAllJobs();
+    await f.boss.deleteAllJobs();
     await jobs.repair();
     assert.equal((await f.pool.query<{ count: number }>(`SELECT count(*)::int AS count FROM ${f.jobSchema}.job WHERE data ->> 'kind' = 'unknown'`)).rows[0]?.count, 0);
     assert.equal(calls, 1); assert.equal(inspected, 1);
@@ -222,16 +265,16 @@ void test('shutdown reports a physically unresolved SDK call and leaves the shar
     const drained = await f.jobs.drain();
     assert.equal(drained.unresolvedExternalCalls, 0); assert.equal(drained.admittedHandlers, 0); assert.equal(drained.transportStopped, true);
     assert.equal((await core.payments.readOperation('operation-held'))?.state, 'succeeded'); assert.equal(core.calls(), 1);
-    const missing = createPostgresPaymentJobs({ ...sibling, jobSchema: 'missing_jobs_fixture' });
+    const missing = createPostgresPaymentJobs({ ...sibling, transport: createPgBossPaymentTransport({ ...sibling, jobSchema: 'missing_jobs_fixture' }) });
     await assert.rejects(missing.start({ payments: runtime(sibling.store).payments, store: sibling.store }));
-    assert.equal(missing.status().transportStopped, true); assert.equal(missing.queue.boss.getWipData().length, 0);
-    const partial = createPostgresPaymentJobs(sibling), originalWork = partial.queue.boss.work.bind(partial.queue.boss);
-    Object.defineProperty(partial.queue.boss, 'work', { value: async (name: string, ...args: unknown[]) => {
-      if (name === 'payments_repair') {throw new Error('injected second worker registration failure');}
-      return Reflect.apply(originalWork, partial.queue.boss, [name, ...args]) as Promise<string>;
-    } });
+    assert.equal(missing.status().transportStopped, true); assert.equal(missing.status().admittedHandlers, 0);
+    const partialTransport = createPgBossPaymentTransport(sibling);
+    const partial = createPostgresPaymentJobs({ ...sibling, transport: { ...partialTransport, start: async (...args) => {
+      await partialTransport.start(...args);
+      throw new Error('injected second worker registration failure');
+    } } });
     await assert.rejects(partial.start({ payments: runtime(sibling.store).payments, store: sibling.store }), /injected second worker/);
-    assert.equal(partial.status().transportStopped, true); assert.equal(partial.queue.boss.getWipData().length, 0);
+    assert.equal(partial.status().transportStopped, true); assert.equal(partial.status().admittedHandlers, 0);
     assert.equal((await sibling.pool.query<{ alive: number }>('SELECT 1 AS alive')).rows[0]?.alive, 1);
   } finally { held.resolve({ kind: 'outcome_unknown' }); await f.cleanup(); await sibling.cleanup(); }
 });
@@ -239,11 +282,12 @@ void test('shutdown reports a physically unresolved SDK call and leaves the shar
 void test('partial worker startup retains physical SDK debt and cannot replace its drain owner', { timeout: 30_000 }, async () => {
   const f = await fixture(), held = deferred<ProviderResult<CheckoutReady>>(), entered = deferred<void>();
   const core = runtime(f.store, async command => { entered.resolve(); return held.promise.then(result => result.kind === 'succeeded' ? { ...result, value: { ...result.value, intentId: command.intentId } } : result); }, 25);
-  const originalWork = f.jobs.queue.boss.work.bind(f.jobs.queue.boss);
-  Object.defineProperty(f.jobs.queue.boss, 'work', { value: async (name: string, ...args: unknown[]) => {
-    if (name === 'payments_repair') { await entered.promise; throw new Error('injected registration failure after dispatch'); }
-    return Reflect.apply(originalWork, f.jobs.queue.boss, [name, ...args]) as Promise<string>;
-  } });
+  const startTransport = f.transport.start.bind(f.transport);
+  f.transport.start = async (...args) => {
+    await startTransport(...args);
+    await entered.promise;
+    throw new Error('injected registration failure after dispatch');
+  };
   try {
     await prepare(f.store, 'startup-debt');
     await assert.rejects(f.jobs.start({ payments: core.payments, store: f.store }), /registration failure after dispatch/);

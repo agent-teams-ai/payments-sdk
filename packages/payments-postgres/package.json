@@ -1,7 +1,7 @@
 {
   "name": "@agent-teams/payments-postgres",
-  "version": "0.2.0",
-  "description": "Durable PostgreSQL payment custody and job transport for the Agent Teams payments SDK",
+  "version": "0.3.0",
+  "description": "Durable PostgreSQL payment custody, worker contracts and optional pg-boss transport for the Agent Teams payments SDK",
   "type": "module",
   "license": "Apache-2.0",
   "engines": {
@@ -16,17 +16,41 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./pg-boss": {
+      "types": "./dist/job-transport.d.ts",
+      "import": "./dist/job-transport.js"
+    },
+    "./node-postgres": {
+      "types": "./dist/node-postgres.d.ts",
+      "import": "./dist/node-postgres.js"
     }
   },
   "sideEffects": false,
   "dependencies": {
     "@agent-teams/payments-core": "workspace:^",
-    "@types/pg": "catalog:",
-    "pg": "catalog:",
-    "pg-boss": "catalog:",
     "drizzle-orm": "catalog:"
   },
   "devDependencies": {
-    "mysql2": "catalog:"
+    "mysql2": "catalog:",
+    "pg-boss": "catalog:",
+    "pg": "catalog:",
+    "@types/pg": "catalog:"
+  },
+  "peerDependencies": {
+    "pg-boss": "catalog:",
+    "pg": "catalog:",
+    "@types/pg": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "pg-boss": {
+      "optional": true
+    },
+    "pg": {
+      "optional": true
+    },
+    "@types/pg": {
+      "optional": true
+    }
   }
 }

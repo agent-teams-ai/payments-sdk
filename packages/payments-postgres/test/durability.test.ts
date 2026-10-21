@@ -5,6 +5,7 @@ import { canonicalJson, digest, money, processInput, publishEvidence } from '@ag
 import type { AdjustmentObservation, CheckoutReady, EvidenceSource, InboxRecord, PaymentOperation, ProviderResult, TransactionAggregate, VerifiedInput } from '@agent-teams/payments-core';
 import { assertPostgresDurability, createPostgresPaymentStore, migratePaymentSchema, PaymentDatabaseError } from '../dist/index.js';
 import { createPaymentSqlExecutor, withPaymentTransaction } from '../dist/database.js';
+import { createNodePostgresPaymentDatabase } from '../dist/node-postgres.js';
 import { at, databaseFixture, deferred, known, observe, receipt, runtime, scope, subscription, success, transaction } from './helpers.ts';
 import { postgresFaultProxy } from './fault-proxy.ts';
 
@@ -44,31 +45,33 @@ void test('one locked admission page retains sequential duplicate/conflict ident
 void test('PostgreSQL ownership and durability are qualified without changing a borrowed host session', async () => {
   const f = await databaseFixture();
   const pool = new Pool({ connectionString: f.connectionString, max: 1, options: '-c synchronous_commit=off' });
+  const database = createNodePostgresPaymentDatabase(pool);
   try {
     assert.equal((await pool.query<{ synchronous_commit: string }>('SHOW synchronous_commit')).rows[0]?.synchronous_commit, 'off');
-    await withPaymentTransaction(pool, async tx => {
+    await withPaymentTransaction(database, async tx => {
       assert.equal((await tx.query<{ synchronous_commit: string }>('SHOW synchronous_commit')).rows[0]?.synchronous_commit, 'on');
       await tx.query(`INSERT INTO "${f.schema}".records VALUES ('proof', 'owner', 1, '{}', clock_timestamp())`);
     });
     assert.equal((await pool.query<{ synchronous_commit: string }>('SHOW synchronous_commit')).rows[0]?.synchronous_commit, 'off');
-    const executor = createPaymentSqlExecutor(pool);
+    const executor = createPaymentSqlExecutor(database);
     const answer = await executor.executeSql("BEGIN; SELECT current_setting('synchronous_commit') AS value; COMMIT; SELECT current_setting('synchronous_commit') AS value");
-    assert.equal(answer.rows[0]?.['value'], 'on');
+    assert.deepEqual(answer.rows, [{ value: 'on' }, { value: 'on' }], 'all script result rows retain statement order');
     assert.equal((await pool.query<{ synchronous_commit: string }>('SHOW synchronous_commit')).rows[0]?.synchronous_commit, 'off');
     await assert.rejects(executor.executeSql('BEGIN; SELECT deliberately_missing_function()'));
     assert.equal((await pool.query<{ alive: number }>('SELECT 1 AS alive')).rows[0]?.alive, 1, 'failed executor checkout cannot close the borrowed pool');
-    await assert.rejects(createPostgresPaymentStore({ pool, schema: f.schema, scope: { ...scope, applicationId: 'foreign' } }));
-    await assert.rejects(migratePaymentSchema({ pool, schema: f.schema, scope: { ...scope, paymentAccountId: 'foreign' } }));
+    await assert.rejects(createPostgresPaymentStore({ database, schema: f.schema, scope: { ...scope, applicationId: 'foreign' } }));
+    await assert.rejects(migratePaymentSchema({ database, schema: f.schema, scope: { ...scope, paymentAccountId: 'foreign' } }));
     await f.pool.query(`CREATE UNLOGGED TABLE "${f.schema}".invalid_durability (id integer)`);
-    await assert.rejects(assertPostgresDurability(pool, f.schema), error => error instanceof PaymentDatabaseError && error.kind === 'durability_profile');
+    await assert.rejects(assertPostgresDurability(database, f.schema), error => error instanceof PaymentDatabaseError && error.kind === 'durability_profile');
   } finally { await pool.end(); await f.close(); }
 });
 
 void test('a lost real COMMIT reply cannot authorize a Paddle-style external mutation or an automatic retry', { timeout: 15_000 }, async () => {
   const f = await databaseFixture(), proxy = await postgresFaultProxy(f.connectionString);
   const pool = new Pool({ connectionString: proxy.connectionString, max: 3, connectionTimeoutMillis: 1000 });
+  const database = createNodePostgresPaymentDatabase(pool);
   try {
-    const store = await createPostgresPaymentStore({ pool, schema: f.schema, scope });
+    const store = await createPostgresPaymentStore({ database, schema: f.schema, scope });
     const dispatch = store.beginExternalDispatch.bind(store);
     store.beginExternalDispatch = async (...args) => { proxy.loseNextCommit(); return dispatch(...args); };
     const context = runtime(store);
@@ -86,22 +89,23 @@ void test('a lost real COMMIT reply cannot authorize a Paddle-style external mut
 void test('database acquisition, lock and blackholed socket deadlines leave no borrowed connection debt', { timeout: 15_000 }, async () => {
   const f = await databaseFixture(), proxy = await postgresFaultProxy(f.connectionString);
   const pool = new Pool({ connectionString: proxy.connectionString, max: 1, connectionTimeoutMillis: 1000 });
+  const database = createNodePostgresPaymentDatabase(pool);
   const limits = { acquireMs: 30, lockMs: 40, statementMs: 90, transactionMs: 180, deadlineMs: 300 };
   try {
     const held = await pool.connect();
-    await assert.rejects(withPaymentTransaction(pool, async () => { throw new Error('must not acquire'); }, limits), error => error instanceof PaymentDatabaseError && error.kind === 'acquisition_timeout');
+    await assert.rejects(withPaymentTransaction(database, async () => { throw new Error('must not acquire'); }, limits), error => error instanceof PaymentDatabaseError && error.kind === 'acquisition_timeout');
     held.release();
     await pool.query('SELECT 1');
     assert.equal(pool.waitingCount, 0);
     const blocker = await f.pool.connect();
     try {
       await blocker.query('BEGIN'); await blocker.query('SELECT pg_advisory_xact_lock(882114)');
-      await assert.rejects(withPaymentTransaction(pool, tx => tx.query('SELECT pg_advisory_xact_lock(882114)'), limits), error => error instanceof Error && 'code' in error && error.code === '55P03');
+      await assert.rejects(withPaymentTransaction(database, tx => tx.query('SELECT pg_advisory_xact_lock(882114)'), limits), error => error instanceof Error && 'code' in error && error.code === '55P03');
     } finally { await blocker.query('ROLLBACK'); blocker.release(); }
     await pool.query('SELECT 1');
     proxy.blackholeReplies(true);
     const started = performance.now();
-    await assert.rejects(withPaymentTransaction(pool, tx => tx.query('SELECT 1'), limits));
+    await assert.rejects(withPaymentTransaction(database, tx => tx.query('SELECT 1'), limits));
     assert.ok(performance.now() - started < 1500, 'owned absolute deadline bounds a peer which consumes requests but never replies');
     proxy.blackholeReplies(false);
     assert.equal((await pool.query<{ alive: number }>('SELECT 1 AS alive')).rows[0]?.alive, 1);
@@ -188,7 +192,7 @@ void test('bounded overflow publishes an immutable held revision and preserves e
     const source = { ...larger.source, representationDigest: digest(retainedRepresentation) };
     const large: VerifiedInput = { ...larger, source, observation: { ...larger.observation, source }, retainedRepresentation };
     await context.payments.ingestVerifiedInput(large);
-    const limited = runtime(await createPostgresPaymentStore({ pool: f.pool, schema: f.schema, scope, maxWorkingSetBytes: 4096 }));
+    const limited = runtime(await createPostgresPaymentStore({ database: f.database, schema: f.schema, scope, maxWorkingSetBytes: 4096 }));
     assert.equal(await limited.payments.processInbox(large.inputId), 'quarantined');
     const after = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0];
     assert.equal(canonicalJson(after?.completion), canonicalJson(before.completion));
@@ -215,7 +219,7 @@ void test('historical exact-version contradictions survive restart, acknowledgem
     await observe(context.payments, receipt(adjustment, { adverseTransactionRef: checkout.transactionRef }));
     await observe(context.payments, receipt({ ...adjustment, version: v2, status: 'approved', source: { ...adjustment.source, receiptId: 'adjustment-v2' } }, { adverseTransactionRef: checkout.transactionRef }));
     for (const message of await context.payments.readDeliveries('audit', 100)) {await context.payments.acknowledgeDelivery('audit', message.messageId, message.bodyDigest);}
-    const restarted = runtime(await createPostgresPaymentStore({ pool: f.pool, schema: f.schema, scope }));
+    const restarted = runtime(await createPostgresPaymentStore({ database: f.database, schema: f.schema, scope }));
     await observe(restarted.payments, receipt({ ...subscription('sub-a', 'conflicting-old-sub'), version: '2026-01-01T00:00:00.000001000+00:00', status: known('canceled') }));
     await observe(restarted.payments, receipt({ ...adjustment, amount: money('USD', '90'), allocations: [{ providerLineRef: `line-${checkout.transactionRef}`, amount: money('USD', '90') }], source: { ...adjustment.source, receiptId: 'conflicting-old-adjustment' } }, { adverseTransactionRef: checkout.transactionRef }));
     const purchase = await restarted.payments.readPurchase('buyer', checkout.intentId); assert.ok((purchase?.intent.subscriptionBasisId !== undefined && purchase.intent.subscriptionBasisId !== ''));

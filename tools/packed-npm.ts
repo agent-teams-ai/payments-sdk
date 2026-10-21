@@ -26,7 +26,7 @@ export async function qualifyNpmConsumer(target: string, packages: readonly Cons
   const artifact = JSON.parse(await readFile(join(repository, 'qualification/drizzle/artifact.json'), 'utf8')) as DrizzleArtifact;
   const catalog = (parse(await readFile(join(repository, 'pnpm-workspace.yaml'), 'utf8')) as { catalog: Record<string, string> }).catalog;
   const dependencies: Record<string, string> = Object.fromEntries(packages.map(item => [item.name, `file:${item.tarball}`]));
-  for (const name of ['@get-modular/core', '@get-modular/assembly', '@get-modular/resources', '@get-modular/observation', '@get-modular/conformance', 'pg', '@types/pg', '@types/node', 'undici']) {
+  for (const name of ['@get-modular/core', '@get-modular/assembly', '@get-modular/resources', '@get-modular/observation', '@get-modular/conformance', 'pg', 'pg-boss', '@types/pg', '@types/node', 'undici']) {
     const version = catalog[name];
     assert.ok((version !== undefined && version !== '') && /^\d+\.\d+\.\d+$/u.test(version), `Missing exact consumer fixture/peer pin ${name}`);
     dependencies[name] = version;
@@ -91,7 +91,7 @@ export async function qualifyNpmConsumer(target: string, packages: readonly Cons
 
   // Reuse the existing independently asserted 225-credit/renewed-access/lost-ACK scenario.
   // Only fixture owners and test inputs are copied; every SDK operation uses its installed export.
-  for (const path of ['qualification/observation/financial.test.ts', 'qualification/observation/test-support.ts', 'tests/fixtures/consumers', 'packages/payments-paddle/test/fixtures.ts']) {
+  for (const path of ['qualification/observation/financial.test.ts', 'qualification/observation/test-support.ts', 'tests/fixtures/consumers', 'packages/payments-paddle/test/fixtures.ts', 'qualification/queue/pg-boss.test.ts']) {
     await cp(join(repository, path), join(target, path), { recursive: true });
   }
   const source = packages.flatMap(item => item.entrypoints).map((specifier, index) => `import * as api${index} from '${specifier}';\nvoid api${index};`).join('\n');
@@ -104,7 +104,7 @@ export async function qualifyNpmConsumer(target: string, packages: readonly Cons
       module: resolution === 'Bundler' ? 'ESNext' : 'NodeNext', moduleResolution: resolution,
       strict: true, exactOptionalPropertyTypes: true, noUncheckedIndexedAccess: true, skipLibCheck: false,
       noEmit: true, allowImportingTsExtensions: true, types: ['node'],
-    }, include: ['index.ts', 'qualification/observation/*.ts', 'tests/fixtures/consumers/*.ts', 'packages/payments-paddle/test/fixtures.ts'] }));
+    }, include: ['index.ts', 'qualification/observation/*.ts', 'qualification/queue/*.ts', 'tests/fixtures/consumers/*.ts', 'packages/payments-paddle/test/fixtures.ts'] }));
     const files = await command(process.execPath, [compiler, '-p', 'tsconfig.json', '--listFiles'], target);
     const paths = files.trim().split('\n');
     assert.ok(paths.includes(join(target, 'index.ts')), 'The actual all-export consumer must appear in the compiler file graph');
@@ -113,7 +113,7 @@ export async function qualifyNpmConsumer(target: string, packages: readonly Cons
     resolvers.push({ resolution, strict: true, exactOptionalPropertyTypes: true, noUncheckedIndexedAccess: true, skipLibCheck: false, ormDeclarationsReachable: false, listFilesSha256: digest(files), passed: true });
   }
   await command(process.execPath, ['--input-type=module', '-e', source], target);
-  const output = await command(process.execPath, ['--test', '--test-reporter=spec', 'qualification/observation/financial.test.ts'], target);
+  const output = await command(process.execPath, ['--test', '--test-reporter=spec', 'qualification/observation/financial.test.ts', 'qualification/queue/pg-boss.test.ts'], target);
   console.log(output);
   const report = {
     status: 'passed', consumer: 'production-only-npm', node: process.version, npm: npmVersion, typescript: (await command(process.execPath, [compiler, '--version'], target)).trim(),
@@ -121,7 +121,78 @@ export async function qualifyNpmConsumer(target: string, packages: readonly Cons
     packages, publicEntrypoints: packages.flatMap(item => item.entrypoints),
     drizzle: { version: artifact.version, integrity: installed.integrity, manifestSha256: digest(installedManifest), correctedDeclarationTargetsUnpatched: artifact.patch.files.length, declarationFilesUnpatched: declaration.files, declarationManifestSha256: declaration.sha256, runtimeFiles: runtime.files, runtimeManifestSha256: runtime.sha256 },
     resolvers, lockSha256: digest(lockBytes), inputManifestSha256: digest(JSON.stringify(input)),
-    financialScenario: 'qualification/observation/financial.test.ts', scenarioOutputSha256: digest(output),
+    financialScenario: 'qualification/observation/financial.test.ts', pgBossScenario: 'qualification/queue/pg-boss.test.ts', pgBossExplicitlyInstalled: true, scenarioOutputSha256: digest(output),
+  };
+  await writeFile(`${reportBase}.package-lock.json`, lockBytes);
+  await writeFile(`${reportBase}.log`, output);
+  await writeFile(`${reportBase}.json`, `${JSON.stringify(report, null, 2)}\n`);
+  console.log(JSON.stringify(report, null, 2));
+}
+
+/** An ordinary production-only install must use the existing custom transport without pg-boss. */
+export async function qualifyNpmQueueConsumer(target: string, packages: readonly ConsumerPackage[], compiler: string, withNodePostgres: boolean): Promise<void> {
+  assert.ok(process.env['DATABASE_URL'] !== undefined && process.env['DATABASE_URL'] !== '', 'DATABASE_URL is required: the queue consumer runs the real PostgreSQL transport scenario');
+  const reportBase = join(repository, `.artifacts/packed-${withNodePostgres ? 'queue' : 'postgres-root'}-node-${process.versions.node}`);
+  for (const suffix of ['json', 'log', 'package-lock.json', 'nodenext.files.txt', 'bundler.files.txt']) {await rm(`${reportBase}.${suffix}`, { force: true });}
+  await mkdir(target);
+  const selected = packages.filter(item => ['@agent-teams/payments-core', '@agent-teams/payments-postgres'].includes(item.name));
+  assert.equal(selected.length, 2);
+  const catalog = (parse(await readFile(join(repository, 'pnpm-workspace.yaml'), 'utf8')) as { catalog: Record<string, string> }).catalog;
+  const dependencies: Record<string, string> = Object.fromEntries(selected.map(item => [item.name, `file:${item.tarball}`]));
+  for (const name of withNodePostgres ? ['pg', '@types/pg', '@types/node'] : []) {
+    const version = catalog[name];
+    assert.ok(version !== undefined && /^\d+\.\d+\.\d+$/u.test(version), `Missing exact consumer fixture pin ${name}`);
+    dependencies[name] = version;
+  }
+  const overrides = Object.fromEntries(selected.map(({ name }) => [name, `$${name}`]));
+  await writeFile(join(target, 'package.json'), JSON.stringify({ private: true, type: 'module', dependencies, overrides }));
+  // Do not omit optional packages: the manifest itself must prevent automatic peer installation.
+  await command('npm', ['install', '--omit=dev', '--ignore-scripts', '--strict-peer-deps', '--no-audit', '--no-fund'], target);
+  const lockBytes = await readFile(join(target, 'package-lock.json'));
+  const lock = JSON.parse(lockBytes.toString('utf8')) as { packages: Record<string, { dev?: boolean; link?: boolean }> };
+  for (const [path, entry] of Object.entries(lock.packages)) {
+    assert.equal(/(?:^|\/)node_modules\/(?:pg-boss|mysql2)(?:\/|$)/u.test(path) || (!withNodePostgres && /(?:^|\/)node_modules\/(?:pg|@types\/pg)(?:\/|$)/u.test(path)), false, `Unselected dependency entered the production queue consumer: ${path}`);
+    assert.notEqual(entry.dev, true, `Development-only dependency entered the production queue consumer: ${path}`);
+    assert.notEqual(entry.link, true, `Workspace link entered the packed queue consumer: ${path}`);
+  }
+  const postgresManifest = JSON.parse(await readFile(join(target, 'node_modules/@agent-teams/payments-postgres/package.json'), 'utf8')) as {
+    dependencies?: Record<string, string>; peerDependencies: Record<string, string>; peerDependenciesMeta: Record<string, { optional: boolean }>;
+  };
+  assert.equal(postgresManifest.dependencies?.['pg-boss'], undefined);
+  assert.equal(postgresManifest.peerDependencies['pg-boss'], catalog['pg-boss']);
+  assert.equal(postgresManifest.peerDependenciesMeta['pg-boss']?.optional, true);
+  for (const require of [createRequire(join(target, 'package.json')), createRequire(join(target, 'node_modules/@agent-teams/payments-postgres/package.json'))]) {
+    for (const absent of ['pg-boss', '@agent-teams/engineering-foundation', 'node-or-bun', ...(withNodePostgres ? [] : ['pg', '@types/pg'])]) {assert.throws(() => require.resolve(absent), { code: 'MODULE_NOT_FOUND' });}
+  }
+  for (const path of withNodePostgres ? ['tests/e2e/queue-transport.test.ts', 'tests/e2e/queue-transport-fixture.ts', 'tests/fixtures/consumers', 'packages/payments-postgres/test/fault-proxy.ts'] : []) {
+    await cp(join(repository, path), join(target, path), { recursive: true });
+  }
+  await writeFile(join(target, 'index.ts'), "import * as api from '@agent-teams/payments-postgres';\nvoid api;\n");
+  const resolvers = [];
+  for (const resolution of ['NodeNext', 'Bundler'] as const) {
+    await writeFile(join(target, 'tsconfig.json'), JSON.stringify({ compilerOptions: {
+      target: 'ES2024', lib: ['ES2024', 'DOM'], module: resolution === 'Bundler' ? 'ESNext' : 'NodeNext', moduleResolution: resolution,
+      strict: true, exactOptionalPropertyTypes: true, noUncheckedIndexedAccess: true, skipLibCheck: false,
+      noEmit: true, allowImportingTsExtensions: true, types: withNodePostgres ? ['node'] : [],
+    }, include: withNodePostgres ? ['index.ts', 'tests/e2e/queue-transport*.ts', 'tests/fixtures/consumers/*.ts', 'packages/payments-postgres/test/fault-proxy.ts'] : ['index.ts'] }));
+    const files = await command(process.execPath, [compiler, '-p', 'tsconfig.json', '--listFiles'], target);
+    for (const path of files.trim().split('\n')) {
+      if (!withNodePostgres) {assert.equal(/(?:^|[/\\])(?:pg|@types[/\\]pg)(?:[/\\]|$)/u.test(path), false, `Driver declarations leaked through the root export: ${path}`);}
+      assert.equal(forbiddenTypePath.test(path) || /(?:^|[/\\])pg-boss(?:[/\\]|$)/u.test(path), false, `Unselected vendor declarations leaked through the root export: ${path}`);
+    }
+    await mkdir(join(repository, '.artifacts'), { recursive: true });
+    await writeFile(`${reportBase}.${resolution.toLowerCase()}.files.txt`, files);
+    resolvers.push({ resolution, strict: true, exactOptionalPropertyTypes: true, noUncheckedIndexedAccess: true, skipLibCheck: false, pgBossDeclarationsReachable: false, listFilesSha256: digest(files), passed: true });
+  }
+  await command(process.execPath, ['index.ts'], target);
+  const output = withNodePostgres ? await command(process.execPath, ['--test', '--test-reporter=spec', 'tests/e2e/queue-transport.test.ts'], target) : '';
+  console.log(output);
+  await mkdir(join(repository, '.artifacts'), { recursive: true });
+  const report = {
+    status: 'passed', consumer: withNodePostgres ? 'production-only-npm-custom-queue' : 'production-only-npm-postgres-root', node: process.version,
+    install: { omitDev: true, ignoreScripts: true, strictPeerDependencies: true, optionalPackagesOmitted: false, pgBossPresent: false, nodePostgresExplicitlyInstalled: withNodePostgres },
+    packages: selected, publicEntrypoint: '@agent-teams/payments-postgres', resolvers,
+    scenario: withNodePostgres ? 'tests/e2e/queue-transport.test.ts' : null, scenarioOutputSha256: digest(output), lockSha256: digest(lockBytes),
   };
   await writeFile(`${reportBase}.package-lock.json`, lockBytes);
   await writeFile(`${reportBase}.log`, output);

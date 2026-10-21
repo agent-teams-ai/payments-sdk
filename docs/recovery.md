@@ -14,11 +14,15 @@ The payment backup unit includes intents, operations and attempts, bindings and 
 
 ## Public administrative surface
 
-Import recovery capabilities from `@agent-teams/payments-postgres`. Keep the resulting object outside buyer-facing HTTP services. It uses a borrowed Host pool, short durable transactions, the configured SQL deadlines, the existing payment scope ownership check, and no cross-owner SQL.
+Import recovery capabilities from `@agent-teams/payments-postgres`. Keep the resulting object outside buyer-facing HTTP services. Supply the same qualified `PaymentPostgresDatabase` capability used by the payment store. Recovery uses short durable transactions, the configured SQL deadlines, the existing payment scope ownership check, and no cross-owner SQL. For a host-owned node-postgres pool, construct the capability through the explicit driver entrypoint:
 
 ```ts
+import { createPostgresPaymentRecovery } from '@agent-teams/payments-postgres';
+import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
+
+const database = createNodePostgresPaymentDatabase(pool);
 const recovery = await createPostgresPaymentRecovery({
-  pool,
+  database,
   schema: 'payments_application_a',
   scope,
   producerNamespace: 'original-deployment-namespace',

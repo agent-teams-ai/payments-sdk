@@ -3,7 +3,9 @@ import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { canonicalJson, createPayments, money, objectVersionKey, processInput, publishEvidence, reduceObservation } from '@agent-teams/payments-core';
 import type { AdjustmentObservation, CheckoutReady, EvidenceMessage, PaymentReadVersion, PaymentStore, ProviderResult, SubscriptionReclassification, TransactionAggregate, VerifiedInput } from '@agent-teams/payments-core';
-import { bootstrapPostgresPaymentJobs, createPostgresPaymentJobs, createPostgresPaymentStore, PaymentJobHandlerError } from '../dist/index.js';
+import { createPgBossPaymentTransport } from '../dist/job-transport.js';
+import { createPostgresPaymentJobs, createPostgresPaymentStore, PaymentJobHandlerError } from '../dist/index.js';
+import { paymentBossFixture } from './pg-boss-fixture.ts';
 import { at, databaseFixture, deferred, known, observe, offer, receipt, runtime, scope, success, transaction } from './helpers.ts';
 
 type Context = ReturnType<typeof runtime>;
@@ -82,7 +84,7 @@ void test('real PostgreSQL reclassification resumes 205 acknowledged renewals, r
     assert.deepEqual(await cursor(f, bindingId), page);
     await f.store.setRecoveryFence(scope, false, 'fanout-resumed');
     await context.payments.drain();
-    const restarted = await createPostgresPaymentStore({ pool: f.pool, schema: f.schema, scope });
+    const restarted = await createPostgresPaymentStore({ database: f.database, schema: f.schema, scope });
     context = runtime(restarted); // No in-memory traversal state survives this replacement.
     await repairAll(context, f);
     assert.equal((await cursor(f, bindingId))?.complete, true);
@@ -134,7 +136,7 @@ void test('real PostgreSQL historical adjustment reparenting fences both parents
     await observe(payments, receipt({ ...v1, version: '2026-01-02T00:00:00Z', amount: money('USD', '200'), allocations: [{ providerLineRef: `line-${a.transactionRef}`, amount: money('USD', '200') }], source: { ...v1.source, receiptId: 'refund-v2' } }));
     const beforeA = (await payments.readPurchase('buyer', a.intentId))?.transactions[0]; assert.ok(beforeA?.completion);
     for (const message of await payments.readDeliveries('audit', 100)) {await payments.acknowledgeDelivery('audit', message.messageId, message.bodyDigest);}
-    const restarted = runtime(await createPostgresPaymentStore({ pool: f.pool, schema: f.schema, scope }));
+    const restarted = runtime(await createPostgresPaymentStore({ database: f.database, schema: f.schema, scope }));
     const contradictory = receipt({ ...v1, transactionRef: b.transactionRef, version: '2026-01-01T00:00:00.000001000+00:00', source: { ...v1.source, receiptId: 'contradictory-old-parent' } });
     success(await restarted.payments.ingestVerifiedInput(contradictory));
     const loaded = await f.store.loadReductionInput(scope, contradictory.inputId); assert.ok(loaded);
@@ -163,18 +165,18 @@ void test('real PostgreSQL historical adjustment reparenting fences both parents
 void test('real pg-boss rebuilds deleted reclassification jobs and successful pages do not spend the fault budget', { timeout: 40_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store, 25), jobSchema = `q_${f.schema}`;
   const errors: Error[] = [];
-  const namespace = { pool: f.pool, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
+  const namespace = { database: f.database, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
   let jobs: ReturnType<typeof createPostgresPaymentJobs> | undefined;
   try {
     const { bindingId } = await duplicateCheckout(context, f.store);
     await observe(context.payments, receipt(transaction('initial-a', 'initial-a-paid')));
     for (let i = 0; i < 7; i += 1) {await observe(context.payments, receipt(transaction(`renewal-${i}`, `paid-${i}`, { origin: known('subscription_recurring') })));}
     await observe(context.payments, receipt(transaction('initial-b', 'initial-b-paid', { subscriptionRef: known('sub-b') })));
-    await bootstrapPostgresPaymentJobs(namespace);
-    jobs = createPostgresPaymentJobs({ ...namespace, batchSize: 1, concurrency: 1, maxAttempts: 1, cooldownSeconds: 1, maxCooldownSeconds: 1, pollingIntervalSeconds: 0.5 });
+    const transport = createPgBossPaymentTransport(namespace); await transport.bootstrap();
+    jobs = createPostgresPaymentJobs({ ...namespace, transport, batchSize: 1, concurrency: 1, maxAttempts: 1, cooldownSeconds: 1, maxCooldownSeconds: 1, pollingIntervalSeconds: 0.5 });
     await jobs.repair(100);
     assert.ok((await f.pool.query(`SELECT id FROM "${jobSchema}".job WHERE data ->> 'kind' = 'reclassification'`)).rows.length > 0);
-    await jobs.queue.boss.deleteAllJobs();
+    await paymentBossFixture(namespace).deleteAllJobs();
     assert.equal((await f.pool.query<{ count: number }>(`SELECT count(*)::int AS count FROM "${jobSchema}".job`)).rows[0]?.count, 0);
     assert.equal((await jobs.repair(100)).enqueued, 1, 'payment-owned cursor obligation alone rebuilds the wakeup');
     let pages = 0, sawProgressCooldown = false;
@@ -222,15 +224,15 @@ async function selectedInitial(context: Context): Promise<string> {
 
 for (const maxAttempts of [1, 2]) {void test(`ordinary renewal preserves exact reclassification ${maxAttempts === 1 ? 'quarantine' : 'cooldown'}; audited redrive and a new decision reset work`, { timeout: 25_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store), jobSchema = `q_${f.schema}`;
-  const errors: Error[] = [], namespace = { pool: f.pool, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
+  const errors: Error[] = [], namespace = { database: f.database, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
   let jobs: ReturnType<typeof createPostgresPaymentJobs> | undefined;
   try {
     const bindingId = await selectedInitial(context), decision = await cursor(f, bindingId);
-    await bootstrapPostgresPaymentJobs(namespace);
+    const transport = createPgBossPaymentTransport(namespace); await transport.bootstrap();
     let attempts = 0;
     const persistentFault = new Error('persistent fault');
     f.store.processReclassification = async () => { attempts += 1; throw persistentFault; };
-    jobs = createPostgresPaymentJobs({ ...namespace, maxAttempts, cooldownSeconds: 30, maxCooldownSeconds: 30, pollingIntervalSeconds: 0.5 });
+    jobs = createPostgresPaymentJobs({ ...namespace, transport, maxAttempts, cooldownSeconds: 30, maxCooldownSeconds: 30, pollingIntervalSeconds: 0.5 });
     await jobs.start({ payments: context.payments, store: f.store });
     await untilPersisted(async () => (await workDisposition(f, bindingId))?.issue === 'handler_failed', 'worker must persist its fault');
     await jobs.stop(); await jobs.drain();
@@ -239,7 +241,7 @@ for (const maxAttempts of [1, 2]) {void test(`ordinary renewal preserves exact r
     await observe(context.payments, receipt(transaction('ordinary-new-renewal', 'ordinary-renewal', { origin: known('subscription_recurring') })));
     assert.deepEqual(await cursor(f, bindingId), decision);
     assert.deepEqual(await workDisposition(f, bindingId), before, 'unchanged generation retains state, attempt, issue, exact deadline and claim revision');
-    await jobs.queue.boss.deleteAllJobs(); await jobs.repair(100);
+    await paymentBossFixture(namespace).deleteAllJobs(); await jobs.repair(100);
     assert.equal((await f.pool.query(`SELECT id FROM "${jobSchema}".job WHERE data ->> 'kind' = 'reclassification'`)).rows.length, 0, 'queue deletion cannot bypass quarantine/cooldown');
     await jobs.redrive({ kind: 'reclassification', id: bindingId }, 'operator-reviewed-fault');
     const redriven = await workDisposition(f, bindingId); assert.ok(redriven); assert.equal(redriven.state, 'pending'); assert.equal(redriven.attempts, 0); assert.equal(redriven.issue, 'redrive:operator-reviewed-fault');
@@ -258,12 +260,12 @@ for (const maxAttempts of [1, 2]) {void test(`ordinary renewal preserves exact r
 
 void test('an old failed claimant cannot quarantine replacement work claimed again at attempt one', { timeout: 25_000 }, async () => {
   const f = await databaseFixture(), context = runtime(f.store), jobSchema = `q_${f.schema}`;
-  const errors: Error[] = [], namespace = { pool: f.pool, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
+  const errors: Error[] = [], namespace = { database: f.database, paymentSchema: f.schema, jobSchema, scope, onError: (error: Error) => errors.push(error) };
   const enteredOld = deferred<void>(), releaseOld = deferred<void>(), enteredNew = deferred<void>(), releaseNew = deferred<void>();
   let jobs: ReturnType<typeof createPostgresPaymentJobs> | undefined;
   try {
     const bindingId = await selectedInitial(context);
-    await bootstrapPostgresPaymentJobs(namespace);
+    const transport = createPgBossPaymentTransport(namespace); await transport.bootstrap();
     let calls = 0;
     const oldFault = new Error('old generation fault'), replacementFault = new Error('replacement generation fault');
     f.store.processReclassification = async () => {
@@ -271,12 +273,12 @@ void test('an old failed claimant cannot quarantine replacement work claimed aga
       if (calls === 1) { enteredOld.resolve(); await releaseOld.promise; throw oldFault; }
       enteredNew.resolve(); await releaseNew.promise; throw replacementFault;
     };
-    jobs = createPostgresPaymentJobs({ ...namespace, concurrency: 2, maxAttempts: 1, cooldownSeconds: 30, maxCooldownSeconds: 30, pollingIntervalSeconds: 0.5 });
+    jobs = createPostgresPaymentJobs({ ...namespace, transport, concurrency: 2, maxAttempts: 1, cooldownSeconds: 30, maxCooldownSeconds: 30, pollingIntervalSeconds: 0.5 });
     await jobs.repair(100);
     const oldId = (await f.pool.query<{ id: string }>(`SELECT id FROM "${jobSchema}".job WHERE data ->> 'kind' = 'reclassification'`)).rows[0]?.id; assert.ok((oldId !== undefined && oldId !== ''));
     await jobs.start({ payments: context.payments, store: f.store }); await enteredOld.promise;
     await select(context, bindingId, 'sub-a');
-    await jobs.queue.boss.send('payments_work', { kind: 'reclassification', id: bindingId }, { singletonKey: 'new-generation-race' });
+    await paymentBossFixture(namespace).send('payments_work', { kind: 'reclassification', id: bindingId }, { singletonKey: 'new-generation-race' });
     await enteredNew.promise;
     const current = await workDisposition(f, bindingId); assert.ok(current); assert.equal(current.attempts, 1); assert.equal(current.state, 'pending');
     releaseOld.resolve();

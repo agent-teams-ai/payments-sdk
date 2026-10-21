@@ -1,16 +1,73 @@
 # PostgreSQL payments adapter
 
-`@agent-teams/payments-postgres` owns durable payment records and uses the pinned
-`pg-boss@12.38.0` as a disposable transport. The host owns one `pg.Pool`. Neither the
-store nor the transport opens a hidden pool or calls `pool.end()`.
+`@agent-teams/payments-postgres` owns durable payment records and a transport-neutral
+PostgreSQL work runner. The host explicitly selects the bundled pinned
+`pg-boss@12.38.0` adapter or another implementation of the transactional transport
+contract. The host supplies the checked-out PostgreSQL connection capability.
+When using node-postgres, it owns one borrowed `pg.Pool`; the driver adapter,
+store and bundled transport never open a hidden pool or call `pool.end()`. See [transport contracts and migration](../../docs/queue-transport.md).
+
+## Installation and transport selection
+
+Install the store and transport-neutral worker without a queue vendor:
+
+```sh
+npm install @agent-teams/payments-core @agent-teams/payments-postgres
+```
+
+The root entrypoint exports the store, runner, driver and transactional transport
+contracts. It imports and installs neither pg nor pg-boss. Supply a qualified
+`PaymentPostgresDatabase` and, when running workers, a `PaymentJobTransport`.
+The public processing methods can also run without the worker.
+
+For node-postgres, explicitly install the qualified optional driver peer:
+
+```sh
+npm install pg@8.23.1
+npm install --save-dev @types/pg@8.20.0
+```
+
+Wrap the host-owned pool once and pass the resulting `database` to migrations,
+store, recovery and worker/transport options:
+
+```ts
+import { Pool } from 'pg';
+import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
+
+const pool = new Pool({ connectionString });
+const database = createNodePostgresPaymentDatabase(pool);
+```
+
+The qualified pool uses text mode and default result parsers: exact decimal-text
+`int8` and decoded JSON/JSONB. The wrapper preserves host parsing configuration;
+it does not override codecs. `binary: true`, `parseInt8: true` and custom result
+parsers require separate qualification against the connection contract. See
+[storage and driver portability](../../docs/storage-portability.md), including
+reuse of a Drizzle node-postgres pool.
+
+Only the `/node-postgres` driver entrypoint has pg declarations. Another driver
+implements the checked-out connection contract directly; it must preserve the
+same transaction, timeout, discard and unknown-COMMIT guarantees. Its operational
+qualification remains the host's responsibility.
+
+For the bundled transport, explicitly install its qualified optional peer:
+
+```sh
+npm install pg-boss@12.38.0
+```
+
+Import its factory, options and retention settings from
+`@agent-teams/payments-postgres/pg-boss`. This subpath is the only public runtime
+entrypoint that loads pg-boss. The same four SDK packages remain the delivery
+units; hosts choose the optional transport at composition.
 
 ## Typed SQL and dependency admission
 
 The adapter uses private Drizzle schema bindings and typed PostgreSQL query
 builders for record reads, conditional record upserts, membership guards,
 obligation transitions, configuration updates and bounded keyset scans. The
-connection-free `drizzle.mock()` API only compiles statements with `toSQL()`;
-the existing checked-out `pg` transaction executes them. Drizzle does not own
+private driver-free Drizzle builder only compiles statements with `toSQL()`;
+the existing checked-out PostgreSQL connection executes them. Drizzle does not own
 transactions, connections, migrations or the pg-boss transport. Ordered advisory
 locks, PostgreSQL-specific JSON operations and repair locking retain explicit SQL.
 No Drizzle schema, inferred record, query or transaction type is part of the public
@@ -45,17 +102,18 @@ workspace's pnpm patch. Packed consumer qualification verifies that boundary.
 Run bootstrap explicitly with a migration role before starting application traffic:
 
 ```ts
-import { migratePaymentSchema, bootstrapPostgresPaymentJobs } from '@agent-teams/payments-postgres';
+import { migratePaymentSchema } from '@agent-teams/payments-postgres';
+import { createPgBossPaymentTransport } from '@agent-teams/payments-postgres/pg-boss';
 
 const namespace = {
-  pool,
+  database,
   paymentSchema: 'payments_application_a',
   jobSchema: 'payment_jobs_application_a',
   scope,
   onError: (error: Error) => logger.error(error),
 };
-await migratePaymentSchema({ pool, schema: namespace.paymentSchema, scope });
-await bootstrapPostgresPaymentJobs(namespace);
+await migratePaymentSchema({ database, schema: namespace.paymentSchema, scope });
+await createPgBossPaymentTransport(namespace).bootstrap();
 ```
 
 Bootstrap durably binds the payment schema to the job schema and the exact
@@ -75,10 +133,12 @@ Construct and start the runtime explicitly:
 ```ts
 import { createPayments } from '@agent-teams/payments-core';
 import { createPostgresPaymentJobs, createPostgresPaymentStore } from '@agent-teams/payments-postgres';
+import { createPgBossPaymentTransport } from '@agent-teams/payments-postgres/pg-boss';
 
-const jobs = createPostgresPaymentJobs(namespace);
+const transport = createPgBossPaymentTransport(namespace);
+const jobs = createPostgresPaymentJobs({ ...namespace, transport });
 const store = await createPostgresPaymentStore({
-  pool,
+  database,
   schema: namespace.paymentSchema,
   scope,
   queue: jobs.queue,
@@ -115,9 +175,11 @@ terminal. Its `status()` and `drain()` retain every admitted core call, includin
 physical SDK request still unresolved after its logical deadline. Drain it before
 constructing a replacement; a second `start()` cannot replace that ownership.
 
-The store's optional queue sends use the already checked-out payment transaction
-through pg-boss's public `send(..., { db })` seam. This makes a T1/T2 record change
-and its enqueue atomic. Workers use ordinary `work`, with no SQL transaction held
+The store's optional `queue` accepts only the namespace-bound `PaymentJobEnqueuer`.
+It receives the already checked-out bounded payment transaction. The selected
+pg-boss adapter uses its public `send(..., { db })` seam; vendor options and job
+schema never enter the store or runner. This makes a T1/T2 record change and its
+enqueue atomic. Workers use ordinary `work`, with no SQL transaction held
 across provider or consumer I/O. The payment T2 or delivery ACK commits before the
 handler returns; pg-boss then completes the job. Replaying after a crash in this
 interval is safe. Do not combine these workers with `transactional:true` or manual
@@ -166,15 +228,16 @@ outcome, scan checkpoint, backfill cursor or delivery target. One bounded startu
 pass and the durable periodic repair schedule recreate missing or terminal jobs.
 Hosts can request another bounded pass with `jobs.repair(limit)`.
 
-Repair selects due obligations with `FOR UPDATE SKIP LOCKED`, excludes jobs still
-created/retrying/active before applying the batch limit, and enqueues in that same
+Repair selects due obligations with `FOR UPDATE SKIP LOCKED`, uses the transport's
+trusted PostgreSQL predicate to exclude runnable wake-ups before applying the
+batch limit, and enqueues in that same
 payment transaction. Replicas intentionally compete on one namespace. The job
 payload is only a wake-up identity; handlers re-read scope-owned records and the
 durable operation state before effects. A prepared job can dispatch only while
 the durable operation is still `prepared`. An unknown job cannot call that path.
 
 Logical attempts and cooldown live in the payment obligation, independently of
-pg-boss retries and job retention. Queue retry is disabled for this work; the
+transport retries and job retention. Pg-boss queue retry is disabled for this work; the
 bounded payment repair mechanism owns retry admission. Defaults allow eight
 logical attempts, with exponential cooldown from 30 seconds up to one hour.
 Persistent handler/configuration faults become durable quarantine instead of a

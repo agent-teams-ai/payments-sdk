@@ -1,6 +1,4 @@
-import type { Pool, PoolClient, QueryConfig, QueryResult, QueryResultRow } from 'pg';
-
-/** The caller owns the Pool. This package never calls Pool.end(). */
+/** The host owns the connection source and its lifecycle. */
 export type DatabaseTimeouts = Readonly<{
   acquireMs: number;
   lockMs: number;
@@ -27,12 +25,35 @@ export class PaymentDatabaseError extends Error {
   }
 }
 
+export type PaymentSqlRow = Record<string, unknown>;
+export type PaymentSqlResult<Row extends PaymentSqlRow = PaymentSqlRow> = Readonly<{ rows: Row[] }>;
+
+/** Exclusive PostgreSQL session. Query results preserve exact int8 text and decoded jsonb;
+ * multi-statement scripts return every result row in statement order. timeoutMs bounds the
+ * query call. destroy physically discards only this checkout and rejects in-flight queries.
+ * release/destroy must be nonthrowing and idempotent; neither closes the host's source. */
+export interface PaymentPostgresConnection {
+  // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- SQL text determines the caller-declared row shape.
+  query<Row extends PaymentSqlRow = PaymentSqlRow>(text: string, values: readonly unknown[] | undefined, timeoutMs: number): Promise<PaymentSqlResult<Row>>;
+  release(): void;
+  destroy(): void;
+}
+
+/** PostgreSQL driver mechanism only. A resolved acquisition remains exclusively owned until
+ * release/destroy, including one arriving after the SDK's acquisition deadline. Alternative
+ * drivers require their own durability, parser, deadline and recovery qualification. */
+export interface PaymentPostgresDatabase {
+  acquire(): Promise<PaymentPostgresConnection>;
+}
+
+/** Bounded same-transaction executor; never retain it or control its transaction. */
 export interface PaymentSqlTransaction {
-  query<R extends QueryResultRow = QueryResultRow>(text: string, values?: readonly unknown[]): Promise<QueryResult<R>>;
+  // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- SQL text determines the caller-declared row shape.
+  query<Row extends PaymentSqlRow = PaymentSqlRow>(text: string, values?: readonly unknown[]): Promise<PaymentSqlResult<Row>>;
 }
 
 export interface PaymentSqlExecutor {
-  executeSql(text: string, values?: unknown[]): Promise<{ rows: QueryResultRow[] }>;
+  executeSql(text: string, values?: unknown[]): Promise<PaymentSqlResult>;
 }
 
 /** SQL identifiers are configuration, never request data. Limit prevents PostgreSQL name truncation. */
@@ -51,7 +72,7 @@ function validateTimeouts(value: DatabaseTimeouts): void {
 }
 
 /** A late checkout is released, so timing out while the host pool is exhausted cannot leak a slot. */
-function acquire(pool: Pool, timeoutMs: number): Promise<PoolClient> {
+function acquire(database: PaymentPostgresDatabase, timeoutMs: number): Promise<PaymentPostgresConnection> {
   return new Promise((resolve, reject) => {
     let settled = false;
     const timer = setTimeout(() => {
@@ -59,22 +80,21 @@ function acquire(pool: Pool, timeoutMs: number): Promise<PoolClient> {
       reject(new PaymentDatabaseError('acquisition_timeout'));
     }, timeoutMs);
     timer.unref();
-    pool.connect((error, client, release) => {
-      if (settled) {
-        if (client) {release();}
-        return;
-      }
+    void Promise.resolve().then(() => database.acquire()).then(client => {
+      if (settled) {client.release(); return null;}
       settled = true;
       clearTimeout(timer);
-      if (error) {reject(error);}
-      else if (!client) {reject(new Error('Pool returned no connection'));}
-      else {resolve(client);}
+      resolve(client);
+      return null;
+    }, (error: unknown) => {
+      if (settled) {return null;}
+      settled = true;
+      clearTimeout(timer);
+      reject(error);
+      return null;
     });
   });
 }
-
-// Query promises carry the observable failure, including during server restarts.
-function onPaymentConnectionError(): void {}
 
 type OwnedConnection = Readonly<{
   sql: PaymentSqlTransaction;
@@ -84,22 +104,21 @@ type OwnedConnection = Readonly<{
 
 /** One connection ownership protocol for owner transactions and pg-boss's self-contained SQL. */
 async function withPaymentConnection<T>(
-  pool: Pool,
+  database: PaymentPostgresDatabase,
   operation: (connection: OwnedConnection) => Promise<T>,
   timeouts: DatabaseTimeouts,
 ): Promise<T> {
   validateTimeouts(timeouts);
   const startedAt = performance.now();
-  const client = await acquire(pool, timeouts.acquireMs);
+  const client = await acquire(database, timeouts.acquireMs);
   let released = false;
   let expired = false;
   const release = (destroy: boolean): void => {
     if (released) {return;}
     released = true;
-    client.release(destroy);
+    if (destroy) {client.destroy();}
+    else {client.release();}
   };
-  // A client checked out during a server restart may emit an error before its query rejects.
-  client.on('error', onPaymentConnectionError);
   const remaining = (): number => Math.max(1, Math.floor(timeouts.deadlineMs - (performance.now() - startedAt)));
   const timer = setTimeout(() => {
     expired = true;
@@ -107,11 +126,10 @@ async function withPaymentConnection<T>(
   }, remaining());
   timer.unref();
   const transaction: PaymentSqlTransaction = {
-    async query<R extends QueryResultRow = QueryResultRow>(text: string, values?: readonly unknown[]): Promise<QueryResult<R>> {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- Preserve the caller-declared SQL row shape through the bounded executor.
+    async query<Row extends PaymentSqlRow = PaymentSqlRow>(text: string, values?: readonly unknown[]): Promise<PaymentSqlResult<Row>> {
       if (expired || released) {throw new PaymentDatabaseError('transaction_timeout');}
-      // pg 8.23 supports per-query timeout; @types/pg 8.20 omits this documented runtime option.
-      const config: QueryConfig & { query_timeout: number } = { text, ...(values === undefined ? {} : { values: [...values] }), query_timeout: remaining() };
-      return client.query<R>(config);
+      return client.query<Row>(text, values, remaining());
     },
   };
   try {
@@ -119,7 +137,6 @@ async function withPaymentConnection<T>(
   } finally {
     clearTimeout(timer);
     release(false);
-    client.removeListener('error', onPaymentConnectionError);
   }
 }
 
@@ -129,11 +146,11 @@ async function withPaymentConnection<T>(
  * A failed COMMIT is always unknown to the caller and cannot authorize an external dispatch.
  */
 export async function withPaymentTransaction<T>(
-  pool: Pool,
+  database: PaymentPostgresDatabase,
   operation: (transaction: PaymentSqlTransaction) => Promise<T>,
   timeouts: DatabaseTimeouts = defaultDatabaseTimeouts,
 ): Promise<T> {
-  return withPaymentConnection(pool, async connection => {
+  return withPaymentConnection(database, async connection => {
     const transaction = connection.sql;
     let phase: 'begin' | 'work' | 'commit' | 'done' = 'begin';
     try {
@@ -170,11 +187,11 @@ export async function withPaymentTransaction<T>(
  * are restored before a healthy connection returns to the borrowed pool; failed scripts destroy
  * only their checkout, so no open transaction or weakened durability can leak to a sibling.
  */
-export function createPaymentSqlExecutor(pool: Pool, timeouts: DatabaseTimeouts = defaultDatabaseTimeouts): PaymentSqlExecutor {
+export function createPaymentSqlExecutor(database: PaymentPostgresDatabase, timeouts: DatabaseTimeouts = defaultDatabaseTimeouts): PaymentSqlExecutor {
   validateTimeouts(timeouts);
   return {
     executeSql(text, values) {
-      return withPaymentConnection(pool, async connection => {
+      return withPaymentConnection(database, async connection => {
         const sql = connection.sql;
         try {
           const previous = (await sql.query<{ sync: string; lock: string; statement: string; transaction: string }>(
@@ -185,11 +202,7 @@ export function createPaymentSqlExecutor(pool: Pool, timeouts: DatabaseTimeouts 
           await sql.query(configure, ['on', `${timeouts.lockMs}ms`, `${timeouts.statementMs}ms`, `${timeouts.transactionMs}ms`]);
           const result = await sql.query(text, values);
           await sql.query(configure, [previous.sync, previous.lock, previous.statement, previous.transaction]);
-          // pg-boss's maintenance and migration scripts inspect rows from multiple statements.
-          // Match its documented custom Db behavior and preserve every result row in order.
-          const rows: QueryResultRow[] = Array.isArray(result)
-            ? (result as { rows?: QueryResultRow[] }[]).flatMap(item => item.rows ?? []) : result.rows;
-          return { rows };
+          return result;
         } catch (error) {
           connection.destroy();
           throw error;
@@ -199,9 +212,9 @@ export function createPaymentSqlExecutor(pool: Pool, timeouts: DatabaseTimeouts 
   };
 }
 
-export async function assertPostgresDurability(pool: Pool, schema: string): Promise<void> {
+export async function assertPostgresDurability(database: PaymentPostgresDatabase, schema: string): Promise<void> {
   const quoted = sqlIdentifier(schema);
-  await withPaymentTransaction(pool, async tx => {
+  await withPaymentTransaction(database, async tx => {
     const result = await tx.query<{ version: string; fsync: string; wal: string }>(
       "SELECT current_setting('server_version_num') AS version, current_setting('fsync') AS fsync, current_setting('wal_level') AS wal",
     );

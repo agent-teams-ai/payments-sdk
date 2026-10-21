@@ -1,56 +1,58 @@
-import { canonicalJson } from '@agent-teams/payments-core';
+import { canonicalJson, digest } from '@agent-teams/payments-core';
 import type { PaymentScope } from '@agent-teams/payments-core';
-import type { Pool } from 'pg';
 import { PgBoss } from 'pg-boss';
-import type { Warning } from 'pg-boss';
 import { assertPostgresDurability, createPaymentSqlExecutor, PaymentDatabaseError, sqlIdentifier, withPaymentTransaction } from './database.js';
-import type { DatabaseTimeouts } from './database.js';
+import type { PaymentSqlExecutor } from './database.js';
+import { reportPaymentJobError } from './work-transport.js';
+import type { PaymentJobEvents, PaymentJobNamespace, PaymentJobTransport } from './work-transport.js';
 
 export const paymentJobRetention = Object.freeze({ retentionSeconds: 14 * 86_400, deleteAfterSeconds: 7 * 86_400 });
 export const paymentWorkQueue = 'payments_work';
 export const paymentRepairQueue = 'payments_repair';
 const schedulerQueue = '__pgboss__send-it';
 
-export type PaymentJobNamespace = Readonly<{ pool: Pool; paymentSchema: string; jobSchema: string; scope: PaymentScope; timeouts?: DatabaseTimeouts }>;
-export type PaymentJobEvents = Readonly<{ onError: (error: Error) => void; onWarning?: (warning: Warning) => void }>;
-
-/** Diagnostics cannot change durable work settlement or create an unhandled rejection. */
-export function reportPaymentJobError(events: PaymentJobEvents, error: Error): void {
-  try {
-    const sink: Readonly<{ onError: (error: Error) => unknown }> = events;
-    const report = sink.onError(error);
-    void Promise.resolve(report).catch(() => {});
-  }
-  catch { /* The host owns its diagnostic sink; never recursively report a sink failure. */ }
+export type PgBossPaymentTransportOptions = PaymentJobNamespace & PaymentJobEvents & Readonly<{
+  jobSchema: string;
+  onWarning?: (warning: Readonly<{ message: string }>) => void;
+}>;
+export interface PgBossPaymentTransport extends PaymentJobTransport {
+  /** Explicit migration-role operation. Never invoked by qualify/start. */
+  bootstrap(): Promise<void>;
 }
 
-function validateNamespace(options: PaymentJobNamespace): void {
+function validateNamespace(options: PgBossPaymentTransportOptions): void {
   sqlIdentifier(options.paymentSchema); sqlIdentifier(options.jobSchema);
   if (options.paymentSchema === options.jobSchema) {throw new TypeError('Payment records and jobs require separate schemas');}
 }
 
-/** The supplied Pool remains owned by the host, including failed startup and shutdown. */
-export function makePaymentBoss(options: PaymentJobNamespace & PaymentJobEvents, bootstrap = false): PgBoss {
+/** The connection source remains owned by the host, including failed startup and shutdown. */
+function makePaymentBoss(options: PgBossPaymentTransportOptions, bootstrap = false, executor: PaymentSqlExecutor = createPaymentSqlExecutor(options.database, options.timeouts)): PgBoss {
   validateNamespace(options);
   const boss = new PgBoss({
-    db: createPaymentSqlExecutor(options.pool, options.timeouts), schema: options.jobSchema,
+    db: executor, schema: options.jobSchema,
     migrate: bootstrap, createSchema: bootstrap, supervise: !bootstrap, schedule: !bootstrap,
     reindex: false, useListenNotify: false, registerInstance: false,
     ...paymentJobRetention,
   });
   // EventEmitter error listeners must exist before any pg-boss subsystem can start.
   boss.on('error', error => { reportPaymentJobError(options, error); });
-  boss.on('warning', options.onWarning ?? (warning => { reportPaymentJobError(options, new Error(`Payment job warning: ${warning.message}`)); }));
+  boss.on('warning', warning => {
+    if (!options.onWarning) {reportPaymentJobError(options, new Error(`Payment job warning: ${warning.message}`)); return;}
+    try {
+      const sink: Readonly<{ onWarning: (value: Readonly<{ message: string }>) => unknown }> = { onWarning: options.onWarning };
+      void Promise.resolve(sink.onWarning({ message: warning.message })).catch(() => {});
+    } catch { /* Warning sinks cannot alter the transport lifecycle. */ }
+  });
   return boss;
 }
 
 /** Explicit migration-role operation. Call after migratePaymentSchema, never from runtime start. */
-export async function bootstrapPostgresPaymentJobs(options: PaymentJobNamespace & PaymentJobEvents): Promise<void> {
+async function bootstrapPostgresPaymentJobs(options: PgBossPaymentTransportOptions): Promise<void> {
   validateNamespace(options);
   const payment = sqlIdentifier(options.paymentSchema), jobs = sqlIdentifier(options.jobSchema);
   // Claim both namespaces before pg-boss may install anything. The payment configuration lock
   // serializes replicas; the job-schema owner row rejects a different payment deployment.
-  await withPaymentTransaction(options.pool, async tx => {
+  await withPaymentTransaction(options.database, async tx => {
     const owner = await tx.query<{ body: { scope: PaymentScope; jobTransport?: unknown } }>(`SELECT body FROM ${payment}.configuration WHERE id = 'owner' FOR UPDATE`);
     if (!owner.rows[0] || canonicalJson(owner.rows[0].body.scope) !== canonicalJson(options.scope)) {throw new Error('Payment job namespace scope mismatch');}
     const binding = { jobSchema: options.jobSchema, queueName: paymentWorkQueue };
@@ -77,11 +79,11 @@ export async function bootstrapPostgresPaymentJobs(options: PaymentJobNamespace 
   }
 }
 
-export async function qualifyPaymentJobNamespace(options: PaymentJobNamespace, boss: PgBoss): Promise<void> {
+async function qualifyPaymentJobNamespace(options: PgBossPaymentTransportOptions, boss: PgBoss): Promise<void> {
   validateNamespace(options);
-  await assertPostgresDurability(options.pool, options.paymentSchema);
+  await assertPostgresDurability(options.database, options.paymentSchema);
   const payment = sqlIdentifier(options.paymentSchema), jobs = sqlIdentifier(options.jobSchema);
-  await withPaymentTransaction(options.pool, async tx => {
+  await withPaymentTransaction(options.database, async tx => {
     const owner = await tx.query<{ body: { scope: PaymentScope; jobTransport?: unknown } }>(`SELECT body FROM ${payment}.configuration WHERE id = 'owner' FOR SHARE`);
     const namespace = await tx.query<{ body: unknown }>(`SELECT body FROM ${jobs}.payment_owner WHERE id = 'owner'`);
     if (!owner.rows[0] || canonicalJson(owner.rows[0].body.scope) !== canonicalJson(options.scope)
@@ -99,4 +101,58 @@ export async function qualifyPaymentJobNamespace(options: PaymentJobNamespace, b
   const schedule = await boss.getSchedule(paymentRepairQueue, 'durable_obligations');
   if (!schedule || schedule.cron !== '* * * * *' || schedule.timezone !== 'UTC' || schedule.options?.missed !== 'once'
     || canonicalJson(schedule.data ?? null) !== canonicalJson({ kind: 'repair', paymentSchema: options.paymentSchema })) {throw new Error('Payment repair schedule requires explicit bootstrap');}
+}
+
+/** Explicit outer composition selects this adapter. Its PgBoss instance and schema protocol
+ * remain private; the returned contract contains no pg-boss declarations or mutable client. */
+export function createPgBossPaymentTransport(options: PgBossPaymentTransportOptions): PgBossPaymentTransport {
+  const boss = makePaymentBoss(options), jobs = sqlIdentifier(options.jobSchema);
+  const pendingWorkSql = (kindExpression: string, idExpression: string) => ({
+    text: `EXISTS (SELECT 1 FROM ${jobs}.job j WHERE j.name = $1 AND j.state IN ('created', 'retry', 'active')
+      AND j.data ->> 'kind' = ${kindExpression} AND j.data ->> 'id' = ${idExpression})`,
+    values: [paymentWorkQueue],
+  });
+  return {
+    namespace: Object.freeze({ paymentSchema: options.paymentSchema, scope: Object.freeze(structuredClone(options.scope)) }),
+    bootstrap: () => bootstrapPostgresPaymentJobs(options),
+    qualify: () => qualifyPaymentJobNamespace(options, boss),
+    pendingWorkSql,
+    enqueue: async (work, transaction) => {
+      // The caller already owns the payment obligation's row lock. Deduplicate runnable
+      // identities, not a time window: a terminal job must never suppress its repair wake-up.
+      const pending = pendingWorkSql('$2', '$3');
+      if ((await transaction.query<{ pending: boolean }>(`SELECT ${pending.text} AS pending`, [...pending.values, work.kind, work.id])).rows[0]?.pending === true) {return false;}
+      const executor: PaymentSqlExecutor = { executeSql: (text, values) => transaction.query(text, values) };
+      // send's public db option covers INSERT, but a cold vendor queue-cache lookup uses its
+      // constructor executor. This inert, send-only instance binds BOTH to the same transaction.
+      // Never start it: no timers, pool, second checkout or retained executor escapes admission.
+      const admission = makePaymentBoss(options, false, executor);
+      const id = await admission.send(paymentWorkQueue, work, {
+        db: executor,
+        singletonKey: digest(work), retryLimit: 0,
+      });
+      return id !== null && id !== '';
+    },
+    start: async (handlers, worker) => {
+      await boss.start();
+      await boss.work<unknown>(paymentWorkQueue, { batchSize: 1, localConcurrency: worker.concurrency, pollingIntervalSeconds: worker.pollingIntervalSeconds }, async batch => {
+        await Promise.all(batch.map(job => handlers.work(job.data)));
+      });
+      await boss.work<unknown>(paymentRepairQueue, { batchSize: 1, pollingIntervalSeconds: worker.pollingIntervalSeconds }, async batch => {
+        await Promise.all(batch.map(async job => {
+          if (canonicalJson(job.data) !== canonicalJson({ kind: 'repair', paymentSchema: options.paymentSchema })) {throw new Error('Invalid payment repair namespace');}
+          await handlers.repair();
+        }));
+      });
+    },
+    stop: async timeoutMs => {
+      // A failed worker cleanup must not skip the other queue or subsystem shutdown.
+      const workers = await Promise.allSettled([
+        boss.offWork(paymentWorkQueue, { wait: false }), boss.offWork(paymentRepairQueue, { wait: false }),
+      ]);
+      const stopped = await Promise.allSettled([boss.stop({ close: false, graceful: true, timeout: timeoutMs })]);
+      const failures = [...workers, ...stopped].filter(result => result.status === 'rejected').map(result => result.reason as unknown);
+      if (failures.length > 0) {throw new AggregateError(failures, 'Payment transport shutdown failed');}
+    },
+  };
 }
