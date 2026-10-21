@@ -21,8 +21,8 @@ function resultState(result: ProviderResult<JsonValue>): PaymentOperation['state
 function successfulOutcomeChanges(input: OperationInput, value: unknown): Pick<OperationCommit, 'binding' | 'intent'> {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {throw new TypeError('Invalid successful outcome');}
   if (input.operation.kind === 'cancellation') {
-    if ('kind' in value && value.kind === 'scheduled' && 'effectiveAt' in value && typeof value.effectiveAt === 'string') {exactTime(value.effectiveAt);}
-    else if ('kind' in value && value.kind === 'applied' && 'observedStatus' in value && typeof value.observedStatus === 'string') {assertIdentifier(value.observedStatus);}
+    if (input.operation.timing === 'period_end' && 'kind' in value && value.kind === 'scheduled' && 'effectiveAt' in value && typeof value.effectiveAt === 'string') {exactTime(value.effectiveAt);}
+    else if (input.operation.timing === 'now' && 'kind' in value && value.kind === 'applied' && 'observedStatus' in value && typeof value.observedStatus === 'string') {assertIdentifier(value.observedStatus);}
     else {throw new TypeError('Invalid cancellation outcome');}
     return {};
   }

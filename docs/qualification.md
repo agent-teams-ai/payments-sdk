@@ -8,9 +8,10 @@ floors, production-only package isolation, connected monthly/top-up scenarios,
 four additional reviews and exact production metrics.
 [PR #6](https://github.com/agent-teams-ai/payments-sdk/pull/6) owns that remote
 delivery and its own hosted result. It does not qualify the subsequent
-[corrected-runtime candidate](runtime-security-admission.md) on **24.22.1 / 26.12.1**;
+[corrected-runtime qualification](runtime-security-admission.md) on **24.22.1 / 26.12.1**;
 its [complete local gates](reviews/node-runtime-security-correction-2026-10-21/qualification.md)
-subsequently passed on the exact `6f348df` source; exact-commit hosted gates remain pending. The earlier
+subsequently passed on the exact `6f348df` source, followed by the reviewed
+hosted deliveries recorded below. The earlier
 [local hardening record](reviews/sdk-0.3-hardening/README.md), including its then
 blocked write access, remains historical.
 
@@ -26,6 +27,17 @@ binds both complete local Node-floor runs and successful hosted CI to the new
 source, with raw logs, archive hashes, independent reviews and production code
 metrics. The earlier qualification remains historical. Each later delivery
 commit still requires its own exact-head hosted checks.
+
+## Reviewed hosted baselines
+
+These successful main-push runs bind the delivered source to the repository's
+required checks. Each later PR and merge still needs its own successful run;
+the deployment and credential gates below remain separate.
+
+| Delivery | Exact merged source | Successful main-push Checks |
+| --- | --- | --- |
+| [PR #7](https://github.com/agent-teams-ai/payments-sdk/pull/7): corrected Node floors and repository cleanup | [`b4b29bb065a609f6886fd48a4b01412135fbb6ec`](https://github.com/agent-teams-ai/payments-sdk/commit/b4b29bb065a609f6886fd48a4b01412135fbb6ec) | [Run 39611581129](https://github.com/agent-teams-ai/payments-sdk/actions/runs/39611581129) |
+| [PR #8](https://github.com/agent-teams-ai/payments-sdk/pull/8): published Get Modular lifecycle and diagnostics | [`89322945546658720d374096b77bd94f0b759837`](https://github.com/agent-teams-ai/payments-sdk/commit/89322945546658720d374096b77bd94f0b759837) | [Run 39620389645](https://github.com/agent-teams-ai/payments-sdk/actions/runs/39620389645) |
 
 ## Functional CI profile
 
@@ -44,11 +56,11 @@ commit still requires its own exact-head hosted checks.
 
 Manifest engine ranges describe runtime compatibility, and the two exact Node versions above are the functional CI matrix. They do not establish production security admission. Other operating systems, PostgreSQL majors, versions within a manifest range and deployment topologies require their own evidence. The [lockfile](../pnpm-lock.yaml) pins the actual dependency closure. The [current upstream record](upstream-qualification.md) identifies the Foundation patch scope, exact local qualification subject, current Get Modular publication gate and official browser blocker.
 
-## Production runtime security admission: corrected candidate, final gates pending
+## Production runtime security admission
 
-Official security releases published on **2026-10-21** provide Node **24.22.1 LTS** with Undici **7.30.1**, and Node **26.12.1** with Undici **8.12.2**. The [current admission candidate](runtime-security-admission.md) records official archive checksums, actual binary versions, exact corrected-source comparisons and successful unmodified global-fetch process completion. The earlier affected runtime results remain in the [historical security record](security-qualification.md#node-bundled-transport-scope).
+Official security releases published on **2026-10-21** provide Node **24.22.1 LTS** with Undici **7.30.1**, and Node **26.12.1** with Undici **8.12.2**. The [current runtime qualification](runtime-security-admission.md) records official archive checksums, actual binary versions, exact corrected-source comparisons and successful unmodified global-fetch process completion. The earlier affected runtime results remain in the [historical security record](security-qualification.md#node-bundled-transport-scope).
 
-This candidate raises manifest/toolchain floors and exact CI versions. It does not claim final production admission: independent review and complete local qualification passed on source `6f348df2d345edf5270ade0daebf67cc834de2de` under both corrected floors, as retained in the [qualification record](reviews/node-runtime-security-correction-2026-10-21/qualification.md); successful reviewed exact-commit hosted Checks remain required. The separate account, policy, backup and deployment gates below remain applicable. Development-only Undici and clean npm scans do not update a host's built-in fetch.
+The corrected floors are enforced by manifests, the toolchain gate and CI. Independent review and complete local qualification passed on source `6f348df2d345edf5270ade0daebf67cc834de2de` under both corrected floors, as retained in the [qualification record](reviews/node-runtime-security-correction-2026-10-21/qualification.md); the subsequent reviewed deliveries passed their [exact-commit hosted Checks](#reviewed-hosted-baselines). This establishes repository qualification for those sources. The separate account, policy, backup and deployment gates below remain applicable before production admission. Development-only Undici and clean npm scans do not update a host's built-in fetch.
 
 ## What the automated gates establish
 

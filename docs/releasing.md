@@ -2,7 +2,7 @@
 
 The repository's [Release candidate workflow](../.github/workflows/release.yaml) produces four audited versioned package tarballs, `SHA256SUMS`, a source/CI manifest and a GitHub **prerelease**. It never invokes `npm publish`. Package version `0.3.0` in source does not imply an existing npm release, live Paddle qualification or production readiness.
 
-**Current runtime candidate, 2026-10-21:** official corrected Node 24.22.1 LTS and 26.12.1 binaries pass the bounded unmodified-fetch probe. The [successor admission record](runtime-security-admission.md) owns their checksum/source evidence and the remaining reviewed exact-commit hosted qualification. These artifacts remain integration/fixture prereleases; separate account and deployment gates still apply. Generated release notes link the candidate status and do not claim production admission.
+**Current runtime qualification, 2026-10-21:** official corrected Node 24.22.1 LTS and 26.12.1 binaries pass the bounded unmodified-fetch probe. The [runtime qualification record](runtime-security-admission.md) owns their checksum/source evidence, and the [reviewed hosted baselines](qualification.md#reviewed-hosted-baselines) passed. Each later candidate still requires successful exact-commit main-push Checks. These artifacts remain integration/fixture prereleases; separate account and deployment gates still apply. Generated release notes link the runtime qualification and do not claim production admission.
 
 ## Exact-commit release admission
 

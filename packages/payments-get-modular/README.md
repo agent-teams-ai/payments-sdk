@@ -23,7 +23,7 @@ The definitions are inert. Importing `paymentsModule` or preparing a template op
 ```ts
 import type { PaymentRuntimeOptions } from '@agent-teams/payments-core';
 import { assemblyFor } from '@get-modular/assembly';
-import { createScope } from '@get-modular/resources';
+import { createScope, type CloseOptions } from '@get-modular/resources';
 import {
   PaymentsConfiguration,
   paymentsConfiguration,
@@ -61,7 +61,7 @@ export async function createPaymentHost(options: PaymentRuntimeOptions, signal?:
   }
   return {
     payments: outcome.roots.payments,
-    close: () => attempt.control.close(),
+    close: (closeOptions?: CloseOptions) => attempt.control.close(closeOptions),
   };
 }
 ```
