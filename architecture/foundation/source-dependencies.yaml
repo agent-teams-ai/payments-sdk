@@ -74,7 +74,7 @@ boundaries:
     entrypoints: []
     allow:
       boundaries: [payments.core, payments.get-modular]
-      packages: ['@agent-teams/payments-core', '@get-modular/core', '@get-modular/assembly', '@get-modular/resources', '@get-modular/conformance']
+      packages: ['@agent-teams/payments-core', '@get-modular/core', '@get-modular/assembly', '@get-modular/resources', '@get-modular/conformance', '@get-modular/observation']
       builtins: [node:assert/strict, node:test]
       runtimeReferences: []
   - id: payments.postgres-tests
