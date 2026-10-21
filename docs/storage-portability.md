@@ -88,6 +88,15 @@ The example specifically requires a `pg.Pool`. Drizzle backed by a single client
 postgres.js or an HTTP driver has a different connection capability. A common
 `transaction()` method or a `$client` property does not establish substitutability.
 
+The supplied node-postgres adapter is qualified with ordinary text-mode pools and
+default result parsers: `int8` remains exact decimal text, while JSON/JSONB is
+decoded to ordinary JavaScript values. It preserves the borrowed pool's decoding
+configuration; it does not override global, pool or client parsers. Pools using
+`binary: true`, `parseInt8: true` or custom codecs are outside this qualification
+unless separately demonstrated to preserve the connection contract. In
+particular, a host parser that converts arbitrary `int8` values to JavaScript
+`number` can lose precision before the store sees the result.
+
 ## Why the driver contract owns a checkout
 
 The adapter needs a same-session parameterized query capability plus explicit

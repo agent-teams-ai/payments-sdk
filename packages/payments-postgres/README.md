@@ -38,6 +38,13 @@ const pool = new Pool({ connectionString });
 const database = createNodePostgresPaymentDatabase(pool);
 ```
 
+The qualified pool uses text mode and default result parsers: exact decimal-text
+`int8` and decoded JSON/JSONB. The wrapper preserves host parsing configuration;
+it does not override codecs. `binary: true`, `parseInt8: true` and custom result
+parsers require separate qualification against the connection contract. See
+[storage and driver portability](../../docs/storage-portability.md), including
+reuse of a Drizzle node-postgres pool.
+
 Only the `/node-postgres` driver entrypoint has pg declarations. Another driver
 implements the checked-out connection contract directly; it must preserve the
 same transaction, timeout, discard and unknown-COMMIT guarantees. Its operational
