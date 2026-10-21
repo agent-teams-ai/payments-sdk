@@ -1,0 +1,43 @@
+{
+  "commit": "28ab08829d3c90094a2b2a846da05daa09c108c2",
+  "sourceTree": "d161bc3cf6619b68f24aa6ded083a541709288a9",
+  "node": "24.21.0",
+  "command": "pnpm check",
+  "freshForcedBuild": true,
+  "serialPostgresLease": true,
+  "database": "payments_hardening_24_21_0_35ff8f01",
+  "freshDisposableDatabase": true,
+  "postgres": {
+    "version": "PostgreSQL 18.4 (Ubuntu 18.4-1.pgdg24.04+1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit",
+    "fsync": "on",
+    "synchronous_commit": "on"
+  },
+  "testFileConcurrency": "unchanged Node default within each test group",
+  "started": "2026-10-21T10:20:28.939Z",
+  "stages": [
+    {
+      "name": "frozen-install",
+      "started": "2026-10-21T10:20:28.940Z",
+      "finished": "2026-10-21T10:20:29.643Z",
+      "exitCode": 0
+    },
+    {
+      "name": "forced-build",
+      "started": "2026-10-21T10:20:29.644Z",
+      "finished": "2026-10-21T10:20:32.968Z",
+      "exitCode": 0
+    },
+    {
+      "name": "complete-check",
+      "started": "2026-10-21T10:20:32.969Z",
+      "finished": "2026-10-21T10:22:07.686Z",
+      "exitCode": 1
+    }
+  ],
+  "finished": "2026-10-21T10:22:07.687Z",
+  "exitCode": 1,
+  "finishedCommit": "28ab08829d3c90094a2b2a846da05daa09c108c2",
+  "finishedTree": "d161bc3cf6619b68f24aa6ded083a541709288a9",
+  "trackedChangesAfter": "",
+  "logSha256": "b9adf7c5f12ddd4761c383f43f5ad79aabd154c02cc03197fc06d3becfbe27f2"
+}

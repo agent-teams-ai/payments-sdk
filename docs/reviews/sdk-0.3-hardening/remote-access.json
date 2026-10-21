@@ -1,0 +1,25 @@
+{
+  "repository": "agent-teams-ai/payments-sdk",
+  "intendedBranch": "feat/sdk-queue-portability-0.3",
+  "authenticatedConnectorLogin": "777genius",
+  "createBranch": {
+    "baseCommit": "58441742d2f3743e4681f4bb02b2ff013023d652",
+    "status": 403,
+    "message": "Resource not accessible by integration",
+    "created": false
+  },
+  "canonicalCommitIdentity": {
+    "name": "iliya",
+    "email": "iliyazelenkog@gmail.com"
+  },
+  "delivery": {
+    "pushed": false,
+    "pullRequestCreated": false,
+    "hostedChecks": false,
+    "merged": false,
+    "released": false
+  },
+  "note": "The GitHub connector identifies the intended owner but cannot create the requested branch. Local gh authorization is absent. Preserve the committed source and qualification; do not claim local results as remote completion or bypass the canonical owner merge guard.",
+  "observedOn": "2026-10-21",
+  "recordedAt": "2026-10-21T10:31:33.646520+00:00"
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "consumer": "plain",
+    "resolution": "NodeNext",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": false,
+    "passed": true
+  },
+  {
+    "consumer": "plain",
+    "resolution": "Bundler",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": false,
+    "passed": true
+  },
+  {
+    "consumer": "adapters",
+    "resolution": "NodeNext",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": false,
+    "passed": true
+  },
+  {
+    "consumer": "adapters",
+    "resolution": "Bundler",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": false,
+    "passed": true
+  }
+]

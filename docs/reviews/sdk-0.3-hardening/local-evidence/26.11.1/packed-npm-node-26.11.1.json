@@ -1,0 +1,98 @@
+{
+  "status": "passed",
+  "consumer": "production-only-npm",
+  "node": "v26.11.1",
+  "npm": "11.20.0",
+  "typescript": "Version 7.0.2",
+  "install": {
+    "omitDev": true,
+    "ignoreScripts": true,
+    "strictPeerDependencies": true,
+    "maintainerPatchConfiguration": false,
+    "mysql2Present": false
+  },
+  "packages": [
+    {
+      "name": "@agent-teams/payments-core",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-core-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-core",
+        "@agent-teams/payments-core/testing"
+      ],
+      "sha256": "06a962cae231f01f844d3682f3f914f92633916e806224e224810b3a8663dcfe"
+    },
+    {
+      "name": "@agent-teams/payments-paddle",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-paddle-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-paddle"
+      ],
+      "sha256": "431c6970df5dfd118d08f1caf89c67168d297fec036641f3832230f0b2db4ab5"
+    },
+    {
+      "name": "@agent-teams/payments-postgres",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-postgres-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-postgres"
+      ],
+      "sha256": "139242de20cf4cd1c97db7066a0d8ca56cc35eb88228168292c9b9b575b960b9"
+    },
+    {
+      "name": "@agent-teams/payments-get-modular",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-get-modular-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-get-modular",
+        "@agent-teams/payments-get-modular/observation"
+      ],
+      "sha256": "fdb0fff53a5134c5cf979502f4d92e91b19dcf651ddfccb0aa7da15c156eac12"
+    }
+  ],
+  "publicEntrypoints": [
+    "@agent-teams/payments-core",
+    "@agent-teams/payments-core/testing",
+    "@agent-teams/payments-paddle",
+    "@agent-teams/payments-postgres",
+    "@agent-teams/payments-get-modular",
+    "@agent-teams/payments-get-modular/observation"
+  ],
+  "drizzle": {
+    "version": "1.0.0-rc.5-5935859",
+    "integrity": "sha512-PkVjyxhamD7IOVfpDMn3BmV9afyvj3eeLvIPind3NmPv+cfv6/jh6GN0fHP0zzgrprGx/jGE4mkE0ttRFlzHwA==",
+    "manifestSha256": "a0c98fa732cd389f5b4d983390cfb3fc47d797f0f4651b5c511dea8f6dfe7e1a",
+    "correctedDeclarationTargetsUnpatched": 8,
+    "declarationFilesUnpatched": 1742,
+    "declarationManifestSha256": "9ec1dfc99dc72ef18ec08b114ecb54f19858985def6c6d576ad4f2384b3ac1f4",
+    "runtimeFiles": 1743,
+    "runtimeManifestSha256": "b55c1e931df5efbcae510e60fd12b6018b75fa13b5f0431286fb67195ef10292"
+  },
+  "resolvers": [
+    {
+      "resolution": "NodeNext",
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "skipLibCheck": false,
+      "ormDeclarationsReachable": false,
+      "listFilesSha256": "4c2bc581a46dd207ec6af03955d9dfb7cfae8433f1ae3eaef652760bb767cadc",
+      "passed": true
+    },
+    {
+      "resolution": "Bundler",
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "skipLibCheck": false,
+      "ormDeclarationsReachable": false,
+      "listFilesSha256": "4c2bc581a46dd207ec6af03955d9dfb7cfae8433f1ae3eaef652760bb767cadc",
+      "passed": true
+    }
+  ],
+  "lockSha256": "0131e60b200e0bcf50c2a23111dc85520b372cb77c63112ab179bb493675b44c",
+  "inputManifestSha256": "eacc0173547d96849558937bd5fe0aa24a1624e0f2bc525354e6a8fdfd43818b",
+  "financialScenario": "qualification/observation/financial.test.ts",
+  "scenarioOutputSha256": "04e9a1ac5cb21be10024ad92dc33be90fc01e02d40604a403287b3d3b6b6139e"
+}

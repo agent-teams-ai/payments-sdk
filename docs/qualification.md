@@ -2,6 +2,12 @@
 
 This page describes reproducible evidence and its limits. A test file is not a recorded passing run. Use the exact commit's successful **Checks → Required checks** run and its logs/artifacts as the release evidence. Counts and dates are intentionally not copied here: the workflow result is authoritative, and a later commit needs its own qualification.
 
+The current [SDK 0.3 local hardening record](reviews/sdk-0.3-hardening/README.md)
+binds complete checks on both admitted Node floors, additional custody/transport
+scenarios, independent reviews and exact production metrics. Remote branch/PR
+creation is blocked by the current GitHub integration's write permission; local
+results do not claim hosted checks or merge. The records below remain historical.
+
 The [SDK 0.2 complete local qualification](reviews/sdk-0.2/qualification.md)
 records the exact two-floor integration subject, logs and package hashes. It
 preserves prior failures and explicitly separates local evidence from hosted
