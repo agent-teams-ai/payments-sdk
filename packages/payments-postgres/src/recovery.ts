@@ -1,13 +1,12 @@
 import { canonicalJson, digest } from '@agent-teams/payments-core';
 import type { AggregateIdentity, Delivery, EvidenceMessage, PaymentOperation, PaymentScope } from '@agent-teams/payments-core';
-import type { Pool } from 'pg';
 import { assertPostgresDurability, withPaymentTransaction } from './database.js';
-import type { DatabaseTimeouts, PaymentSqlTransaction } from './database.js';
+import type { DatabaseTimeouts, PaymentPostgresDatabase, PaymentSqlTransaction } from './database.js';
 import { assertBatchLimit, PaymentRecords } from './records.js';
 import type { StoredRecord } from './records.js';
 
 /** Trusted owner administration. Never expose this capability through buyer HTTP handlers. */
-export type PaymentRecoveryOptions = Readonly<{ pool: Pool; schema: string; scope: PaymentScope; producerNamespace: string; timeouts?: DatabaseTimeouts }>;
+export type PaymentRecoveryOptions = Readonly<{ database: PaymentPostgresDatabase; schema: string; scope: PaymentScope; producerNamespace: string; timeouts?: DatabaseTimeouts }>;
 export type RecoveryAudit = Readonly<{ actorId: string; auditRef: string; reason: string }>;
 export type RecoveryCheckpoint = Readonly<{ messageId: string; aggregate: AggregateIdentity; revision: number; bodyDigest: string }>;
 export type RecoveryManifest = Readonly<{
@@ -58,7 +57,7 @@ function validCheckpoint(value: RecoveryCheckpoint): void {
 
 export async function createPostgresPaymentRecovery(options: PaymentRecoveryOptions): Promise<PostgresPaymentRecovery> {
   text(options.producerNamespace, 'producer namespace');
-  await assertPostgresDurability(options.pool, options.schema);
+  await assertPostgresDurability(options.database, options.schema);
   const recovery = new PostgresPaymentRecovery(options);
   await recovery.qualify();
   return recovery;
@@ -69,7 +68,7 @@ export class PostgresPaymentRecovery {
   private readonly records: PaymentRecords;
   private readonly options: PaymentRecoveryOptions;
   constructor(options: PaymentRecoveryOptions) { this.options = options; this.records = new PaymentRecords(options.schema); }
-  private tx<T>(work: (tx: PaymentSqlTransaction) => Promise<T>): Promise<T> { return withPaymentTransaction(this.options.pool, work, this.options.timeouts); }
+  private tx<T>(work: (tx: PaymentSqlTransaction) => Promise<T>): Promise<T> { return withPaymentTransaction(this.options.database, work, this.options.timeouts); }
   async qualify(): Promise<void> { await this.tx(async tx => { await this.records.configuration(tx, this.options.scope); }); }
 
   async begin(input: Readonly<{

@@ -9,15 +9,14 @@ import type {
   ScanCheckpoint, StoreCommitResult, SubscriptionAggregate, SubscriptionBinding, SubscriptionReclassification,
   TransactionAggregate, TransactionBinding, VerifiedInput,
 } from '@agent-teams/payments-core';
-import type { Pool } from 'pg';
 import { assertPostgresDurability, withPaymentTransaction } from './database.js';
-import type { DatabaseTimeouts, PaymentSqlTransaction } from './database.js';
+import type { DatabaseTimeouts, PaymentPostgresDatabase, PaymentSqlTransaction } from './database.js';
 import { assertBatchLimit, PaymentRecords } from './records.js';
 import type { DurableWork, RecordKey, RecordWrite, StoredRecord } from './records.js';
 import type { PaymentJobEnqueuer } from './work-transport.js';
 
 export type PostgresPaymentStoreOptions = Readonly<{
-  pool: Pool;
+  database: PaymentPostgresDatabase;
   schema: string;
   scope: PaymentScope;
   timeouts?: DatabaseTimeouts;
@@ -37,7 +36,7 @@ const fenced = { kind: 'recovery_fenced' } as const;
 
 /** Factory performs read-only qualification; bootstrap remains a separate migration-role action. */
 export async function createPostgresPaymentStore(options: PostgresPaymentStoreOptions): Promise<PaymentStore> {
-  await assertPostgresDurability(options.pool, options.schema);
+  await assertPostgresDurability(options.database, options.schema);
   const store = new PostgresPaymentStore(options);
   await store.qualify();
   return store;
@@ -69,7 +68,7 @@ class PostgresPaymentStore implements PaymentStore {
 
   private tx<T>(scope: PaymentScope, action: (tx: PaymentSqlTransaction) => Promise<T>): Promise<T> {
     if (canonicalJson(scope) !== canonicalJson(this.options.scope)) {throw new Error('Payment store scope mismatch');}
-    return withPaymentTransaction(this.options.pool, action, this.options.timeouts);
+    return withPaymentTransaction(this.options.database, action, this.options.timeouts);
   }
 
   private async work(tx: PaymentSqlTransaction, work: DurableWork, state: 'pending' | 'quarantined' | 'complete' = 'pending', reset = false): Promise<void> {

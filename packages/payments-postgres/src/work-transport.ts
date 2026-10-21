@@ -1,10 +1,9 @@
 import type { PaymentScope } from '@agent-teams/payments-core';
-import type { Pool } from 'pg';
-import type { DatabaseTimeouts, PaymentSqlTransaction } from './database.js';
+import type { DatabaseTimeouts, PaymentPostgresDatabase, PaymentSqlTransaction } from './database.js';
 
 /** A wake-up identity. Payment records, never a transport payload, authorize the work. */
 export type PaymentJobWork = Readonly<{ kind: 'inbox' | 'publication' | 'reclassification' | 'prepared' | 'unknown' | 'delivery' | 'scan'; id: string }>;
-export type PaymentJobNamespace = Readonly<{ pool: Pool; paymentSchema: string; scope: PaymentScope; timeouts?: DatabaseTimeouts }>;
+export type PaymentJobNamespace = Readonly<{ database: PaymentPostgresDatabase; paymentSchema: string; scope: PaymentScope; timeouts?: DatabaseTimeouts }>;
 export type PaymentJobEvents = Readonly<{ onError: (error: Error) => void }>;
 
 /** Infrastructure-only same-transaction admission. Use only the supplied bounded executor;

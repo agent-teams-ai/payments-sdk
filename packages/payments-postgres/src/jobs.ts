@@ -85,7 +85,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
   async function repair(limit = batch): Promise<Readonly<{ enqueued: number }>> {
     assertBatchLimit(limit);
     await qualify();
-    return withPaymentTransaction(options.pool, async tx => {
+    return withPaymentTransaction(options.database, async tx => {
       if ((await records.configuration(tx, options.scope)).body.recoveryFenced) {return { enqueued: 0 };}
       // Queue rows can all disappear. The payment-owned obligation is the only work authority.
       // Existing runnable jobs are excluded before LIMIT, so an older live job cannot starve later
@@ -108,7 +108,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
   }
 
   async function claim(work: PaymentJobWork): Promise<Readonly<{ attempt: number; revision: string }> | undefined> {
-    return withPaymentTransaction(options.pool, async tx => {
+    return withPaymentTransaction(options.database, async tx => {
       if ((await records.configuration(tx, options.scope)).body.recoveryFenced) {return;}
       const row = await tx.query<{ attempts: number; revision: string }>(`UPDATE ${records.sql}.obligations SET attempts = attempts + 1, revision = revision + 1,
         next_attempt_at = clock_timestamp() + $3 * interval '1 second'
@@ -120,7 +120,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
   }
 
   async function settle(work: PaymentJobWork, claimed: Readonly<{ attempt: number; revision: string }>, issue: WorkIssue | undefined, progress: boolean): Promise<void> {
-    await withPaymentTransaction(options.pool, async tx => {
+    await withPaymentTransaction(options.database, async tx => {
       await records.configuration(tx, options.scope);
       const seconds = Math.min(maxCooldown, cooldown * 2 ** Math.min(claimed.attempt - 1, 20));
       // T2/ACK may already have completed the obligation. Never reopen it or overwrite a later
@@ -137,7 +137,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
   async function deliver(work: PaymentJobWork, installed: PaymentJobHandlers): Promise<boolean> {
     if (work.id.startsWith('backfill:')) {
       const consumer = work.id.slice('backfill:'.length);
-      const cursor = () => withPaymentTransaction(options.pool, async tx => {
+      const cursor = () => withPaymentTransaction(options.database, async tx => {
         await records.configuration(tx, options.scope);
         return (await records.read(tx, 'backfills', consumer))?.body;
       }, options.timeouts);
@@ -145,7 +145,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
       await installed.store.listDeliveries(options.scope, consumer, batch);
       return canonicalJson(before ?? null) !== canonicalJson(await cursor() ?? null);
     }
-    const target = await withPaymentTransaction(options.pool, async tx => {
+    const target = await withPaymentTransaction(options.database, async tx => {
       if ((await records.configuration(tx, options.scope)).body.recoveryFenced) {throw new WorkIssue('recovery_fenced');}
       const delivery = (await (records.read(tx, 'deliveries', work.id) as Promise<StoredRecord<Delivery> | undefined>))?.body;
       if (!delivery) {throw new WorkIssue('missing_delivery_authority', true);}
@@ -171,7 +171,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
       if (result === 'missing') {throw new WorkIssue('missing_inbox_authority', true);}
       if (result === 'conflict' || result === 'recovery_fenced') {throw new WorkIssue(result);}
     } else if (work.kind === 'reclassification') {
-      const cursor = () => withPaymentTransaction(options.pool, async tx => {
+      const cursor = () => withPaymentTransaction(options.database, async tx => {
         await records.configuration(tx, options.scope);
         return (await records.read(tx, 'reclassifications', work.id))?.body;
       }, options.timeouts);
@@ -305,7 +305,7 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
   async function redrive(work: PaymentJobWork, auditRef: string): Promise<void> {
     if (!isWork(work) || !auditRef || auditRef.length > 512) {throw new TypeError('Payment job redrive requires a valid work identity and audit reference');}
     await qualify();
-    await withPaymentTransaction(options.pool, async tx => {
+    await withPaymentTransaction(options.database, async tx => {
       if ((await records.configuration(tx, options.scope)).body.recoveryFenced) {throw new Error('Payment recovery is fenced');}
       await tx.query(`UPDATE ${records.sql}.obligations SET state = 'pending', attempts = 0, revision = revision + 1, next_attempt_at = clock_timestamp(), issue = $3
         WHERE kind = $1 AND id = $2 AND state <> 'complete'`, [work.kind, work.id, `redrive:${auditRef}`]);

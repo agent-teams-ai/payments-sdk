@@ -25,8 +25,8 @@ function validateNamespace(options: PgBossPaymentTransportOptions): void {
   if (options.paymentSchema === options.jobSchema) {throw new TypeError('Payment records and jobs require separate schemas');}
 }
 
-/** The supplied Pool remains owned by the host, including failed startup and shutdown. */
-function makePaymentBoss(options: PgBossPaymentTransportOptions, bootstrap = false, executor: PaymentSqlExecutor = createPaymentSqlExecutor(options.pool, options.timeouts)): PgBoss {
+/** The connection source remains owned by the host, including failed startup and shutdown. */
+function makePaymentBoss(options: PgBossPaymentTransportOptions, bootstrap = false, executor: PaymentSqlExecutor = createPaymentSqlExecutor(options.database, options.timeouts)): PgBoss {
   validateNamespace(options);
   const boss = new PgBoss({
     db: executor, schema: options.jobSchema,
@@ -52,7 +52,7 @@ async function bootstrapPostgresPaymentJobs(options: PgBossPaymentTransportOptio
   const payment = sqlIdentifier(options.paymentSchema), jobs = sqlIdentifier(options.jobSchema);
   // Claim both namespaces before pg-boss may install anything. The payment configuration lock
   // serializes replicas; the job-schema owner row rejects a different payment deployment.
-  await withPaymentTransaction(options.pool, async tx => {
+  await withPaymentTransaction(options.database, async tx => {
     const owner = await tx.query<{ body: { scope: PaymentScope; jobTransport?: unknown } }>(`SELECT body FROM ${payment}.configuration WHERE id = 'owner' FOR UPDATE`);
     if (!owner.rows[0] || canonicalJson(owner.rows[0].body.scope) !== canonicalJson(options.scope)) {throw new Error('Payment job namespace scope mismatch');}
     const binding = { jobSchema: options.jobSchema, queueName: paymentWorkQueue };
@@ -81,9 +81,9 @@ async function bootstrapPostgresPaymentJobs(options: PgBossPaymentTransportOptio
 
 async function qualifyPaymentJobNamespace(options: PgBossPaymentTransportOptions, boss: PgBoss): Promise<void> {
   validateNamespace(options);
-  await assertPostgresDurability(options.pool, options.paymentSchema);
+  await assertPostgresDurability(options.database, options.paymentSchema);
   const payment = sqlIdentifier(options.paymentSchema), jobs = sqlIdentifier(options.jobSchema);
-  await withPaymentTransaction(options.pool, async tx => {
+  await withPaymentTransaction(options.database, async tx => {
     const owner = await tx.query<{ body: { scope: PaymentScope; jobTransport?: unknown } }>(`SELECT body FROM ${payment}.configuration WHERE id = 'owner' FOR SHARE`);
     const namespace = await tx.query<{ body: unknown }>(`SELECT body FROM ${jobs}.payment_owner WHERE id = 'owner'`);
     if (!owner.rows[0] || canonicalJson(owner.rows[0].body.scope) !== canonicalJson(options.scope)
