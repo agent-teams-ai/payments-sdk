@@ -149,17 +149,17 @@ export function createPostgresPaymentJobs(options: PaymentJobOptions) {
       if ((await records.configuration(tx, options.scope)).body.recoveryFenced) {throw new WorkIssue('recovery_fenced');}
       const delivery = (await (records.read(tx, 'deliveries', work.id) as Promise<StoredRecord<Delivery> | undefined>))?.body;
       if (!delivery) {throw new WorkIssue('missing_delivery_authority', true);}
-      if (delivery.acknowledged) {return;}
       if (canonicalJson([delivery.messageId, delivery.consumerId]) !== work.id) {throw new WorkIssue('invalid_delivery_identity', true);}
       const message = (await (records.read(tx, 'evidence', delivery.messageId) as Promise<StoredRecord<EvidenceMessage> | undefined>))?.body;
       if (!message || message.messageId !== delivery.messageId || canonicalJson(message.scope) !== canonicalJson(options.scope)) {throw new WorkIssue('missing_delivery_evidence', true);}
       return { delivery, message };
     }, options.timeouts);
-    if (!target) {return false;}
-    const consume = installed.consumers?.[target.delivery.consumerId];
-    if (!consume) {throw new WorkIssue('consumer_not_installed');}
-    const receipt = await consume(structuredClone(target.message));
-    if (receipt.messageId !== target.message.messageId || receipt.bodyDigest !== target.message.bodyDigest) {throw new WorkIssue('consumer_receipt_mismatch', true);}
+    if (!target.delivery.acknowledged) {
+      const consume = installed.consumers?.[target.delivery.consumerId];
+      if (!consume) {throw new WorkIssue('consumer_not_installed');}
+      const receipt = await consume(structuredClone(target.message));
+      if (receipt.messageId !== target.message.messageId || receipt.bodyDigest !== target.message.bodyDigest) {throw new WorkIssue('consumer_receipt_mismatch', true);}
+    }
     const result = await installed.payments.acknowledgeDelivery(target.delivery.consumerId, target.message.messageId, target.message.bodyDigest);
     if (result === 'conflict') {throw new WorkIssue('delivery_ack_conflict', true);}
     return false;
