@@ -115,6 +115,8 @@ async function check(root: string): Promise<void> {
   assert.equal(scripts['test:modular:adoption'], 'node --test tools/test/get-modular-adoption.test.ts', 'adoption command removed or retargeted');
   assert.equal(scripts['test:boundaries'], 'node --test tools/test/*.test.ts', 'boundary command must execute the scoped gate');
   assert.equal(scripts['foundation:check'], 'agent-teams-foundation check', 'Foundation graph command removed or retargeted');
+  assert.equal(scripts['test:modular'], 'node tools/run-tests.ts modular', 'Modular runtime command removed or retargeted');
+  assert.equal(scripts['test:observation'], 'node tools/qualify-observation.ts', 'packed Observation command removed or retargeted');
   for (const command of ['pnpm test:modular:adoption', 'pnpm foundation:check']) {assert.equal(scripts['check:fast']?.split('&&').map(part => part.trim()).includes(command), true, `fast chain lost ${command}`);}
   for (const command of ['pnpm check:fast', 'pnpm test:boundaries', 'pnpm test:modular', 'pnpm test:observation']) {assert.equal(scripts['check']?.split('&&').map(part => part.trim()).includes(command), true, `full chain lost ${command}`);}
 }
@@ -144,6 +146,8 @@ void test('scoped adoption permits owner-local helpers and rejects meaningful dr
     'missing owned path': root => rm(join(root, 'packages/payments-get-modular/src/module.ts')),
     'unknown exception': async root => { const profile = await json<Profile>(root, profilePath); profile.exceptions.push({ ...profile.exceptions[0]!, id: 'blanket-exemption' }); await writeFile(join(root, profilePath), JSON.stringify(profile)); },
     'no-op command': async root => { const manifest = await json<{ scripts: Record<string, string> }>(root, 'package.json'); manifest.scripts['test:modular:adoption'] = 'node -e "process.exit(0)"'; await writeFile(join(root, 'package.json'), JSON.stringify(manifest)); },
+    'no-op runtime command': async root => { const manifest = await json<{ scripts: Record<string, string> }>(root, 'package.json'); manifest.scripts['test:modular'] = 'node -e "process.exit(0)"'; await writeFile(join(root, 'package.json'), JSON.stringify(manifest)); },
+    'no-op packed command': async root => { const manifest = await json<{ scripts: Record<string, string> }>(root, 'package.json'); manifest.scripts['test:observation'] = 'node -e "process.exit(0)"'; await writeFile(join(root, 'package.json'), JSON.stringify(manifest)); },
     'removed fast chain': async root => { const manifest = await json<{ scripts: Record<string, string> }>(root, 'package.json'); manifest.scripts['check:fast'] = 'pnpm typecheck'; await writeFile(join(root, 'package.json'), JSON.stringify(manifest)); },
   };
   const expected: Readonly<Record<string, RegExp>> = {
@@ -153,6 +157,8 @@ void test('scoped adoption permits owner-local helpers and rejects meaningful dr
     'missing owned path': /ENOENT/u,
     'unknown exception': /unknown or stale CMS exception/u,
     'no-op command': /adoption command removed or retargeted/u,
+    'no-op runtime command': /Modular runtime command removed or retargeted/u,
+    'no-op packed command': /packed Observation command removed or retargeted/u,
     'removed fast chain': /fast chain lost pnpm test:modular:adoption/u,
   };
   for (const [name, change] of Object.entries(changes)) {
