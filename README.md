@@ -26,6 +26,8 @@ The four packages currently declare version `0.3.0`; see the [migration notes](C
 - [Get Modular growth assessment](docs/get-modular-growth.md): integration convenience, concrete graph limits, contract upgrades and Host lifecycle responsibilities.
 - [Operations and recovery runbook](docs/operations.md): migrations, concurrency, shutdown, reconciliation and independent restore.
 - [Qualification and deployment gates](docs/qualification.md): what the automated suites prove and what needs a real deployment or Paddle sandbox.
+- [Subscription and credit scenario matrix](docs/reviews/subscription-credits-e2e-matrix.md): connected renewals, independent purchases, recovery, cancellation, refunds and chargeback reversal, with explicit policy limits.
+- [Current SDK 0.3 evidence](docs/reviews/sdk-0.3-portability/README.md): driver/queue isolation, complete two-floor qualification and the additional review/fix cycle.
 - [Dependency and Node runtime security](docs/security-qualification.md): the qualified development dependency correction and the separate blocked production runtime admission.
 - [Implementation and review status](docs/implementation-status.md): P0–P7 plan traceability, independent review reports and correction evidence.
 - [Purchase observation](qualification/observation/README.md): optional public read projection, real Assembly/Resources/watch/load, and isolated packed qualification against the published registry train.

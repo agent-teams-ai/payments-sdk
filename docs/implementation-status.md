@@ -30,6 +30,15 @@ feature-branch check cannot authorize the release.
 
 ## Explicit admission boundaries
 
+The SDK 0.3 delivery is tracked in
+[PR #6](https://github.com/agent-teams-ai/payments-sdk/pull/6). The
+[current qualification and review record](reviews/sdk-0.3-portability/README.md)
+binds driver and queue dependency isolation, the separate optional adapters,
+connected subscription/credit scenarios, both complete local runtime-floor runs,
+four additional critics and the resolved recovery-guide migration finding. This
+extends the previously completed four implementation review waves; it does not
+relabel those historical reviews as examinations of a newer snapshot.
+
 The SDK 0.2 integration is delivered for review through
 [PR #5](https://github.com/agent-teams-ai/payments-sdk/pull/5). Its
 [final qualification record](reviews/sdk-0.2-completion/README.md) binds complete
@@ -60,5 +69,5 @@ and real PostgreSQL; logical independent-owner restore tests do not prove a
 physical restore. See [deployment gates](qualification.md#deployment-and-credential-gates).
 
 GitHub prerelease archives are the configured delivery channel. Manifest version
-0.2.0 and a successful dry run do not establish npm publication; registry
+0.3.0 and a successful dry run do not establish npm publication; registry
 ownership and trusted publishing remain the separately documented future setup.

@@ -1,0 +1,44 @@
+{
+  "node": "26.11.1",
+  "subject": {
+    "commit": "b6fd1a673d9f0d6a160a0938c159c2a0db410419",
+    "trackedChanges": false
+  },
+  "artifact": {
+    "version": "1.0.0-rc.5-5935859",
+    "integrity": "sha512-PkVjyxhamD7IOVfpDMn3BmV9afyvj3eeLvIPind3NmPv+cfv6/jh6GN0fHP0zzgrprGx/jGE4mkE0ttRFlzHwA==",
+    "sourceCommit": "59358596b5be6a79f9cc1a2a20d39d276f6ab4b5"
+  },
+  "patchSha256": "c0ac842c102d0e7a339e79a1676c02fa0dd803a11f6cc82e4b42007c8e153efb",
+  "changedDeclarations": [
+    "cockroach-core/policies.d.cts",
+    "cockroach-core/policies.d.ts",
+    "cockroach-core/roles.d.cts",
+    "cockroach-core/roles.d.ts",
+    "pg-core/policies.d.cts",
+    "pg-core/policies.d.ts",
+    "pg-core/roles.d.cts",
+    "pg-core/roles.d.ts"
+  ],
+  "runtime": {
+    "files": 1743,
+    "sha256Manifest": "b55c1e931df5efbcae510e60fd12b6018b75fa13b5f0431286fb67195ef10292",
+    "unchanged": true
+  },
+  "probes": [
+    {
+      "resolution": "NodeNext",
+      "valid": true,
+      "rejectedInvalidInputs": 5
+    },
+    {
+      "resolution": "Bundler",
+      "valid": true,
+      "rejectedInvalidInputs": 5
+    }
+  ],
+  "officialDeclarations": {
+    "files": 1742,
+    "sha256Manifest": "9ec1dfc99dc72ef18ec08b114ecb54f19858985def6c6d576ad4f2384b3ac1f4"
+  }
+}

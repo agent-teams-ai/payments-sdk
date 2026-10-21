@@ -1,5 +1,11 @@
 # SDK 0.3 queue portability and custody qualification
 
+**Historical subject.** The later [driver/queue isolation and subscription record](../sdk-0.3-portability/README.md)
+supersedes the current-installation and delivery status below. GitHub write access
+was subsequently authorized and [PR #6](https://github.com/agent-teams-ai/payments-sdk/pull/6)
+opened; its live checks/state own remote delivery. The original observations and
+their exact local qualification subject are preserved here.
+
 ## Result and exact subject
 
 On 2026-10-21, clean source **`16a6a5038383e54d3c740adcf87487e113498847`**

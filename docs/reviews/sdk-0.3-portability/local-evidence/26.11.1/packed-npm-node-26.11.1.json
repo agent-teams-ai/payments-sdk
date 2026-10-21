@@ -1,0 +1,104 @@
+{
+  "status": "passed",
+  "consumer": "production-only-npm",
+  "node": "v26.11.1",
+  "npm": "11.20.0",
+  "typescript": "Version 7.0.2",
+  "install": {
+    "omitDev": true,
+    "ignoreScripts": true,
+    "strictPeerDependencies": true,
+    "maintainerPatchConfiguration": false,
+    "mysql2Present": false
+  },
+  "packages": [
+    {
+      "name": "@agent-teams/payments-core",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-core-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-core",
+        "@agent-teams/payments-core/testing"
+      ],
+      "sha256": "06a962cae231f01f844d3682f3f914f92633916e806224e224810b3a8663dcfe"
+    },
+    {
+      "name": "@agent-teams/payments-paddle",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-paddle-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-paddle"
+      ],
+      "sha256": "431c6970df5dfd118d08f1caf89c67168d297fec036641f3832230f0b2db4ab5"
+    },
+    {
+      "name": "@agent-teams/payments-postgres",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-postgres-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-postgres",
+        "@agent-teams/payments-postgres/pg-boss",
+        "@agent-teams/payments-postgres/node-postgres"
+      ],
+      "sha256": "0db2d2abeea5528a34ac54cceb3556f4218a59b271e88a805ef6fae8b105535d"
+    },
+    {
+      "name": "@agent-teams/payments-get-modular",
+      "version": "0.3.0",
+      "tarball": "/workspace/scratch/9e36ca3bbd13/implementation/payments-sdk/.artifacts/packages/agent-teams-payments-get-modular-0.3.0.tgz",
+      "entrypoints": [
+        "@agent-teams/payments-get-modular",
+        "@agent-teams/payments-get-modular/observation"
+      ],
+      "sha256": "fdb0fff53a5134c5cf979502f4d92e91b19dcf651ddfccb0aa7da15c156eac12"
+    }
+  ],
+  "publicEntrypoints": [
+    "@agent-teams/payments-core",
+    "@agent-teams/payments-core/testing",
+    "@agent-teams/payments-paddle",
+    "@agent-teams/payments-postgres",
+    "@agent-teams/payments-postgres/pg-boss",
+    "@agent-teams/payments-postgres/node-postgres",
+    "@agent-teams/payments-get-modular",
+    "@agent-teams/payments-get-modular/observation"
+  ],
+  "drizzle": {
+    "version": "1.0.0-rc.5-5935859",
+    "integrity": "sha512-PkVjyxhamD7IOVfpDMn3BmV9afyvj3eeLvIPind3NmPv+cfv6/jh6GN0fHP0zzgrprGx/jGE4mkE0ttRFlzHwA==",
+    "manifestSha256": "a0c98fa732cd389f5b4d983390cfb3fc47d797f0f4651b5c511dea8f6dfe7e1a",
+    "correctedDeclarationTargetsUnpatched": 8,
+    "declarationFilesUnpatched": 1742,
+    "declarationManifestSha256": "9ec1dfc99dc72ef18ec08b114ecb54f19858985def6c6d576ad4f2384b3ac1f4",
+    "runtimeFiles": 1743,
+    "runtimeManifestSha256": "b55c1e931df5efbcae510e60fd12b6018b75fa13b5f0431286fb67195ef10292"
+  },
+  "resolvers": [
+    {
+      "resolution": "NodeNext",
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "skipLibCheck": false,
+      "ormDeclarationsReachable": false,
+      "listFilesSha256": "f06f809d0a1057b4478401777a306fa6378ce372b84ac66e670e24af99513614",
+      "passed": true
+    },
+    {
+      "resolution": "Bundler",
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "skipLibCheck": false,
+      "ormDeclarationsReachable": false,
+      "listFilesSha256": "f06f809d0a1057b4478401777a306fa6378ce372b84ac66e670e24af99513614",
+      "passed": true
+    }
+  ],
+  "lockSha256": "f7dac0db21080c4dcb72fdfa10adb80ebcf7fb34bd8be5d737c141df0884707d",
+  "inputManifestSha256": "7bd47e5b511525ea8398a95c0e873fab26f8fb2c540f66d37d9296eb9e29ea5d",
+  "financialScenario": "qualification/observation/financial.test.ts",
+  "pgBossScenario": "qualification/queue/pg-boss.test.ts",
+  "pgBossExplicitlyInstalled": true,
+  "scenarioOutputSha256": "9c84230c65f259c91c602254fe1e47ed9f35915201f8abb2f3e2e42226650988"
+}
