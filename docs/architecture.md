@@ -14,7 +14,9 @@ flowchart TD
   SQL --> Core
   GM --> Core
   Paddle --> SDK["Official Paddle SDK"]
-  SQL --> PG["pg and pg-boss"]
+  SQL --> Drizzle["Private Drizzle query compilation"]
+  Host --> Drivers["Optional node-postgres and pg-boss adapters"]
+  Drivers --> SQL
   GM --> Modular["Published Assembly, Resources and optional Observation"]
 ```
 
@@ -50,11 +52,25 @@ separate database server. A different adapter must preserve the port's confirmed
 commit, concurrency, uncertainty and replay contract. The [developer stack](developer-stack.md)
 owns the approved adapter-local query toolkit; ORM objects never cross this port.
 
+Inside that infrastructure boundary, `PaymentPostgresDatabase` acquires an
+exclusive PostgreSQL session through an adapter-owned rows-only query contract.
+`createNodePostgresPaymentDatabase` at `/node-postgres` wraps a borrowed host pool;
+the store's generic root does not import or install that driver. Reusing a
+Drizzle node-postgres pool does not join the application's ORM transaction to a
+payment commit. PostgreSQL locks, exact numeric parsing, transaction deadlines
+and recovery still need equivalent behavior from any replacement driver. Other
+database engines implement `PaymentStore`; Drizzle's multi-dialect API alone
+does not establish that equivalence. The [storage guide](storage-portability.md)
+documents these separate extension boundaries and the concrete migration.
+
 The PostgreSQL store receives a narrow transactional `PaymentJobEnqueuer`;
 the supplied worker receives an explicit `PaymentJobTransport`. Both contracts
 belong to the PostgreSQL infrastructure package. Core sees neither SQL nor a
 queue object. The host can select `createPgBossPaymentTransport`; its private
 implementation owns vendor options, subscriptions and job-schema knowledge.
+That implementation is exported only at `/pg-boss`, with an optional peer that
+the host installs explicitly. The generic package root and an alternate-queue
+consumer do not install or load pg-boss.
 The same store and worker are exercised with a second durable SQL wake-up
 transport fixture. That fixture is substitution evidence, not another
 production queue product.

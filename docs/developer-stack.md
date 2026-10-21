@@ -22,8 +22,9 @@ proposal is evidence to assess, not an automatically adopted requirement.
 | Maintained runtime, tests and tools | Ordinary TypeScript `.ts`, compiler/parser **7.0.2 or newer**, owning strict projects and `skipLibCheck:false`; distribute ESM JavaScript and declarations |
 | Product runtime and database | The Linux Node and PostgreSQL profile in [qualification](qualification.md); broader compatibility requires evidence |
 | Payment provider | Official Paddle Node SDK inside `payments-paddle`; follow its [adapter guide](../packages/payments-paddle/README.md) and separate browser admission gate |
-| Persistence query/schema toolkit | **Drizzle inside `payments-postgres`**, approved by the owner on 2026-10-20; keep `pg` connection ownership and existing transaction/recovery guarantees |
-| Durable PostgreSQL work | Infrastructure-owned transactional enqueue/worker transport contracts; explicit `pg-boss` implementation with atomic enqueue through the existing bounded payment transaction |
+| Persistence query/schema toolkit | **Drizzle inside `payments-postgres`**, approved by the owner on 2026-10-20; private typed query compilation, with PostgreSQL transaction/recovery guarantees owned by the adapter |
+| PostgreSQL connection mechanism | Adapter-owned `PaymentPostgresDatabase` / `PaymentPostgresConnection`; optional `/node-postgres` wrapper borrows the host's existing pool, including a pool used by Drizzle |
+| Durable PostgreSQL work | Infrastructure-owned transactional enqueue/worker transport contracts; optional `/pg-boss` implementation with atomic enqueue through the existing bounded payment transaction |
 | Optional composition | Get Modular inside `payments-get-modular`; use the coherent published peer profile and explicit observation release gate in its [guide](../packages/payments-get-modular/README.md) |
 | Captured development commands | Exact `node-or-bun` Node adapter inside the existing tooling helper; see [scope, artifact and process guarantees](node-or-bun-adoption.md); no SDK runtime or Bun admission |
 | Development architecture tooling | Engineering Foundation's [selected complete profile](foundation-adoption.md): shared strict compiler/type-aware lint presets, registry lifecycle and repository-owned [source](../architecture/foundation/source-dependencies.yaml)/[dependency](../architecture/foundation/dependency-declarations.yaml) policies; development-only, FMS opt-in |
@@ -39,9 +40,13 @@ Use Drizzle for adapter-owned typed schema/query work. Keep ORM imports, schema
 objects, inferred persistence records, query builders and transaction objects
 private to the infrastructure adapter. Core, its public `PaymentStore` contract,
 provider-neutral evidence and consumer contracts remain ORM-free. The PostgreSQL
-adapter may retain its existing driver-facing technical API; Drizzle types must
-not become a new public SDK requirement. Plain-core consumers must continue to
-install, compile and run without Drizzle, PostgreSQL, Paddle or Get Modular.
+adapter's generic public API depends on its own exclusive-session contract,
+without `pg`, pg-boss or Drizzle types. Select concrete driver and queue
+implementations at explicit package subpaths; their optional peers must not enter
+a generic-root consumer's installation or declaration graph. Plain-core consumers
+must continue to install, compile and run without Drizzle, PostgreSQL, Paddle or
+Get Modular. See [storage portability](storage-portability.md) for the difference
+between changing a driver, changing an ORM and changing the database engine.
 
 Keep payment-local T1/T2, independent consumer T3, immutable facts, evidence
 revisions, complete read-set validation, CAS/locking, unknown-COMMIT handling,
@@ -49,6 +54,13 @@ deadlines and borrowed-pool ownership. A query-toolkit change must not replace
 these contracts with an assumed generic transaction guarantee. Retain explicit
 SQL where PostgreSQL concurrency or recovery requires it; a typed query builder
 does not establish semantic equivalence. No cross-owner SQL or Unit of Work.
+
+The supplied node-postgres wrapper owns checkout, query timeout, result
+normalization and physical discard mechanics. The generic PostgreSQL adapter
+owns transaction phases, acquisition/absolute deadlines, session durability and
+unknown-COMMIT classification. Drizzle's public `pg-proxy` entry is used only to
+compile typed queries with `.toSQL()`; its execution callback rejects accidental
+execution. This does not adopt proxy transactions or qualify another driver.
 
 Select an exact artifact after checking its current stable release, provenance,
 Node/driver compatibility and actual strict TypeScript 7.0.2-or-newer declarations.
