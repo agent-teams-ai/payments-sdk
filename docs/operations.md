@@ -5,7 +5,7 @@ This runbook addresses the supported single durable PostgreSQL primary profile. 
 ## Deployment and startup
 
 1. Provision stable trusted scope, producer namespace and the separate payment/job schema pair. Store credentials separately. Back up the payment owner's entire correctness unit and each consumer's complete correctness unit.
-2. Apply `migratePaymentSchema` and `bootstrapPostgresPaymentJobs` explicitly under a migration role. Provision the [qualified runtime grants](../packages/payments-postgres/README.md#runtime-role) afterwards. Do not use migration credentials in ordinary workers.
+2. Apply `migratePaymentSchema` and the explicitly selected `createPgBossPaymentTransport(namespace).bootstrap()` under a migration role. Provision the [qualified runtime grants](../packages/payments-postgres/README.md#runtime-role) afterwards. Construct a separate runtime transport with runtime credentials and supply it to the worker; do not use migration credentials in ordinary workers.
 3. Start with `fsync=on`, logged tables and durable WAL. The adapters set `synchronous_commit=on` for correctness transactions even if inherited session configuration is weaker. One local durable commit is not proof of RPO0 replica promotion.
 4. Create the host-owned `pg.Pool`, provider, store and core; register stable required consumers; start the worker with explicit handlers and error/warning reporting. Start HTTP/command admission only after dependencies qualify.
 5. If startup partially fails, stop the worker/core, await real handler and external-call settlement, and release only host-owned resources. The adapter never ends the shared pool.
@@ -49,7 +49,7 @@ First stop host HTTP ingress and producers of new commands. Stop core command ad
 
 Await `jobs.drain()` and `payments.drain()` for actual settlement before disposing dependencies. Close a shared pool only after all dependent siblings finish. If an external promise remains alive, retain the pool/provider resources and report debt; process termination is an operational decision, leaving durable unknown recovery obligations. Never equate `Promise.race`, an abort notification or an expired lease with physical cancellation.
 
-For Get Modular, close the attempt scope through host-owned `Scope.control`, including after failed/cancelled run. Inspect `complete`/`settled` and unresolved debt; rejoin `close()` after work settles. Register workers after the dependent payment module so reverse cleanup stops worker admission first. The [integration lifecycle guide](../packages/payments-get-modular/README.md#ownership-cancellation-and-shutdown) describes the actual published resource semantics.
+For Get Modular, close dependent observation/attempt scopes through host-owned `Scope.control`, including after failed/cancelled run. Inspect `complete`/`settled` and unresolved debt; rejoin `close()` after work settles, then release the borrowed runtime and pool. A parent continues after failed child cleanup, so LIFO alone does not establish this dependency gate. Register workers after the dependent payment module so reverse cleanup stops worker admission first. The [integration lifecycle guide](../packages/payments-get-modular/README.md#ownership-cancellation-and-shutdown) describes the actual published resource semantics.
 
 ## Independent restore, PITR or possible WAL loss
 

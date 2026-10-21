@@ -50,13 +50,25 @@ separate database server. A different adapter must preserve the port's confirmed
 commit, concurrency, uncertainty and replay contract. The [developer stack](developer-stack.md)
 owns the approved adapter-local query toolkit; ORM objects never cross this port.
 
-The existing PostgreSQL worker uses `pg-boss` for replaceable wake-ups. Payment
-records and obligations remain authoritative after every queue job is deleted;
-bounded repair recreates runnable work. Queue enqueue may share the existing
-payment transaction through pg-boss's public `db` seam. Workers re-read saved
-authority before execution, and a queue retry never authorizes an unknown
-external mutation. [The adapter guide](../packages/payments-postgres/README.md)
-owns its operational configuration and recovery procedure.
+The PostgreSQL store receives a narrow transactional `PaymentJobEnqueuer`;
+the supplied worker receives an explicit `PaymentJobTransport`. Both contracts
+belong to the PostgreSQL infrastructure package. Core sees neither SQL nor a
+queue object. The host can select `createPgBossPaymentTransport`; its private
+implementation owns vendor options, subscriptions and job-schema knowledge.
+The same store and worker are exercised with a second durable SQL wake-up
+transport fixture. That fixture is substitution evidence, not another
+production queue product.
+
+Payment records and obligations remain authoritative after every wake-up is
+deleted; bounded repair recreates runnable work. The transport supplies a
+trusted parameterized PostgreSQL predicate so the runner excludes existing
+runnable wake-ups before applying its batch limit. Enqueue uses the existing
+bounded payment transaction, through pg-boss's public `db` seam for that
+implementation. Workers re-read saved authority before execution, and a queue
+retry never authorizes an unknown external mutation. The
+[transport contract](queue-transport.md) owns the substitution obligations and
+the [adapter guide](../packages/payments-postgres/README.md) owns its operational
+configuration and recovery procedure.
 
 | Mechanism | Contract and owner |
 | --- | --- |
@@ -70,7 +82,8 @@ mandatory external broker is exposed by core. A future broker integration must
 relay durable obligations, tolerate duplicate/out-of-order delivery, preserve
 the consumer receipt boundary and recover from crashes between send and receipt.
 It must not dual-write PostgreSQL and a remote broker as if they shared one
-transaction. That broker adapter and cross-process receipt path are not currently
+transaction. The new transactional transport port remains PostgreSQL-specific;
+it is not an atomic remote-broker dual-write abstraction. That broker adapter and cross-process receipt path are not currently
 implemented or qualified; a TypeScript port alone would not prove them.
 
 ## Mutation uncertainty and local concurrency

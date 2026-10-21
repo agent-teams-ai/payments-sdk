@@ -23,7 +23,7 @@ proposal is evidence to assess, not an automatically adopted requirement.
 | Product runtime and database | The Linux Node and PostgreSQL profile in [qualification](qualification.md); broader compatibility requires evidence |
 | Payment provider | Official Paddle Node SDK inside `payments-paddle`; follow its [adapter guide](../packages/payments-paddle/README.md) and separate browser admission gate |
 | Persistence query/schema toolkit | **Drizzle inside `payments-postgres`**, approved by the owner on 2026-10-20; keep `pg` connection ownership and existing transaction/recovery guarantees |
-| Durable PostgreSQL work | Existing `pg-boss` adapter integration, including atomic enqueue through the payment transaction's public transport seam |
+| Durable PostgreSQL work | Infrastructure-owned transactional enqueue/worker transport contracts; explicit `pg-boss` implementation with atomic enqueue through the existing bounded payment transaction |
 | Optional composition | Get Modular inside `payments-get-modular`; use the coherent published peer profile and explicit observation release gate in its [guide](../packages/payments-get-modular/README.md) |
 | Captured development commands | Exact `node-or-bun` Node adapter inside the existing tooling helper; see [scope, artifact and process guarantees](node-or-bun-adoption.md); no SDK runtime or Bun admission |
 | Development architecture tooling | Engineering Foundation's [selected complete profile](foundation-adoption.md): shared strict compiler/type-aware lint presets, registry lifecycle and repository-owned [source](../architecture/foundation/source-dependencies.yaml)/[dependency](../architecture/foundation/dependency-declarations.yaml) policies; development-only, FMS opt-in |

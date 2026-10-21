@@ -44,7 +44,7 @@ Use real server-configured price references matching the intended profile. The c
 
 ## 3. Bootstrap separately, then construct a runtime
 
-Bootstrap with a migration-role pool before accepting traffic. `migratePaymentSchema` and `bootstrapPostgresPaymentJobs` install and bind the stable schema pair. Use a separate least-privilege runtime role afterwards. The [PostgreSQL guide](../packages/payments-postgres/README.md#runtime-role) gives the qualified grants and SQL budgets; startup does not perform DDL.
+Bootstrap with a migration-role pool before accepting traffic. `migratePaymentSchema` and `createPgBossPaymentTransport(namespace).bootstrap()` install and bind the stable schema pair. Construct the runtime transport with a separate least-privilege runtime-role pool and pass it explicitly to `createPostgresPaymentJobs`. The [PostgreSQL guide](../packages/payments-postgres/README.md#runtime-role) gives the qualified grants and SQL budgets; startup does not perform DDL. The [transport guide](queue-transport.md) explains the optional queue and replacement contract.
 
 The durable example exports `bootstrapPaymentHost(namespace)` for migration and `createPaddlePostgresHost(options)` for normal operation. Its exported types enumerate the pool, trusted namespaces, Paddle configuration, catalog, authentication callback, consumer handlers and error listener. Supply migration and runtime pools explicitly. The returned Fetch handler can be mounted in the application's HTTP environment. The host still owns request timeouts, transport body-read limits, authentication/CSRF policy, secrets, logs and shared pool disposal.
 

@@ -21,6 +21,8 @@ The four packages currently declare version `0.3.0`; see the [migration notes](C
 
 - [Getting started](docs/getting-started.md): trusted configuration, catalog, checkout, webhook custody and consumer delivery.
 - [Architecture and guarantees](docs/architecture.md): ownership, T1/T2/T3, uncertainty, identities and extension boundaries.
+- [Queue transport contract](docs/queue-transport.md): explicit pg-boss composition, transactional substitution, and boundaries for a future remote broker.
+- [Get Modular growth assessment](docs/get-modular-growth.md): integration convenience, concrete graph limits, contract upgrades and Host lifecycle responsibilities.
 - [Operations and recovery runbook](docs/operations.md): migrations, concurrency, shutdown, reconciliation and independent restore.
 - [Qualification and deployment gates](docs/qualification.md): what the automated suites prove and what needs a real deployment or Paddle sandbox.
 - [Dependency and Node runtime security](docs/security-qualification.md): the qualified development dependency correction and the separate blocked production runtime admission.
