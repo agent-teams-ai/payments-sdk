@@ -7,7 +7,7 @@ import { createPaymentReconciler, createPayments, digest, inputRoutes, type Offe
 import { createPaddleProvider, createPaddleReconciliationSource } from '@agent-teams/payments-paddle';
 import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
 import { createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
-import { adjustmentFixture, eventFixture, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '../../packages/payments-paddle/test/fixtures.ts';
+import { adjustmentFixture, eventFixture, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '@agent-teams/payments-paddle/testing';
 
 const scope: PaymentScope = { applicationId: 'app-a', provider: 'paddle', paymentAccountId: 'merchant-fixture', environment: 'sandbox' };
 const query: ReconciliationQuery = { kind: 'events', from: '2026-09-30T00:00:00Z', to: '2026-10-03T00:00:00Z', perPage: 2, queryVersion: 'events/1', purpose: 'catch_up' };

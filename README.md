@@ -24,7 +24,7 @@ Trials, mixed baskets/seats, plan-change/proration commands, pause/resume, manua
 
 For Paddle with durable storage, choose core + Paddle + PostgreSQL. The PostgreSQL root requires neither `pg` nor `pg-boss`: select the optional `/node-postgres` driver wrapper and `/pg-boss` transport explicitly, or supply the adapter-owned database and transactional transport contracts. The driver wrapper can borrow an existing host pool, including one used by Drizzle. Get Modular is optional for every other package; observation hooks do not replace durable financial delivery.
 
-All four packages currently declare **`0.3.0`** and emit ESM JavaScript and declarations. This version is **not published to npm**. Build this checkout, or use matching verified prerelease tarballs when available. The [release and installation guide](docs/releasing.md) covers checksums, package overrides and installation; [migration notes](CHANGELOG.md) cover breaking changes.
+All four packages currently declare **`0.4.0`** and emit ESM JavaScript and declarations. This version is **not published to npm**. Build this checkout, or use matching verified prerelease tarballs when available. The [release and installation guide](docs/releasing.md) covers checksums, package overrides and installation; the [0.4 migration guide](docs/migrations/0.4.md) explains the separate provider/storage contracts and Get Modular revision changes. Earlier changes remain in the [changelog](CHANGELOG.md).
 
 **Current qualification:** Linux Node **24.22.1 LTS** and **26.12.1** are the corrected runtime floors. Local qualification and the [reviewed hosted baselines](docs/qualification.md#reviewed-hosted-baselines) passed. Each later revision requires its own checks; deployment and Paddle-account gates remain separate. See [runtime admission status](docs/runtime-security-admission.md) and [qualification](docs/qualification.md) before production use.
 
@@ -81,6 +81,13 @@ The [accepted implementation plan](docs/implementation-plan.md) records design d
 ## Examples and development
 
 Use Linux Node **24.22.1** or **26.12.1**, pnpm **11.25.0**, TypeScript **7.0.2**, and PostgreSQL **18** for integration tests. Maintained runtime, test and tool sources are ordinary `.ts`; Engineering Foundation is development-only. Read [AGENTS.md](AGENTS.md) and the [developer stack](docs/developer-stack.md) before contributing.
+
+The owner-selected [full Feature Module Standard adoption](docs/feature-module-adoption.md)
+and [local profile](architecture/feature-module-standard.json) define the four
+packages' module and feature boundaries. New organization repositories follow
+the [central repository admission guide](https://github.com/agent-teams-ai/.github/blob/main/docs/repository-admission.md#new-repository-bootstrap).
+The [delivery plan](docs/reviews/full-fms-adoption/plan.md) distinguishes local
+implementation checks, hosted qualification, registration and remote enforcement.
 
 ```sh
 pnpm install --frozen-lockfile

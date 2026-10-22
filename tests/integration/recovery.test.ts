@@ -9,7 +9,7 @@ import {
 import type { PaymentRecoverySession, RecoveryCheckpoint, RecoveryManifest } from '@agent-teams/payments-postgres';
 import { CreditFixture } from '../fixtures/consumers/credit.ts';
 import type { Effect } from '../fixtures/consumers/owner.ts';
-import { databaseFixture, offer, runtime, scope } from '../../packages/payments-postgres/test/helpers.ts';
+import { databaseFixture, offer, runtime, scope } from '@agent-teams/payments-postgres/testing';
 
 const producerNamespace = 'database-fixture';
 const audit = { actorId: 'trusted-operator', auditRef: 'incident-restore-2026-001', reason: 'Reconcile independently restored owners before resuming' };

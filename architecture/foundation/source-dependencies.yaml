@@ -1,4 +1,4 @@
-schemaVersion: 2
+schemaVersion: 3
 workspace:
   kind: pnpm
   manifest: pnpm-workspace.yaml
@@ -13,76 +13,309 @@ governedRoots:
   - packages/payments-paddle/test
   - packages/payments-get-modular/test
   - packages/payments-postgres/test
+  - tools
+  - tests
+  - examples
+  - qualification
 boundaries:
   - id: payments.core
-    roots: [packages/payments-core/src]
-    entrypoints: [packages/payments-core/src/index.ts]
-    packageExports: ['.']
+    roots:
+      - packages/payments-core/src
+    entrypoints:
+      - packages/payments-core/src/index.ts
+      - packages/payments-core/src/memory.ts
+      - packages/payments-core/src/store.ts
+      - packages/payments-core/src/provider.ts
+    packageExports:
+      - .
+      - ./testing
+      - ./store
+      - ./provider
     allow:
       boundaries: []
       packages: []
-      builtins: [node:crypto]
+      builtins:
+        - node:crypto
       runtimeReferences: []
   - id: payments.paddle
-    roots: [packages/payments-paddle/src]
-    entrypoints: [packages/payments-paddle/src/index.ts]
-    packageExports: ['.']
+    roots:
+      - packages/payments-paddle/src
+    entrypoints:
+      - packages/payments-paddle/src/index.ts
+      - packages/payments-paddle/src/testing.ts
+    packageExports:
+      - .
+      - ./testing
     allow:
-      boundaries: [payments.core]
-      packages: ['@agent-teams/payments-core', '@paddle/paddle-node-sdk']
-      builtins: [node:crypto]
+      boundaries:
+        - payments.core
+      packages:
+        - "@agent-teams/payments-core"
+        - "@paddle/paddle-node-sdk"
+      builtins:
+        - node:crypto
+        - node:assert/strict
       runtimeReferences: []
   - id: payments.postgres
-    roots: [packages/payments-postgres/src]
-    entrypoints: [packages/payments-postgres/src/index.ts, packages/payments-postgres/src/job-transport.ts, packages/payments-postgres/src/node-postgres.ts]
-    packageExports: ['.', './pg-boss', './node-postgres']
+    roots:
+      - packages/payments-postgres/src
+    entrypoints:
+      - packages/payments-postgres/src/index.ts
+      - packages/payments-postgres/src/job-transport.ts
+      - packages/payments-postgres/src/node-postgres.ts
+      - packages/payments-postgres/src/testing.ts
+    packageExports:
+      - .
+      - ./pg-boss
+      - ./node-postgres
+      - ./testing
     allow:
-      boundaries: [payments.core]
-      packages: ['@agent-teams/payments-core', pg, pg-boss, drizzle-orm]
-      builtins: [node:crypto]
+      boundaries:
+        - payments.core
+      packages:
+        - "@agent-teams/payments-core"
+        - pg
+        - pg-boss
+        - drizzle-orm
+      builtins:
+        - node:crypto
+        - node:assert/strict
+        - node:net
       runtimeReferences: []
   - id: payments.get-modular
-    roots: [packages/payments-get-modular/src]
-    entrypoints: [packages/payments-get-modular/src/index.ts, packages/payments-get-modular/src/observation/index.ts]
-    packageExports: ['.', './observation']
+    roots:
+      - packages/payments-get-modular/src
+    entrypoints:
+      - packages/payments-get-modular/src/index.ts
+      - packages/payments-get-modular/src/observation/index.ts
+    packageExports:
+      - .
+      - ./observation
     allow:
-      boundaries: [payments.core]
-      packages: ['@agent-teams/payments-core', '@get-modular/core', '@get-modular/assembly', '@get-modular/resources', '@get-modular/observation']
+      boundaries:
+        - payments.core
+      packages:
+        - "@agent-teams/payments-core"
+        - "@get-modular/core"
+        - "@get-modular/assembly"
+        - "@get-modular/resources"
+        - "@get-modular/observation"
       builtins: []
       runtimeReferences: []
   - id: payments.core-tests
     dependencyMode: development
-    roots: [packages/payments-core/test]
+    roots:
+      - packages/payments-core/test
     entrypoints: []
     allow:
-      boundaries: [payments.core]
-      packages: ['@agent-teams/payments-core']
-      builtins: [node:assert/strict, node:test, node:crypto]
+      boundaries:
+        - payments.core
+      packages:
+        - "@agent-teams/payments-core"
+      builtins:
+        - node:assert/strict
+        - node:test
+        - node:crypto
       runtimeReferences: []
   - id: payments.paddle-tests
     dependencyMode: development
-    roots: [packages/payments-paddle/test]
+    roots:
+      - packages/payments-paddle/test
     entrypoints: []
     allow:
-      boundaries: [payments.core, payments.paddle]
-      packages: ['@agent-teams/payments-core', '@paddle/paddle-node-sdk', undici]
-      builtins: [node:assert/strict, node:test, node:crypto, node:fs/promises, node:path, node:url]
+      boundaries:
+        - payments.core
+        - payments.paddle
+      packages:
+        - "@agent-teams/payments-core"
+        - "@paddle/paddle-node-sdk"
+        - undici
+        - "@agent-teams/payments-paddle"
+      builtins:
+        - node:assert/strict
+        - node:test
+        - node:crypto
+        - node:fs/promises
+        - node:path
+        - node:url
       runtimeReferences: []
   - id: payments.get-modular-tests
     dependencyMode: development
-    roots: [packages/payments-get-modular/test]
+    roots:
+      - packages/payments-get-modular/test
     entrypoints: []
     allow:
-      boundaries: [payments.core, payments.get-modular]
-      packages: ['@agent-teams/payments-core', '@get-modular/core', '@get-modular/assembly', '@get-modular/resources', '@get-modular/conformance', '@get-modular/observation']
-      builtins: [node:assert/strict, node:test]
+      boundaries:
+        - payments.core
+        - payments.get-modular
+      packages:
+        - "@agent-teams/payments-core"
+        - "@get-modular/core"
+        - "@get-modular/assembly"
+        - "@get-modular/resources"
+        - "@get-modular/conformance"
+        - "@get-modular/observation"
+      builtins:
+        - node:assert/strict
+        - node:test
       runtimeReferences: []
   - id: payments.postgres-tests
     dependencyMode: development
-    roots: [packages/payments-postgres/test]
+    roots:
+      - packages/payments-postgres/test
     entrypoints: []
     allow:
-      boundaries: [payments.core, payments.postgres]
-      packages: ['@agent-teams/payments-core', pg, pg-boss, drizzle-orm]
-      builtins: [node:assert/strict, node:test, node:crypto, node:net, node:timers/promises]
+      boundaries:
+        - payments.core
+        - payments.postgres
+      packages:
+        - "@agent-teams/payments-core"
+        - pg
+        - pg-boss
+        - drizzle-orm
+        - "@agent-teams/payments-postgres"
+      builtins:
+        - node:assert/strict
+        - node:test
+        - node:crypto
+        - node:net
+        - node:timers/promises
       runtimeReferences: []
+  - id: payments.development.tools
+    dependencyMode: development
+    roots:
+      - tools
+    entrypoints: []
+    allow:
+      boundaries:
+        - payments.core
+        - payments.paddle
+        - payments.postgres
+        - payments.get-modular
+        - payments.core-tests
+        - payments.paddle-tests
+        - payments.get-modular-tests
+        - payments.postgres-tests
+        - payments.development.tests
+        - payments.development.examples
+        - payments.development.qualification
+      packages:
+        - "@agent-teams/engineering-foundation"
+        - "@agent-teams/feature-module-standard"
+        - "@get-modular/conformance"
+        - node-or-bun
+        - typescript
+        - undici
+        - yaml
+      builtins:
+        - node:assert/strict
+        - node:child_process
+        - node:crypto
+        - node:events
+        - node:fs/promises
+        - node:module
+        - node:net
+        - node:os
+        - node:path
+        - node:test
+        - node:url
+      runtimeReferences: []
+  - id: payments.development.tests
+    dependencyMode: development
+    roots:
+      - tests
+    entrypoints:
+      - tests/fixtures/consumers/index.ts
+    allow:
+      boundaries:
+        - payments.core
+        - payments.paddle
+        - payments.postgres
+        - payments.get-modular
+        - payments.core-tests
+        - payments.paddle-tests
+        - payments.get-modular-tests
+        - payments.postgres-tests
+        - payments.development.tools
+        - payments.development.examples
+        - payments.development.qualification
+      packages:
+        - "@agent-teams/payments-core"
+        - "@agent-teams/payments-paddle"
+        - "@agent-teams/payments-postgres"
+        - pg
+        - undici
+      builtins:
+        - node:assert/strict
+        - node:crypto
+        - node:http
+        - node:test
+      runtimeReferences: []
+  - id: payments.development.examples
+    dependencyMode: development
+    roots:
+      - examples
+    entrypoints:
+      - examples/fetch-modular.ts
+      - examples/node-http.ts
+    allow:
+      boundaries:
+        - payments.core
+        - payments.paddle
+        - payments.postgres
+        - payments.get-modular
+        - payments.core-tests
+        - payments.paddle-tests
+        - payments.get-modular-tests
+        - payments.postgres-tests
+        - payments.development.tools
+        - payments.development.tests
+        - payments.development.qualification
+      packages:
+        - "@agent-teams/payments-core"
+        - "@agent-teams/payments-get-modular"
+        - "@agent-teams/payments-paddle"
+        - "@agent-teams/payments-postgres"
+        - "@get-modular/assembly"
+        - "@get-modular/resources"
+      builtins:
+        - node:http
+      runtimeReferences: []
+  - id: payments.development.qualification
+    dependencyMode: development
+    roots:
+      - qualification
+    entrypoints: []
+    allow:
+      boundaries:
+        - payments.core
+        - payments.paddle
+        - payments.postgres
+        - payments.get-modular
+        - payments.core-tests
+        - payments.paddle-tests
+        - payments.get-modular-tests
+        - payments.postgres-tests
+        - payments.development.tools
+        - payments.development.tests
+        - payments.development.examples
+      packages:
+        - "@agent-teams/payments-core"
+        - "@agent-teams/payments-get-modular"
+        - "@agent-teams/payments-paddle"
+        - "@agent-teams/payments-postgres"
+        - "@get-modular/assembly"
+        - "@get-modular/conformance"
+        - "@get-modular/observation"
+        - "@get-modular/resources"
+        - pg
+        - undici
+      builtins:
+        - node:assert/strict
+        - node:crypto
+        - node:fs
+        - node:module
+        - node:test
+        - node:url
+      runtimeReferences: []
+rootPackage: true

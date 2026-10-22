@@ -8,7 +8,7 @@ import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgre
 import { createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema, PaymentDatabaseError } from '@agent-teams/payments-postgres';
 import { CreditFixture } from '../fixtures/consumers/index.ts';
 import type { Effect } from '../fixtures/consumers/index.ts';
-import { postgresFaultProxy } from '../../packages/payments-postgres/test/fault-proxy.ts';
+import { postgresFaultProxy } from '@agent-teams/payments-postgres/testing';
 import { sqlWakeupFixture } from './queue-transport-fixture.ts';
 
 const scope: PaymentScope = { applicationId: 'queue-contract', provider: 'fixture', paymentAccountId: 'merchant', environment: 'sandbox' };

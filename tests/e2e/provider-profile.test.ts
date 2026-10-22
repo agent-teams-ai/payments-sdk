@@ -9,8 +9,8 @@ import { createPaddleProvider } from '@agent-teams/payments-paddle';
 import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
 import { createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
 import { AccessFixture } from '../fixtures/consumers/access.ts';
-import { eventFixture, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '../../packages/payments-paddle/test/fixtures.ts';
-import type { FixtureObject } from '../../packages/payments-paddle/test/fixtures.ts';
+import { eventFixture, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '@agent-teams/payments-paddle/testing';
+import type { FixtureObject } from '@agent-teams/payments-paddle/testing';
 
 const scope: PaymentScope = { applicationId: 'app-a', provider: 'paddle', paymentAccountId: 'merchant-fixture', environment: 'sandbox' };
 const namespace = 'provider-profile-e2e';

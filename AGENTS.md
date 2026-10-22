@@ -14,6 +14,13 @@ Read [the developer stack and adapter boundaries](docs/developer-stack.md)
 before selecting dependencies or changing persistence. It records the approved
 adapter-local Drizzle choice, source authority and qualification requirements.
 
+Follow the [central repository admission guide](https://github.com/agent-teams-ai/.github/blob/main/docs/repository-admission.md#new-repository-bootstrap)
+and the owner-approved [full Feature Module Standard adoption](docs/feature-module-adoption.md).
+The [local profile](architecture/feature-module-standard.json) owns module scope,
+content pins, public boundaries and enforcement commands. Read the central
+[development tools catalog](https://github.com/agent-teams-ai/.github/blob/main/docs/development-tools.md)
+before choosing or duplicating shared tooling.
+
 ## Language and tooling
 
 Maintained runtime, tests and tooling use TypeScript `.ts` only. No `.mjs` or `.mts` source. TypeScript compiler/parser minimum is 7.0.2. Emit ESM JavaScript and declarations. Tests and tools belong to strict projects; packed NodeNext and Bundler consumers use skipLibCheck:false. Engineering Foundation is development-only. Runtime target Linux Node >=24.22.1 <25 || >=26.12.1 <27 and PostgreSQL 18, subject to explicit qualification.

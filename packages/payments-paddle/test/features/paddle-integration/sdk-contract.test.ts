@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { createHash, createHmac } from 'node:crypto';
 import test from 'node:test';
 import { MockAgent, getGlobalDispatcher, setGlobalDispatcher, install, fetch as undiciFetch } from 'undici';
-import { createPaddleProvider, PADDLE_API_PROFILE } from '../dist/index.js';
+import { createPaddleProvider, PADDLE_API_PROFILE } from '../../../dist/index.js';
 import { digest, inputRoutes } from '@agent-teams/payments-core';
-import type { PaddleEventScanQuery } from '../dist/index.js';
+import type { PaddleEventScanQuery } from '../../../dist/index.js';
 import type { Field, OfferSnapshot, PaymentScope, ProviderResult, VerifiedInput } from '@agent-teams/payments-core';
 import { adjustmentFixture, eventFixture, fixturePeriod, fixtureTime, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from './fixtures.ts';
 

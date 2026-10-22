@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto';
 import { Paddle, Environment, LogLevel, SDK_VERSION } from '@paddle/paddle-node-sdk';
 import type { IEventName, CurrencyCode } from '@paddle/paddle-node-sdk';
 import { assertIdentifier, assertScope, canonicalJson, compareTime, digest, exactTime, sameScope } from '@agent-teams/payments-core';
-import type { CancellationOutcome, CapabilityProfile, CheckoutReady, EvidenceSource, JsonValue, Observation, OfferSnapshot, PaymentProvider, PaymentScope, PaymentUpdateReady, ProviderResult, SubscriptionObservation, TransactionObservation, VerifiedInput } from '@agent-teams/payments-core';
+import type { CancellationOutcome, CheckoutReady, EvidenceSource, JsonValue, Observation, OfferSnapshot, PaymentScope, PaymentUpdateReady, SubscriptionObservation, TransactionObservation, VerifiedInput } from '@agent-teams/payments-core';
+import type { CapabilityProfile, PaymentProvider, ProviderResult } from '@agent-teams/payments-core/provider';
 import { normalizeObservation, subscriptionObservation, transactionObservation } from './observations.js';
 import { translatePaddleError } from './errors.js';
 

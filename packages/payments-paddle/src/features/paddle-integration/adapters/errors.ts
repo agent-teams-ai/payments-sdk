@@ -1,5 +1,6 @@
 import { ApiError } from '@paddle/paddle-node-sdk';
-import type { ErrorCode, ProviderResult } from '@agent-teams/payments-core';
+import type { ErrorCode } from '@agent-teams/payments-core';
+import type { ProviderResult } from '@agent-teams/payments-core/provider';
 
 /**
  * Only an enumerated documented rejection establishes a mutation's known non-success.

@@ -1,13 +1,31 @@
 {
   "name": "@agent-teams/payments-core",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "description": "Provider-neutral payment evidence and durable operation core",
   "license": "Apache-2.0",
-  "engines": { "node": ">=24.22.1 <25 || >=26.12.1 <27" },
-  "files": ["dist"],
+  "engines": {
+    "node": ">=24.22.1 <25 || >=26.12.1 <27"
+  },
+  "files": [
+    "dist"
+  ],
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
-    "./testing": { "types": "./dist/memory.d.ts", "import": "./dist/memory.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/memory.d.ts",
+      "import": "./dist/memory.js"
+    },
+    "./store": {
+      "types": "./dist/store.d.ts",
+      "import": "./dist/store.js"
+    },
+    "./provider": {
+      "types": "./dist/provider.d.ts",
+      "import": "./dist/provider.js"
+    }
   }
 }
