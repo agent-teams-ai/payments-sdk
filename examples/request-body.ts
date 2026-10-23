@@ -15,6 +15,10 @@ function cancelBody(body: ReadableStream<Uint8Array> | null, reason: unknown): v
   if (body !== null && !body.locked) { void body.cancel(reason).catch(() => {}); }
 }
 
+function cancelReader(reader: ReadableStreamDefaultReader<Uint8Array>, reason: unknown): void {
+  void reader.cancel(reason).catch(() => {});
+}
+
 function declaredLength(request: Request, maximum: number): number | undefined {
   const raw = request.headers.get('content-length');
   if (raw === null) {return undefined;}
@@ -51,12 +55,11 @@ export async function readPaymentBody(request: Request, limits: PaymentBodyLimit
   const interrupt = (error: PaymentBodyError) => {
     interrupted ??= error;
     // Cancelling a reader settles pending reads even when the source's cancellation hangs.
-    void reader.cancel(error).catch(() => {});
+    cancelReader(reader, error);
   };
   const abort = () => {interrupt(new PaymentBodyError(408, 'Request aborted'));};
   request.signal.addEventListener('abort', abort, { once: true });
   const timer = setTimeout(() => {interrupt(new PaymentBodyError(408, 'Body read deadline exceeded'));}, timeout);
-  if (request.signal.aborted) {abort();}
   try {
     for (;;) {
       const item = await reader.read();
@@ -74,7 +77,7 @@ export async function readPaymentBody(request: Request, limits: PaymentBodyLimit
     if (expected !== undefined && expected !== size) {throw new PaymentBodyError(400, 'Incomplete request body');}
     return bytes.slice(0, size);
   } catch (error) {
-    void reader.cancel(error).catch(() => {});
+    cancelReader(reader, error);
     if (error instanceof PaymentBodyError) {throw error;}
     throw new PaymentBodyError(400, 'Unreadable request body', error);
   } finally {
