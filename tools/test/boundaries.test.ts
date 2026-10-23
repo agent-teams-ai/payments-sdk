@@ -19,7 +19,7 @@ type DependencyPolicy = {
 
 async function consumer(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'payments-boundaries-'));
-  for (const path of ['foundation.config.yaml', 'pnpm-workspace.yaml', 'package.json', 'architecture']) {
+  for (const path of ['foundation.config.yaml', 'pnpm-workspace.yaml', 'package.json', 'architecture', 'tools', 'tests', 'examples', 'qualification']) {
     await cp(join(repository, path), join(root, path), { recursive: true });
   }
   for (const name of packages) {
@@ -113,3 +113,7 @@ void test('installed Foundation rejects a runtime import of an allowlisted devel
   await writeFile(manifestPath, JSON.stringify(manifest));
   await writeFile(join(root, 'packages/payments-core/src/forbidden.ts'), "import 'typescript';\n");
 }, /source-dependencies\..*(?:development|dev)/));
+
+void test('installed Foundation keeps PostgreSQL implementation entrypoints private to their owner', () => mutation('private PostgreSQL implementation', async root => {
+  await writeFile(join(root, 'examples/forbidden.ts'), "import '../packages/payments-postgres/src/features/payment-custody/adapters/schema.js';\n");
+}, /source-dependencies\.(?:forbidden-boundary-dependency|forbidden-local-dependency|cross-package-relative-import)$/));
