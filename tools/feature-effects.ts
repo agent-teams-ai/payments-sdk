@@ -39,7 +39,8 @@ function assertDeterministicGlobals(file: ts.SourceFile, path: string, project: 
       if (!propertyName && !declarationName && !localBinding) {
         assert.ok(!ambient.has(node.text), `Ambient capability ${node.text} is forbidden in inner source: ${path}`);
         if (node.text === 'Date') {
-          const explicitConstruction = ts.isNewExpression(parent) && parent.expression === node && parent.arguments !== undefined && parent.arguments.length > 0;
+          const firstArgument = ts.isNewExpression(parent) && parent.expression === node ? parent.arguments?.[0] : undefined;
+          const explicitConstruction = firstArgument !== undefined && !ts.isSpreadElement(firstArgument);
           const deterministicMember = (ts.isPropertyAccessExpression(parent) || ts.isElementAccessExpression(parent)) && parent.expression === node
             && ['parse', 'UTC'].includes(memberName(parent) ?? '');
           const typeReference = ts.isTypeReferenceNode(parent) && parent.typeName === node;

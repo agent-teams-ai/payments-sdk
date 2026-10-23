@@ -10,7 +10,44 @@ export function semantic(value: unknown): unknown {
 }
 
 function sortedCompatibleValues(values: readonly unknown[]): readonly unknown[] {
-  return values.toSorted((x, y) => canonicalJson(x !== null && typeof x === 'object' && 'providerLineRef' in x ? x.providerLineRef : x).localeCompare(canonicalJson(y !== null && typeof y === 'object' && 'providerLineRef' in y ? y.providerLineRef : y)));
+  return values.toSorted((x, y) => canonicalJson(x).localeCompare(canonicalJson(y)));
+}
+
+type ArrayAlignment = Readonly<{kind: 'unkeyed' | 'ambiguous'}> | Readonly<{kind: 'keyed'; previous: readonly unknown[]}>;
+function evidenceItemId(item: unknown, key: 'providerLineRef' | 'providerPriceRef'): string | undefined {
+  if (item === null || typeof item !== 'object' || !(key in item)) {return;}
+  const value = (item as Record<string, unknown>)[key];
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+/** Price identity owns subscription items; line identity owns transaction lines and allocations.
+ * Missing or duplicate identities cannot authorize combining partial values by array position. */
+function alignEvidenceItems(previous: readonly unknown[], incoming: readonly unknown[]): ArrayAlignment {
+  const key = (['providerLineRef', 'providerPriceRef'] as const).find(field =>
+    [...previous, ...incoming].some(item => item !== null && typeof item === 'object' && field in item));
+  if (key === undefined) {
+    return [...previous, ...incoming].some(item => item !== null && typeof item === 'object') ? {kind: 'ambiguous'} : {kind: 'unkeyed'};
+  }
+  const byId = new Map<string, unknown>(), seen = new Set<string>(), ordered: unknown[] = [];
+  for (const item of previous) {
+    const id = evidenceItemId(item, key);
+    if (id === undefined || byId.has(id)) {return {kind: 'ambiguous'};}
+    byId.set(id, item);
+  }
+  for (const item of incoming) {
+    const id = evidenceItemId(item, key);
+    if (id === undefined || seen.has(id) || !byId.has(id)) {return {kind: 'ambiguous'};}
+    seen.add(id); ordered.push(byId.get(id));
+  }
+  return seen.size === byId.size ? {kind: 'keyed', previous: ordered} : {kind: 'ambiguous'};
+}
+
+function compatibleArrays(previous: readonly unknown[], incoming: readonly unknown[]): boolean {
+  if (previous.length !== incoming.length) {return false;}
+  const alignment = alignEvidenceItems(previous, incoming);
+  if (alignment.kind === 'ambiguous') {return canonicalJson(semantic(previous)) === canonicalJson(semantic(incoming));}
+  if (alignment.kind === 'keyed') {return incoming.every((item, index) => compatible(alignment.previous[index], item));}
+  return sortedCompatibleValues(previous).every((item, index) => compatible(item, sortedCompatibleValues(incoming)[index]));
 }
 
 export function compatible(a: unknown, b: unknown): boolean {
@@ -20,8 +57,7 @@ export function compatible(a: unknown, b: unknown): boolean {
     if ('value' in a && 'value' in b) {return compatible(a.value, b.value);}
   }
   if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) {return false;}
-    return sortedCompatibleValues(a).every((item, index) => compatible(item, sortedCompatibleValues(b)[index]));
+    return compatibleArrays(a, b);
   }
   if (a !== null && b !== null && typeof a === 'object' && typeof b === 'object') {
     const aa = a as Record<string, unknown>, bb = b as Record<string, unknown>;
@@ -40,8 +76,13 @@ export function mergeFields<T>(oldValue: T, newValue: T): T {
     }
     if (Array.isArray(oldValue) && Array.isArray(newValue)) {
       const oldItems: readonly unknown[] = oldValue, newItems: readonly unknown[] = newValue;
+      const alignment = alignEvidenceItems(oldItems, newItems);
+      if (alignment.kind === 'ambiguous') {
+        if (canonicalJson(semantic(oldItems)) !== canonicalJson(semantic(newItems))) {throw new TypeError('Ambiguous evidence item identities');}
+        return newValue;
+      }
       return newItems.map((item, index) => {
-        const previous = item !== null && typeof item === 'object' && 'providerLineRef' in item ? oldItems.find(entry => entry !== null && typeof entry === 'object' && 'providerLineRef' in entry && entry.providerLineRef === item.providerLineRef) : oldItems[index];
+        const previous = alignment.kind === 'keyed' ? alignment.previous[index] : oldItems[index];
         return previous === undefined ? item : mergeFields(previous, item);
       }) as T;
     }

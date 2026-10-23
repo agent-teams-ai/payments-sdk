@@ -796,3 +796,80 @@ void test('operation CAS independently rejects changes to each immutable command
   }
   assert.deepEqual((await context.store.loadOperation(scope, operationId))?.operation, original.operation);
 });
+
+void test('same-version reordered subscription partials preserve price-owned quantities and later supported recovery', async () => {
+  for (const partialFirst of [false, true]) {
+    const context = setup('monthly'), checkout = await purchase(context);
+    await observe(context, transaction(checkout.transactionRef, 'array-binding', 'monthly'));
+    const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(typeof basis === 'string' && basis.length > 0);
+    const item = (providerPriceRef: string, quantity: Field<number>) => ({ providerPriceRef, quantity, billingCycle: yes({ interval: 'month', frequency: 1 }), trial: yes(false) });
+    const full: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: yes(null), currentPeriod: yes(period), collection: yes({ kind: 'automatic' }), items: yes([item('price', yes(1)), item('additional', yes(2))]), source: source('array-full') };
+    const partial: SubscriptionObservation = { ...full, items: yes([item('additional', unknown), item('price', unknown)]), source: source('array-partial') };
+    for (const observation of partialFirst ? [partial, full] : [full, partial]) { await observe(context, observation); }
+    const read = (await context.payments.readObservedSubscription('buyer', basis))?.observations[0]; assert.ok(read?.current?.items.presence === 'known');
+    assert.deepEqual(read.current.items.value.map(value => [value.providerPriceRef, value.quantity] as const).toSorted(([a], [b]) => a.localeCompare(b)), [['additional', yes(2)], ['price', yes(1)]]);
+    assert.ok(read.flags.includes('unsupported')); assert.ok(read.flags.includes('catalog_mismatch'));
+    assert.equal(read.flags.includes('conflict'), false, 'compatible unsupported evidence does not invent a contradiction');
+    const loaded = await context.store.loadPublicationInput(scope, { type: 'subscription', id: 'sub-a' });
+    const key = objectVersionKey(full); assert.ok(typeof key === 'string' && key.length > 0);
+    const certified = loaded?.state.versionEvidence[key]; assert.ok(certified?.kind === 'certified' && certified.projection.kind === 'subscription');
+    assert.equal(certified.conflict, false); assert.ok(certified.projection.items.presence === 'known');
+    assert.deepEqual(certified.projection.items.value.map(value => [value.providerPriceRef, value.quantity] as const).toSorted(([a], [b]) => a.localeCompare(b)), [['additional', yes(2)], ['price', yes(1)]]);
+    await observe(context, { ...full, version: '2026-01-01T00:00:00.000002Z', items: yes([item('price', yes(1))]), source: source('array-supported') });
+    assert.deepEqual((await context.payments.readObservedSubscription('buyer', basis))?.observations[0]?.flags, []);
+  }
+});
+
+void test('duplicate subscription price identities retain exact replays but reject ambiguous partial combination', async () => {
+  const context = setup('monthly'), checkout = await purchase(context);
+  await observe(context, transaction(checkout.transactionRef, 'duplicate-array-binding', 'monthly'));
+  const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(typeof basis === 'string' && basis.length > 0);
+  const item = (quantity: Field<number>) => ({ providerPriceRef: 'price', quantity, billingCycle: yes({ interval: 'month', frequency: 1 }), trial: yes(false) });
+  const full: SubscriptionObservation = { kind: 'subscription', subscriptionRef: 'sub-a', version: at, status: yes('active'), customerRef: yes('payer'), scheduledChange: yes(null), currentPeriod: yes(period), collection: yes({ kind: 'automatic' }), items: yes([item(yes(1)), item(yes(2))]), source: source('duplicate-array-full') };
+  await observe(context, full);
+  await observe(context, { ...full, source: source('duplicate-array-replay') });
+  assert.equal((await context.payments.readObservedSubscription('buyer', basis))?.observations[0]?.flags.includes('conflict'), false);
+  await observe(context, { ...full, items: yes([item(unknown), item(unknown)]), source: source('duplicate-array-partial') });
+  const read = (await context.payments.readObservedSubscription('buyer', basis))?.observations[0]; assert.ok(read); assert.ok(read.flags.includes('conflict'));
+  const loaded = await context.store.loadPublicationInput(scope, { type: 'subscription', id: 'sub-a' });
+  const key = objectVersionKey(full); assert.ok(typeof key === 'string' && key.length > 0);
+  const certified = loaded?.state.versionEvidence[key]; assert.ok(certified?.kind === 'certified' && certified.projection.kind === 'subscription');
+  assert.equal(certified.conflict, true); assert.deepEqual(certified.projection.items, full.items);
+  assert.deepEqual(read.current?.items, full.items, 'ambiguous identities cannot move known quantities between items');
+  await observe(context, { ...full, version: '2026-01-01T00:00:00.000002Z', items: yes([item(yes(1))]), source: source('duplicate-array-later-supported') });
+  assert.ok((await context.payments.readObservedSubscription('buyer', basis))?.observations[0]?.flags.includes('conflict') === true, 'newer supported evidence cannot clear a retained identity conflict');
+});
+
+void test('duplicate transaction line identities cannot certify a guessed partial merge', async () => {
+  const context = setup(), checkout = await purchase(context);
+  const original = transaction(checkout.transactionRef, 'duplicate-lines-full'); assert.ok(original.lines.presence === 'known');
+  const line = original.lines.value[0]; assert.ok(line);
+  const lines = [{ ...line, providerLineRef: 'duplicate', trial: yes(false) }, { ...line, providerLineRef: 'duplicate', providerPriceRef: 'additional', trial: yes(true) }];
+  const full: TransactionObservation = { ...original, lines: yes(lines) };
+  await observe(context, full);
+  await observe(context, { ...full, lines: yes(lines.map(value => ({ ...value, trial: unknown }))), source: source('duplicate-lines-partial') });
+  const read = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions[0]; assert.ok(read); assert.ok(read.flags.includes('conflict'));
+  assert.equal(read.completion, undefined);
+  const loaded = await context.store.loadPublicationInput(scope, { type: 'transaction', id: checkout.transactionRef });
+  const key = objectVersionKey(full); assert.ok(typeof key === 'string' && key.length > 0);
+  const certified = loaded?.state.versionEvidence[key]; assert.ok(certified?.kind === 'certified' && certified.projection.kind === 'transaction');
+  assert.equal(certified.conflict, true); assert.deepEqual(certified.projection.lines, full.lines);
+});
+
+void test('store evidence without item identities rejects partial positional combination through its public contract', () => {
+  const original = transaction('missing-identities', 'missing-full', 'one_time', { source: eventSource('missing-full', 'authenticated_api') });
+  assert.ok(original.lines.presence === 'known');
+  const line = original.lines.value[0]; assert.ok(line);
+  const lines = [{ ...line, trial: yes(false) }, { ...line, quantity: 2, trial: yes(true) }];
+  for (const value of lines) {
+    assert.equal(Reflect.deleteProperty(value, 'providerLineRef'), true);
+    assert.equal(Reflect.deleteProperty(value, 'providerPriceRef'), true);
+  }
+  const full = eventIdentityEvidence(input({ ...original, lines: yes(lines) }));
+  const partial = eventIdentityEvidence(input({ ...original, lines: yes(lines.map(value => ({ ...value, trial: unknown }))), source: eventSource('missing-partial', 'authenticated_api') }));
+  assert.equal(compareEventIdentity(full, full), 'compatible');
+  assert.deepEqual(mergeEventIdentityEvidence(full, full).projection, full.projection);
+  assert.equal(compareEventIdentity(full, partial), 'conflict');
+  assert.equal(compareEventIdentity(partial, full), 'conflict');
+  assert.throws(() => mergeEventIdentityEvidence(full, partial), /conflicting or unrelated event identities/u);
+});

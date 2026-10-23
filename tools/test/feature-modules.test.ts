@@ -93,6 +93,8 @@ void test('FMS rejects ambient effect aliases while preserving local domain name
     "const { now } = Date; export const meaning = now();",
     'const Clock = Date; export const meaning = new Clock();',
     'export const meaning = new Date();',
+    'export const meaning = new Date(...([] as []));',
+    'const empty: [] = []; export const meaning = new Date(...empty);',
     "export const meaning = Math['random']();",
     "const { fetch: acquire } = globalThis; export const meaning = acquire('https://example.invalid');",
     'export const meaning = process.env;',
