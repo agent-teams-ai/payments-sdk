@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "extends": ["./node_modules/@agent-teams/engineering-foundation/presets/oxlint/type-aware.json"],
+  "rules": {
+    "no-debugger": "error",
+    "no-unused-vars": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/method-signature-style": ["error", "property"]
+  },
+  "ignorePatterns": ["**/dist/**", "**/node_modules/**", "**/.artifacts/**"],
+  "options": {
+    "respectEslintDisableDirectives": false,
+    "reportUnusedDisableDirectives": "error"
+  }
+}

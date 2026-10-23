@@ -24,9 +24,11 @@ Trials, mixed baskets/seats, plan-change/proration commands, pause/resume, manua
 
 For Paddle with durable storage, choose core + Paddle + PostgreSQL. The PostgreSQL root requires neither `pg` nor `pg-boss`: select the optional `/node-postgres` driver wrapper and `/pg-boss` transport explicitly, or supply the adapter-owned database and transactional transport contracts. The driver wrapper can borrow an existing host pool, including one used by Drizzle. Get Modular is optional for every other package; observation hooks do not replace durable financial delivery.
 
-All four packages currently declare **`0.3.0`** and emit ESM JavaScript and declarations. This version is **not published to npm**. Build this checkout, or use matching verified prerelease tarballs when available. The [release and installation guide](docs/releasing.md) covers checksums, package overrides and installation; [migration notes](CHANGELOG.md) cover breaking changes.
+All four packages currently declare **`0.4.0`** and emit ESM JavaScript and declarations. This version is **not published to npm**. Build this checkout, or use matching verified prerelease tarballs when available. The [release and installation guide](docs/releasing.md) covers checksums, package overrides and installation; the [0.4 migration guide](docs/migrations/0.4.md) explains the separate provider/storage contracts and Get Modular revision changes. Earlier changes remain in the [changelog](CHANGELOG.md).
 
-**Current qualification:** Linux Node **24.22.1 LTS** and **26.12.1** are the corrected runtime floors. Local qualification and the [reviewed hosted baselines](docs/qualification.md#reviewed-hosted-baselines) passed. Each later revision requires its own checks; deployment and Paddle-account gates remain separate. See [runtime admission status](docs/runtime-security-admission.md) and [qualification](docs/qualification.md) before production use.
+**Current qualification:** Linux Node **24.22.1 LTS** and **26.12.1** are the corrected runtime floors. The [0.4 source candidate](docs/qualification.md#sdk-04-source-candidate) has its own fresh qualification; [older hosted baselines](docs/qualification.md#reviewed-hosted-baselines) remain bound to their recorded sources. Each revision requires its own checks; deployment and Paddle-account gates remain separate. See [runtime admission status](docs/runtime-security-admission.md) and [qualification](docs/qualification.md) before production use.
+
+**Governance rollout:** full FMS and native SDK checks are part of this source. Installation of the new central identity/admission workflows and organization-wide registration remain a separate [tracked activation](docs/governance-rollout.md); source integration does not claim that administrative deployment is complete.
 
 ## Start here
 
@@ -75,12 +77,23 @@ Stop HTTP ingress and other producers before shutdown. Keep borrowed pools open 
 | Operate and recover | [Operations runbook](docs/operations.md) and [qualification/deployment gates](docs/qualification.md) |
 | Verify dependencies or release artifacts | [Upstream qualification](docs/upstream-qualification.md), [security qualification](docs/security-qualification.md) and [releasing](docs/releasing.md) |
 | Review implementation evidence | [Implementation status](docs/implementation-status.md) and the [review index](docs/reviews/README.md) |
+| Complete central governance activation | [Source delivery and governance rollout](docs/governance-rollout.md) |
 
 The [accepted implementation plan](docs/implementation-plan.md) records design decisions. Package public exports and the compiled examples own current API signatures; historical review records qualify their recorded source and artifacts.
 
 ## Examples and development
 
 Use Linux Node **24.22.1** or **26.12.1**, pnpm **11.25.0**, TypeScript **7.0.2**, and PostgreSQL **18** for integration tests. Maintained runtime, test and tool sources are ordinary `.ts`; Engineering Foundation is development-only. Read [AGENTS.md](AGENTS.md) and the [developer stack](docs/developer-stack.md) before contributing.
+
+The owner-selected [full Feature Module Standard adoption](docs/feature-module-adoption.md)
+and [local profile](architecture/feature-module-standard.json) define the four
+packages' module and feature boundaries. The
+[proposed central bootstrap rollout](https://github.com/agent-teams-ai/.github/pull/381)
+owns new-repository registration and enforcement; its pending activation is
+separate from the native full-FMS checks. The
+[delivery boundary](docs/governance-rollout.md) and original
+[delivery plan](docs/reviews/full-fms-adoption/plan.md) distinguish source
+implementation, hosted qualification, registration and remote enforcement.
 
 ```sh
 pnpm install --frozen-lockfile

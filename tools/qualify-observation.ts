@@ -86,7 +86,7 @@ try {
     assert.deepEqual(installed.dependencies ?? {}, archive.dependencies);
     assert.deepEqual(installed.peerDependencies ?? {}, archive.peerDependencies);
   }
-  for (const path of ['qualification/observation', 'tests/fixtures/consumers', 'packages/payments-paddle/test/fixtures.ts']) {
+  for (const path of ['qualification/observation', 'tests/fixtures/consumers']) {
     await cp(join(repository, path), join(root, path), { recursive: true });
   }
   const consumer = join(root, 'qualification/observation');

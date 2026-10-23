@@ -21,63 +21,148 @@
     "path": "qualification/observation/published-artifacts.json",
     "sha256": "6f6190afcfcee4d0fec1d9bbba210b12fc678ded4777e0664aba406517fee5ea"
   },
-  "namespaces": ["agent-teams/payments"],
+  "namespaces": [
+    "agent-teams/payments"
+  ],
   "entrypoints": [
     "packages/payments-get-modular/src/index.ts",
     "packages/payments-get-modular/src/observation/index.ts"
   ],
-  "roots": ["paymentsModule", "purchaseProjectionModule", "purchaseProjectionDisplayModule"],
+  "roots": [
+    "paymentsModule",
+    "purchaseProjectionModule",
+    "purchaseProjectionDisplayModule"
+  ],
   "authored": {
-    "packages/payments-get-modular/src/contracts.ts": {
-      "defineContract": ["PaymentsConfiguration", "Checkout", "Read", "Management", "Processing", "Delivery"]
+    "packages/payments-get-modular/src/features/payment-runtime/composition/configuration.declaration.ts": {
+      "declareModule": [
+        "paymentsConfigurationDeclaration"
+      ]
     },
-    "packages/payments-get-modular/src/module.ts": {
-      "declareModule": ["paymentsConfigurationDeclaration", "paymentsDeclaration"],
-      "input": ["paymentsConfiguration"],
-      "implement": ["paymentsModule"],
-      "group": ["paymentsGroup"]
+    "packages/payments-get-modular/src/features/payment-runtime/composition/payment-runtime.contracts.ts": {
+      "defineContract": [
+        "PaymentsConfiguration",
+        "Checkout",
+        "Read",
+        "Management",
+        "Processing",
+        "Delivery"
+      ]
     },
-    "packages/payments-get-modular/src/observation/composition.ts": {
-      "defineContract": ["PurchaseReader", "ProjectionConfiguration", "ProjectionView", "ProjectionCommands", "ProjectionRenderer", "ProjectionDisplay"],
-      "declareModule": ["purchaseReadDeclaration", "projectionConfigurationDeclaration", "projectionRendererDeclaration", "purchaseProjectionDeclaration", "purchaseProjectionDisplayDeclaration"],
-      "input": ["purchaseReadInput", "projectionConfigurationInput", "projectionRendererInput"],
-      "implement": ["purchaseProjectionModule", "purchaseProjectionDisplayModule"],
-      "group": ["purchaseObservationGroup"]
+    "packages/payments-get-modular/src/features/payment-runtime/composition/payment-runtime.group.ts": {
+      "group": [
+        "paymentsGroup"
+      ]
+    },
+    "packages/payments-get-modular/src/features/payment-runtime/composition/payment-runtime.inputs.ts": {
+      "input": [
+        "paymentsConfiguration"
+      ]
+    },
+    "packages/payments-get-modular/src/features/payment-runtime/composition/payments.declaration.ts": {
+      "declareModule": [
+        "paymentsDeclaration"
+      ]
+    },
+    "packages/payments-get-modular/src/features/payment-runtime/composition/payments.module.ts": {
+      "implement": [
+        "paymentsModule"
+      ]
+    },
+    "packages/payments-get-modular/src/features/purchase-observation/composition/projection-configuration.declaration.ts": {
+      "declareModule": [
+        "projectionConfigurationDeclaration"
+      ]
+    },
+    "packages/payments-get-modular/src/features/purchase-observation/composition/projection-renderer.declaration.ts": {
+      "declareModule": [
+        "projectionRendererDeclaration"
+      ]
+    },
+    "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-observation.contracts.ts": {
+      "defineContract": [
+        "PurchaseReader",
+        "ProjectionConfiguration",
+        "ProjectionView",
+        "ProjectionCommands",
+        "ProjectionRenderer",
+        "ProjectionDisplay"
+      ]
+    },
+    "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-observation.group.ts": {
+      "group": [
+        "purchaseObservationGroup"
+      ]
+    },
+    "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-observation.inputs.ts": {
+      "input": [
+        "purchaseReadInput",
+        "projectionConfigurationInput",
+        "projectionRendererInput"
+      ]
+    },
+    "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-projection-display.declaration.ts": {
+      "declareModule": [
+        "purchaseProjectionDisplayDeclaration"
+      ]
+    },
+    "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-projection-display.module.ts": {
+      "implement": [
+        "purchaseProjectionDisplayModule"
+      ]
+    },
+    "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-projection.declaration.ts": {
+      "declareModule": [
+        "purchaseProjectionDeclaration"
+      ]
+    },
+    "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-projection.module.ts": {
+      "implement": [
+        "purchaseProjectionModule"
+      ]
+    },
+    "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-read.declaration.ts": {
+      "declareModule": [
+        "purchaseReadDeclaration"
+      ]
     }
   },
-  "exceptions": [{
-    "id": "technical-adapter-layout",
-    "rule": "CMS feature layout and separate declaration/entry files",
-    "paths": [
-      "packages/payments-get-modular/src/contracts.ts",
-      "packages/payments-get-modular/src/module.ts",
-      "packages/payments-get-modular/src/observation/composition.ts",
-      "packages/payments-get-modular/src/observation/projection.ts"
-    ],
-    "owner": "payments-sdk/composition",
-    "rationale": "This delivery package is a public technical composition adapter. It owns no payment domain or persistence policy; descriptors, inline entries and the resource-aware projection keep their current small SDK layout.",
-    "decision": "docs/get-modular-adoption.md#decision",
-    "reviewTrigger": "A new authored module/descriptor, a new application feature, or a changed CMS layout contract"
-  }],
+  "exceptions": [],
   "outsideScope": [
-    { "boundary": "payments.core", "owner": "payments-sdk/core", "mechanism": "fixed public SDK contracts; no Get Modular imports", "reviewTrigger": "A new replaceable cross-owner relationship" },
-    { "boundary": "payments.paddle", "owner": "payments-sdk/paddle", "mechanism": "fixed core public contract and official provider SDK", "reviewTrigger": "A new replaceable cross-owner relationship" },
-    { "boundary": "payments.postgres", "owner": "payments-sdk/postgres", "mechanism": "fixed core public contract and private storage adapters", "reviewTrigger": "A new replaceable cross-owner relationship" }
+    {
+      "boundary": "payments.core",
+      "owner": "payments-sdk/core",
+      "mechanism": "fixed public SDK contracts; no Get Modular imports",
+      "reviewTrigger": "A new replaceable cross-owner relationship"
+    },
+    {
+      "boundary": "payments.paddle",
+      "owner": "payments-sdk/paddle",
+      "mechanism": "fixed core public contract and official provider SDK",
+      "reviewTrigger": "A new replaceable cross-owner relationship"
+    },
+    {
+      "boundary": "payments.postgres",
+      "owner": "payments-sdk/postgres",
+      "mechanism": "fixed core public contract and private storage adapters",
+      "reviewTrigger": "A new replaceable cross-owner relationship"
+    }
   ],
   "verification": {
-    "adoption": "test:modular:adoption",
+    "adoption": "architecture:features:check",
     "sourceGraph": "foundation:check",
     "runtime": "test:modular",
     "packed": "test:observation",
     "tests": [
       "tools/test/get-modular-adoption.test.ts",
       "tools/test/boundaries.test.ts",
-      "packages/payments-get-modular/test/modular.test.ts",
-      "packages/payments-get-modular/test/lifecycle.test.ts",
-      "packages/payments-get-modular/test/surface.types.ts",
+      "packages/payments-get-modular/test/features/payment-runtime/composition/payments.module.test.ts",
+      "packages/payments-get-modular/test/module/lifecycle.test.ts",
+      "packages/payments-get-modular/test/module/surface.types.ts",
       "qualification/observation/identity.test.ts",
-      "qualification/observation/projection-lifecycle.test.ts"
+      "qualification/observation/projection-lifecycle.test.ts",
+      "packages/payments-get-modular/test/features/purchase-observation/composition/purchase-projection.test.ts"
     ]
   },
-  "fullApplicationFms": "not-adopted; separate owner decision and qualification required"
+  "fullApplicationFms": "adopted; architecture/feature-module-standard.json"
 }

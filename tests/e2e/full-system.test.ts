@@ -14,7 +14,7 @@ import { createFetchModularHost } from '../../examples/fetch-modular.ts';
 import type { HostedPayments } from '../../examples/node-http.ts';
 import { AccessFixture, CreditFixture, sourceIdentity } from '../fixtures/consumers/index.ts';
 import type { Effect } from '../fixtures/consumers/index.ts';
-import { adjustmentFixture, eventFixture, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '../../packages/payments-paddle/test/fixtures.ts';
+import { adjustmentFixture, eventFixture, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '@agent-teams/payments-paddle/testing';
 import { nextPeriod, offer, producerNamespace, scope } from './consumer-support.ts';
 
 const SECRET = 'synthetic-e2e-destination-secret';

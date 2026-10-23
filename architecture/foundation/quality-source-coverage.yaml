@@ -1,0 +1,15 @@
+schemaVersion: 1
+sourcePolicyPath: architecture/foundation/source-dependencies.yaml
+suppressionPolicyPath: architecture/foundation/suppression-governance.yaml
+featureProfilePath: architecture/feature-module-standard.json
+lintConfigPath: .oxlintrc.json
+compilerProjects:
+  - packages/payments-core/tsconfig.json
+  - packages/payments-paddle/tsconfig.json
+  - packages/payments-postgres/tsconfig.json
+  - packages/payments-get-modular/tsconfig.json
+scripts:
+  fast: check:fast
+  full: check
+  scope: quality:coverage:scope
+  typed: lint:production

@@ -27,7 +27,7 @@ proposal is evidence to assess, not an automatically adopted requirement.
 | Durable PostgreSQL work | Infrastructure-owned transactional enqueue/worker transport contracts; optional `/pg-boss` implementation with atomic enqueue through the existing bounded payment transaction |
 | Optional composition | Get Modular inside `payments-get-modular`; use the coherent published peer profile and explicit observation release gate in its [guide](../packages/payments-get-modular/README.md) |
 | Captured development commands | Exact `node-or-bun` Node adapter inside the existing tooling helper; see [scope, artifact and process guarantees](node-or-bun-adoption.md); no SDK runtime or Bun admission |
-| Development architecture tooling | Engineering Foundation's [selected complete profile](foundation-adoption.md): shared strict compiler/type-aware lint presets, registry lifecycle and repository-owned [source](../architecture/foundation/source-dependencies.yaml)/[dependency](../architecture/foundation/dependency-declarations.yaml) policies; development-only, FMS opt-in |
+| Development architecture tooling | Engineering Foundation's [selected complete profile](foundation-adoption.md): shared strict compiler/type-aware lint presets, registry lifecycle and repository-owned [source](../architecture/foundation/source-dependencies.yaml)/[dependency](../architecture/foundation/dependency-declarations.yaml) policies; development-only, full FMS for all production packages |
 
 Exact admitted dependency versions belong to the workspace catalog, package
 manifests and frozen lockfile. Check [upstream qualification](upstream-qualification.md)

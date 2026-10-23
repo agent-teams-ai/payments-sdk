@@ -58,3 +58,11 @@ export function observationSurface(
     });
   }
 }
+
+/** Reader implementations preserve the broad query contract under strict function variance. */
+export function purchaseReaderVariance(reader: PurchaseReadPort): void {
+  const stronger = (buyerId: 'single-buyer', intentId: string) => reader.readPurchase(buyerId, intentId);
+  // @ts-expect-error a replacement read port may not strengthen buyer preconditions
+  const incompatible: PurchaseReadPort = { readPurchase: stronger };
+  void incompatible;
+}

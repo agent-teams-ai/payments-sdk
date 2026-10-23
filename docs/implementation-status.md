@@ -6,17 +6,27 @@ maps its P0–P7 stages to maintained implementation and verification. The exact
 commit's successful [Checks workflow](../.github/workflows/checks.yaml), logs and
 artifacts remain authoritative qualification evidence.
 
+## Current 0.4 delivery
+
+The [full-FMS delivery plan](reviews/full-fms-adoption/plan.md) and
+[PR #10](https://github.com/agent-teams-ai/payments-sdk/pull/10) own the current
+candidate. All four source packages now have complete feature ownership,
+separate provider/storage SPIs and curated public application reads. The
+[migration guide](migrations/0.4.md) explains the contract changes. Earlier four-wave
+reviews below are historical; current review and fresh qualification are bound
+to the reconstructed source, not inherited from the preserved distributions.
+
 ## Plan traceability
 
 | Stage | Delivered implementation | Maintained evidence |
 | --- | --- | --- |
 | P0 — sources, profile and hooks admission | Frozen reviewed plan, contributor boundaries, explicit unsupported commercial profiles and exact upstream qualification | [Design review reports](reviews/README.md#design-review), [upstream record](upstream-qualification.md), [Get Modular admission contract](../packages/payments-get-modular/README.md) |
 | P1 — packages, ports and toolchain | Four independently consumable ESM/declaration packages; core-owned semantic contracts and factories; strict TypeScript and development-only Foundation | [Core exports](../packages/payments-core/src/index.ts), [boundary scenarios](../tools/test/boundaries.test.ts), [packed consumers](../tools/packed-consumers.ts) |
-| P2 — local rules and exact evidence | Intent/request identity, mutation uncertainty and authority, immutable facts, source-aware identity/version conflicts, exact monetary/time values and bounded delivery | [Core scenarios](../packages/payments-core/test/core.test.ts), [reconciliation state scenarios](../packages/payments-core/test/reconciliation.test.ts) |
-| P3 — durable storage, work and recovery | Explicit PostgreSQL migrations and owner-local T1/T2 commits; durable inbox, revisions, consumer targets and repair obligations; pg-boss wakeups; bounded SQL waits; explicit independent-owner restore protocol | [Durability/fault scenarios](../packages/payments-postgres/test/durability.test.ts), [worker lifecycle/repair](../packages/payments-postgres/test/jobs.test.ts), [bounded reclassification](../packages/payments-postgres/test/reclassification.test.ts), [owner restore](../tests/integration/recovery.test.ts) |
-| P4 — official provider adapter | Public Paddle SDK 3.10.0, API1 requests, exact-byte official signature verification, retained raw versus mapped custody, supported commands/observations and bounded reconciliation | [Actual SDK contracts](../packages/payments-paddle/test/sdk-contract.test.ts), [SDK plus database reconciliation](../tests/integration/reconciliation.test.ts), [provider guide](../packages/payments-paddle/README.md) |
+| P2 — local rules and exact evidence | Intent/request identity, mutation uncertainty and authority, immutable facts, source-aware identity/version conflicts, exact monetary/time values and bounded delivery | [Core scenarios](../packages/payments-core/test/features/payment-evidence/core.test.ts), [reconciliation state scenarios](../packages/payments-core/test/features/payment-evidence/reconciliation.test.ts) |
+| P3 — durable storage, work and recovery | Explicit PostgreSQL migrations and owner-local T1/T2 commits; durable inbox, revisions, consumer targets and repair obligations; pg-boss wakeups; bounded SQL waits; explicit independent-owner restore protocol | [Durability/fault scenarios](../packages/payments-postgres/test/features/payment-custody/adapters/durability.test.ts), [worker lifecycle/repair](../packages/payments-postgres/test/features/payment-custody/adapters/jobs.test.ts), [bounded reclassification](../packages/payments-postgres/test/features/payment-custody/adapters/reclassification.test.ts), [owner restore](../tests/integration/recovery.test.ts) |
+| P4 — official provider adapter | Public Paddle SDK 3.10.0, API1 requests, exact-byte official signature verification, retained raw versus mapped custody, supported commands/observations and bounded reconciliation | [Actual SDK contracts](../packages/payments-paddle/test/features/paddle-integration/sdk-contract.test.ts), [SDK plus database reconciliation](../tests/integration/reconciliation.test.ts), [provider guide](../packages/payments-paddle/README.md) |
 | P5 — complete public delivery path | Checkout → authenticated custody → fact/revision → per-consumer delivery → independent owner receipt/decision/effect → producer ACK; separate nonproduction access and credit policies | [Full-system scenarios](../tests/e2e/full-system.test.ts), [consumer protocol](../tests/e2e/consumer-protocol.test.ts), [separate fixture owners](../tests/fixtures/consumers) |
-| P6 — two host compositions | Node HTTP with explicit factory, and Fetch with actual published static Get Modular Assembly/Resources; common public protocol and shared fixture owners | [Node host](../examples/node-http.ts), [Fetch/Get Modular host](../examples/fetch-modular.ts), [real modular runtime scenarios](../packages/payments-get-modular/test/modular.test.ts), both hosts in the full-system suite |
+| P6 — two host compositions | Node HTTP with explicit factory, and Fetch with actual published static Get Modular Assembly/Resources; common public protocol and shared fixture owners | [Node host](../examples/node-http.ts), [Fetch/Get Modular host](../examples/fetch-modular.ts), [real modular runtime scenarios](../packages/payments-get-modular/test/features/payment-runtime/composition/payments.module.test.ts), both hosts in the full-system suite |
 | P7 — reusable delivery and operations | Strict installed NodeNext/Bundler consumers, package archive audit, compiled durable-host example, integration/operations/qualification guides, optimized required CI and an exact-commit GitHub release candidate workflow | [Getting started](getting-started.md), [operations](operations.md), [qualification](qualification.md), [release process](releasing.md), [independent implementation reviews](reviews/README.md#implementation-review-status) |
 
 The implementation is delivered through [PR #1](https://github.com/agent-teams-ai/payments-sdk/pull/1)
@@ -69,5 +79,5 @@ and real PostgreSQL; logical independent-owner restore tests do not prove a
 physical restore. See [deployment gates](qualification.md#deployment-and-credential-gates).
 
 GitHub prerelease archives are the configured delivery channel. Manifest version
-0.3.0 and a successful dry run do not establish npm publication; registry
+0.4.0 and a successful dry run do not establish npm publication; registry
 ownership and trusted publishing remain the separately documented future setup.

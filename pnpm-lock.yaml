@@ -31,8 +31,8 @@ catalogs:
       specifier: 8.20.0
       version: 8.20.0
     drizzle-orm:
-      specifier: 1.0.0-rc.5-5935859
-      version: 1.0.0-rc.5-5935859
+      specifier: 1.0.0-rc.5
+      version: 1.0.0-rc.5
     mysql2:
       specifier: 3.24.6
       version: 3.24.6
@@ -62,15 +62,18 @@ catalogs:
       version: 2.9.0
 
 patchedDependencies:
-  drizzle-orm@1.0.0-rc.5-5935859: c0ac842c102d0e7a339e79a1676c02fa0dd803a11f6cc82e4b42007c8e153efb
+  drizzle-orm@1.0.0-rc.5: c0ac842c102d0e7a339e79a1676c02fa0dd803a11f6cc82e4b42007c8e153efb
 
 importers:
 
   .:
     devDependencies:
       '@agent-teams/engineering-foundation':
-        specifier: 1.10.1
-        version: 1.10.1(@types/node@24.13.3)
+        specifier: 2.1.1
+        version: 2.1.1(@types/node@24.13.3)
+      '@agent-teams/feature-module-standard':
+        specifier: 0.2.3
+        version: 0.2.3(@agent-teams/engineering-foundation@2.1.1(@types/node@24.13.3))
       '@agent-teams/payments-core':
         specifier: workspace:*
         version: link:packages/payments-core
@@ -131,7 +134,7 @@ importers:
   packages/payments-get-modular:
     dependencies:
       '@agent-teams/payments-core':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../payments-core
     devDependencies:
       '@get-modular/assembly':
@@ -166,11 +169,11 @@ importers:
   packages/payments-postgres:
     dependencies:
       '@agent-teams/payments-core':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../payments-core
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-5935859(patch_hash=c0ac842c102d0e7a339e79a1676c02fa0dd803a11f6cc82e4b42007c8e153efb)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(mysql2@3.24.6(@types/node@24.13.3))(pg@8.23.1)
+        version: 1.0.0-rc.5(patch_hash=c0ac842c102d0e7a339e79a1676c02fa0dd803a11f6cc82e4b42007c8e153efb)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(mysql2@3.24.6(@types/node@24.13.3))(pg@8.23.1)
     devDependencies:
       '@types/pg':
         specifier: 'catalog:'
@@ -187,17 +190,26 @@ importers:
 
 packages:
 
-  '@agent-teams/document-authoring@0.3.2':
-    resolution: {integrity: sha512-GzdetjP25KJfThxNk7UhtAZ28rOb6T/rTRrjYSrp2rYaEt0do5XF4pGjIVdeSzh+zXH0ULu58TZsuhOJi0Q0Mw==}
+  '@agent-teams/document-authoring@0.3.4':
+    resolution: {integrity: sha512-aKfZTjMM2GteYLZ9Jt8XLOgVgffx84XtgyjCoiJ+8Tn/V+mXICE3VGby6jgwrpCtDNU/td6qt5Ytlax4JLZ/KA==}
     engines: {node: ^24.18.0 || ^26.0.0, pnpm: '>=11.17.0 <12'}
 
-  '@agent-teams/engineering-foundation@1.10.1':
-    resolution: {integrity: sha512-XX9JRIkeV/eGHcIYvUTHjdQ5O9U2vphhLRUp52JNSIbG89nYply8yQPbPpPQdhsS8ijBGVQIUD2LArnvW8Jo5w==}
+  '@agent-teams/engineering-foundation@2.1.1':
+    resolution: {integrity: sha512-NvjLwYgUILVpOHrvJwJLjG/5/vQcIPQwtDxNnUjna+Fdys5qJeZnw2IBgLlFi0sEYZ0DoZgondIBUAxiCkd9pQ==}
     engines: {node: ^24.18.0 || ^26.0.0, pnpm: '>=11.17.0 <12'}
     hasBin: true
 
-  '@agent-teams/repository-mutation@0.2.2':
-    resolution: {integrity: sha512-4G6kkQKA7ua4z9mxxn1XNrBUgngWeQ+UufDnQ34YdYv26DZi1/pUYwGoKajFluhUNDXhvqf4fMJQu0nI6m6jdg==}
+  '@agent-teams/feature-module-standard@0.2.3':
+    resolution: {integrity: sha512-eGslMb7bki8zaaO30+aK/Kcfz+zNTcb3Xt7BtSxVGjitpbkQ0SNHErFjdOm0qU6R/r9aMVJhMRmn8uBy3nk62Q==}
+    engines: {node: ^24.18.0 || ^26.0.0, pnpm: '>=11.17.0 <12'}
+    peerDependencies:
+      '@agent-teams/engineering-foundation': ^1.8.0 || ^2.0.0
+    peerDependenciesMeta:
+      '@agent-teams/engineering-foundation':
+        optional: true
+
+  '@agent-teams/repository-mutation@0.4.0':
+    resolution: {integrity: sha512-vXWWH6HyiqULXm4pAydEB985sxiRVkWp8wA69OpPHbhCWp8Ldhm/Hy2nWgpRt03jp8w11gUyk21SmgvC2K9PqA==}
     engines: {node: ^24.18.0 || ^26.0.0, pnpm: '>=11.17.0 <12'}
 
   '@emnapi/core@1.11.2':
@@ -711,21 +723,23 @@ packages:
     resolution: {integrity: sha512-JfAYMY0LZaWQTuict8PhtF/ksSnq8xefSDmQUnnoqvkPYkU/y3UP0DTWzJKFBz0P1IXsDG8q0vY3zHkoFZOhvw==}
     engines: {node: '>=18'}
 
-  drizzle-orm@1.0.0-rc.5-5935859:
-    resolution: {integrity: sha512-PkVjyxhamD7IOVfpDMn3BmV9afyvj3eeLvIPind3NmPv+cfv6/jh6GN0fHP0zzgrprGx/jGE4mkE0ttRFlzHwA==}
+  drizzle-orm@1.0.0-rc.5:
+    resolution: {integrity: sha512-7BMYTsAZbQ9DcQCtLG4G202Hq6nc/e8o1EBKN6nBweRI8EGPFe/VdyvWQCsU9fuZSiRjNpELolUSi//JFBq+lw==}
     peerDependencies:
       '@aws-sdk/client-rds-data': '>=3'
+      '@aws/aurora-dsql-node-postgres-connector': '>=0.1.9'
+      '@aws/aurora-dsql-postgresjs-connector': '>=0.3.0'
       '@cloudflare/workers-types': '>=4'
-      '@drizzle-team/minipg': '>=0.3.2'
-      '@effect/sql-d1': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-libsql': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-mysql2': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-pg': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-pglite': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-sqlite-bun': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-sqlite-do': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-sqlite-node': '>=4.0.0-beta.105 || >=4.0.0'
-      '@effect/sql-sqlite-wasm': '>=4.0.0-beta.105 || >=4.0.0'
+      '@drizzle-team/minipg': '>=0.4.2'
+      '@effect/sql-d1': '>=4.0.0'
+      '@effect/sql-libsql': '>=4.0.0'
+      '@effect/sql-mysql2': '>=4.0.0'
+      '@effect/sql-pg': '>=4.0.0'
+      '@effect/sql-pglite': '>=4.0.0'
+      '@effect/sql-sqlite-bun': '>=4.0.0'
+      '@effect/sql-sqlite-do': '>=4.0.0'
+      '@effect/sql-sqlite-node': '>=4.0.0'
+      '@effect/sql-sqlite-wasm': '>=4.0.0'
       '@electric-sql/pglite': '>=0.2.0'
       '@libsql/client': '>=0.10.0'
       '@libsql/client-wasm': '>=0.10.0'
@@ -751,7 +765,7 @@ packages:
       arktype: '>=2.0.0'
       better-sqlite3: '>=9.3.0'
       bun-types: '*'
-      effect: '>=4.0.0-beta.105 || >=4.0.0'
+      effect: '>=4.0.0'
       expo-sqlite: '>=14.0.0'
       mssql: ^11.0.1
       mysql2: '>=2'
@@ -764,6 +778,10 @@ packages:
       zod: ^3.25.0 || ^4.0.0
     peerDependenciesMeta:
       '@aws-sdk/client-rds-data':
+        optional: true
+      '@aws/aurora-dsql-node-postgres-connector':
+        optional: true
+      '@aws/aurora-dsql-postgresjs-connector':
         optional: true
       '@cloudflare/workers-types':
         optional: true
@@ -1115,16 +1133,16 @@ packages:
 
 snapshots:
 
-  '@agent-teams/document-authoring@0.3.2':
+  '@agent-teams/document-authoring@0.3.4':
     dependencies:
-      '@agent-teams/repository-mutation': 0.2.2
+      '@agent-teams/repository-mutation': 0.4.0
       ajv: 8.20.0
       yaml: 2.9.0
 
-  '@agent-teams/engineering-foundation@1.10.1(@types/node@24.13.3)':
+  '@agent-teams/engineering-foundation@2.1.1(@types/node@24.13.3)':
     dependencies:
-      '@agent-teams/document-authoring': 0.3.2
-      '@agent-teams/repository-mutation': 0.2.2
+      '@agent-teams/document-authoring': 0.3.4
+      '@agent-teams/repository-mutation': 0.4.0
       '@microsoft/api-extractor-model': 7.33.10(@types/node@24.13.3)
       '@microsoft/tsdoc': 0.16.0
       ajv: 8.20.0
@@ -1138,7 +1156,11 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
-  '@agent-teams/repository-mutation@0.2.2': {}
+  '@agent-teams/feature-module-standard@0.2.3(@agent-teams/engineering-foundation@2.1.1(@types/node@24.13.3))':
+    optionalDependencies:
+      '@agent-teams/engineering-foundation': 2.1.1(@types/node@24.13.3)
+
+  '@agent-teams/repository-mutation@0.4.0': {}
 
   '@emnapi/core@1.11.2':
     dependencies:
@@ -1461,7 +1483,7 @@ snapshots:
     dependencies:
       luxon: 3.7.2
 
-  drizzle-orm@1.0.0-rc.5-5935859(patch_hash=c0ac842c102d0e7a339e79a1676c02fa0dd803a11f6cc82e4b42007c8e153efb)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(mysql2@3.24.6(@types/node@24.13.3))(pg@8.23.1):
+  drizzle-orm@1.0.0-rc.5(patch_hash=c0ac842c102d0e7a339e79a1676c02fa0dd803a11f6cc82e4b42007c8e153efb)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(mysql2@3.24.6(@types/node@24.13.3))(pg@8.23.1):
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@types/pg': 8.20.0
