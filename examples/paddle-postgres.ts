@@ -7,6 +7,7 @@ import { createPgBossPaymentTransport } from '@agent-teams/payments-postgres/pg-
 import { createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
 import type { PaymentPostgresDatabase, PaymentJobHandlers } from '@agent-teams/payments-postgres';
 import { handlePaymentRequest } from './node-http.ts';
+import { createPaymentHostCloser, failPaymentHostStartup } from './host-lifecycle.ts';
 
 export type PaymentHostNamespace = Readonly<{
   database: PaymentPostgresDatabase; paymentSchema: string; jobSchema: string; scope: PaymentScope; onError: (error: Error) => void;
@@ -34,6 +35,7 @@ export async function createPaddlePostgresHost(options: PaddlePostgresHostOption
   const jobs = createPostgresPaymentJobs({ ...options, transport });
   const store = await createPostgresPaymentStore({ database: options.database, schema: options.paymentSchema, scope: options.scope, queue: jobs.queue });
   const payments = createPayments({ scope: options.scope, producerNamespace: options.producerNamespace, provider, store, catalog: options.catalog });
+  const close = createPaymentHostCloser(payments, jobs);
   try {
     for (const consumerId of Object.keys(options.consumers)) {await payments.registerConsumer(consumerId);}
     await jobs.start({ payments, store, consumers: options.consumers,
@@ -41,23 +43,13 @@ export async function createPaddlePostgresHost(options: PaddlePostgresHostOption
       ...(options.resumeScan === undefined ? {} : { resumeScan: options.resumeScan }),
     });
   } catch (error) {
-    payments.stop();
-    await jobs.stop();
-    await jobs.drain();
-    await payments.drain();
-    throw error;
+    return await failPaymentHostStartup(error, close);
   }
   return {
     payments,
     jobs,
     handle: (request: Request) => handlePaymentRequest(request, payments, provider.verifyWebhook.bind(provider), options.authenticate),
     // First stop the host's HTTP ingress/producers; retain the borrowed pool during physical drain.
-    async close() {
-      payments.stop();
-      await jobs.stop();
-      await jobs.drain();
-      await payments.drain();
-      return jobs.status();
-    },
+    close,
   };
 }
