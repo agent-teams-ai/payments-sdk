@@ -8,7 +8,7 @@ import { createPaddleProvider } from '@agent-teams/payments-paddle';
 import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
 import { createPostgresPaymentStore, migratePaymentSchema } from '@agent-teams/payments-postgres';
 import { AccessFixture, CreditFixture } from '../../tests/fixtures/consumers/index.ts';
-import { eventFixture, paddleIds } from '../../packages/payments-paddle/test/fixtures.ts';
+import { eventFixture, paddleIds } from '@agent-teams/payments-paddle/testing';
 
 export const scope: PaymentScope = { applicationId: 'app-a', provider: 'paddle', paymentAccountId: 'merchant-fixture', environment: 'sandbox' };
 export const producerNamespace = 'observation-qualification-v1';

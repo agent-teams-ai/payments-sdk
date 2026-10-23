@@ -6,7 +6,7 @@ import { smoke } from '@get-modular/conformance';
 import type { ListenerError } from '@get-modular/observation';
 import { delivered, liveSubscriptions, settled } from '@get-modular/observation/testing';
 import { CreditFixture } from '../../tests/fixtures/consumers/index.ts';
-import { fixturePeriod, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '../../packages/payments-paddle/test/fixtures.ts';
+import { fixturePeriod, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '@agent-teams/payments-paddle/testing';
 import { deliver, durableWorld, emulatePaddle, producerNamespace, scope, success } from './test-support.ts';
 import { PurchaseReader, ProjectionConfiguration, ProjectionRenderer, purchaseObservationGroup, purchaseProjectionModule, purchaseProjectionDisplayModule, purchaseProjectionDisplayDeclaration, purchaseReadInput, projectionConfigurationInput, projectionRendererInput } from '@agent-teams/payments-get-modular/observation';
 import type { PurchaseObservationCapabilities, PurchaseProjectionState, PurchaseReadPort } from '@agent-teams/payments-get-modular/observation';

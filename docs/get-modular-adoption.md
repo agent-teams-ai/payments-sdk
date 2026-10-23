@@ -1,4 +1,4 @@
-# Scoped Get Modular adoption
+# Get Modular composition adoption
 
 ## Decision
 
@@ -7,9 +7,12 @@ construction and resource ownership of its optional technical integration
 package. The owner is `payments-sdk/composition`. The machine-readable
 [profile](../architecture/get-modular-consumer-profile.json) and its
 [blocking regression gate](../tools/test/get-modular-adoption.test.ts) define
-the precise admitted slice. This decision accepts the exact layout mapping
-below; it does not adopt an application Feature Module Standard topology for
-the four SDK packages.
+the precise composition slice. The owner also adopts the full Feature Module
+Standard topology for all production source in the four SDK packages through
+[the feature ownership decision](feature-module-adoption.md). The current
+composition layout has no technical-adapter exception. The two profiles own
+different checks: FMS owns production ownership and layer/public boundaries;
+CMS owns Get Modular descriptors, declarations, entries, inputs and groups.
 
 The payment domain and application runtime stay in `payments-core`, without
 Get Modular, provider SDK, PostgreSQL or ORM dependencies. `payments-paddle`
@@ -60,16 +63,16 @@ artifact-record digest; the gate compares catalog versions and lock integrity.
 The [October 20 record](../qualification/observation/published-artifacts-2026-10-20.json)
 preserves the earlier train.
 
-Engineering Foundation `1.10.1` remains the independently qualified development
-dependency described in [its existing adoption profile](foundation-adoption.md).
-The newer producer `2.1.0` release and current capability catalog were checked
-for a CMS adoption checker. They add other concerns, not such a checker; an
-unrelated major upgrade is unnecessary here. The gate reuses Foundation's
-public `observeSourceGraph()` inventory/resolver, followed by a small TypeScript
-AST inventory of authored GM declarations, descriptors, entries, inputs and
-groups. Foundation remains the authority for package ownership, public import
-edges and forbidden dependencies. No second source graph, CLI, generator or
-quality scheduler is introduced.
+Engineering Foundation `2.1.1` supplies the shared source graph and development
+quality profile described in [its adoption record](foundation-adoption.md).
+The repository's FMS checker delegates structural rules to the published
+Feature Module Standard kernel. This composition gate calls the real published
+Get Modular `checkModuleLayout()` with Foundation's observed files, resolved
+import edges and actual classified use-case exports. It rejects unsupported
+export classification instead of pretending that a use-case file has no
+exports. A separate TypeScript AST inventory checks authored GM declarations,
+descriptors, entries, inputs and groups against this profile. No second source
+graph, generator or quality scheduler is introduced.
 
 The AST uses the published `typescript/unstable/sync` and
 `typescript/unstable/ast` exports of the existing exact compiler `7.0.2`, not a
@@ -78,37 +81,42 @@ upgrading that compiler requires requalifying this small adapter; the gate
 rejects an unreviewed compiler change. Native API snapshots and their compiler
 process are disposed after every inventory.
 
-## Exact technical adapter mapping
+## Feature and public boundary mapping
 
-The package is an outer technical adapter with two public entrypoints. Its
-current small layout differs from the default application feature layout:
+The package is an outer integration with two owned features and two curated
+public entrypoints. Each feature has a flat `composition/` directory. Every
+runtime entry imports its own separately declared module. Each entry belongs
+to exactly one feature group; inputs import only their host declarations.
 
-| Exact path under `packages/payments-get-modular/src/` | Role and accepted mapping |
+| Path below `packages/payments-get-modular/src/features/` | Responsibility |
 | --- | --- |
-| `contracts.ts` | Explicit payment role facets, descriptors and capability map; no provider/store implementation |
-| `module.ts` | Inert configuration/runtime declarations, declared input, inline scoped runtime entry and static group |
-| `observation/composition.ts` | Inert observation descriptors/declarations, declared inputs, inline projection/display entries and static group |
-| `observation/projection.ts` | Public resource-aware read projection; finite copied display data and explicit refresh/selection commands |
+| `payment-runtime/application/ports/` | Explicit frozen payment capability facets and the managed root shape; no framework types |
+| `payment-runtime/application/use-cases/` | Track admitted calls and retain physical core work through close |
+| `payment-runtime/composition/` | Named role contracts, configuration/runtime declarations, declared input, scoped entry, feature group and curated public facade |
+| `purchase-observation/application/models/` | Finite readonly query and purchase display values |
+| `purchase-observation/application/ports/` | Borrowed purchase read only; no financial or lifecycle authority |
+| `purchase-observation/application/use-cases/` | Validate/copy a query, derive loading state and detach finite purchase values |
+| `purchase-observation/composition/` | Observation/Resources integration, role contracts, independent declarations and entries, declared inputs, one group and curated public facade |
 
-These four paths are the exact `technical-adapter-layout` exception. They may
-combine declarations and entries, keep descriptors outside a `composition/`
-directory, and implement the optional technical projection through public
-Resources/Observation APIs. The adapter holds no financial authority of its own;
-payment policy remains in core. This exception is not a directory exemption.
-A new authored module or descriptor triggers review of the mapping and the
-profile inventory. New helpers inside an existing owner need no inventory row.
-A future product application feature or changed CMS layout contract also
-triggers review. No accepted upstream ADR is edited by this mapping.
+The package roots re-export only their feature public facades. The main entry
+has no Observation import. Query/value semantics remain framework independent;
+Observation owns scheduling, latest-only loading, subscription detachment and
+physical load settlement. The Host retains resource controls. There are no
+empty domain layers or inferred business contexts in this integration package.
 
-The gate does not interpret every function as a module, infer business contexts,
-or prove that a capability hidden inside a closure has the right owner. It
-observes direct authored API calls, including aliased and namespace imports,
-and compares their names/paths with the profile. Semantic ownership and intent
-remain review obligations. Full application FMS adoption, application layout
-enforcement and independently deployed plugin lifecycle are outside this
-scope; they require an explicit owner decision and qualification. The profile's `scoped-active` status describes this adapter record and its
-executed guards.
-It is not a claim of complete application CMS/FMS conformance.
+`Read` and `Processing` are contract revision 2: public reads are detached,
+readonly snapshots, and audited stream selection exchanges a target-bound
+opaque `version`. Other descriptors remain revision 1. Capability function
+properties are checked contravariantly, so a replacement that requires a
+narrower buyer identifier or an extra checkout precondition is rejected.
+The version is optimistic concurrency evidence, never operator authorization.
+
+The CMS gate checks direct authored API calls, including aliased and namespace
+imports, and compares names/paths with the profile. Its published layout check
+observes real declaration/module imports and use-case exports. FMS separately
+owns curated facades, source census, dependency direction and mirrored feature
+tests. These checks do not infer financial policy or establish runtime behavior;
+semantic ownership and lifecycle guarantees retain their scenarios and review.
 
 ## Startup and shutdown guarantees
 
@@ -151,9 +159,11 @@ evidence only. The previous train and its limitations remain in the
 ## Verification and remaining obligations
 
 `pnpm test:modular:adoption` blocks pin/artifact drift, missing owned paths,
-unknown authored GM boundaries, changed exceptions and removed/no-op command
+unknown authored GM boundaries, layout violations, added exceptions and removed/no-op command
 chains. Its disposable mutations prove rejection while an owner-local helper
-remains permitted. It runs in `check:fast`; the existing `test:boundaries` glob
+remains permitted by the composition inventory. The published checker also rejects an extra
+use-case export and value imports replaced by type-only declaration/group imports. `architecture:features:check` runs this gate after the FMS checker
+and is required by `check:fast`; the existing `test:boundaries` glob
 also includes it in full checks and the quality CI lane. Existing source graph
 rejection fixtures retain authority for unknown packages/files, forbidden
 imports and public boundary bypasses.

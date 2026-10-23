@@ -4,6 +4,7 @@ import { cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promi
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
+import { checkModuleLayout } from '@get-modular/conformance';
 import { observeSourceGraph } from '@agent-teams/engineering-foundation/source-graph';
 import { API } from 'typescript/unstable/sync';
 import * as ts from 'typescript/unstable/ast';
@@ -80,19 +81,13 @@ async function check(root: string): Promise<void> {
   assert.equal(profile.decision, 'docs/get-modular-adoption.md#decision');
   assert.deepEqual(profile.entrypoints, ['packages/payments-get-modular/src/index.ts', 'packages/payments-get-modular/src/observation/index.ts']);
   assert.deepEqual(profile.roots, ['paymentsModule', 'purchaseProjectionModule', 'purchaseProjectionDisplayModule']);
-  assert.deepEqual(profile.exceptions.map(exception => exception.id), ['technical-adapter-layout'], 'unknown or stale CMS exception');
-  assert.deepEqual(profile.exceptions[0]?.paths, ['packages/payments-get-modular/src/contracts.ts', 'packages/payments-get-modular/src/module.ts', 'packages/payments-get-modular/src/observation/composition.ts', 'packages/payments-get-modular/src/observation/projection.ts'], 'exception paths changed');
-  for (const exception of profile.exceptions) {
-    assert.equal(exception.rule, 'CMS feature layout and separate declaration/entry files');
-    assert.equal(exception.decision, profile.decision);
-    for (const value of [exception.owner, exception.rationale, exception.reviewTrigger]) {assert.ok(value.trim(), 'exception needs its owner, rationale and review trigger');}
-  }
+  assert.deepEqual(profile.exceptions, [], 'unknown or stale CMS exception');
   assert.deepEqual(profile.outsideScope.map(boundary => boundary.boundary), ['payments.core', 'payments.paddle', 'payments.postgres']);
   for (const boundary of profile.outsideScope) {
     for (const value of [boundary.owner, boundary.mechanism, boundary.reviewTrigger]) {assert.ok(value.trim(), 'outside scope classification needs an owner, mechanism and review trigger');}
   }
-  assert.equal(profile.fullApplicationFms, 'not-adopted; separate owner decision and qualification required');
-  const paths = [...profile.entrypoints, ...Object.keys(profile.authored), ...profile.exceptions.flatMap(exception => exception.paths), ...profile.verification.tests, profile.decision.split('#')[0] ?? ''];
+  assert.equal(profile.fullApplicationFms, 'adopted; architecture/feature-module-standard.json');
+  const paths = [...profile.entrypoints, ...Object.keys(profile.authored), ...profile.verification.tests, profile.decision.split('#')[0] ?? ''];
   for (const path of paths) {assert.ok((await stat(join(root, path))).isFile(), `profile path missing: ${path}`);}
   const policy = parse(await read(root, sourcePolicyPath)) as { governedRoots: string[] };
   const graph = await observeSourceGraph({ consumerRoot: root, roots: policy.governedRoots.filter(path => path.endsWith('/src')) });
@@ -110,9 +105,26 @@ async function check(root: string): Promise<void> {
     }
   } finally { api.close(); }
   assert.deepEqual(normalized(found), normalized(profile.authored), 'unknown or stale authored Get Modular boundary');
+  const moduleRoot = 'packages/payments-get-modular/src/';
+  const files = graph.files.filter(path => path.startsWith(moduleRoot));
+  const imports = graph.edges.filter(edge => edge.from.startsWith(moduleRoot)).map(edge => ({
+    from: edge.from, to: edge.to, mode: edge.mode === 'type-only' ? 'type' as const : 'value' as const,
+  }));
+  const useCaseExports = Object.fromEntries(graph.runtimeExports.filter(file =>
+    file.path.startsWith(moduleRoot) && file.path.includes('/application/use-cases/')).map(file => {
+    assert.equal(file.status, 'complete', `${file.path}: unclassified runtime exports require collector qualification`);
+    assert.deepEqual(file.unsupported, [], `${file.path}: unclassified runtime exports`);
+    return [file.path, file.exports.map(item => ({ name: item.name, kind: item.kind === 'function' ? 'function' as const : 'value' as const }))];
+  }));
+  assert.equal(Object.keys(useCaseExports).length, files.filter(path => path.includes('/application/use-cases/')).length, 'every use-case file needs an observed export record');
+  const layout = checkModuleLayout({ files, imports, useCaseExports });
+  assert.equal(layout.featureCount, 2, 'expected payment-runtime and purchase-observation features');
+  assert.equal(layout.moduleCount, 3, 'expected runtime, projection and display entries');
+
   const { scripts } = await json<{ scripts: Record<string, string> }>(root, 'package.json');
-  assert.deepEqual({ ...profile.verification, tests: [] }, { adoption: 'test:modular:adoption', sourceGraph: 'foundation:check', runtime: 'test:modular', packed: 'test:observation', tests: [] });
+  assert.deepEqual({ ...profile.verification, tests: [] }, { adoption: 'architecture:features:check', sourceGraph: 'foundation:check', runtime: 'test:modular', packed: 'test:observation', tests: [] });
   assert.equal(scripts['test:modular:adoption'], 'node --test tools/test/get-modular-adoption.test.ts', 'adoption command removed or retargeted');
+  assert.equal(scripts['architecture:features:check'], 'node tools/check-feature-modules.ts && pnpm test:modular:adoption', 'architecture command must execute the published CMS gate');
   assert.equal(scripts['test:boundaries'], 'node --test tools/test/*.test.ts', 'boundary command must execute the scoped gate');
   assert.equal(scripts['foundation:check'], 'agent-teams-foundation check', 'Foundation graph command removed or retargeted');
   assert.equal(scripts['test:modular'], 'node tools/run-tests.ts modular', 'Modular runtime command removed or retargeted');
@@ -120,7 +132,7 @@ async function check(root: string): Promise<void> {
   for (const name of ['check:fast', 'check']) {
     assert.match(scripts[name] ?? '', /^pnpm [\w:-]+(?: && pnpm [\w:-]+)*$/u, `${name}: blocking command chain must use only pnpm scripts joined by &&`);
   }
-  for (const command of ['pnpm test:modular:adoption', 'pnpm foundation:check']) {assert.equal(scripts['check:fast']?.split('&&').map(part => part.trim()).includes(command), true, `fast chain lost ${command}`);}
+  for (const command of ['pnpm architecture:features:check', 'pnpm foundation:check']) {assert.equal(scripts['check:fast']?.split('&&').map(part => part.trim()).includes(command), true, `fast chain lost ${command}`);}
   for (const command of ['pnpm check:fast', 'pnpm test:boundaries', 'pnpm test:modular', 'pnpm test:observation']) {assert.equal(scripts['check']?.split('&&').map(part => part.trim()).includes(command), true, `full chain lost ${command}`);}
 }
 
@@ -140,14 +152,23 @@ async function fixture(): Promise<string> {
   return root;
 }
 
-void test('the scoped Modular record matches actual boundaries, reviewed artifacts and blocking commands', () => check(repository));
+void test('the Modular record and published CMS checker match full feature boundaries, reviewed artifacts and blocking commands', () => check(repository));
 void test('scoped adoption permits owner-local helpers and rejects meaningful drift', async context => {
   const changes: Readonly<Record<string, (root: string) => Promise<void>>> = {
     'reviewed pin drift': async root => { const profile = await json<Profile>(root, profilePath); profile.standard.commit = '0'.repeat(40); await writeFile(join(root, profilePath), JSON.stringify(profile)); },
     'unknown authored module': root => writeFile(join(root, 'packages/payments-get-modular/src/unknown.ts'), "import { declareModule as declare } from '@get-modular/assembly'; export const unknown = declare({});\n"),
-    'hidden input in existing file': async root => { const path = 'packages/payments-get-modular/src/module.ts'; await writeFile(join(root, path), `${await read(root, path)}\nconst hidden = input<PaymentsCapabilities>()(paymentsConfigurationDeclaration);\n`); },
-    'missing owned path': root => rm(join(root, 'packages/payments-get-modular/src/module.ts')),
-    'unknown exception': async root => { const profile = await json<Profile>(root, profilePath); profile.exceptions.push({ ...profile.exceptions[0]!, id: 'blanket-exemption' }); await writeFile(join(root, profilePath), JSON.stringify(profile)); },
+    'hidden input in existing file': async root => { const path = 'packages/payments-get-modular/src/features/payment-runtime/composition/payment-runtime.inputs.ts'; await writeFile(join(root, path), `${await read(root, path)}\nconst hidden = input<PaymentsCapabilities>()(paymentsConfigurationDeclaration);\n`); },
+    'type-only declaration edge': async root => {
+      const path = 'packages/payments-get-modular/src/features/payment-runtime/composition/payments.module.ts';
+      await writeFile(join(root, path), (await read(root, path)).replace('import { paymentsDeclaration }', 'import type { paymentsDeclaration }'));
+    },
+    'type-only group edge': async root => {
+      const path = 'packages/payments-get-modular/src/features/payment-runtime/composition/payment-runtime.group.ts';
+      await writeFile(join(root, path), (await read(root, path)).replace('import { paymentsModule }', 'import type { paymentsModule }'));
+    },
+    'use-case extra export': root => writeFile(join(root, 'packages/payments-get-modular/src/features/purchase-observation/application/use-cases/copy-query.ts'), "export function copyQuery() {}\nexport function accidentalSecondUseCase() {}\n"),
+    'missing owned path': root => rm(join(root, 'packages/payments-get-modular/src/features/payment-runtime/composition/payment-runtime.inputs.ts')),
+    'unknown exception': async root => { const profile = await json<Profile>(root, profilePath); profile.exceptions.push({ id: 'blanket-exemption', rule: 'layout', paths: [], owner: 'test', rationale: 'invalid', decision: 'test', reviewTrigger: 'test' }); await writeFile(join(root, profilePath), JSON.stringify(profile)); },
     'no-op command': async root => { const manifest = await json<{ scripts: Record<string, string> }>(root, 'package.json'); manifest.scripts['test:modular:adoption'] = 'node -e "process.exit(0)"'; await writeFile(join(root, 'package.json'), JSON.stringify(manifest)); },
     'no-op runtime command': async root => { const manifest = await json<{ scripts: Record<string, string> }>(root, 'package.json'); manifest.scripts['test:modular'] = 'node -e "process.exit(0)"'; await writeFile(join(root, 'package.json'), JSON.stringify(manifest)); },
     'no-op packed command': async root => { const manifest = await json<{ scripts: Record<string, string> }>(root, 'package.json'); manifest.scripts['test:observation'] = 'node -e "process.exit(0)"'; await writeFile(join(root, 'package.json'), JSON.stringify(manifest)); },
@@ -159,12 +180,15 @@ void test('scoped adoption permits owner-local helpers and rejects meaningful dr
     'reviewed pin drift': /reviewed CMS\/guide pin drift/u,
     'unknown authored module': /unknown or stale authored Get Modular boundary/u,
     'hidden input in existing file': /unknown or stale authored Get Modular boundary/u,
+    'type-only declaration edge': /module-declaration/u,
+    'type-only group edge': /orphan-module/u,
+    'use-case extra export': /use-case-export/u,
     'missing owned path': /ENOENT/u,
     'unknown exception': /unknown or stale CMS exception/u,
     'no-op command': /adoption command removed or retargeted/u,
     'no-op runtime command': /Modular runtime command removed or retargeted/u,
     'no-op packed command': /packed Observation command removed or retargeted/u,
-    'removed fast chain': /fast chain lost pnpm test:modular:adoption/u,
+    'removed fast chain': /fast chain lost pnpm architecture:features:check/u,
     'masked fast failure': /check:fast: blocking command chain/u,
     'masked full failure': /check: blocking command chain/u,
   };
