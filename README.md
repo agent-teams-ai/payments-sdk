@@ -28,6 +28,8 @@ All four packages currently declare **`0.4.0`** and emit ESM JavaScript and decl
 
 **Current qualification:** Linux Node **24.22.1 LTS** and **26.12.1** are the corrected runtime floors. The [0.4 source candidate](docs/qualification.md#sdk-04-source-candidate) has its own fresh qualification; [older hosted baselines](docs/qualification.md#reviewed-hosted-baselines) remain bound to their recorded sources. Each revision requires its own checks; deployment and Paddle-account gates remain separate. See [runtime admission status](docs/runtime-security-admission.md) and [qualification](docs/qualification.md) before production use.
 
+**Governance rollout:** full FMS and native SDK checks are part of this source. Installation of the new central identity/admission workflows and organization-wide registration remain a separate [tracked activation](docs/governance-rollout.md); source integration does not claim that administrative deployment is complete.
+
 ## Start here
 
 The following compilable host skeleton receives **host-built configuration**: trusted `scope` and `producerNamespace`, a provider, a store and a server-controlled catalog through `PaymentRuntimeOptions`. It is not a standalone demo. Construct it once per host lifetime; authenticate the buyer before calling `startCheckout`.
@@ -75,6 +77,7 @@ Stop HTTP ingress and other producers before shutdown. Keep borrowed pools open 
 | Operate and recover | [Operations runbook](docs/operations.md) and [qualification/deployment gates](docs/qualification.md) |
 | Verify dependencies or release artifacts | [Upstream qualification](docs/upstream-qualification.md), [security qualification](docs/security-qualification.md) and [releasing](docs/releasing.md) |
 | Review implementation evidence | [Implementation status](docs/implementation-status.md) and the [review index](docs/reviews/README.md) |
+| Complete central governance activation | [Source delivery and governance rollout](docs/governance-rollout.md) |
 
 The [accepted implementation plan](docs/implementation-plan.md) records design decisions. Package public exports and the compiled examples own current API signatures; historical review records qualify their recorded source and artifacts.
 
@@ -84,10 +87,13 @@ Use Linux Node **24.22.1** or **26.12.1**, pnpm **11.25.0**, TypeScript **7.0.2*
 
 The owner-selected [full Feature Module Standard adoption](docs/feature-module-adoption.md)
 and [local profile](architecture/feature-module-standard.json) define the four
-packages' module and feature boundaries. New organization repositories follow
-the [central repository admission guide](https://github.com/agent-teams-ai/.github/blob/main/docs/repository-admission.md#new-repository-bootstrap).
-The [delivery plan](docs/reviews/full-fms-adoption/plan.md) distinguishes local
-implementation checks, hosted qualification, registration and remote enforcement.
+packages' module and feature boundaries. The
+[proposed central bootstrap rollout](https://github.com/agent-teams-ai/.github/pull/381)
+owns new-repository registration and enforcement; its pending activation is
+separate from the native full-FMS checks. The
+[delivery boundary](docs/governance-rollout.md) and original
+[delivery plan](docs/reviews/full-fms-adoption/plan.md) distinguish source
+implementation, hosted qualification, registration and remote enforcement.
 
 ```sh
 pnpm install --frozen-lockfile
