@@ -1,0 +1,2380 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-23T01:03:49.777Z",
+  "commit": "40b37351e3b3d40587a2a5aa7f1f4699682a9660",
+  "cleanSource": true,
+  "nodeVersion": "v26.12.1",
+  "parser": {
+    "package": "typescript",
+    "version": "7.0.2",
+    "gitHead": "2bd066d87f5bafd315be9f40889d0a60b9e58e0b",
+    "packageJsonSha256": "3722b30210616a13a3213ded11575ba6b2dbab10c32a5ef67afca8513e27017e",
+    "publicAPIs": [
+      "typescript/unstable/sync",
+      "typescript/unstable/ast"
+    ]
+  },
+  "reproducibility": {
+    "scriptPath": "/tmp/payments-full-fms-metrics.mjs",
+    "scriptSha256": "2277c59394058543c91d356b41db7b9d29811a7661d1ccbccfb775a5da824b06",
+    "invocation": [
+      "/tmp/payments-adoption-tools/node-v26.12.1-linux-x64/bin/node",
+      "/tmp/payments-full-fms-metrics.mjs",
+      "/tmp/payments-delivery-recovery/payments-sdk",
+      "40b37351e3b3d40587a2a5aa7f1f4699682a9660",
+      "/tmp/payments-reviewed-production-loc.json"
+    ],
+    "sourceManifestEncoding": "sorted relative source path, TAB, lowercase source SHA256, LF",
+    "maintainedSourceManifestSha256": "a73c3406b498ca19c897acc43ba49306d7e49abe8dd4f218214f53b9c9453255",
+    "productionSourceManifestSha256": "c7dbf9332f86325f59da4f242d6a9acd8e020bfe57dcf6bf3a728908e8344010",
+    "excludedSourceManifestSha256": "8bf6eebdafa4fec2a6de2400a94fd293cd138c8e4ba29880e4be2afec90e58c0",
+    "inputManifestSha256": "db348fac13b92a218fa68f13457e3a7fc34696dd392d50f558d2a42069c99a7c",
+    "inputs": [
+      {
+        "path": "package.json",
+        "sha256": "a8e683da68ce2859f80ee976f28e09dcc3e9fa87c33b413f39afe91ade79f484"
+      },
+      {
+        "path": "pnpm-workspace.yaml",
+        "sha256": "7fd2acbb487fef05499726b9b7bd2e62ba8d4a7ade098b36f2317390461da305"
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "sha256": "02e18d8a5e0fb56c548e86ea284d9950c14514607f7c55e32d5466beafd46a3d"
+      },
+      {
+        "path": "tsconfig.json",
+        "sha256": "fe66cd167240c0a58c9a87f4e688d8341c8146d7a967fd78d4f9e9cccb5fa2ea"
+      },
+      {
+        "path": "tsconfig.base.json",
+        "sha256": "304130be90c7465f9b77a262bc5974b080bc42b713703f42e444410449083ac7"
+      },
+      {
+        "path": "tsconfig.checks.json",
+        "sha256": "be0da8715abd1e3d8ed227174707ae3c8e2bdd561ebef04a246f3f3a677a94a3"
+      },
+      {
+        "path": "architecture/feature-module-standard.json",
+        "sha256": "dbad0505ebff4d8f8b8bdea1ff6436ad72d9c88d555f36e2d62cbaacf04dc3c7"
+      },
+      {
+        "path": "packages/payments-core/package.json",
+        "sha256": "7e4531b668cb4662e0ddde5bf740b99d73ea934b48ca0e3dd552943e0ebdc920"
+      },
+      {
+        "path": "packages/payments-core/tsconfig.json",
+        "sha256": "5b4b55bfb81fb6c8f607e25828289d11f790a112b724e25c13a2bc5d60050aec"
+      },
+      {
+        "path": "packages/payments-get-modular/package.json",
+        "sha256": "8359a6ace904efe9dff3fca3f007f1e5883de8b80ebdebab0d04a17d59911b2c"
+      },
+      {
+        "path": "packages/payments-get-modular/tsconfig.json",
+        "sha256": "e3bcffe097a030fc5c09213d2efffa3ac43f3b618edfdc3aa29601c05bf4b199"
+      },
+      {
+        "path": "packages/payments-paddle/package.json",
+        "sha256": "efeac07714378b8c3b6bb3e3695e065836607bc194af728da5af1b95340c5a3f"
+      },
+      {
+        "path": "packages/payments-paddle/tsconfig.json",
+        "sha256": "b0bf64f5043e05100cbe9d310ccf7f98a361290a21b9b0811218fcb6f7339ebc"
+      },
+      {
+        "path": "packages/payments-postgres/package.json",
+        "sha256": "8ce8fb779d7f9c0d4bb5c2b27299561161b49dd07124184d934afdd4e7fc633a"
+      },
+      {
+        "path": "packages/payments-postgres/tsconfig.json",
+        "sha256": "b0bf64f5043e05100cbe9d310ccf7f98a361290a21b9b0811218fcb6f7339ebc"
+      }
+    ]
+  },
+  "method": {
+    "name": "TypeScript 7 AST statement/declaration logical units (custom, explicitly defined)",
+    "scope": "Maintained shipping packages/*/src/**/*.ts only, excluding every feature/testing owner, root testing facades, core memory facade, .d.ts, and declaration-only pg-boss repair implementation/facades. No generated dist, dependencies, tools, examples, scenarios, fixtures or qualification code.",
+    "logicalLOC": "Sum of runtimeStatementDeclarationUnits + moduleDirectiveUnits + typeDeclarationSignatureUnits. Each selected AST node counts once regardless of formatting.",
+    "runtimeStatementDeclarationUnits": "All TypeScript isStatement nodes except Block, EmptyStatement, NotEmittedStatement, type declarations and module directives; plus class/object MethodDeclaration, PropertyDeclaration, Constructor, GetAccessor, SetAccessor, EnumMember, ClassStaticBlockDeclaration; plus VariableDeclarationList only when it is not wrapped by VariableStatement. Includes nested statements. A multi-declarator VariableStatement counts once. Expressions, arrow/function expressions, parameters, type references and property assignments are not extra units.",
+    "moduleDirectiveUnits": "One per ImportDeclaration, ImportEqualsDeclaration, ExportDeclaration or ExportAssignment, including type-only imports/exports. Individual specifiers are not extra units.",
+    "typeDeclarationSignatureUnits": "One per InterfaceDeclaration, TypeAliasDeclaration, PropertySignature, MethodSignature, CallSignature, ConstructSignature or IndexSignature, including nested type-literal signatures. Counts private as well as exported production type code. It is separate from runtime units and is not a count of public API members alone.",
+    "physicalNoncommentSLOC": "Number of source lines containing at least one non-whitespace character after compiler-scanner comment spans are replaced with spaces. AST string/regex/template token spans are masked first, preserving whitespace/newlines, so comment-looking literal contents cannot create false comments. Includes braces/imports/type code and nonblank embedded SQL/template lines.",
+    "limits": "This is an explicitly defined AST LLOC measure, not a universal industry standard, complexity score, emitted-JS count or count of nonblank physical lines. Type/member choices affect totals. Physical count is separately reported. SQL inside strings contributes physical SLOC but not additional TypeScript AST units.",
+    "selectedSyntaxKindNames": {
+      "typeKinds": [
+        "InterfaceDeclaration",
+        "TypeAliasDeclaration",
+        "PropertySignature",
+        "MethodSignature",
+        "CallSignature",
+        "ConstructSignature",
+        "IndexSignature"
+      ],
+      "moduleKinds": [
+        "ImportDeclaration",
+        "ImportEqualsDeclaration",
+        "ExportDeclaration",
+        "ExportAssignment"
+      ],
+      "extraRuntimeDeclarations": [
+        "PropertyDeclaration",
+        "MethodDeclaration",
+        "Constructor",
+        "GetAccessor",
+        "SetAccessor",
+        "EnumMember",
+        "ClassStaticBlockDeclaration"
+      ],
+      "ignoredStatements": [
+        "Block",
+        "EmptyStatement",
+        "NotEmittedStatement"
+      ]
+    }
+  },
+  "historicalMethodRegression": {
+    "reference": "docs/reviews/sdk-0.3-portability/production-loc.json",
+    "referenceSha256": "652afbc7ac1cd4d5d50fb037bb44f8bf3d8556568e3d1aba055175bb073ea467",
+    "referenceCommit": "b6fd1a673d9f0d6a160a0938c159c2a0db410419",
+    "identicalSourceFiles": 3,
+    "identicalSourceMatches": 3,
+    "allCountFieldsMatch": true,
+    "note": "Exact source hashes match even where FMS moved the file; every reported count field and selected syntax-kind count matches.",
+    "matches": [
+      {
+        "currentPath": "packages/payments-core/src/features/payment-evidence/domain/vocabulary.ts",
+        "historicalPath": "packages/payments-core/src/vocabulary.ts",
+        "sha256": "a42fe9927f6ddaeaff4b69ad17d66f33ca466f4ff13cda75038a51dcbc21ad2b",
+        "matchingCounts": true,
+        "matchingSyntaxKindCounts": true,
+        "fields": {
+          "logicalLOC": {
+            "current": 25,
+            "historical": 25
+          },
+          "runtimeStatementDeclarationUnits": {
+            "current": 20,
+            "historical": 20
+          },
+          "moduleDirectiveUnits": {
+            "current": 0,
+            "historical": 0
+          },
+          "typeDeclarationSignatureUnits": {
+            "current": 5,
+            "historical": 5
+          },
+          "physicalNoncommentSLOC": {
+            "current": 46,
+            "historical": 46
+          },
+          "physicalNonblankLinesBeforeCommentRemoval": {
+            "current": 54,
+            "historical": 54
+          }
+        }
+      },
+      {
+        "currentPath": "packages/payments-paddle/src/features/paddle-integration/adapters/observations.ts",
+        "historicalPath": "packages/payments-paddle/src/observations.ts",
+        "sha256": "7cc4157d7fe336c817c887b226a1372344c99296ac2e7378f45f47bac1f716b9",
+        "matchingCounts": true,
+        "matchingSyntaxKindCounts": true,
+        "fields": {
+          "logicalLOC": {
+            "current": 198,
+            "historical": 198
+          },
+          "runtimeStatementDeclarationUnits": {
+            "current": 194,
+            "historical": 194
+          },
+          "moduleDirectiveUnits": {
+            "current": 2,
+            "historical": 2
+          },
+          "typeDeclarationSignatureUnits": {
+            "current": 2,
+            "historical": 2
+          },
+          "physicalNoncommentSLOC": {
+            "current": 200,
+            "historical": 200
+          },
+          "physicalNonblankLinesBeforeCommentRemoval": {
+            "current": 204,
+            "historical": 204
+          }
+        }
+      },
+      {
+        "currentPath": "packages/payments-paddle/src/features/paddle-integration/adapters/reconciliation.ts",
+        "historicalPath": "packages/payments-paddle/src/reconciliation.ts",
+        "sha256": "44a85ccf3400c480b513c49736fbc5112f0164ce95601487051607b75ac6d771",
+        "matchingCounts": true,
+        "matchingSyntaxKindCounts": true,
+        "fields": {
+          "logicalLOC": {
+            "current": 13,
+            "historical": 13
+          },
+          "runtimeStatementDeclarationUnits": {
+            "current": 10,
+            "historical": 10
+          },
+          "moduleDirectiveUnits": {
+            "current": 3,
+            "historical": 3
+          },
+          "typeDeclarationSignatureUnits": {
+            "current": 0,
+            "historical": 0
+          },
+          "physicalNoncommentSLOC": {
+            "current": 19,
+            "historical": 19
+          },
+          "physicalNonblankLinesBeforeCommentRemoval": {
+            "current": 20,
+            "historical": 20
+          }
+        }
+      }
+    ]
+  },
+  "production": {
+    "files": 91,
+    "logicalLOC": 5578,
+    "runtimeStatementDeclarationUnits": 3933,
+    "moduleDirectiveUnits": 385,
+    "typeDeclarationSignatureUnits": 1260,
+    "physicalNoncommentSLOC": 6216,
+    "physicalNonblankLinesBeforeCommentRemoval": 6493
+  },
+  "packages": [
+    {
+      "package": "payments-core",
+      "files": 34,
+      "logicalLOC": 2514,
+      "runtimeStatementDeclarationUnits": 1517,
+      "moduleDirectiveUnits": 141,
+      "typeDeclarationSignatureUnits": 856,
+      "physicalNoncommentSLOC": 2826,
+      "physicalNonblankLinesBeforeCommentRemoval": 2903
+    },
+    {
+      "package": "payments-get-modular",
+      "files": 29,
+      "logicalLOC": 271,
+      "runtimeStatementDeclarationUnits": 108,
+      "moduleDirectiveUnits": 102,
+      "typeDeclarationSignatureUnits": 61,
+      "physicalNoncommentSLOC": 388,
+      "physicalNonblankLinesBeforeCommentRemoval": 413
+    },
+    {
+      "package": "payments-paddle",
+      "files": 6,
+      "logicalLOC": 546,
+      "runtimeStatementDeclarationUnits": 467,
+      "moduleDirectiveUnits": 21,
+      "typeDeclarationSignatureUnits": 58,
+      "physicalNoncommentSLOC": 472,
+      "physicalNonblankLinesBeforeCommentRemoval": 490
+    },
+    {
+      "package": "payments-postgres",
+      "files": 22,
+      "logicalLOC": 2247,
+      "runtimeStatementDeclarationUnits": 1841,
+      "moduleDirectiveUnits": 121,
+      "typeDeclarationSignatureUnits": 285,
+      "physicalNoncommentSLOC": 2530,
+      "physicalNonblankLinesBeforeCommentRemoval": 2687
+    }
+  ],
+  "excludedTotals": {
+    "files": 13,
+    "logicalLOC": 613,
+    "runtimeStatementDeclarationUnits": 522,
+    "moduleDirectiveUnits": 29,
+    "typeDeclarationSignatureUnits": 62,
+    "physicalNoncommentSLOC": 639,
+    "physicalNonblankLinesBeforeCommentRemoval": 655
+  },
+  "excludedMaintainedSources": [
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/testing/memory.ts",
+      "included": false,
+      "excludedReason": "Feature testing owner; exported reusable test support is excluded from production metrics.",
+      "sha256": "8afef0b801132f7bf20b6b6f3ebfcc90ad3a90dbc6b6616d27ff0b6fa94d6739",
+      "logicalLOC": 408,
+      "runtimeStatementDeclarationUnits": 399,
+      "moduleDirectiveUnits": 5,
+      "typeDeclarationSignatureUnits": 4,
+      "physicalNoncommentSLOC": 432,
+      "physicalNonblankLinesBeforeCommentRemoval": 433,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 5,
+        "TypeAliasDeclaration": 1,
+        "FirstStatement": 57,
+        "FunctionDeclaration": 6,
+        "IfStatement": 80,
+        "ReturnStatement": 86,
+        "ExpressionStatement": 87,
+        "PropertySignature": 3,
+        "ClassDeclaration": 1,
+        "PropertyDeclaration": 3,
+        "MethodDeclaration": 34,
+        "ThrowStatement": 6,
+        "TryStatement": 3,
+        "ForOfStatement": 17,
+        "VariableDeclarationList": 17,
+        "ContinueStatement": 2
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/testing/public.ts",
+      "included": false,
+      "excludedReason": "Feature testing owner; exported reusable test support is excluded from production metrics.",
+      "sha256": "7a4a4fdd5baa4900fb34a376dc9d02a0d0da29f191c06bad2a36c4595dcd72eb",
+      "logicalLOC": 1,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 1,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 1,
+      "physicalNonblankLinesBeforeCommentRemoval": 1,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/memory.ts",
+      "included": false,
+      "excludedReason": "Core ./testing memory facade; excluded with its feature testing implementation.",
+      "sha256": "462751c828365976ade2e0e9109e96b9cde04f0f0f98bc0d64ddf347054a0bff",
+      "logicalLOC": 1,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 1,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 1,
+      "physicalNonblankLinesBeforeCommentRemoval": 1,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 1
+      }
+    },
+    {
+      "package": "payments-paddle",
+      "path": "packages/payments-paddle/src/features/paddle-integration/testing/fixtures.ts",
+      "included": false,
+      "excludedReason": "Feature testing owner; exported reusable test support is excluded from production metrics.",
+      "sha256": "06b4bcd580ae7b66d0019ec0a6107e67b360b3754e683f0d27e8d40ff3010784",
+      "logicalLOC": 48,
+      "runtimeStatementDeclarationUnits": 19,
+      "moduleDirectiveUnits": 0,
+      "typeDeclarationSignatureUnits": 29,
+      "physicalNoncommentSLOC": 59,
+      "physicalNonblankLinesBeforeCommentRemoval": 64,
+      "syntaxKindCounts": {
+        "FirstStatement": 5,
+        "TypeAliasDeclaration": 1,
+        "FunctionDeclaration": 7,
+        "ReturnStatement": 7,
+        "PropertySignature": 28
+      }
+    },
+    {
+      "package": "payments-paddle",
+      "path": "packages/payments-paddle/src/features/paddle-integration/testing/public.ts",
+      "included": false,
+      "excludedReason": "Feature testing owner; exported reusable test support is excluded from production metrics.",
+      "sha256": "ba4573196519cd8e2fb557d4e12e43c32e5285a550810f1e3f71f174708b7a55",
+      "logicalLOC": 2,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 2,
+      "physicalNonblankLinesBeforeCommentRemoval": 2,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 2
+      }
+    },
+    {
+      "package": "payments-paddle",
+      "path": "packages/payments-paddle/src/testing.ts",
+      "included": false,
+      "excludedReason": "Curated root ./testing facade; excluded with its feature testing owner.",
+      "sha256": "0891f179c5925b1e42d7051d109cbaeaad65a9d24dc8a3cb48a8d0ca5df1120b",
+      "logicalLOC": 2,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 2,
+      "physicalNonblankLinesBeforeCommentRemoval": 2,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 2
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/pg-boss-declarations.ts",
+      "included": false,
+      "excludedReason": "Declaration-only third-party repair implementation or facade; reported separately.",
+      "sha256": "7f4cc464ff2edd62f6ffd4860ec8dfc52e63ab9347458a10b304c6c0320fc4e6",
+      "logicalLOC": 28,
+      "runtimeStatementDeclarationUnits": 1,
+      "moduleDirectiveUnits": 1,
+      "typeDeclarationSignatureUnits": 26,
+      "physicalNoncommentSLOC": 31,
+      "physicalNonblankLinesBeforeCommentRemoval": 38,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 1,
+        "ModuleDeclaration": 1,
+        "InterfaceDeclaration": 2,
+        "PropertySignature": 23,
+        "TypeAliasDeclaration": 1
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/composition/pg-boss-declarations.ts",
+      "included": false,
+      "excludedReason": "Declaration-only third-party repair implementation or facade; reported separately.",
+      "sha256": "42cd6f55c49b37d1dbc658d4ce575319b2144f41ca80594f1f3ee9e2439140d0",
+      "logicalLOC": 1,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 1,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 1,
+      "physicalNonblankLinesBeforeCommentRemoval": 1,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 1
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/testing/fault-proxy.ts",
+      "included": false,
+      "excludedReason": "Feature testing owner; exported reusable test support is excluded from production metrics.",
+      "sha256": "6389f38b85a28acf9f8a27ee3bd0258e90ada19dcba1fbb9e48f4b1b9c112441",
+      "logicalLOC": 60,
+      "runtimeStatementDeclarationUnits": 58,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 43,
+      "physicalNonblankLinesBeforeCommentRemoval": 46,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "FunctionDeclaration": 1,
+        "FirstStatement": 8,
+        "ExpressionStatement": 32,
+        "IfStatement": 8,
+        "ReturnStatement": 3,
+        "ThrowStatement": 1,
+        "MethodDeclaration": 3,
+        "ForOfStatement": 1,
+        "VariableDeclarationList": 1
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/testing/helpers.ts",
+      "included": false,
+      "excludedReason": "Feature testing owner; exported reusable test support is excluded from production metrics.",
+      "sha256": "2038c23489f045876e446141bd17e44921fe37c10533ef78a35a34d6034bd3bd",
+      "logicalLOC": 58,
+      "runtimeStatementDeclarationUnits": 45,
+      "moduleDirectiveUnits": 10,
+      "typeDeclarationSignatureUnits": 3,
+      "physicalNoncommentSLOC": 63,
+      "physicalNonblankLinesBeforeCommentRemoval": 63,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 10,
+        "FirstStatement": 19,
+        "FunctionDeclaration": 8,
+        "PropertySignature": 3,
+        "ExpressionStatement": 9,
+        "ReturnStatement": 8,
+        "MethodDeclaration": 1
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/testing/public.ts",
+      "included": false,
+      "excludedReason": "Feature testing owner; exported reusable test support is excluded from production metrics.",
+      "sha256": "b9752f8eafffab348d36fc69a4fc4594d54389bd9092c831db9eaadcb0293158",
+      "logicalLOC": 2,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 2,
+      "physicalNonblankLinesBeforeCommentRemoval": 2,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 2
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/pg-boss-declarations.ts",
+      "included": false,
+      "excludedReason": "Declaration-only third-party repair implementation or facade; reported separately.",
+      "sha256": "5a8fd3858609e3f2d0631440d660b364e11df41b11ce49fbc7c002ce9ccb5d5f",
+      "logicalLOC": 1,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 1,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 1,
+      "physicalNonblankLinesBeforeCommentRemoval": 1,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 1
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/testing.ts",
+      "included": false,
+      "excludedReason": "Curated root ./testing facade; excluded with its feature testing owner.",
+      "sha256": "b9fbb0ea572751963d5f75e2a9e24f2b21192d99fe070d2906093568e5b11322",
+      "logicalLOC": 1,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 1,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 1,
+      "physicalNonblankLinesBeforeCommentRemoval": 1,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 1
+      }
+    }
+  ],
+  "files": [
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/authority.ts",
+      "included": true,
+      "sha256": "9c56b1b5fb96a5263f189096554681b79874c3d05999cebeb4f771f6dbc5a9cc",
+      "logicalLOC": 45,
+      "runtimeStatementDeclarationUnits": 40,
+      "moduleDirectiveUnits": 5,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 70,
+      "physicalNonblankLinesBeforeCommentRemoval": 70,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 5,
+        "FunctionDeclaration": 3,
+        "FirstStatement": 9,
+        "ReturnStatement": 15,
+        "IfStatement": 11,
+        "TryStatement": 1,
+        "ExpressionStatement": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/evidence.ts",
+      "included": true,
+      "sha256": "325dfcda2641375470830362f72c7c773d99e4a41ea044f7c77803cbb278336f",
+      "logicalLOC": 129,
+      "runtimeStatementDeclarationUnits": 122,
+      "moduleDirectiveUnits": 6,
+      "typeDeclarationSignatureUnits": 1,
+      "physicalNoncommentSLOC": 97,
+      "physicalNonblankLinesBeforeCommentRemoval": 99,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 6,
+        "FunctionDeclaration": 8,
+        "FirstStatement": 26,
+        "IfStatement": 28,
+        "ReturnStatement": 32,
+        "ExpressionStatement": 17,
+        "ForStatement": 2,
+        "VariableDeclarationList": 5,
+        "ForOfStatement": 3,
+        "TryStatement": 1,
+        "PropertySignature": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/lifecycle.ts",
+      "included": true,
+      "sha256": "e994e07f4f5d3530a39598d84febf6680982ce82e1eb2da491295d1153d8562e",
+      "logicalLOC": 18,
+      "runtimeStatementDeclarationUnits": 15,
+      "moduleDirectiveUnits": 1,
+      "typeDeclarationSignatureUnits": 2,
+      "physicalNoncommentSLOC": 13,
+      "physicalNonblankLinesBeforeCommentRemoval": 13,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 1,
+        "FunctionDeclaration": 3,
+        "FirstStatement": 4,
+        "ReturnStatement": 3,
+        "ExpressionStatement": 4,
+        "PropertySignature": 2,
+        "WhileStatement": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/models/payment-models.ts",
+      "included": true,
+      "sha256": "6c06f384ae6b62ba26a2195da398ae4c6c04ff6d043712a7d03f973048af9afb",
+      "logicalLOC": 101,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 99,
+      "physicalNoncommentSLOC": 127,
+      "physicalNonblankLinesBeforeCommentRemoval": 136,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "TypeAliasDeclaration": 18,
+        "PropertySignature": 81
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/models/read-models.ts",
+      "included": true,
+      "sha256": "c9b470ea5d5eb7ea72d53895ae40e69190c863425e9647cb9f2650d21566ea01",
+      "logicalLOC": 79,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 1,
+      "typeDeclarationSignatureUnits": 78,
+      "physicalNoncommentSLOC": 92,
+      "physicalNonblankLinesBeforeCommentRemoval": 93,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 1,
+        "TypeAliasDeclaration": 9,
+        "PropertySignature": 69
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/operations.ts",
+      "included": true,
+      "sha256": "826778ccea5c975b78287645e3de619d65ea0fe9e1829ffae7a1e8ca6d5df086",
+      "logicalLOC": 125,
+      "runtimeStatementDeclarationUnits": 117,
+      "moduleDirectiveUnits": 8,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 92,
+      "physicalNonblankLinesBeforeCommentRemoval": 94,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 8,
+        "FunctionDeclaration": 4,
+        "FirstStatement": 32,
+        "ExpressionStatement": 19,
+        "ForStatement": 2,
+        "VariableDeclarationList": 3,
+        "IfStatement": 23,
+        "ThrowStatement": 3,
+        "ReturnStatement": 27,
+        "TryStatement": 3,
+        "ForOfStatement": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/outcomes.ts",
+      "included": true,
+      "sha256": "f6e09a6aa3387f16d5395c48fc4dfb3dbb61051cd3cb776fdb2d0492ae5d4aae",
+      "logicalLOC": 69,
+      "runtimeStatementDeclarationUnits": 60,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 6,
+      "physicalNoncommentSLOC": 131,
+      "physicalNonblankLinesBeforeCommentRemoval": 131,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "FirstStatement": 6,
+        "FunctionDeclaration": 8,
+        "IfStatement": 16,
+        "ReturnStatement": 14,
+        "ThrowStatement": 9,
+        "ExpressionStatement": 5,
+        "PropertySignature": 6,
+        "ForOfStatement": 1,
+        "VariableDeclarationList": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/payments-api.ts",
+      "included": true,
+      "sha256": "661c3c5f031847f46403d1b668508524e6c11973ef67a6901f504643e27a36d9",
+      "logicalLOC": 82,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 79,
+      "physicalNoncommentSLOC": 100,
+      "physicalNonblankLinesBeforeCommentRemoval": 104,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "TypeAliasDeclaration": 16,
+        "PropertySignature": 63
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/ports/payment-ports.ts",
+      "included": true,
+      "sha256": "c95996239558a7c50bf8bad081d57b5a1baab8e37281deb88670d01e9b9da76b",
+      "logicalLOC": 58,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 56,
+      "physicalNoncommentSLOC": 70,
+      "physicalNonblankLinesBeforeCommentRemoval": 80,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "InterfaceDeclaration": 3,
+        "PropertySignature": 53
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/queries.ts",
+      "included": true,
+      "sha256": "3d1c4dfc2d009f7e5d0ea1d7ba73d2444069e39dab9c1d88c8f1cf249d5adb02",
+      "logicalLOC": 12,
+      "runtimeStatementDeclarationUnits": 9,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 13,
+      "physicalNonblankLinesBeforeCommentRemoval": 13,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "FunctionDeclaration": 3,
+        "FirstStatement": 3,
+        "ReturnStatement": 3
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/read-snapshots.ts",
+      "included": true,
+      "sha256": "87a89559593062ee608f1224e8604f166c5dbc29324e3dbe6332999c835c8561",
+      "logicalLOC": 23,
+      "runtimeStatementDeclarationUnits": 20,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 48,
+      "physicalNonblankLinesBeforeCommentRemoval": 48,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "FunctionDeclaration": 8,
+        "SwitchStatement": 1,
+        "ReturnStatement": 11
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/reconciliation.ts",
+      "included": true,
+      "sha256": "20e30383ca9c5bb030e731394b319e5eb1c2e29ebd14ce9ad04603e269b07005",
+      "logicalLOC": 213,
+      "runtimeStatementDeclarationUnits": 163,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 47,
+      "physicalNoncommentSLOC": 225,
+      "physicalNonblankLinesBeforeCommentRemoval": 233,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "TypeAliasDeclaration": 5,
+        "PropertySignature": 41,
+        "InterfaceDeclaration": 1,
+        "FunctionDeclaration": 16,
+        "ReturnStatement": 21,
+        "ExpressionStatement": 34,
+        "FirstStatement": 26,
+        "IfStatement": 36,
+        "ThrowStatement": 21,
+        "ForOfStatement": 3,
+        "VariableDeclarationList": 3,
+        "TryStatement": 2,
+        "BreakStatement": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/repair.ts",
+      "included": true,
+      "sha256": "03c08dc88c48968a62ccb6d521a2e64a66619e77f157be2d8eda2fd00c2c0e09",
+      "logicalLOC": 43,
+      "runtimeStatementDeclarationUnits": 33,
+      "moduleDirectiveUnits": 5,
+      "typeDeclarationSignatureUnits": 5,
+      "physicalNoncommentSLOC": 22,
+      "physicalNonblankLinesBeforeCommentRemoval": 22,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 5,
+        "FunctionDeclaration": 1,
+        "PropertySignature": 5,
+        "FirstStatement": 4,
+        "IfStatement": 4,
+        "ReturnStatement": 2,
+        "ForOfStatement": 5,
+        "VariableDeclarationList": 5,
+        "ExpressionStatement": 11,
+        "ContinueStatement": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/resolutions.ts",
+      "included": true,
+      "sha256": "bc9cae691653691dceb24400441a94449cd86a2895a6836d29272db30f33b2e9",
+      "logicalLOC": 50,
+      "runtimeStatementDeclarationUnits": 42,
+      "moduleDirectiveUnits": 8,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 83,
+      "physicalNonblankLinesBeforeCommentRemoval": 83,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 8,
+        "FunctionDeclaration": 2,
+        "IfStatement": 11,
+        "ReturnStatement": 10,
+        "FirstStatement": 6,
+        "ForOfStatement": 1,
+        "VariableDeclarationList": 1,
+        "ExpressionStatement": 9,
+        "TryStatement": 1,
+        "ThrowStatement": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/runtime-context.ts",
+      "included": true,
+      "sha256": "e7b6dd773c43a2147d07e596635489a9bf9e02eb159d8858bc0d761155a6f69e",
+      "logicalLOC": 21,
+      "runtimeStatementDeclarationUnits": 1,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 18,
+      "physicalNoncommentSLOC": 9,
+      "physicalNonblankLinesBeforeCommentRemoval": 10,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "TypeAliasDeclaration": 2,
+        "PropertySignature": 16,
+        "FirstStatement": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/runtime.ts",
+      "included": true,
+      "sha256": "a2ee92bd92a85170941f0cc643d9a02adc2efc59894348200a59dabaad009165",
+      "logicalLOC": 32,
+      "runtimeStatementDeclarationUnits": 20,
+      "moduleDirectiveUnits": 12,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 48,
+      "physicalNonblankLinesBeforeCommentRemoval": 48,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 12,
+        "FunctionDeclaration": 1,
+        "FirstStatement": 6,
+        "ExpressionStatement": 3,
+        "IfStatement": 4,
+        "ThrowStatement": 4,
+        "ReturnStatement": 2
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/selection.ts",
+      "included": true,
+      "sha256": "f7a922fe751c0782ee87763c7cdac7f40678468d22759a4c36bf5dc1ec879bc0",
+      "logicalLOC": 58,
+      "runtimeStatementDeclarationUnits": 47,
+      "moduleDirectiveUnits": 8,
+      "typeDeclarationSignatureUnits": 3,
+      "physicalNoncommentSLOC": 47,
+      "physicalNonblankLinesBeforeCommentRemoval": 48,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 8,
+        "FunctionDeclaration": 4,
+        "PropertySignature": 3,
+        "FirstStatement": 14,
+        "ReturnStatement": 12,
+        "IfStatement": 7,
+        "ForOfStatement": 1,
+        "VariableDeclarationList": 1,
+        "ExpressionStatement": 8
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/application/subscriptions.ts",
+      "included": true,
+      "sha256": "20528ea58762e3ed77b56fe65f0b7803da7b7f72fac17418dee7ba53a3755ac5",
+      "logicalLOC": 83,
+      "runtimeStatementDeclarationUnits": 49,
+      "moduleDirectiveUnits": 8,
+      "typeDeclarationSignatureUnits": 26,
+      "physicalNoncommentSLOC": 120,
+      "physicalNonblankLinesBeforeCommentRemoval": 120,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 8,
+        "TypeAliasDeclaration": 1,
+        "PropertySignature": 25,
+        "FunctionDeclaration": 5,
+        "IfStatement": 12,
+        "ReturnStatement": 17,
+        "FirstStatement": 11,
+        "ForOfStatement": 1,
+        "VariableDeclarationList": 1,
+        "ExpressionStatement": 2
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/composition/provider.ts",
+      "included": true,
+      "sha256": "ea2f3c5d468df59b9a1b282fb37b5bee281666afbe5656cfdbca22f1db974009",
+      "logicalLOC": 3,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 3,
+      "physicalNonblankLinesBeforeCommentRemoval": 3,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 3
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/composition/public.ts",
+      "included": true,
+      "sha256": "c3fccc4df1f72b7e1c3d79d2ad0da5f7cdbbcd282dfbfa59722aa8d4416f2f2a",
+      "logicalLOC": 12,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 12,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 12,
+      "physicalNonblankLinesBeforeCommentRemoval": 12,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 12
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/composition/reconciliation.ts",
+      "included": true,
+      "sha256": "3835c52ef9c734fa3f2191ddb4d724fb1bab13d9617abcba3d3d2cf7e92cc53b",
+      "logicalLOC": 4,
+      "runtimeStatementDeclarationUnits": 2,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 3,
+      "physicalNonblankLinesBeforeCommentRemoval": 3,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "FunctionDeclaration": 1,
+        "ReturnStatement": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/composition/runtime.ts",
+      "included": true,
+      "sha256": "e8b0f8f6c8a589c8df712ad3f55f1b19172b9abe3cd9f6318c9e473a78fc62b8",
+      "logicalLOC": 9,
+      "runtimeStatementDeclarationUnits": 5,
+      "moduleDirectiveUnits": 4,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 8,
+      "physicalNonblankLinesBeforeCommentRemoval": 9,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 4,
+        "FunctionDeclaration": 1,
+        "ReturnStatement": 2,
+        "FirstStatement": 1,
+        "ExpressionStatement": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/composition/store.ts",
+      "included": true,
+      "sha256": "a32b10cc786961030e211cdef577251b9709ca4a2070ad4f9a34b2dd4bb39b06",
+      "logicalLOC": 6,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 6,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 6,
+      "physicalNonblankLinesBeforeCommentRemoval": 6,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 6
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/domain/completion.ts",
+      "included": true,
+      "sha256": "f715bc26c88b6a3ed3e2febc0c7be32450ab99f513fd18293f9f116333a21166",
+      "logicalLOC": 151,
+      "runtimeStatementDeclarationUnits": 123,
+      "moduleDirectiveUnits": 5,
+      "typeDeclarationSignatureUnits": 23,
+      "physicalNoncommentSLOC": 104,
+      "physicalNonblankLinesBeforeCommentRemoval": 105,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 5,
+        "FunctionDeclaration": 11,
+        "PropertySignature": 20,
+        "SwitchStatement": 1,
+        "ReturnStatement": 40,
+        "ForOfStatement": 2,
+        "VariableDeclarationList": 2,
+        "ExpressionStatement": 11,
+        "IfStatement": 32,
+        "ThrowStatement": 3,
+        "FirstStatement": 21,
+        "TypeAliasDeclaration": 3
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/domain/event-identity.ts",
+      "included": true,
+      "sha256": "6af20ddb4fd6c107c4c65d77d9667db16421c6faf7da474126045769c67f44ba",
+      "logicalLOC": 78,
+      "runtimeStatementDeclarationUnits": 73,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 2,
+      "physicalNoncommentSLOC": 111,
+      "physicalNonblankLinesBeforeCommentRemoval": 111,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "FunctionDeclaration": 9,
+        "FirstStatement": 12,
+        "IfStatement": 20,
+        "ExpressionStatement": 6,
+        "ReturnStatement": 22,
+        "PropertySignature": 2,
+        "TryStatement": 1,
+        "ThrowStatement": 1,
+        "ForOfStatement": 1,
+        "VariableDeclarationList": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/domain/model.ts",
+      "included": true,
+      "sha256": "31a428c9518ca39a84579e08ed8ac84f8161f219f8160bb2891d1c46cd04d798",
+      "logicalLOC": 388,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 0,
+      "typeDeclarationSignatureUnits": 388,
+      "physicalNoncommentSLOC": 458,
+      "physicalNonblankLinesBeforeCommentRemoval": 477,
+      "syntaxKindCounts": {
+        "TypeAliasDeclaration": 53,
+        "PropertySignature": 334,
+        "IndexSignature": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/domain/observation-fields.ts",
+      "included": true,
+      "sha256": "41cde6bdb7ea181896d81951f7a061e4ec23b0ac880b6f124fecc0ebe0ce0a6b",
+      "logicalLOC": 88,
+      "runtimeStatementDeclarationUnits": 79,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 7,
+      "physicalNoncommentSLOC": 82,
+      "physicalNonblankLinesBeforeCommentRemoval": 84,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "FirstStatement": 11,
+        "PropertySignature": 6,
+        "FunctionDeclaration": 7,
+        "IfStatement": 24,
+        "ReturnStatement": 29,
+        "TypeAliasDeclaration": 1,
+        "ForOfStatement": 2,
+        "VariableDeclarationList": 2,
+        "ExpressionStatement": 3,
+        "ThrowStatement": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/domain/reducer.ts",
+      "included": true,
+      "sha256": "7360e0a46c9e26380f693b670cee6bf81f8554de2fa1ecadaee3bba95163acd8",
+      "logicalLOC": 398,
+      "runtimeStatementDeclarationUnits": 378,
+      "moduleDirectiveUnits": 10,
+      "typeDeclarationSignatureUnits": 10,
+      "physicalNoncommentSLOC": 492,
+      "physicalNonblankLinesBeforeCommentRemoval": 496,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 7,
+        "ExportDeclaration": 3,
+        "TypeAliasDeclaration": 2,
+        "PropertySignature": 8,
+        "FunctionDeclaration": 24,
+        "IfStatement": 70,
+        "ExpressionStatement": 144,
+        "ReturnStatement": 34,
+        "FirstStatement": 66,
+        "ThrowStatement": 6,
+        "ForOfStatement": 14,
+        "VariableDeclarationList": 14,
+        "SwitchStatement": 1,
+        "BreakStatement": 3,
+        "TryStatement": 2
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/domain/subscription-profile.ts",
+      "included": true,
+      "sha256": "6a20f1e541229af7ef603a633cfa5c476c6e34fb6167e9232f0ac36fea8a5ff5",
+      "logicalLOC": 26,
+      "runtimeStatementDeclarationUnits": 22,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 1,
+      "physicalNoncommentSLOC": 23,
+      "physicalNonblankLinesBeforeCommentRemoval": 24,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "TypeAliasDeclaration": 1,
+        "FunctionDeclaration": 4,
+        "ReturnStatement": 4,
+        "FirstStatement": 2,
+        "IfStatement": 5,
+        "ExpressionStatement": 5,
+        "ForOfStatement": 1,
+        "VariableDeclarationList": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/domain/values.ts",
+      "included": true,
+      "sha256": "f23d80f98d894ff8828b82558a66754144ab7b669034f46792ec953fdf557d71",
+      "logicalLOC": 79,
+      "runtimeStatementDeclarationUnits": 77,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 65,
+      "physicalNonblankLinesBeforeCommentRemoval": 68,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "FunctionDeclaration": 15,
+        "IfStatement": 16,
+        "ReturnStatement": 18,
+        "ThrowStatement": 10,
+        "ForOfStatement": 1,
+        "VariableDeclarationList": 1,
+        "ExpressionStatement": 6,
+        "FirstStatement": 10
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/features/payment-evidence/domain/vocabulary.ts",
+      "included": true,
+      "sha256": "a42fe9927f6ddaeaff4b69ad17d66f33ca466f4ff13cda75038a51dcbc21ad2b",
+      "logicalLOC": 25,
+      "runtimeStatementDeclarationUnits": 20,
+      "moduleDirectiveUnits": 0,
+      "typeDeclarationSignatureUnits": 5,
+      "physicalNoncommentSLOC": 46,
+      "physicalNonblankLinesBeforeCommentRemoval": 54,
+      "syntaxKindCounts": {
+        "FirstStatement": 6,
+        "TypeAliasDeclaration": 5,
+        "FunctionDeclaration": 4,
+        "SwitchStatement": 1,
+        "ReturnStatement": 9
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/index.ts",
+      "included": true,
+      "sha256": "7d8cbc398e4fdab9a199782888fe28fed2d3437c35fa48f73fdd94efefda1a94",
+      "logicalLOC": 3,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 3,
+      "physicalNonblankLinesBeforeCommentRemoval": 3,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 3
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/provider.ts",
+      "included": true,
+      "sha256": "38e97550ac3cc3499a799704c1c4ccf982bdbff967183cc282b14effba65b17a",
+      "logicalLOC": 1,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 1,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 1,
+      "physicalNonblankLinesBeforeCommentRemoval": 1,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 1
+      }
+    },
+    {
+      "package": "payments-core",
+      "path": "packages/payments-core/src/store.ts",
+      "included": true,
+      "sha256": "a2e4aaf2576ff7bfbad4a4669f19e33eee77f3848be9c09b724d92c667037e5c",
+      "logicalLOC": 2,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 2,
+      "physicalNonblankLinesBeforeCommentRemoval": 2,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 2
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/payment-runtime/application/ports/runtime-facets.ts",
+      "included": true,
+      "sha256": "077cf74171857a2148e5f345f9447942008dd96be74cd6808b5e6d588d02cd61",
+      "logicalLOC": 9,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 1,
+      "typeDeclarationSignatureUnits": 8,
+      "physicalNoncommentSLOC": 10,
+      "physicalNonblankLinesBeforeCommentRemoval": 11,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 1,
+        "TypeAliasDeclaration": 1,
+        "PropertySignature": 7
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/payment-runtime/application/use-cases/create-runtime-facets.ts",
+      "included": true,
+      "sha256": "7b05d0cbed4be1b5e6a3ae12f5bc3fe7c5d0ea8b58f90e163700356b20cecbef",
+      "logicalLOC": 26,
+      "runtimeStatementDeclarationUnits": 22,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 2,
+      "physicalNoncommentSLOC": 57,
+      "physicalNonblankLinesBeforeCommentRemoval": 59,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "FunctionDeclaration": 2,
+        "ReturnStatement": 5,
+        "IfStatement": 1,
+        "FirstStatement": 9,
+        "ExpressionStatement": 5,
+        "PropertySignature": 2
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/payment-runtime/composition/configuration.declaration.ts",
+      "included": true,
+      "sha256": "2a3f6476bf05c73dd39d18a5012d547e1520aed8c985d059c4b2b9535816087e",
+      "logicalLOC": 3,
+      "runtimeStatementDeclarationUnits": 1,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 9,
+      "physicalNonblankLinesBeforeCommentRemoval": 9,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "FirstStatement": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/payment-runtime/composition/payment-runtime.contracts.ts",
+      "included": true,
+      "sha256": "ce4129d35fde292d2d794fe97f9240b49687a9e6489712c8cd7c586aeb61e14f",
+      "logicalLOC": 10,
+      "runtimeStatementDeclarationUnits": 6,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 1,
+      "physicalNoncommentSLOC": 10,
+      "physicalNonblankLinesBeforeCommentRemoval": 11,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "FirstStatement": 6,
+        "ExportDeclaration": 1,
+        "InterfaceDeclaration": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/payment-runtime/composition/payment-runtime.group.ts",
+      "included": true,
+      "sha256": "869ec2c76e4086078820de1fed25d1da9901fe19e0527df5edc0b40092df7600",
+      "logicalLOC": 3,
+      "runtimeStatementDeclarationUnits": 1,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 5,
+      "physicalNonblankLinesBeforeCommentRemoval": 5,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "FirstStatement": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/payment-runtime/composition/payment-runtime.inputs.ts",
+      "included": true,
+      "sha256": "e8ad9281370092bfb56c1b87771e4f59ead23fd7603b2d46c1583c3ce41db18e",
+      "logicalLOC": 4,
+      "runtimeStatementDeclarationUnits": 1,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 4,
+      "physicalNonblankLinesBeforeCommentRemoval": 4,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "FirstStatement": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/payment-runtime/composition/payments.declaration.ts",
+      "included": true,
+      "sha256": "1a2164760bf2ece518b9e2d308ff8ad803038910e07592e1106d2c04d2a23b42",
+      "logicalLOC": 4,
+      "runtimeStatementDeclarationUnits": 1,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 10,
+      "physicalNonblankLinesBeforeCommentRemoval": 10,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "FirstStatement": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/payment-runtime/composition/payments.module.ts",
+      "included": true,
+      "sha256": "aa28bbe24f83c7d84c0a460075a9fed26aa522a3b8e2f5f067ef744738a48069",
+      "logicalLOC": 10,
+      "runtimeStatementDeclarationUnits": 4,
+      "moduleDirectiveUnits": 6,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 16,
+      "physicalNonblankLinesBeforeCommentRemoval": 17,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 6,
+        "FirstStatement": 3,
+        "ReturnStatement": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/payment-runtime/composition/public.ts",
+      "included": true,
+      "sha256": "171f81a417980f4667943041e67b549038b74a10ff3cd326eb9bc0e63b491916",
+      "logicalLOC": 9,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 9,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 9,
+      "physicalNonblankLinesBeforeCommentRemoval": 9,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 9
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/application/models/projection-models.ts",
+      "included": true,
+      "sha256": "ff7085a9949b12616deb32e9bcbd668ff2a9ab6f6513eaa1a9c89a284d83c3e3",
+      "logicalLOC": 33,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 1,
+      "typeDeclarationSignatureUnits": 32,
+      "physicalNoncommentSLOC": 27,
+      "physicalNonblankLinesBeforeCommentRemoval": 30,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 1,
+        "TypeAliasDeclaration": 6,
+        "PropertySignature": 26
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/application/ports/purchase-reader.ts",
+      "included": true,
+      "sha256": "e72779d77de5aa256d033292c74e861802543ad8ebfad45920fc716deef3add0",
+      "logicalLOC": 3,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 1,
+      "typeDeclarationSignatureUnits": 2,
+      "physicalNoncommentSLOC": 2,
+      "physicalNonblankLinesBeforeCommentRemoval": 3,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 1,
+        "TypeAliasDeclaration": 1,
+        "PropertySignature": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/application/use-cases/copy-purchase.ts",
+      "included": true,
+      "sha256": "bda1bf4b1f0613305d96b3fdd5ca7738021444c2662caf18c0c3e9cacaa2003d",
+      "logicalLOC": 7,
+      "runtimeStatementDeclarationUnits": 5,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 21,
+      "physicalNonblankLinesBeforeCommentRemoval": 23,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "FunctionDeclaration": 1,
+        "IfStatement": 1,
+        "ReturnStatement": 2,
+        "FirstStatement": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/application/use-cases/copy-query.ts",
+      "included": true,
+      "sha256": "e904bd1770a56bc8707ebae379b471a13fe453dd62c0ddd91095d17a9dc6ad8d",
+      "logicalLOC": 8,
+      "runtimeStatementDeclarationUnits": 6,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 8,
+      "physicalNonblankLinesBeforeCommentRemoval": 8,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "FunctionDeclaration": 1,
+        "IfStatement": 1,
+        "ReturnStatement": 2,
+        "ExpressionStatement": 2
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/application/use-cases/loading-state.ts",
+      "included": true,
+      "sha256": "6b8708921c3199483aaa296a933cf2df7921cc9eb527d4611584e7b41a2f8191",
+      "logicalLOC": 5,
+      "runtimeStatementDeclarationUnits": 3,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 6,
+      "physicalNonblankLinesBeforeCommentRemoval": 6,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "FunctionDeclaration": 1,
+        "FirstStatement": 1,
+        "ReturnStatement": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/composition/projection-configuration.declaration.ts",
+      "included": true,
+      "sha256": "0bba61e7ebabad0a1a0c89d29272f6db2b07670f9959b2e56c0917fd9914d219",
+      "logicalLOC": 3,
+      "runtimeStatementDeclarationUnits": 1,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 6,
+      "physicalNonblankLinesBeforeCommentRemoval": 6,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "FirstStatement": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/composition/projection-renderer.declaration.ts",
+      "included": true,
+      "sha256": "349d04a4c279e369cd9813280f74299ea03e1e6c05d055ba73724d9166252de1",
+      "logicalLOC": 3,
+      "runtimeStatementDeclarationUnits": 1,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 6,
+      "physicalNonblankLinesBeforeCommentRemoval": 6,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "FirstStatement": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/composition/projection-types.ts",
+      "included": true,
+      "sha256": "649bed0e355d4ec6e83d02035390a586ed4af46ddee88213215045639bcb7576",
+      "logicalLOC": 11,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 8,
+      "physicalNoncommentSLOC": 12,
+      "physicalNonblankLinesBeforeCommentRemoval": 13,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "TypeAliasDeclaration": 3,
+        "PropertySignature": 5
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/composition/public.ts",
+      "included": true,
+      "sha256": "0df25da22d35b83455b0aa0ac52259b0927943269434f5fef4a54acc22fb88f2",
+      "logicalLOC": 15,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 15,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 15,
+      "physicalNonblankLinesBeforeCommentRemoval": 15,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 15
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-observation.contracts.ts",
+      "included": true,
+      "sha256": "634b4ca41ab59675a5bbadc42ee2bb89ad5e3ec1490bfd9de6e9526740e06b66",
+      "logicalLOC": 17,
+      "runtimeStatementDeclarationUnits": 7,
+      "moduleDirectiveUnits": 5,
+      "typeDeclarationSignatureUnits": 5,
+      "physicalNoncommentSLOC": 17,
+      "physicalNonblankLinesBeforeCommentRemoval": 18,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 5,
+        "TypeAliasDeclaration": 2,
+        "PropertySignature": 2,
+        "FirstStatement": 7,
+        "InterfaceDeclaration": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-observation.group.ts",
+      "included": true,
+      "sha256": "75465d5e2819712fee45f096427601e7de6b11648a2ae1ed0e4dcefcc10b4d9b",
+      "logicalLOC": 4,
+      "runtimeStatementDeclarationUnits": 1,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 7,
+      "physicalNonblankLinesBeforeCommentRemoval": 7,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "FirstStatement": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-observation.inputs.ts",
+      "included": true,
+      "sha256": "036419325d59617fcb30c77319cd516ac3e9bcd88f0e0f1ed8030f26fe2a471e",
+      "logicalLOC": 8,
+      "runtimeStatementDeclarationUnits": 3,
+      "moduleDirectiveUnits": 5,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 8,
+      "physicalNonblankLinesBeforeCommentRemoval": 8,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 5,
+        "FirstStatement": 3
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-projection-display.declaration.ts",
+      "included": true,
+      "sha256": "aa0de09ac0a99cdbaa3b9b9be19af104fc031bcf18c14b61339afe0540d468ff",
+      "logicalLOC": 4,
+      "runtimeStatementDeclarationUnits": 1,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 8,
+      "physicalNonblankLinesBeforeCommentRemoval": 8,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "FirstStatement": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-projection-display.module.ts",
+      "included": true,
+      "sha256": "f8fc026cad4ef307cd65235889f900b5ca2d5986db773cfbbcc9a9ac1b7ca98c",
+      "logicalLOC": 11,
+      "runtimeStatementDeclarationUnits": 7,
+      "moduleDirectiveUnits": 4,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 19,
+      "physicalNonblankLinesBeforeCommentRemoval": 19,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 4,
+        "FirstStatement": 3,
+        "ExpressionStatement": 3,
+        "ReturnStatement": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-projection.declaration.ts",
+      "included": true,
+      "sha256": "8d4968988613b2831a02cb6205a2dc9348d6ef2d12d8f24321d97dc2e6782185",
+      "logicalLOC": 4,
+      "runtimeStatementDeclarationUnits": 1,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 8,
+      "physicalNonblankLinesBeforeCommentRemoval": 8,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "FirstStatement": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-projection.module.ts",
+      "included": true,
+      "sha256": "0a2da770d17ef7b0c5382d8a2f81dc825c83670fabb95a4a2ef1955d71c633ae",
+      "logicalLOC": 8,
+      "runtimeStatementDeclarationUnits": 3,
+      "moduleDirectiveUnits": 5,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 13,
+      "physicalNonblankLinesBeforeCommentRemoval": 13,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 5,
+        "FirstStatement": 2,
+        "ReturnStatement": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-projection.ts",
+      "included": true,
+      "sha256": "1d46c7e01097755c100a043300d7db9801b488114fe4155dd08b32db2600224f",
+      "logicalLOC": 42,
+      "runtimeStatementDeclarationUnits": 32,
+      "moduleDirectiveUnits": 7,
+      "typeDeclarationSignatureUnits": 3,
+      "physicalNoncommentSLOC": 65,
+      "physicalNonblankLinesBeforeCommentRemoval": 77,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 7,
+        "FunctionDeclaration": 2,
+        "FirstStatement": 11,
+        "PropertySignature": 3,
+        "ExpressionStatement": 11,
+        "IfStatement": 2,
+        "ReturnStatement": 6
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-read.declaration.ts",
+      "included": true,
+      "sha256": "3fff45849c93106dbe9c679341016959734e7f9babd5e7993ea2162ea9f1c4d8",
+      "logicalLOC": 3,
+      "runtimeStatementDeclarationUnits": 1,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 6,
+      "physicalNonblankLinesBeforeCommentRemoval": 6,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "FirstStatement": 1
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/index.ts",
+      "included": true,
+      "sha256": "db9119b9f04cca628331dce195c04a7da35860ec2f8155ef4996a158a128fdcd",
+      "logicalLOC": 2,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 2,
+      "physicalNonblankLinesBeforeCommentRemoval": 2,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 2
+      }
+    },
+    {
+      "package": "payments-get-modular",
+      "path": "packages/payments-get-modular/src/observation/index.ts",
+      "included": true,
+      "sha256": "ee334cff59a37be2e968d24f427bb93d2af296f9cc9d13a997ab2a8becb5a393",
+      "logicalLOC": 2,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 2,
+      "physicalNonblankLinesBeforeCommentRemoval": 2,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 2
+      }
+    },
+    {
+      "package": "payments-paddle",
+      "path": "packages/payments-paddle/src/features/paddle-integration/adapters/errors.ts",
+      "included": true,
+      "sha256": "569fd0c2451404502de69a8a317beb8107f834043807df040908dcf820705acb",
+      "logicalLOC": 14,
+      "runtimeStatementDeclarationUnits": 11,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 32,
+      "physicalNonblankLinesBeforeCommentRemoval": 37,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "FirstStatement": 3,
+        "FunctionDeclaration": 1,
+        "IfStatement": 3,
+        "ReturnStatement": 4
+      }
+    },
+    {
+      "package": "payments-paddle",
+      "path": "packages/payments-paddle/src/features/paddle-integration/adapters/observations.ts",
+      "included": true,
+      "sha256": "7cc4157d7fe336c817c887b226a1372344c99296ac2e7378f45f47bac1f716b9",
+      "logicalLOC": 198,
+      "runtimeStatementDeclarationUnits": 194,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 2,
+      "physicalNoncommentSLOC": 200,
+      "physicalNonblankLinesBeforeCommentRemoval": 204,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "TypeAliasDeclaration": 2,
+        "FirstStatement": 50,
+        "IfStatement": 33,
+        "ThrowStatement": 20,
+        "ReturnStatement": 58,
+        "ExpressionStatement": 10,
+        "TryStatement": 2,
+        "FunctionDeclaration": 18,
+        "ForOfStatement": 1,
+        "VariableDeclarationList": 1,
+        "SwitchStatement": 1
+      }
+    },
+    {
+      "package": "payments-paddle",
+      "path": "packages/payments-paddle/src/features/paddle-integration/adapters/provider.ts",
+      "included": true,
+      "sha256": "b2e3b03ca64d8b3e25647860ebadf8ceef1640d18ade20e5ee1bfca9a18b3ae1",
+      "logicalLOC": 316,
+      "runtimeStatementDeclarationUnits": 252,
+      "moduleDirectiveUnits": 8,
+      "typeDeclarationSignatureUnits": 56,
+      "physicalNoncommentSLOC": 216,
+      "physicalNonblankLinesBeforeCommentRemoval": 224,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 8,
+        "FirstStatement": 51,
+        "TypeAliasDeclaration": 5,
+        "PropertySignature": 51,
+        "FunctionDeclaration": 13,
+        "IfStatement": 35,
+        "ThrowStatement": 15,
+        "ReturnStatement": 61,
+        "ExpressionStatement": 38,
+        "ClassDeclaration": 1,
+        "PropertyDeclaration": 4,
+        "Constructor": 1,
+        "MethodDeclaration": 13,
+        "TryStatement": 18,
+        "ForOfStatement": 1,
+        "VariableDeclarationList": 1
+      }
+    },
+    {
+      "package": "payments-paddle",
+      "path": "packages/payments-paddle/src/features/paddle-integration/adapters/reconciliation.ts",
+      "included": true,
+      "sha256": "44a85ccf3400c480b513c49736fbc5112f0164ce95601487051607b75ac6d771",
+      "logicalLOC": 13,
+      "runtimeStatementDeclarationUnits": 10,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 19,
+      "physicalNonblankLinesBeforeCommentRemoval": 20,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "FunctionDeclaration": 1,
+        "ReturnStatement": 4,
+        "MethodDeclaration": 1,
+        "IfStatement": 2,
+        "FirstStatement": 2
+      }
+    },
+    {
+      "package": "payments-paddle",
+      "path": "packages/payments-paddle/src/features/paddle-integration/composition/index.ts",
+      "included": true,
+      "sha256": "8311402a6bf8ec6a87743807134df43684bb5f3c7147ce79ac904b72c03a984d",
+      "logicalLOC": 3,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 3,
+      "physicalNonblankLinesBeforeCommentRemoval": 3,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 3
+      }
+    },
+    {
+      "package": "payments-paddle",
+      "path": "packages/payments-paddle/src/index.ts",
+      "included": true,
+      "sha256": "68f5219688246aa70d5eb9589161060edfa7c0e4570538b4973d992f2182580f",
+      "logicalLOC": 2,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 2,
+      "physicalNonblankLinesBeforeCommentRemoval": 2,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 2
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/database.ts",
+      "included": true,
+      "sha256": "a40cc7e9fc74a5b9bad2bcdff61fedaaaeca11306b4da551f4f16f80aff68ad0",
+      "logicalLOC": 151,
+      "runtimeStatementDeclarationUnits": 120,
+      "moduleDirectiveUnits": 0,
+      "typeDeclarationSignatureUnits": 31,
+      "physicalNoncommentSLOC": 190,
+      "physicalNonblankLinesBeforeCommentRemoval": 216,
+      "syntaxKindCounts": {
+        "TypeAliasDeclaration": 4,
+        "PropertySignature": 23,
+        "FirstStatement": 22,
+        "ClassDeclaration": 1,
+        "PropertyDeclaration": 1,
+        "Constructor": 1,
+        "ExpressionStatement": 39,
+        "InterfaceDeclaration": 4,
+        "FunctionDeclaration": 7,
+        "IfStatement": 15,
+        "ThrowStatement": 12,
+        "ReturnStatement": 14,
+        "ForOfStatement": 1,
+        "VariableDeclarationList": 1,
+        "MethodDeclaration": 2,
+        "TryStatement": 4
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/input-custody.ts",
+      "included": true,
+      "sha256": "6ca84a397c9f3f5a388db9b31b0e1b47538f68544464dfe7102b25ed4f304cb4",
+      "logicalLOC": 159,
+      "runtimeStatementDeclarationUnits": 139,
+      "moduleDirectiveUnits": 9,
+      "typeDeclarationSignatureUnits": 11,
+      "physicalNoncommentSLOC": 184,
+      "physicalNonblankLinesBeforeCommentRemoval": 193,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 9,
+        "TypeAliasDeclaration": 2,
+        "PropertySignature": 9,
+        "FunctionDeclaration": 5,
+        "IfStatement": 18,
+        "ReturnStatement": 14,
+        "TryStatement": 1,
+        "FirstStatement": 33,
+        "ExpressionStatement": 34,
+        "ForOfStatement": 11,
+        "VariableDeclarationList": 11,
+        "ClassDeclaration": 1,
+        "PropertyDeclaration": 1,
+        "Constructor": 1,
+        "MethodDeclaration": 6,
+        "ThrowStatement": 3
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/job-transport.ts",
+      "included": true,
+      "sha256": "18c38d9fcd33d17c23dbbc05f6fc9cb83cfb92ce79aeee7b29936c7bd16a533d",
+      "logicalLOC": 116,
+      "runtimeStatementDeclarationUnits": 92,
+      "moduleDirectiveUnits": 7,
+      "typeDeclarationSignatureUnits": 17,
+      "physicalNoncommentSLOC": 135,
+      "physicalNonblankLinesBeforeCommentRemoval": 151,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 7,
+        "FirstStatement": 27,
+        "TypeAliasDeclaration": 1,
+        "PropertySignature": 15,
+        "InterfaceDeclaration": 1,
+        "FunctionDeclaration": 5,
+        "ExpressionStatement": 27,
+        "IfStatement": 12,
+        "ThrowStatement": 10,
+        "ReturnStatement": 5,
+        "TryStatement": 2,
+        "ForOfStatement": 2,
+        "VariableDeclarationList": 2
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/jobs.ts",
+      "included": true,
+      "sha256": "3f7686d5b25b126ae1f012e15968763aa2829354f1d2fd843048f2e95b0b87a1",
+      "logicalLOC": 341,
+      "runtimeStatementDeclarationUnits": 297,
+      "moduleDirectiveUnits": 9,
+      "typeDeclarationSignatureUnits": 35,
+      "physicalNoncommentSLOC": 436,
+      "physicalNonblankLinesBeforeCommentRemoval": 456,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 9,
+        "TypeAliasDeclaration": 5,
+        "PropertySignature": 30,
+        "ClassDeclaration": 3,
+        "PropertyDeclaration": 22,
+        "Constructor": 3,
+        "ExpressionStatement": 77,
+        "FunctionDeclaration": 4,
+        "IfStatement": 50,
+        "ReturnStatement": 43,
+        "FirstStatement": 37,
+        "ThrowStatement": 29,
+        "MethodDeclaration": 20,
+        "ForOfStatement": 1,
+        "VariableDeclarationList": 1,
+        "ContinueStatement": 1,
+        "SwitchStatement": 1,
+        "TryStatement": 4,
+        "WhileStatement": 1
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/migrations.ts",
+      "included": true,
+      "sha256": "c82a0882b543842bfdc8fdc00a1386aed23384e6b1fb54deae7c213fd9a0d351",
+      "logicalLOC": 32,
+      "runtimeStatementDeclarationUnits": 22,
+      "moduleDirectiveUnits": 4,
+      "typeDeclarationSignatureUnits": 6,
+      "physicalNoncommentSLOC": 49,
+      "physicalNonblankLinesBeforeCommentRemoval": 50,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 4,
+        "FunctionDeclaration": 1,
+        "PropertySignature": 6,
+        "FirstStatement": 3,
+        "ExpressionStatement": 16,
+        "IfStatement": 1,
+        "ThrowStatement": 1
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/node-postgres.ts",
+      "included": true,
+      "sha256": "ca3d49b15a0807ae4b7e8bae1a7b3adc2362820927087cc121290312957d5db8",
+      "logicalLOC": 32,
+      "runtimeStatementDeclarationUnits": 29,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 1,
+      "physicalNoncommentSLOC": 36,
+      "physicalNonblankLinesBeforeCommentRemoval": 47,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "FunctionDeclaration": 2,
+        "ReturnStatement": 5,
+        "MethodDeclaration": 4,
+        "FirstStatement": 6,
+        "ExpressionStatement": 8,
+        "IfStatement": 3,
+        "ThrowStatement": 1,
+        "PropertySignature": 1
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/operation-custody.ts",
+      "included": true,
+      "sha256": "30cee30b65566e07f090e3003ba1f5a84fedb9da793f3980a2d13aff23f490e0",
+      "logicalLOC": 207,
+      "runtimeStatementDeclarationUnits": 198,
+      "moduleDirectiveUnits": 9,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 259,
+      "physicalNonblankLinesBeforeCommentRemoval": 261,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 9,
+        "FunctionDeclaration": 8,
+        "ReturnStatement": 50,
+        "IfStatement": 37,
+        "FirstStatement": 32,
+        "ClassDeclaration": 1,
+        "PropertyDeclaration": 1,
+        "Constructor": 1,
+        "ExpressionStatement": 40,
+        "MethodDeclaration": 18,
+        "ThrowStatement": 2,
+        "ForOfStatement": 4,
+        "VariableDeclarationList": 4
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/records.ts",
+      "included": true,
+      "sha256": "f102483f5cbf0b63b5d9cc0af63e92f33f5cc4d4e7d7f70147905c0ce1bd5f9f",
+      "logicalLOC": 123,
+      "runtimeStatementDeclarationUnits": 94,
+      "moduleDirectiveUnits": 8,
+      "typeDeclarationSignatureUnits": 21,
+      "physicalNoncommentSLOC": 147,
+      "physicalNonblankLinesBeforeCommentRemoval": 159,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 8,
+        "TypeAliasDeclaration": 5,
+        "PropertySignature": 16,
+        "FirstStatement": 26,
+        "FunctionDeclaration": 4,
+        "ReturnStatement": 12,
+        "ClassDeclaration": 1,
+        "PropertyDeclaration": 3,
+        "Constructor": 1,
+        "ExpressionStatement": 15,
+        "MethodDeclaration": 12,
+        "IfStatement": 11,
+        "ThrowStatement": 7,
+        "ForOfStatement": 1,
+        "VariableDeclarationList": 1
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/recovery.ts",
+      "included": true,
+      "sha256": "872b520386576c3b9efffae7c106c96935a73ddd9e987187a4ecf6a17526be47",
+      "logicalLOC": 432,
+      "runtimeStatementDeclarationUnits": 338,
+      "moduleDirectiveUnits": 7,
+      "typeDeclarationSignatureUnits": 87,
+      "physicalNoncommentSLOC": 302,
+      "physicalNonblankLinesBeforeCommentRemoval": 312,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 7,
+        "TypeAliasDeclaration": 10,
+        "PropertySignature": 77,
+        "ClassDeclaration": 3,
+        "Constructor": 3,
+        "ExpressionStatement": 126,
+        "PropertyDeclaration": 3,
+        "FunctionDeclaration": 6,
+        "ReturnStatement": 38,
+        "FirstStatement": 38,
+        "IfStatement": 45,
+        "ThrowStatement": 28,
+        "MethodDeclaration": 20,
+        "ForOfStatement": 12,
+        "VariableDeclarationList": 12,
+        "TryStatement": 3,
+        "ContinueStatement": 1
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/reduction-commit.ts",
+      "included": true,
+      "sha256": "60d003a360bf52bf3d43ad9d4fe1c3052c1bfd289ef59bbfb39f0f5ae88f64c9",
+      "logicalLOC": 144,
+      "runtimeStatementDeclarationUnits": 130,
+      "moduleDirectiveUnits": 7,
+      "typeDeclarationSignatureUnits": 7,
+      "physicalNoncommentSLOC": 174,
+      "physicalNonblankLinesBeforeCommentRemoval": 179,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 7,
+        "TypeAliasDeclaration": 1,
+        "PropertySignature": 6,
+        "ClassDeclaration": 1,
+        "PropertyDeclaration": 1,
+        "Constructor": 1,
+        "ExpressionStatement": 29,
+        "MethodDeclaration": 9,
+        "ReturnStatement": 13,
+        "IfStatement": 24,
+        "FirstStatement": 18,
+        "ForOfStatement": 16,
+        "VariableDeclarationList": 16,
+        "ContinueStatement": 2
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/reduction-working-set.ts",
+      "included": true,
+      "sha256": "44bcf7a58be1afc7a7f5c8a6925192dccb2b380f0343ade4bae9853be6598ec9",
+      "logicalLOC": 170,
+      "runtimeStatementDeclarationUnits": 154,
+      "moduleDirectiveUnits": 8,
+      "typeDeclarationSignatureUnits": 8,
+      "physicalNoncommentSLOC": 215,
+      "physicalNonblankLinesBeforeCommentRemoval": 221,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 8,
+        "FunctionDeclaration": 1,
+        "FirstStatement": 16,
+        "ReturnStatement": 13,
+        "ClassDeclaration": 1,
+        "PropertyDeclaration": 12,
+        "Constructor": 1,
+        "ExpressionStatement": 56,
+        "MethodDeclaration": 9,
+        "IfStatement": 25,
+        "PropertySignature": 8,
+        "ThrowStatement": 1,
+        "TryStatement": 1,
+        "ForOfStatement": 9,
+        "VariableDeclarationList": 9
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/schema.ts",
+      "included": true,
+      "sha256": "2e9680ecbe325b12601f97aa32214158414326db20988b37c2e1a2593dd8fe66",
+      "logicalLOC": 25,
+      "runtimeStatementDeclarationUnits": 12,
+      "moduleDirectiveUnits": 5,
+      "typeDeclarationSignatureUnits": 8,
+      "physicalNoncommentSLOC": 46,
+      "physicalNonblankLinesBeforeCommentRemoval": 56,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 5,
+        "FirstStatement": 5,
+        "PropertySignature": 7,
+        "FunctionDeclaration": 3,
+        "ExpressionStatement": 2,
+        "ReturnStatement": 2,
+        "TypeAliasDeclaration": 1
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/store-context.ts",
+      "included": true,
+      "sha256": "fc64e6f22bb44304079af66dbad1d9cd753a2ae3cbc87b9a18d36ea19819d623",
+      "logicalLOC": 40,
+      "runtimeStatementDeclarationUnits": 24,
+      "moduleDirectiveUnits": 8,
+      "typeDeclarationSignatureUnits": 8,
+      "physicalNoncommentSLOC": 43,
+      "physicalNonblankLinesBeforeCommentRemoval": 44,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 8,
+        "FirstStatement": 6,
+        "TypeAliasDeclaration": 3,
+        "PropertySignature": 5,
+        "ClassDeclaration": 1,
+        "PropertyDeclaration": 2,
+        "Constructor": 1,
+        "IfStatement": 4,
+        "ThrowStatement": 3,
+        "ExpressionStatement": 4,
+        "MethodDeclaration": 2,
+        "ReturnStatement": 1
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/store-contracts.ts",
+      "included": true,
+      "sha256": "9279a7cbf99b718fea9fee21f53049c03ea7ae39740c9b24bbc3a30005e0a666",
+      "logicalLOC": 11,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 3,
+      "typeDeclarationSignatureUnits": 8,
+      "physicalNoncommentSLOC": 12,
+      "physicalNonblankLinesBeforeCommentRemoval": 13,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 3,
+        "TypeAliasDeclaration": 1,
+        "PropertySignature": 7
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/store.ts",
+      "included": true,
+      "sha256": "45efa1dd42d4281f92779a6332b045855dd283b783421430ae8ed299fe796d2d",
+      "logicalLOC": 208,
+      "runtimeStatementDeclarationUnits": 187,
+      "moduleDirectiveUnits": 14,
+      "typeDeclarationSignatureUnits": 7,
+      "physicalNoncommentSLOC": 254,
+      "physicalNonblankLinesBeforeCommentRemoval": 266,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 13,
+        "ExportDeclaration": 1,
+        "FunctionDeclaration": 1,
+        "ExpressionStatement": 50,
+        "FirstStatement": 29,
+        "ReturnStatement": 41,
+        "ClassDeclaration": 1,
+        "PropertyDeclaration": 4,
+        "Constructor": 1,
+        "MethodDeclaration": 24,
+        "IfStatement": 25,
+        "PropertySignature": 7,
+        "ThrowStatement": 7,
+        "ForOfStatement": 2,
+        "VariableDeclarationList": 2
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/adapters/work-transport.ts",
+      "included": true,
+      "sha256": "05da1325ec27b11551c75bd4f800c06801b7e873ece52f5d472f353bafec6d95",
+      "logicalLOC": 37,
+      "runtimeStatementDeclarationUnits": 5,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 30,
+      "physicalNoncommentSLOC": 29,
+      "physicalNonblankLinesBeforeCommentRemoval": 44,
+      "syntaxKindCounts": {
+        "ImportDeclaration": 2,
+        "TypeAliasDeclaration": 6,
+        "PropertySignature": 22,
+        "InterfaceDeclaration": 2,
+        "FunctionDeclaration": 1,
+        "TryStatement": 1,
+        "FirstStatement": 2,
+        "ExpressionStatement": 1
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/composition/index.ts",
+      "included": true,
+      "sha256": "f1181ff508c8d5aa3b69b7fccd41d9ff015e0cec12f19d78290840d4a4afe0aa",
+      "logicalLOC": 11,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 11,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 11,
+      "physicalNonblankLinesBeforeCommentRemoval": 11,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 11
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/composition/job-transport.ts",
+      "included": true,
+      "sha256": "ea08df0442e4a6c7ba48664339d9901c96aae690a530cbb9427fd40ed7d88e91",
+      "logicalLOC": 2,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 2,
+      "physicalNonblankLinesBeforeCommentRemoval": 2,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 2
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/features/payment-custody/composition/node-postgres.ts",
+      "included": true,
+      "sha256": "824f9ed9d7cdbd37e71c060d358c4127e8de842def468fc0f0baf358341c44f0",
+      "logicalLOC": 1,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 1,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 1,
+      "physicalNonblankLinesBeforeCommentRemoval": 1,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 1
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/index.ts",
+      "included": true,
+      "sha256": "867acd6065e3f3e7248aa9822efb5b950b0286e2b086e11aeb820a1707f28320",
+      "logicalLOC": 2,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 2,
+      "physicalNonblankLinesBeforeCommentRemoval": 2,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 2
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/job-transport.ts",
+      "included": true,
+      "sha256": "0c364f7c32c587384df70119121bd18519c6c5846ab41aeb67285f9b076cbddf",
+      "logicalLOC": 2,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 2,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 2,
+      "physicalNonblankLinesBeforeCommentRemoval": 2,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 2
+      }
+    },
+    {
+      "package": "payments-postgres",
+      "path": "packages/payments-postgres/src/node-postgres.ts",
+      "included": true,
+      "sha256": "906d0be1375db28ceaaf3412ccf62b3a528ed6236a2f765146e181385e1046af",
+      "logicalLOC": 1,
+      "runtimeStatementDeclarationUnits": 0,
+      "moduleDirectiveUnits": 1,
+      "typeDeclarationSignatureUnits": 0,
+      "physicalNoncommentSLOC": 1,
+      "physicalNonblankLinesBeforeCommentRemoval": 1,
+      "syntaxKindCounts": {
+        "ExportDeclaration": 1
+      }
+    }
+  ]
+}

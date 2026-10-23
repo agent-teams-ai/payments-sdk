@@ -33,7 +33,11 @@ commit still requires its own exact-head hosted checks.
 [PR #10](https://github.com/agent-teams-ai/payments-sdk/pull/10) owns the full-FMS
 source reconstruction and its fresh review. The [delivery plan](reviews/full-fms-adoption/plan.md)
 records the recovery boundary; old local/hosted runs do not qualify this source.
-Use its exact-head logs and [0.4 migration](migrations/0.4.md) when upgrading.
+The [current source qualification and review](reviews/full-fms-adoption/README.md)
+binds successful complete local checks on both Node floors, a hosted PR merge
+checkout with the identical Git tree, independent findings/fixes and production code metrics to the published
+source. Central identity/admission activation remains separately pending.
+Use its source-bound logs and [0.4 migration](migrations/0.4.md) when upgrading.
 The baseline table below remains historical until a new merged source and its
 successful main-push run are independently observed.
 
