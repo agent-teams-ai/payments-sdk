@@ -5,11 +5,11 @@
   "decision": "docs/get-modular-adoption.md#decision",
   "standard": {
     "repository": "agent-teams-ai/get-modular",
-    "commit": "fe4a2fdc878b46feebaececa3b0172b4534be935",
+    "commit": "b70ba39304ac71964175c42a77309406a7c30ca2",
     "path": "docs/architecture/common-assembly.md",
-    "sha256": "a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882",
+    "sha256": "11a389b223506dc303fa986a7a37350b847013d85beb2de9d74cb8c97363e824",
     "guide": "docs/guides/module-authoring.md",
-    "guideSha256": "8d9e6ced096c3259ec8d7a35a1ee3c2f15e5832ba23c95da57f8cfc4c8622cfd"
+    "guideSha256": "9bdbc6a6eac511691cf429c7e7e12b4cf4fd86ec16a348fb3af7a46c989af144"
   },
   "organization": {
     "repository": "agent-teams-ai/.github",
@@ -159,6 +159,7 @@
       "packages/payments-get-modular/test/features/payment-runtime/composition/payments.module.test.ts",
       "packages/payments-get-modular/test/module/lifecycle.test.ts",
       "packages/payments-get-modular/test/module/surface.types.ts",
+      "packages/payments-get-modular/test/module/descriptor-fragments.test.ts",
       "qualification/observation/identity.test.ts",
       "qualification/observation/projection-lifecycle.test.ts",
       "packages/payments-get-modular/test/features/purchase-observation/composition/purchase-projection.test.ts"
