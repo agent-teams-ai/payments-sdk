@@ -15,6 +15,25 @@ delta changes no package runtime source, CMS or observation contract document;
 direct watch/load/types/values/CMS reads retain the same blobs. The dated source
 and dependency qualification below remains its original reproducible snapshot.
 
+## October 23 descriptor-map guidance adoption
+
+The current CMS/guide pin advances to reviewed Get Modular main commit
+[`b70ba39304ac71964175c42a77309406a7c30ca2`](https://github.com/agent-teams-ai/get-modular/commit/b70ba39304ac71964175c42a77309406a7c30ca2).
+Official source read-back verified CMS blob `bf6c64f5057c18cb3439c6b0e1a97b60428b0c53`,
+SHA-256 `11a389b223506dc303fa986a7a37350b847013d85beb2de9d74cb8c97363e824`,
+and guide blob `2500f71f56ef113d930d2e55840a5f96c4923ac7`, SHA-256
+`9bdbc6a6eac511691cf429c7e7e12b4cf4fd86ec16a348fb3af7a46c989af144`.
+The [adoption record](get-modular-adoption.md) reviews ADR-0041's complete
+descriptor-union representation and its scope. A strict test using both actual
+six-descriptor Payments maps proves all keys and complete entries; the normal
+adoption gate rejects unused value and revision conflicts with TS2320.
+The profile and rejecting adoption gate pin these exact document bytes.
+
+This source-guidance migration changes no published dependency, production map,
+runtime API or historical qualification claim. Full application FMS remains
+adopted with an empty exception list. Required CI still qualifies the delivery's
+exact source and both supported Node floors, including PostgreSQL integration.
+
 ## October 21 published Get Modular adoption
 
 The reviewed source is Get Modular
