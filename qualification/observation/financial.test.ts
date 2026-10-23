@@ -97,7 +97,7 @@ void test('packed payments and installed observation: absent, failing and closed
     assert.equal(Object.isFrozen(readyA.purchase.intent), true);
     assert.equal(Object.isFrozen(readyA.purchase.transactions), true);
     originalQuery.intentId = 'caller-mutation-after-selection';
-    borrowed.intent.buyerId = 'caller-mutation-after-read';
+    assert.equal(Reflect.set(borrowed.intent, 'buyerId', 'caller-mutation-after-read'), true);
     assert.equal(readyA.query.intentId, initial.intentId, 'selection keeps its own copied query');
     assert.equal(readyA.purchase.intent.buyerId, 'buyer-a', 'the frozen view owns a detached copy of the borrowed result');
     assert.ok(screensA.some(state => state.status === 'ready'));

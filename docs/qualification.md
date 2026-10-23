@@ -28,6 +28,15 @@ source, with raw logs, archive hashes, independent reviews and production code
 metrics. The earlier qualification remains historical. Each later delivery
 commit still requires its own exact-head hosted checks.
 
+## SDK 0.4 source candidate
+
+[PR #10](https://github.com/agent-teams-ai/payments-sdk/pull/10) owns the full-FMS
+source reconstruction and its fresh review. The [delivery plan](reviews/full-fms-adoption/plan.md)
+records the recovery boundary; old local/hosted runs do not qualify this source.
+Use its exact-head logs and [0.4 migration](migrations/0.4.md) when upgrading.
+The baseline table below remains historical until a new merged source and its
+successful main-push run are independently observed.
+
 ## Reviewed hosted baselines
 
 These successful main-push runs bind the delivered source to the repository's
@@ -47,11 +56,11 @@ the deployment and credential gates below remain separate.
 | Tooling | TypeScript `7.0.2`, strict projects, `skipLibCheck:false`, maintained `.ts` sources; pnpm `11.25.0` |
 | Durable storage | PostgreSQL `18`, logged correctness tables, `fsync=on`, local `synchronous_commit=on` |
 | PostgreSQL driver | Adapter-owned exclusive-session contract; explicit `/node-postgres` wrapper, qualified with text-mode `pg` `8.23.1` pools and default exact-int8/JSON decoding; custom codecs require separate qualification |
-| Private storage query toolkit | Drizzle `1.0.0-rc.5-5935859`; exact [artifact and declaration correction](../qualification/drizzle/artifact.json), with original unpatched npm consumer qualification |
+| Private storage query toolkit | Drizzle `1.0.0-rc.5`; exact [artifact and declaration correction](../qualification/drizzle/artifact.json), with original unpatched npm consumer qualification |
 | Provider | Official `@paddle/paddle-node-sdk` `3.10.0`, API version 1 and separately versioned notification destination |
 | Background transport | Explicit `PaymentJobTransport`; optional `/pg-boss` with explicitly installed `pg-boss` `12.38.0` uses one borrowed host pool, explicit bootstrap and a qualified runtime role; a separate durable SQL fixture exercises substitution without installing pg-boss |
 | Get Modular | Published Core/Assembly `0.7.0`, Resources `0.2.1`, optional Observation `0.2.0`, Conformance `0.5.0` in tests; [official packed consumers](upstream-qualification.md#october-21-published-get-modular-adoption) passed on both Node floors. |
-| Engineering Foundation | `1.10.1`, development-only |
+| Engineering Foundation | `2.1.1`, development-only; full FMS kernel `0.2.3` |
 | Package consumers | ESM NodeNext and Bundler resolution, packed tarballs, strict declarations |
 
 Manifest engine ranges describe runtime compatibility, and the two exact Node versions above are the functional CI matrix. They do not establish production security admission. Other operating systems, PostgreSQL majors, versions within a manifest range and deployment topologies require their own evidence. The [lockfile](../pnpm-lock.yaml) pins the actual dependency closure. The [current upstream record](upstream-qualification.md) identifies the Foundation patch scope, exact local qualification subject, current Get Modular publication gate and official browser blocker.
@@ -69,7 +78,7 @@ The corrected floors are enforced by manifests, the toolchain gate and CI. Indep
 | `test:runtime-security` | Fresh child, unmodified built-in fetch, bounded loopback malformed response and normal process exit through the shared captured-command helper | This regression probe is not a complete transport security certification |
 | `toolchain:check`, `typecheck`, `lint` | Runtime/compiler policy; strict ownership for every maintained source; actual compiled examples and declarations | Compilation cannot prove provider settlement or production authorization |
 | Foundation checks and `test:boundaries` | Inward package dependencies, source ownership/exports, forbidden runtime imports and development-only tooling closure | Boundary checks complement behavioral tests |
-| `test:modular:adoption` within fast/boundary checks | Reviewed CMS/artifact pins, actual authored boundaries from the Foundation inventory and TypeScript AST, owned exceptions, rejecting drift fixtures and required command reachability | Scoped composition-adapter checks; semantic ownership and application-wide FMS remain separate review responsibilities |
+| `test:modular:adoption` within fast/boundary checks | Reviewed CMS/artifact pins, actual authored boundaries from the Foundation inventory and TypeScript AST, owned exceptions, rejecting drift fixtures and required command reachability | Real published CMS checks; full FMS has its own complete ownership/layer gate, and semantic behavior retains independent review |
 | `test:core` | Request idempotency, exact values, evidence ordering/conflicts, commercial classification, immutable delivery, duplicate initial streams and unknown mutation handling | Memory store is a test fixture, not production durability |
 | `test:paddle` | Actual SDK serializer/resources/entity mapping, error translation, exact-byte official signature verification, source-aware normalization and mapped pagination | Network-disabled synthetic API schema fixtures; no Paddle account behavior or charges |
 | `test:modular` | Actual published Assembly/Resources/Conformance, static wiring, isolated runs, lifecycle/partial-startup cleanup and late provider settlement | Optional Observation has its own packed consumer gate |
@@ -114,7 +123,7 @@ The core/Paddle server adapter remain independent of Paddle.js. Hosts can naviga
 
 ## Observation release and consumer admission
 
-The published Core/Assembly `0.7.0`, Resources `0.2.1`, Conformance `0.5.0` and Observation `0.2.0` train passed the isolated official packed gate on Linux ARM64 Node `24.22.1` and `26.12.1` with PostgreSQL `18`. Both runs passed strict NodeNext/Bundler declarations and all four observation test files, proved official publication against the same manifest digest and used identical four SDK archives. The [current upstream record](upstream-qualification.md#october-21-published-get-modular-adoption) binds the release and evidence. The adoption profile is `scoped-active` for the technical composition adapter; full application FMS is not adopted. The full local check passed on native ARM64 Node `26.12.1`; each SDK revision still requires exact-head hosted CI and independent review before merge.
+The published Core/Assembly `0.7.0`, Resources `0.2.1`, Conformance `0.5.0` and Observation `0.2.0` train passed the isolated official packed gate on Linux ARM64 Node `24.22.1` and `26.12.1` with PostgreSQL `18`. Both runs passed strict NodeNext/Bundler declarations and all four observation test files, proved official publication against the same manifest digest and used identical four SDK archives. The [current upstream record](upstream-qualification.md#october-21-published-get-modular-adoption) binds the release and evidence. The current composition profile has no adapter exceptions, and full FMS covers all four SDK production packages. The historical run described here does not qualify later 0.4 source changes. The full local check passed on native ARM64 Node `26.12.1`; each SDK revision still requires exact-head hosted CI and independent review before merge.
 
 The [current artifact record](../qualification/observation/published-artifacts.json) retains the new official bytes. The [October 20 registry record](../qualification/observation/published-artifacts-2026-10-20.json) preserves the earlier train and its equality with the original retained candidates. Each release must pass `test:observation` on both Node floors; earlier candidate or registry results do not qualify a new SDK archive. The optional `/observation` entrypoint and one coherent physical peer set remain required. The [integration guide](../packages/payments-get-modular/README.md#optional-purchase-observation) owns the report-and-await lifecycle contract; the [growth assessment](get-modular-growth.md) records the remaining limits and adoption gates. Production security, live-account and deployment gates above remain separate.
 

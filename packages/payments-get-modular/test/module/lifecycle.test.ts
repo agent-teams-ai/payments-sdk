@@ -4,9 +4,9 @@ import { assemblyFor } from '@get-modular/assembly';
 import { createScope } from '@get-modular/resources';
 import type { ListenerError } from '@get-modular/observation';
 import { liveSubscriptions, settled } from '@get-modular/observation/testing';
-import { PaymentsConfiguration, paymentsConfiguration, paymentsGroup, paymentsModule, type PaymentsCapabilities } from '../../dist/index.js';
-import { createPurchaseProjection } from '../../dist/observation/index.js';
-import { deferred, fixture } from './fixtures.ts';
+import { PaymentsConfiguration, paymentsConfiguration, paymentsGroup, paymentsModule, type PaymentsCapabilities } from '../../src/index.ts';
+import { createPurchaseProjection } from '../../src/observation/index.ts';
+import { deferred, fixture } from '../features/payment-runtime/composition/fixtures.ts';
 
 void test('staged Host shutdown retains the payment runtime and borrowed pool until the escalated projection read and cleanup settle', { timeout: 10_000 }, async () => {
   const host = fixture();

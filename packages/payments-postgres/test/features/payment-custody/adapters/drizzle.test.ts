@@ -1,8 +1,8 @@
-import { migratePaymentSchema } from '../../../../dist/index.js';
-import { withPaymentTransaction } from '../../../../dist/features/payment-custody/adapters/database.js';
-import { PaymentRecords } from '../../../../dist/features/payment-custody/adapters/records.js';
-import { paymentQueries, paymentTables } from '../../../../dist/features/payment-custody/adapters/schema.js';
-import { databaseFixture, scope } from '../../../../dist/testing.js';
+import { migratePaymentSchema } from '../../../../src/index.ts';
+import { withPaymentTransaction } from '../../../../src/features/payment-custody/adapters/database.ts';
+import { PaymentRecords } from '../../../../src/features/payment-custody/adapters/records.ts';
+import { paymentQueries, paymentTables } from '../../../../src/features/payment-custody/adapters/schema.ts';
+import { databaseFixture, scope } from '../../../../src/testing.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

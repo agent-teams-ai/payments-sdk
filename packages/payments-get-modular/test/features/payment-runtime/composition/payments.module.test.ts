@@ -5,8 +5,8 @@ import type { PaymentProvider } from '@agent-teams/payments-core/provider';
 import { assemblyFor, declareModule, defineContract, implement, type CapabilitiesOf } from '@get-modular/assembly';
 import { createScope, scoped } from '@get-modular/resources';
 import { checkNamespaces, checkWiring, isolate, smoke } from '@get-modular/conformance';
-import { Checkout, Delivery, Management, PaymentsConfiguration, Processing, Read, paymentsConfiguration, paymentsConfigurationDeclaration, paymentsDeclaration, paymentsGroup, paymentsModule, type PaymentsCapabilities } from '../../../../dist/index.js';
-import { command, deferred, fixture } from '../../../module/fixtures.ts';
+import { Checkout, Delivery, Management, PaymentsConfiguration, Processing, Read, paymentsConfiguration, paymentsConfigurationDeclaration, paymentsDeclaration, paymentsGroup, paymentsModule, type PaymentsCapabilities } from '../../../../src/index.ts';
+import { command, deferred, fixture } from './fixtures.ts';
 
 function compose(api = assemblyFor<PaymentsCapabilities>()) {
   return api.prepare({ profileId: 'test/payments-fixture', modules: [paymentsGroup], inputs: { configuration: paymentsConfiguration }, roots: { payments: paymentsModule } });

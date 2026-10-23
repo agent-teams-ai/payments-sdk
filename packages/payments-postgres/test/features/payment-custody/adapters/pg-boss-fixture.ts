@@ -1,7 +1,7 @@
 import { PgBoss } from 'pg-boss';
-import { paymentJobRetention } from '../../../../dist/job-transport.js';
-import type { PgBossPaymentTransportOptions } from '../../../../dist/job-transport.js';
-import { createPaymentSqlExecutor } from '../../../../dist/features/payment-custody/adapters/database.js';
+import { paymentJobRetention } from '../../../../src/job-transport.ts';
+import type { PgBossPaymentTransportOptions } from '../../../../src/job-transport.ts';
+import { createPaymentSqlExecutor } from '../../../../src/features/payment-custody/adapters/database.ts';
 /** Independent vendor administration for integration oracles, never a public runner capability. */
 export function paymentBossFixture(options: PgBossPaymentTransportOptions): PgBoss {
   const boss = new PgBoss({

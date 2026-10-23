@@ -4,10 +4,10 @@ import { processInput, publishEvidence } from '@agent-teams/payments-core/store'
 import type { AdjustmentObservation, CheckoutReady, EvidenceSource, VerifiedInput } from '@agent-teams/payments-core';
 import type { InboxRecord, PaymentOperation, TransactionAggregate } from '@agent-teams/payments-core/store';
 import type { ProviderResult } from '@agent-teams/payments-core/provider';
-import { assertPostgresDurability, createPostgresPaymentStore, migratePaymentSchema, PaymentDatabaseError } from '../../../../dist/index.js';
-import { createPaymentSqlExecutor, withPaymentTransaction } from '../../../../dist/features/payment-custody/adapters/database.js';
-import { createNodePostgresPaymentDatabase } from '../../../../dist/node-postgres.js';
-import { at, databaseFixture, deferred, known, observe, receipt, runtime, scope, subscription, success, transaction, postgresFaultProxy } from '../../../../dist/testing.js';
+import { assertPostgresDurability, createPostgresPaymentStore, migratePaymentSchema, PaymentDatabaseError } from '../../../../src/index.ts';
+import { createPaymentSqlExecutor, withPaymentTransaction } from '../../../../src/features/payment-custody/adapters/database.ts';
+import { createNodePostgresPaymentDatabase } from '../../../../src/node-postgres.ts';
+import { at, databaseFixture, deferred, known, observe, receipt, runtime, scope, subscription, success, transaction, postgresFaultProxy } from '../../../../src/testing.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

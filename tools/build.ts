@@ -14,7 +14,7 @@ async function inspectOwnedPath(root: string, path: string): Promise<void> {
   for (let end = 1; end <= parts.length; end += 1) {
     const current = join(root, ...parts.slice(0, end));
     const entry = await lstat(current).catch((error: unknown) => {
-      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') { return undefined; }
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') { return; }
       throw error;
     });
     if (entry === undefined) { return; }

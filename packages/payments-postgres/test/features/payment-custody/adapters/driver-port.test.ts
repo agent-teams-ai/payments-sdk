@@ -2,9 +2,9 @@ import { Pool } from 'pg';
 import type { PoolClient } from 'pg';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { createNodePostgresPaymentDatabase } from '../../../../dist/node-postgres.js';
-import { paymentQueries, paymentTables } from '../../../../dist/features/payment-custody/adapters/schema.js';
-import { databaseFixture } from '../../../../dist/testing.js';
+import { createNodePostgresPaymentDatabase } from '../../../../src/node-postgres.ts';
+import { paymentQueries, paymentTables } from '../../../../src/features/payment-custody/adapters/schema.ts';
+import { databaseFixture } from '../../../../src/testing.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

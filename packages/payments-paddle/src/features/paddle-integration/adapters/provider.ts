@@ -57,6 +57,14 @@ function validateOffer(offer: OfferSnapshot, scope: PaymentScope): void {
   providerId(line.providerPriceRef, 'pri'); assertIdentifier(line.benefitSlotId); assertIdentifier(offer.offerId); assertIdentifier(offer.version);
 }
 
+/** Validate the durable scan coordinates before translating them into the official SDK query. */
+function eventPageParameters(query: PaddleEventScanQuery): (NonNullable<Parameters<Paddle['events']['list']>[0]> & { from: string; to: string }) | undefined {
+  exactTime(query.from); exactTime(query.to); assertIdentifier(query.epoch); assertIdentifier(query.queryVersion);
+  if (compareTime(query.from, query.to) >= 0 || (query.perPage !== undefined && (!Number.isInteger(query.perPage) || query.perPage < 1 || query.perPage > 200))) {return undefined;}
+  if (query.after !== undefined) {providerId(query.after, 'evt');}
+  return { from: query.from, to: query.to, orderBy: 'id[ASC]', ...(query.after === undefined ? {} : { after: query.after }), ...(query.perPage === undefined ? {} : { perPage: query.perPage }), ...(query.eventTypes === undefined ? {} : { eventType: [...query.eventTypes] as IEventName[] }) };
+}
+
 export class PaddlePaymentProvider implements PaymentProvider {
   readonly scope: PaymentScope;
   readonly capabilities: CapabilityProfile;
@@ -189,10 +197,8 @@ export class PaddlePaymentProvider implements PaymentProvider {
   async readEventPage(query: PaddleEventScanQuery): Promise<PaddleEventScanResult> {
     const gap = (reason: string): PaddleEventScanResult => ({ kind: 'gap', reason, query, sdkVersion: SDK_VERSION });
     try {
-      exactTime(query.from); exactTime(query.to); assertIdentifier(query.epoch); assertIdentifier(query.queryVersion);
-      if (compareTime(query.from, query.to) >= 0 || (query.perPage !== undefined && (!Number.isInteger(query.perPage) || query.perPage < 1 || query.perPage > 200))) {return gap('invalid_query');}
-      if (query.after !== undefined) {providerId(query.after, 'evt');}
-      const parameters: NonNullable<Parameters<Paddle['events']['list']>[0]> & { from: string; to: string } = { from: query.from, to: query.to, orderBy: 'id[ASC]', ...(query.after === undefined ? {} : { after: query.after }), ...(query.perPage === undefined ? {} : { perPage: query.perPage }), ...(query.eventTypes === undefined ? {} : { eventType: [...query.eventTypes] as IEventName[] }) };
+      const parameters = eventPageParameters(query);
+      if (parameters === undefined) {return gap('invalid_query');}
       // Recreate from the caller's durable pre-page cursor on every call. Never reuse a failed collection.
       const collection = this.#sdk.events.list(parameters), events = await collection.next();
       if (events.length === 0 && collection.hasMore) {return gap('empty_nonterminal_page');}

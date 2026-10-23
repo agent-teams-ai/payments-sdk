@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
-import type { AdjustmentObservation, CompletionFact, EvidenceMessage, OfferSnapshot, PaymentScope, SubscriptionBinding } from '@agent-teams/payments-core';
+import type { AdjustmentObservation, CompletionFact, EvidenceMessage, OfferSnapshot, PaymentScope, SubscriptionBindingEvidence } from '@agent-teams/payments-core';
 import { AccessFixture, CreditFixture, hash, signFixtureMessage } from '../fixtures/consumers/index.ts';
 
 export const scope: PaymentScope = { applicationId: 'app-a', provider: 'paddle', paymentAccountId: 'merchant-fixture', environment: 'sandbox' };
@@ -25,7 +25,7 @@ export function adjustment(options: Partial<AdjustmentObservation> = {}): Adjust
 }
 export function subscription(revision: number, options: Readonly<{ status?: string; scheduled?: boolean; unknown?: boolean }> = {}): EvidenceMessage {
   const aggregate = { type: 'subscription' as const, id: 'subscription-A' };
-  const binding: SubscriptionBinding = { bindingId: 'binding-a', buyerId: 'buyer-a', originatingIntentId: 'intent-a', offer, providerSubscriptionRefs: ['subscription-A'], selectedSubscriptionRef: 'subscription-A', customerRef: 'customer' };
+  const binding: SubscriptionBindingEvidence = { bindingId: 'binding-a', buyerId: 'buyer-a', originatingIntentId: 'intent-a', offer, providerSubscriptionRefs: ['subscription-A'], selectedSubscriptionRef: 'subscription-A', customerRef: 'customer' };
   return signFixtureMessage({ envelopeVersion: 1 as const, schemaVersion: 1 as const, producerNamespace, scope, aggregate, revision, messageId: hash([producerNamespace, scope, aggregate, revision]), kind: 'subscription_complete' as const, binding, observation: { kind: 'subscription' as const, subscriptionRef: 'subscription-A', version: `2026-10-${String(revision).padStart(2, '0')}T00:00:00Z`, status: (options.unknown === true) ? { presence: 'unknown' as const } : { presence: 'known' as const, value: options.status ?? 'active' }, customerRef: { presence: 'known' as const, value: 'customer' }, scheduledChange: (options.unknown === true) ? { presence: 'unknown' as const } : { presence: 'known' as const, value: (options.scheduled === true) ? { action: 'cancel', effectiveAt: period.endsAt } : null }, currentPeriod: { presence: 'known' as const, value: options.status === 'canceled' ? null : period }, collection: { presence: 'known' as const, value: { kind: 'automatic' as const } }, items: { presence: 'known' as const, value: [{ providerPriceRef: offer.lines[0]!.providerPriceRef, quantity: { presence: 'known' as const, value: 1 }, billingCycle: { presence: 'known' as const, value: { interval: 'month', frequency: 1 } }, trial: { presence: 'known' as const, value: false } }] }, source }, flags: [] });
 }
 export async function consumers() {

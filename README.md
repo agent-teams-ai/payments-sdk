@@ -26,7 +26,7 @@ For Paddle with durable storage, choose core + Paddle + PostgreSQL. The PostgreS
 
 All four packages currently declare **`0.4.0`** and emit ESM JavaScript and declarations. This version is **not published to npm**. Build this checkout, or use matching verified prerelease tarballs when available. The [release and installation guide](docs/releasing.md) covers checksums, package overrides and installation; the [0.4 migration guide](docs/migrations/0.4.md) explains the separate provider/storage contracts and Get Modular revision changes. Earlier changes remain in the [changelog](CHANGELOG.md).
 
-**Current qualification:** Linux Node **24.22.1 LTS** and **26.12.1** are the corrected runtime floors. Local qualification and the [reviewed hosted baselines](docs/qualification.md#reviewed-hosted-baselines) passed. Each later revision requires its own checks; deployment and Paddle-account gates remain separate. See [runtime admission status](docs/runtime-security-admission.md) and [qualification](docs/qualification.md) before production use.
+**Current qualification:** Linux Node **24.22.1 LTS** and **26.12.1** are the corrected runtime floors. The [0.4 source candidate](docs/qualification.md#sdk-04-source-candidate) has its own fresh qualification; [older hosted baselines](docs/qualification.md#reviewed-hosted-baselines) remain bound to their recorded sources. Each revision requires its own checks; deployment and Paddle-account gates remain separate. See [runtime admission status](docs/runtime-security-admission.md) and [qualification](docs/qualification.md) before production use.
 
 ## Start here
 

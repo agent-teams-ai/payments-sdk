@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addMoney, assertIdentifier, assertScope, canonicalJson, compareTime, createPayments, digest, exactTime, money, type AdjustmentObservation, type CancellationOutcome, type JsonValue, type Observation, type EvidenceSource, type Field, type OfferSnapshot, type PaymentScope, type SubscriptionObservation, type TransactionObservation, type VerifiedInput } from '../../../dist/index.js';
-import { compareEventIdentity, eventIdentityEvidence, mergeEventIdentityEvidence, objectVersionKey, processInput, publishEvidence, reduceObservation, MAX_OBJECT_VERSION_EVIDENCE_BYTES } from '../../../dist/store.js';
-import { type PaymentProvider, type ProviderResult } from '../../../dist/provider.js';
-import { MemoryPaymentStore } from '../../../dist/memory.js';
+import { addMoney, assertIdentifier, assertScope, canonicalJson, compareTime, createPayments, digest, exactTime, money, type AdjustmentObservation, type CancellationOutcome, type JsonValue, type Observation, type EvidenceSource, type Field, type OfferSnapshot, type PaymentScope, type SubscriptionObservation, type TransactionObservation, type VerifiedInput } from '../../../src/index.ts';
+import { compareEventIdentity, eventIdentityEvidence, mergeEventIdentityEvidence, objectVersionKey, processInput, publishEvidence, reduceObservation, MAX_OBJECT_VERSION_EVIDENCE_BYTES } from '../../../src/store.ts';
+import { type PaymentProvider, type ProviderResult } from '../../../src/provider.ts';
+import { MemoryPaymentStore } from '../../../src/memory.ts';
 
 const scope: PaymentScope = { applicationId: 'app-a', provider: 'fake', paymentAccountId: 'merchant', environment: 'sandbox' };
 const yes = <T>(value: T): Field<T> => ({ presence: 'known', value });
@@ -744,7 +744,7 @@ void test('purchase and subscription snapshots hide mutable policy metadata and 
   const read = await context.payments.readPurchase('buyer', checkout.intentId); assert.ok(read);
   assert.equal('fingerprint' in read.intent, false);
   assert.equal('publicationRequired' in (read.transactions[0] ?? {}), false);
-  const basis = read.intent.subscriptionBasisId; assert.ok(basis);
+  const basis = read.intent.subscriptionBasisId; assert.ok(typeof basis === 'string' && basis.length > 0);
   await context.payments.refreshSubscription('buyer', basis);
   const subscription = await context.payments.readObservedSubscription('buyer', basis); assert.ok(subscription);
   assert.equal('classificationDecision' in subscription.binding, false);
@@ -759,7 +759,7 @@ void test('purchase and subscription snapshots hide mutable policy metadata and 
 void test('opaque stream versions bind buyer, binding and target and are stable under read-set ordering', async () => {
   const context = setup('monthly'), checkout = await purchase(context);
   await observe(context, transaction(checkout.transactionRef, 'selection-a', 'monthly'));
-  const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(basis);
+  const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(typeof basis === 'string' && basis.length > 0);
   const loaded = await context.store.loadPublicationInput(scope, { type: 'subscription', id: 'sub-a' }); assert.ok(loaded);
   const binding = loaded.state.subscriptionBindings[basis]; assert.ok(binding); binding.providerSubscriptionRefs.push('sub-b');
   assert.deepEqual(await context.store.commitReduction(scope, { inputId: loaded.inputId, expected: loaded.expected, state: loaded.state }), { kind: 'committed' });
@@ -767,7 +767,7 @@ void test('opaque stream versions bind buyer, binding and target and are stable 
   let reverse = false;
   context.store.loadPublicationInput = async (...args) => {
     const current = await originalLoad(...args); reverse = !reverse;
-    return current && reverse ? { ...current, expected: [...current.expected].reverse() } : current;
+    return current && reverse ? { ...current, expected: current.expected.toReversed() } : current;
   };
   const selection = await context.payments.readSubscriptionSelection('buyer', basis, 'sub-a'); assert.ok(selection);
   const sameSelection = await context.payments.readSubscriptionSelection('buyer', basis, 'sub-a'); assert.ok(sameSelection);
@@ -784,7 +784,7 @@ void test('opaque stream versions bind buyer, binding and target and are stable 
 
 void test('operation CAS independently rejects changes to each immutable command field', async () => {
   const context = setup(), checkout = await purchase(context);
-  const operationId = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.operationId; assert.ok(operationId);
+  const operationId = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.operationId; assert.ok(typeof operationId === 'string' && operationId.length > 0);
   const original = await context.store.loadOperation(scope, operationId); assert.ok(original);
   const changes: readonly Partial<typeof original.operation>[] = [
     { operationId: 'another-operation' }, { kind: 'cancellation' }, { buyerId: 'another-buyer' },

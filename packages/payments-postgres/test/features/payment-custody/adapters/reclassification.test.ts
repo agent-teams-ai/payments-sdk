@@ -4,10 +4,10 @@ import { objectVersionKey, processInput, publishEvidence, reduceObservation } fr
 import type { AdjustmentObservation, CheckoutReady, EvidenceMessage, VerifiedInput } from '@agent-teams/payments-core';
 import type { PaymentStore, SubscriptionReclassification, TransactionAggregate } from '@agent-teams/payments-core/store';
 import type { ProviderResult } from '@agent-teams/payments-core/provider';
-import { createPgBossPaymentTransport } from '../../../../dist/job-transport.js';
-import { createPostgresPaymentJobs, createPostgresPaymentStore, PaymentJobHandlerError } from '../../../../dist/index.js';
+import { createPgBossPaymentTransport } from '../../../../src/job-transport.ts';
+import { createPostgresPaymentJobs, createPostgresPaymentStore, PaymentJobHandlerError } from '../../../../src/index.ts';
 import { paymentBossFixture } from './pg-boss-fixture.ts';
-import { at, databaseFixture, deferred, known, observe, offer, receipt, runtime, scope, success, transaction } from '../../../../dist/testing.js';
+import { at, databaseFixture, deferred, known, observe, offer, receipt, runtime, scope, success, transaction } from '../../../../src/testing.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

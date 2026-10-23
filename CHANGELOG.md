@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.4.0 — full feature ownership and explicit SDK boundaries
+
+- Adopt full FMS for every production package, the published FMS kernel and
+  Foundation 2.1.1 source, dependency, coverage and finite suppression checks.
+- Keep public application reads detached and readonly; separate provider and
+  mutable storage implementation contracts into explicit `/provider` and `/store`
+  SPIs. Use target-bound opaque versions for audited subscription selection.
+- Preserve immutable operation commands, complete commit-time read-set checks,
+  unknown external outcomes, independent consumer T3 and physical drain.
+- Use real published Get Modular layout checks without adapter exceptions;
+  advance Read and Processing contracts to revision 2 and retain optional hooks.
+- Qualify the official Drizzle 1.0.0-rc.5 artifact; optional driver/queue peers
+  stay isolated from generic PostgreSQL consumers and the neutral core.
+- Add clean output validation, strict source-test execution and rejecting
+  architecture fixtures, retaining compiled installed-consumer qualification.
+
+See the [0.4 migration](docs/migrations/0.4.md). This is a source release candidate;
+package manifests and local checks do not establish npm publication or merge.
+
 ## 0.3.0 — explicit worker transport and custody qualification
 
 The four SDK packages advance together for the deliberate pre-1.0 worker

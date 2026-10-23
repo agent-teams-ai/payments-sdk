@@ -15,248 +15,310 @@ governedRoots:
 nonWaivableRulePrefixes:
   - access-control.
 waivers:
-  - id: SQL-ROW-CONTRACT-001
-    path: packages/payments-postgres/src/features/payment-custody/adapters/database.ts
-    line: 37
-    directive: oxlint-disable-next-line
-    rules:
-      - typescript/no-unnecessary-type-parameters
-    owner: payments-sdk/postgres
-    reason: The caller declares the result row shape from its SQL statement; erasing
-      Row would weaken the qualified bounded SQL port. This exact generic
-      exception predates FMS adoption.
-    createdOn: 2026-10-22
-    expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#typed-sql-row-contracts
-  - id: SQL-ROW-CONTRACT-002
-    path: packages/payments-postgres/src/features/payment-custody/adapters/database.ts
-    line: 53
-    directive: oxlint-disable-next-line
-    rules:
-      - typescript/no-unnecessary-type-parameters
-    owner: payments-sdk/postgres
-    reason: The caller declares the result row shape from its SQL statement; erasing
-      Row would weaken the qualified bounded SQL port. This exact generic
-      exception predates FMS adoption.
-    createdOn: 2026-10-22
-    expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#typed-sql-row-contracts
-  - id: SQL-ROW-CONTRACT-003
-    path: packages/payments-postgres/src/features/payment-custody/adapters/database.ts
-    line: 132
-    directive: oxlint-disable-next-line
-    rules:
-      - typescript/no-unnecessary-type-parameters
-    owner: payments-sdk/postgres
-    reason: The caller declares the result row shape from its SQL statement; erasing
-      Row would weaken the qualified bounded SQL port. This exact generic
-      exception predates FMS adoption.
-    createdOn: 2026-10-22
-    expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#typed-sql-row-contracts
-  - id: SQL-ROW-CONTRACT-004
-    path: packages/payments-postgres/src/features/payment-custody/adapters/node-postgres.ts
-    line: 20
-    directive: oxlint-disable-next-line
-    rules:
-      - typescript/no-unnecessary-type-parameters
-    owner: payments-sdk/postgres
-    reason: The caller declares the result row shape from its SQL statement; erasing
-      Row would weaken the qualified bounded SQL port. This exact generic
-      exception predates FMS adoption.
-    createdOn: 2026-10-22
-    expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#typed-sql-row-contracts
-  - id: SQL-ROW-CONTRACT-005
-    path: packages/payments-postgres/test/features/payment-custody/jobs.test.ts
-    line: 139
-    directive: oxlint-disable-next-line
-    rules:
-      - typescript/no-unnecessary-type-parameters
-    owner: payments-sdk/postgres
-    reason: The caller declares the result row shape from its SQL statement; erasing
-      Row would weaken the qualified bounded SQL port. This exact generic
-      exception predates FMS adoption.
-    createdOn: 2026-10-22
-    expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#typed-sql-row-contracts
-  - id: NEGATIVE-CONTRACT-006
-    path: packages/payments-get-modular/test/module/modular.test.ts
-    line: 244
+  - id: NEGATIVE-CORE-CONTRACT-001
+    path: packages/payments-core/test/features/payment-evidence/contracts.types.ts
+    line: 6
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: the current capability map rejects a revision-one Read consumer This is
-      an intentional strict-compiler rejection witness.
+    reason: Public operation snapshots cannot edit lifecycle state. This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/core
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-CONTRACT-007
-    path: packages/payments-get-modular/test/module/modular.test.ts
-    line: 246
+  - id: NEGATIVE-CORE-CONTRACT-002
+    path: packages/payments-core/test/features/payment-evidence/contracts.types.ts
+    line: 8
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: the current capability map rejects a revision-one Processing consumer
-      This is an intentional strict-compiler rejection witness.
+    reason: Public attempts are readonly snapshots. This is an intentional strict-compiler rejection
+      witness.
+    owner: payments-sdk/core
+    createdOn: 2026-10-22
+    expiresOn: 2027-01-19
+    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
+  - id: NEGATIVE-CORE-CONTRACT-003
+    path: packages/payments-core/test/features/payment-evidence/contracts.types.ts
+    line: 10
+    directive: typescript-expect-error
+    rules:
+      - typescript/type-error
+    reason: Provider diagnostics belong to provider and store ports. This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/core
+    createdOn: 2026-10-22
+    expiresOn: 2027-01-19
+    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
+  - id: NEGATIVE-CORE-CONTRACT-004
+    path: packages/payments-core/test/features/payment-evidence/contracts.types.ts
+    line: 12
+    directive: typescript-expect-error
+    rules:
+      - typescript/type-error
+    reason: Publication control is private aggregate state. This is an intentional strict-compiler
+      rejection witness.
+    owner: payments-sdk/core
+    createdOn: 2026-10-22
+    expiresOn: 2027-01-19
+    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
+  - id: NEGATIVE-CORE-CONTRACT-005
+    path: packages/payments-core/test/features/payment-evidence/contracts.types.ts
+    line: 14
+    directive: typescript-expect-error
+    rules:
+      - typescript/type-error
+    reason: Purchase command fingerprints are private custody metadata. This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/core
+    createdOn: 2026-10-22
+    expiresOn: 2027-01-19
+    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
+  - id: NEGATIVE-CORE-CONTRACT-006
+    path: packages/payments-core/test/features/payment-evidence/contracts.types.ts
+    line: 16
+    directive: typescript-expect-error
+    rules:
+      - typescript/type-error
+    reason: Stream classification decisions are private policy metadata. This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/core
+    createdOn: 2026-10-22
+    expiresOn: 2027-01-19
+    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
+  - id: NEGATIVE-CORE-CONTRACT-007
+    path: packages/payments-core/test/features/payment-evidence/contracts.types.ts
+    line: 19
+    directive: typescript-expect-error
+    rules:
+      - typescript/type-error
+    reason: Published binding evidence cannot expose a mutable stream list. This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/core
+    createdOn: 2026-10-22
+    expiresOn: 2027-01-19
+    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
+  - id: NEGATIVE-CORE-CONTRACT-008
+    path: packages/payments-core/test/features/payment-evidence/contracts.types.ts
+    line: 27
+    directive: typescript-expect-error
+    rules:
+      - typescript/type-error
+    reason: An application port cannot require one particular buyer. This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/core
+    createdOn: 2026-10-22
+    expiresOn: 2027-01-19
+    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
+  - id: NEGATIVE-CORE-CONTRACT-009
+    path: packages/payments-core/test/features/payment-evidence/contracts.types.ts
+    line: 34
+    directive: typescript-expect-error
+    rules:
+      - typescript/type-error
+    reason: Provider replacement cannot strengthen the caller's preconditions. This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/core
+    createdOn: 2026-10-22
+    expiresOn: 2027-01-19
+    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
+  - id: NEGATIVE-CORE-CONTRACT-010
+    path: packages/payments-core/test/features/payment-evidence/contracts.types.ts
+    line: 39
+    directive: typescript-expect-error
+    rules:
+      - typescript/type-error
+    reason: Mutable aggregates are selected explicitly through the store subpath. This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/core
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
   - id: NEGATIVE-CONTRACT-008
     path: packages/payments-get-modular/test/module/surface.types.ts
-    line: 10
+    line: 7
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: read-only consumers cannot create purchases This is an intentional
-      strict-compiler rejection witness.
+    reason: read-only consumers cannot create purchases This is an intentional strict-compiler rejection
+      witness.
+    owner: payments-sdk/modular
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
   - id: NEGATIVE-CONTRACT-009
     path: packages/payments-get-modular/test/module/surface.types.ts
-    line: 12
+    line: 9
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: the Host retains resource control outside the module This is an
-      intentional strict-compiler rejection witness.
+    reason: the Host retains resource control outside the module This is an intentional strict-compiler
+      rejection witness.
+    owner: payments-sdk/modular
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
   - id: NEGATIVE-CONTRACT-010
     path: packages/payments-get-modular/test/module/surface.types.ts
-    line: 14
+    line: 11
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: checkout consumers do not receive processing authority This is an
-      intentional strict-compiler rejection witness.
+    reason: checkout consumers do not receive processing authority This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/modular
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
   - id: NEGATIVE-CONTRACT-011
     path: packages/payments-get-modular/test/module/surface.types.ts
-    line: 22
+    line: 19
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: read-only consumers cannot authorize a support-stream change This is an
-      intentional strict-compiler rejection witness.
+    reason: read-only consumers cannot authorize a support-stream change This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/modular
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-CONTRACT-012
+  - id: NEGATIVE-MODULAR-CONTRACT-005
+    path: packages/payments-get-modular/test/module/surface.types.ts
+    line: 26
+    directive: typescript-expect-error
+    rules:
+      - typescript/type-error
+    reason: a replacement must accept every declared checkout command This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/modular
+    createdOn: 2026-10-22
+    expiresOn: 2027-01-19
+    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
+  - id: NEGATIVE-MODULAR-CONTRACT-006
+    path: packages/payments-get-modular/test/module/surface.types.ts
+    line: 29
+    directive: typescript-expect-error
+    rules:
+      - typescript/type-error
+    reason: a replacement must accept the full declared buyer identifier domain This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/modular
+    createdOn: 2026-10-22
+    expiresOn: 2027-01-19
+    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
+  - id: NEGATIVE-MODULAR-CONTRACT-007
+    path: packages/payments-get-modular/test/module/surface.types.ts
+    line: 38
+    directive: typescript-expect-error
+    rules:
+      - typescript/type-error
+    reason: intent custody does not escape through the read facet This is an intentional strict-compiler
+      rejection witness.
+    owner: payments-sdk/modular
+    createdOn: 2026-10-22
+    expiresOn: 2027-01-19
+    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
+  - id: NEGATIVE-MODULAR-CONTRACT-008
     path: packages/payments-get-modular/test/module/surface.types.ts
     line: 42
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: checkout commands may not require an adapter-only field This is an
-      intentional strict-compiler rejection witness.
+    reason: aggregate publication work stays private This is an intentional strict-compiler rejection
+      witness.
+    owner: payments-sdk/modular
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-CONTRACT-013
+  - id: NEGATIVE-MODULAR-CONTRACT-009
     path: packages/payments-get-modular/test/module/surface.types.ts
     line: 44
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: all operation identifiers accepted by the read port must remain accepted
-      This is an intentional strict-compiler rejection witness.
+    reason: public evidence flags cannot mutate owner state This is an intentional strict-compiler
+      rejection witness.
+    owner: payments-sdk/modular
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-CONTRACT-014
+  - id: NEGATIVE-MODULAR-CONTRACT-010
     path: packages/payments-get-modular/test/module/surface.types.ts
-    line: 46
+    line: 51
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: cancellation commands may not require an adapter-only field This is an
-      intentional strict-compiler rejection witness.
+    reason: storage read-set tuples do not cross the application boundary This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/modular
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-CONTRACT-015
-    path: packages/payments-get-modular/test/module/surface.types.ts
-    line: 48
-    directive: typescript-expect-error
+  - id: SQL-ROW-CONTRACT-001
+    path: packages/payments-postgres/src/features/payment-custody/adapters/database.ts
+    line: 36
+    directive: oxlint-disable-next-line
     rules:
-      - typescript/type-error
-    owner: payments-sdk/quality
-    reason: verified inputs may not require an adapter-only field This is an
-      intentional strict-compiler rejection witness.
+      - typescript/no-unnecessary-type-parameters
+    reason: SQL text determines the caller-declared row shape.
+    owner: payments-sdk/postgres
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-CONTRACT-016
-    path: packages/payments-get-modular/test/module/surface.types.ts
-    line: 50
-    directive: typescript-expect-error
+    decisionRef: docs/feature-module-adoption.md#typed-sql-row-contracts
+  - id: SQL-ROW-CONTRACT-002
+    path: packages/payments-postgres/src/features/payment-custody/adapters/database.ts
+    line: 51
+    directive: oxlint-disable-next-line
     rules:
-      - typescript/type-error
-    owner: payments-sdk/quality
-    reason: delivery identifiers may not acquire a narrower precondition This is an
-      intentional strict-compiler rejection witness.
+      - typescript/no-unnecessary-type-parameters
+    reason: SQL text determines the caller-declared row shape.
+    owner: payments-sdk/postgres
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-CONTRACT-017
-    path: packages/payments-get-modular/test/module/surface.types.ts
-    line: 52
-    directive: typescript-expect-error
+    decisionRef: docs/feature-module-adoption.md#typed-sql-row-contracts
+  - id: SQL-ROW-CONTRACT-003
+    path: packages/payments-postgres/src/features/payment-custody/adapters/database.ts
+    line: 129
+    directive: oxlint-disable-next-line
     rules:
-      - typescript/type-error
-    owner: payments-sdk/quality
-    reason: catalog resolution may not narrow the trusted payment scope This is an
-      intentional strict-compiler rejection witness.
+      - typescript/no-unnecessary-type-parameters
+    reason: Preserve the caller-declared SQL row shape through the bounded executor.
+    owner: payments-sdk/postgres
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-CONTRACT-018
-    path: packages/payments-get-modular/test/module/surface.types.ts
-    line: 54
-    directive: typescript-expect-error
+    decisionRef: docs/feature-module-adoption.md#typed-sql-row-contracts
+  - id: SQL-ROW-CONTRACT-004
+    path: packages/payments-postgres/src/features/payment-custody/adapters/node-postgres.ts
+    line: 18
+    directive: oxlint-disable-next-line
     rules:
-      - typescript/type-error
-    owner: payments-sdk/quality
-    reason: providers must accept the whole checkout command contract This is an
-      intentional strict-compiler rejection witness.
+      - typescript/no-unnecessary-type-parameters
+    reason: The SQL caller owns the row shape, not the driver mechanism.
+    owner: payments-sdk/postgres
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-CONTRACT-019
-    path: packages/payments-get-modular/test/module/surface.types.ts
-    line: 56
-    directive: typescript-expect-error
+    decisionRef: docs/feature-module-adoption.md#typed-sql-row-contracts
+  - id: SQL-ROW-CONTRACT-005
+    path: packages/payments-postgres/test/features/payment-custody/adapters/jobs.test.ts
+    line: 139
+    directive: oxlint-disable-next-line
     rules:
-      - typescript/type-error
-    owner: payments-sdk/quality
-    reason: stores must accept the whole trusted payment scope contract This is an
-      intentional strict-compiler rejection witness.
+      - typescript/no-unnecessary-type-parameters
+    reason: Preserve the connection caller's SQL row shape.
+    owner: payments-sdk/postgres
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
+    decisionRef: docs/feature-module-adoption.md#typed-sql-row-contracts
   - id: NEGATIVE-CONTRACT-020
     path: qualification/observation/surface.types.ts
     line: 22
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: Only observation creates branded callback error reports. This is an
-      intentional strict-compiler rejection witness.
+    reason: Only observation creates branded callback error reports. This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/observation
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
@@ -266,9 +328,9 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: A subscriber cannot become the store's writer. This is an intentional
-      strict-compiler rejection witness.
+    reason: A subscriber cannot become the store's writer. This is an intentional strict-compiler
+      rejection witness.
+    owner: payments-sdk/observation
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
@@ -278,9 +340,9 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: A subscriber has no source lifetime control. This is an intentional
-      strict-compiler rejection witness.
+    reason: A subscriber has no source lifetime control. This is an intentional strict-compiler
+      rejection witness.
+    owner: payments-sdk/observation
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
@@ -290,9 +352,9 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: Read-only composition cannot dispatch a checkout. This is an intentional
-      strict-compiler rejection witness.
+    reason: Read-only composition cannot dispatch a checkout. This is an intentional strict-compiler
+      rejection witness.
+    owner: payments-sdk/observation
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
@@ -302,9 +364,9 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: A projection has no durable financial acknowledgement authority. This is
-      an intentional strict-compiler rejection witness.
+    reason: A projection has no durable financial acknowledgement authority. This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/observation
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
@@ -314,9 +376,9 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: Observation handlers must synchronously return undefined, never a
-      promise. This is an intentional strict-compiler rejection witness.
+    reason: Observation handlers must synchronously return undefined, never a promise. This is an
+      intentional strict-compiler rejection witness.
+    owner: payments-sdk/observation
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
@@ -326,9 +388,9 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: A void-returning callback is not the explicit undefined-return contract.
-      This is an intentional strict-compiler rejection witness.
+    reason: A void-returning callback is not the explicit undefined-return contract. This is an
+      intentional strict-compiler rejection witness.
+    owner: payments-sdk/observation
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
@@ -338,9 +400,9 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: Snapshots must come from the real facet, not a hand-built record. This
-      is an intentional strict-compiler rejection witness.
+    reason: Snapshots must come from the real facet, not a hand-built record. This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/observation
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
@@ -350,9 +412,9 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: The readonly store value brand prevents an unrelated slice. This is an
-      intentional strict-compiler rejection witness.
+    reason: The readonly store value brand prevents an unrelated slice. This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/observation
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
@@ -362,9 +424,9 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: Projected read values are deeply readonly copies. This is an intentional
-      strict-compiler rejection witness.
+    reason: Projected read values are deeply readonly copies. This is an intentional strict-compiler
+      rejection witness.
+    owner: payments-sdk/observation
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
@@ -374,9 +436,9 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: A readonly purchase cannot acquire additional transactions. This is an
-      intentional strict-compiler rejection witness.
+    reason: A readonly purchase cannot acquire additional transactions. This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/observation
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
@@ -386,119 +448,21 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/quality
-    reason: A ready starting snapshot does not make future values ready. This is an
-      intentional strict-compiler rejection witness.
+    reason: A ready starting snapshot does not make future values ready. This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/observation
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-READ-MODEL-018
-    path: packages/payments-core/test/features/payment-evidence/read-models.types.ts
-    line: 18
+  - id: NEGATIVE-OBSERVATION-CONTRACT-013
+    path: qualification/observation/surface.types.ts
+    line: 65
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    owner: payments-sdk/core
-    reason: internal publication work is not a public read field; strict client compilation must reject this expression.
-    createdOn: 2026-10-22
-    expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-READ-MODEL-020
-    path: packages/payments-core/test/features/payment-evidence/read-models.types.ts
-    line: 20
-    directive: typescript-expect-error
-    rules:
-      - typescript/type-error
-    owner: payments-sdk/core
-    reason: immutable command fingerprints stay on the operation diagnostic; strict client compilation must reject this expression.
-    createdOn: 2026-10-22
-    expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-READ-MODEL-022
-    path: packages/payments-core/test/features/payment-evidence/read-models.types.ts
-    line: 22
-    directive: typescript-expect-error
-    rules:
-      - typescript/type-error
-    owner: payments-sdk/core
-    reason: client reads cannot mutate the transaction's diagnostic history; strict client compilation must reject this expression.
-    createdOn: 2026-10-22
-    expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-READ-MODEL-024
-    path: packages/payments-core/test/features/payment-evidence/read-models.types.ts
-    line: 24
-    directive: typescript-expect-error
-    rules:
-      - typescript/type-error
-    owner: payments-sdk/core
-    reason: snapshots do not expose the internal reclassification decision; strict client compilation must reject this expression.
-    createdOn: 2026-10-22
-    expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-READ-MODEL-026
-    path: packages/payments-core/test/features/payment-evidence/read-models.types.ts
-    line: 26
-    directive: typescript-expect-error
-    rules:
-      - typescript/type-error
-    owner: payments-sdk/core
-    reason: operation diagnostic attempts are readonly snapshots; strict client compilation must reject this expression.
-    createdOn: 2026-10-22
-    expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-READ-MODEL-028
-    path: packages/payments-core/test/features/payment-evidence/read-models.types.ts
-    line: 28
-    directive: typescript-expect-error
-    rules:
-      - typescript/type-error
-    owner: payments-sdk/core
-    reason: nested operation observations are readonly snapshots too; strict client compilation must reject this expression.
-    createdOn: 2026-10-22
-    expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-READ-MODEL-030
-    path: packages/payments-core/test/features/payment-evidence/read-models.types.ts
-    line: 30
-    directive: typescript-expect-error
-    rules:
-      - typescript/type-error
-    owner: payments-sdk/core
-    reason: selection clients never receive storage table/read-set tuples; strict client compilation must reject this expression.
-    createdOn: 2026-10-22
-    expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-READ-MODEL-032
-    path: packages/payments-core/test/features/payment-evidence/read-models.types.ts
-    line: 32
-    directive: typescript-expect-error
-    rules:
-      - typescript/type-error
-    owner: payments-sdk/core
-    reason: selection commands carry an opaque version instead of storage records; strict client compilation must reject this expression.
-    createdOn: 2026-10-22
-    expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-READ-MODEL-034
-    path: packages/payments-core/test/features/payment-evidence/read-models.types.ts
-    line: 34
-    directive: typescript-expect-error
-    rules:
-      - typescript/type-error
-    owner: payments-sdk/core
-    reason: a version is opaque text, not a typed storage row; strict client compilation must reject this expression.
-    createdOn: 2026-10-22
-    expiresOn: 2027-01-19
-    decisionRef: docs/feature-module-adoption.md#negative-contract-tests
-  - id: NEGATIVE-READ-MODEL-036
-    path: packages/payments-core/test/features/payment-evidence/read-models.types.ts
-    line: 36
-    directive: typescript-expect-error
-    rules:
-      - typescript/type-error
-    owner: payments-sdk/core
-    reason: published intent references cannot be changed through a client read; strict client compilation must reject this expression.
+    reason: a replacement read port may not strengthen buyer preconditions This is an intentional
+      strict-compiler rejection witness.
+    owner: payments-sdk/observation
     createdOn: 2026-10-22
     expiresOn: 2027-01-19
     decisionRef: docs/feature-module-adoption.md#negative-contract-tests

@@ -2,7 +2,7 @@
 
 ## Ownership and dependency direction
 
-The SDK owns technical payment operations and evidence. It does not become the application's commercial subscription model, credit ledger or usage meter. Its core-owned [contracts](../packages/payments-core/src/contracts.ts) are provider-neutral. Outward runtime calls use consumer-shaped ports; their source dependencies still point inward.
+The SDK owns technical payment operations and evidence. It does not become the application's commercial subscription model, credit ledger or usage meter. Its core-owned [contracts](../packages/payments-core/src/index.ts) are provider-neutral. Outward runtime calls use consumer-shaped ports; their source dependencies still point inward.
 
 ```mermaid
 flowchart TD
@@ -135,7 +135,7 @@ Verified webhooks retain original bytes and authentication context. Authenticate
 ## Provider observation vocabulary
 
 `payments-core` owns the canonical interpreted observation tokens in
-[`vocabulary.ts`](../packages/payments-core/src/vocabulary.ts). The historical
+[`vocabulary.ts`](../packages/payments-core/src/features/payment-evidence/domain/vocabulary.ts). The historical
 serialized spellings of transaction origins, subscription statuses/scheduled
 actions and adjustment actions/statuses remain the durable protocol. An adapter
 maps its supported provider vocabulary into these meanings before admission;
@@ -182,7 +182,7 @@ The current published integration uses Core/Assembly `0.7.0`, Resources
 [current upstream record](upstream-qualification.md#october-21-published-get-modular-adoption)
 binds official archives and passing installed consumers on Linux ARM64 Node
 `24.22.1` and `26.12.1` with PostgreSQL `18`. Adoption is scoped to this technical
-adapter; full application FMS is not adopted. Its Observation contract
+adapter; the [full FMS profile](feature-module-adoption.md) covers every SDK production package without exemptions. Its Observation contract
 reports an escalated active load while the original close awaits physical read
 settlement and cleanup; abandoning an observer wait does not release its
 borrowed runtime or pool. The earlier train and its qualification remain

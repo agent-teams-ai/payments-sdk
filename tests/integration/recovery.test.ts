@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import { canonicalJson, digest } from '@agent-teams/payments-core';
-import type { EvidenceMessage, PaymentOperation, PurchaseIntent, SubscriptionBinding } from '@agent-teams/payments-core';
+import type { EvidenceMessage } from '@agent-teams/payments-core';
+import type { PaymentOperation, PurchaseIntent, SubscriptionBinding } from '@agent-teams/payments-core/store';
 import {
   createPostgresPaymentRecovery, PaymentRecoveryBlockedError, PaymentRecoveryConflictError, recoveryCheckpointDigest,
 } from '@agent-teams/payments-postgres';

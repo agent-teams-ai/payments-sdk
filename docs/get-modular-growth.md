@@ -16,7 +16,7 @@ passed on Linux ARM64 Node `24.22.1` and `26.12.1` with PostgreSQL `18`. The
 [October 20 artifact record](../qualification/observation/published-artifacts-2026-10-20.json)
 preserves the previous qualified published train. The
 [consumer adoption record](get-modular-adoption.md) defines the narrower local
-`scoped-active` adapter scope; full application FMS is not adopted.
+composition scope. The later owner-approved [full FMS adoption](feature-module-adoption.md) covers every SDK production package and supersedes the former SDK deferral. Large-graph compiler qualification remains upstream-owned.
 
 ## What is already useful
 

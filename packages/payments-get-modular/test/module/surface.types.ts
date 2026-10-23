@@ -1,4 +1,4 @@
-import type { PaymentsCheckout, PaymentsRead, PaymentsProcessing, PaymentsModule } from '../../dist/index.js';
+import type { PaymentsCheckout, PaymentsRead, PaymentsProcessing, PaymentsModule } from '../../src/index.ts';
 
 /** Compile-time consumer boundary; intentionally never invoked by runtime tests. */
 export function readFacetDoesNotCarryCommands(read: PaymentsRead, checkout: PaymentsCheckout, module: PaymentsModule): void {
@@ -36,13 +36,13 @@ export async function publicReadModels(read: PaymentsRead): Promise<void> {
   const purchase = await read.readPurchase('buyer', 'intent');
   if (purchase !== undefined) {
     // @ts-expect-error intent custody does not escape through the read facet
-    purchase.intent.transactionRefs.push('extra');
+    purchase.intent.transactionRefs[0] = 'extra';
     const transaction = purchase.transactions[0];
     if (transaction !== undefined) {
       // @ts-expect-error aggregate publication work stays private
-      void transaction.publications;
+      void transaction.publicationRequired;
       // @ts-expect-error public evidence flags cannot mutate owner state
-      transaction.flags.push('duplicate_initial_purchase');
+      transaction.flags[0] = 'duplicate_initial_purchase';
     }
   }
   const selection = await read.readSubscriptionSelection('buyer', 'binding', 'subscription');

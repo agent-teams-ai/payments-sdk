@@ -5,11 +5,11 @@ import { createPaymentReconciler, createPayments, digest, money } from '@agent-t
 import type { EvidenceMessage, OfferSnapshot, PaymentScope, CheckoutReady, VerifiedInput } from '@agent-teams/payments-core';
 import type { PaymentProvider, ProviderResult } from '@agent-teams/payments-core/provider';
 import type { PaymentStore } from '@agent-teams/payments-core/store';
-import { createNodePostgresPaymentDatabase } from '../../../../dist/node-postgres.js';
-import { createPaymentSqlExecutor } from '../../../../dist/features/payment-custody/adapters/database.js';
-import { createPgBossPaymentTransport } from '../../../../dist/job-transport.js';
-import { createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema, PaymentJobHandlerError } from '../../../../dist/index.js';
-import type { PaymentPostgresDatabase, PaymentSqlRow } from '../../../../dist/index.js';
+import { createNodePostgresPaymentDatabase } from '../../../../src/node-postgres.ts';
+import { createPaymentSqlExecutor } from '../../../../src/features/payment-custody/adapters/database.ts';
+import { createPgBossPaymentTransport } from '../../../../src/job-transport.ts';
+import { createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema, PaymentJobHandlerError } from '../../../../src/index.ts';
+import type { PaymentPostgresDatabase, PaymentSqlRow } from '../../../../src/index.ts';
 import { paymentBossFixture } from './pg-boss-fixture.ts';
 import assert from 'node:assert/strict';
 

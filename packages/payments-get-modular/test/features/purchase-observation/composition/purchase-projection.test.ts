@@ -10,8 +10,8 @@ import {
   purchaseProjectionModule, purchaseProjectionDeclaration, purchaseReadInput, purchaseReadDeclaration,
   projectionConfigurationInput, projectionConfigurationDeclaration,
   type PurchaseObservationCapabilities, type PurchaseProjectionState,
-} from '../../../../dist/observation/index.js';
-import { fixture } from '../../../module/fixtures.ts';
+} from '../../../../src/observation/index.ts';
+import { fixture } from '../../payment-runtime/composition/fixtures.ts';
 
 void test('the optional projection has independent declared read/configuration wiring and independent run inputs', async () => {
   let calls = 0;
@@ -32,7 +32,7 @@ void test('the optional projection has independent declared read/configuration w
   assert.equal(calls, 0, 'preparation cannot execute the borrowed reader');
   const first = createScope({ name: 'projection-first' }), second = createScope({ name: 'projection-second' });
   const input = (buyerId: string) => ({
-    reader: { [PurchaseReader.id]: { readPurchase: async () => { calls += 1; return undefined; } } },
+    reader: { [PurchaseReader.id]: { readPurchase: async (): Promise<PurchaseRead | undefined> => { calls += 1; return undefined; } } },
     configuration: { [ProjectionConfiguration.id]: { initialQuery: { buyerId, intentId: 'intent' }, reportError: (): undefined => {} } },
   });
   try {
@@ -80,7 +80,8 @@ void test('the finite view copies borrowed nested values, catches read/watch gap
     const before = projection.view.read(['state']);
     await settled();
     assert.equal(states.length, 0, 'no subscriber or initial callback is installed implicitly');
-    assert.equal(projection.view.watch(before, { resources: owner.resources, name: 'catch-up', onChange: ({ values }) => { states.push(values.state); } }), undefined);
+    const watch: (...args: Parameters<typeof projection.view.watch>) => unknown = projection.view.watch;
+    assert.equal(watch(before, { resources: owner.resources, name: 'catch-up', onChange: ({ values }) => { assert.ok(values.state !== undefined); states.push(values.state); } }), undefined);
     assert.equal(states.length, 0, 'watch registration is synchronous and notification is deferred');
     await delivered();
     const ready = projection.view.read(['state']).values.state;
@@ -92,7 +93,7 @@ void test('the finite view copies borrowed nested values, catches read/watch gap
     assert.notEqual(ready.purchase.intent.offer, borrowed.intent.offer);
     assert.ok(Object.isFrozen(ready.purchase.intent.offer.lines));
     assert.ok(Object.isFrozen(ready.purchase.transactions[0]?.pendingAdverse));
-    assert.deepEqual(Object.keys(ready.purchase.intent).sort(), ['buyerId', 'createdAt', 'intentId', 'offer']);
+    assert.deepEqual(Object.keys(ready.purchase.intent).toSorted(), ['buyerId', 'createdAt', 'intentId', 'offer']);
     assert.equal('observations' in (ready.purchase.transactions[0] ?? {}), false);
     assert.equal('adjustments' in (ready.purchase.transactions[0] ?? {}), false);
     assert.equal(calls, 1);
@@ -107,7 +108,8 @@ void test('the finite view copies borrowed nested values, catches read/watch gap
     projection.commands.refresh();
     await settled();
     assert.equal(projection.view.read(['state']).values.state.status, 'ready');
-    projection.commands.select(undefined);
+    const clearQuery = undefined;
+    projection.commands.select(clearQuery);
     assert.deepEqual(projection.view.read(['state']).values.state, { status: 'idle' });
     projection.commands.refresh();
     await settled();

@@ -58,7 +58,13 @@ boundaries:
       runtimeReferences: []
   - id: payments.postgres
     roots:
-      - packages/payments-postgres/src
+      - packages/payments-postgres/src/index.ts
+      - packages/payments-postgres/src/job-transport.ts
+      - packages/payments-postgres/src/node-postgres.ts
+      - packages/payments-postgres/src/pg-boss-declarations.ts
+      - packages/payments-postgres/src/testing.ts
+      - packages/payments-postgres/src/features/payment-custody/composition
+      - packages/payments-postgres/src/features/payment-custody/testing
     entrypoints:
       - packages/payments-postgres/src/index.ts
       - packages/payments-postgres/src/job-transport.ts
@@ -72,6 +78,7 @@ boundaries:
     allow:
       boundaries:
         - payments.core
+        - payments.postgres.implementation
       packages:
         - "@agent-teams/payments-core"
         - pg
@@ -81,6 +88,34 @@ boundaries:
         - node:crypto
         - node:assert/strict
         - node:net
+      runtimeReferences: []
+  # Private implementation entrypoints are reachable only by this adapter's facades and owner tests.
+  - id: payments.postgres.implementation
+    roots:
+      - packages/payments-postgres/src/features/payment-custody/adapters
+    entrypoints:
+      - packages/payments-postgres/src/features/payment-custody/adapters/database.ts
+      - packages/payments-postgres/src/features/payment-custody/adapters/migrations.ts
+      - packages/payments-postgres/src/features/payment-custody/adapters/store.ts
+      - packages/payments-postgres/src/features/payment-custody/adapters/recovery.ts
+      - packages/payments-postgres/src/features/payment-custody/adapters/work-transport.ts
+      - packages/payments-postgres/src/features/payment-custody/adapters/jobs.ts
+      - packages/payments-postgres/src/features/payment-custody/adapters/pg-boss-declarations.ts
+      - packages/payments-postgres/src/features/payment-custody/adapters/job-transport.ts
+      - packages/payments-postgres/src/features/payment-custody/adapters/node-postgres.ts
+      - packages/payments-postgres/src/features/payment-custody/adapters/records.ts
+      - packages/payments-postgres/src/features/payment-custody/adapters/schema.ts
+    packageExports: []
+    allow:
+      boundaries:
+        - payments.core
+      packages:
+        - "@agent-teams/payments-core"
+        - pg
+        - pg-boss
+        - drizzle-orm
+      builtins:
+        - node:crypto
       runtimeReferences: []
   - id: payments.get-modular
     roots:
@@ -168,6 +203,7 @@ boundaries:
       boundaries:
         - payments.core
         - payments.postgres
+        - payments.postgres.implementation
       packages:
         - "@agent-teams/payments-core"
         - pg
@@ -212,6 +248,7 @@ boundaries:
         - node:child_process
         - node:crypto
         - node:events
+        - node:fs
         - node:fs/promises
         - node:module
         - node:net

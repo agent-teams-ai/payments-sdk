@@ -5,7 +5,9 @@ import type { FeatureProfile } from './check-feature-modules.ts';
 import { repository } from './package-artifacts.ts';
 
 const [moduleId, featureId, role, sourceFile] = process.argv.slice(2);
-assert.ok(moduleId && featureId && role && sourceFile, 'Usage: pnpm architecture:features:plan <module-id> <feature-id> <role> <authored-source.ts>');
+assert.ok(moduleId !== undefined && moduleId !== '' && featureId !== undefined && featureId !== ''
+  && role !== undefined && role !== '' && sourceFile !== undefined && sourceFile !== '',
+'Usage: pnpm architecture:features:plan <module-id> <feature-id> <role> <authored-source.ts>');
 assert.match(featureId, /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u, 'Use a stable kebab-case feature name');
 assert.ok(['domain', 'application', 'adapters', 'composition', 'testing'].includes(role), 'Choose the first meaningful owned role');
 assert.ok(sourceFile.endsWith('.ts'), 'Provide an authored TypeScript source file');

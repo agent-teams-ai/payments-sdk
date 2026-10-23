@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createPaymentReconciler, digest, nextReconciliationWindow, type PaymentScope, type ReconciliationPage, type ReconciliationQuery, type ReconciliationSource, type VerifiedInput } from '../../../dist/index.js';
-import { MemoryPaymentStore } from '../../../dist/memory.js';
+import { createPaymentReconciler, digest, nextReconciliationWindow, type PaymentScope, type ReconciliationPage, type ReconciliationQuery, type ReconciliationSource, type VerifiedInput } from '../../../src/index.ts';
+import { MemoryPaymentStore } from '../../../src/memory.ts';
 
 const scope: PaymentScope = { applicationId: 'app', provider: 'fixture', paymentAccountId: 'account', environment: 'sandbox' };
 const query: ReconciliationQuery = { kind: 'events', from: '2026-01-01T00:00:00Z', to: '2026-01-02T00:00:00Z', eventType: 'transaction.updated', queryVersion: 'events/1', perPage: 2, purpose: 'catch_up' };

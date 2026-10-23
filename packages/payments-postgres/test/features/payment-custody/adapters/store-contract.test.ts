@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { PaymentOperation, OperationCommit } from '@agent-teams/payments-core/store';
-import { at, databaseFixture, offer, scope } from '../../../../dist/testing.js';
+import { at, databaseFixture, offer, scope } from '../../../../src/testing.ts';
 
 void test('every command identity field is independently guarded before an operation CAS can change custody', async () => {
   const f = await databaseFixture();

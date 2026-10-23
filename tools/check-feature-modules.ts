@@ -8,6 +8,7 @@ import { observeSourceGraph } from '@agent-teams/engineering-foundation/source-g
 import { API } from 'typescript/unstable/sync';
 import * as ts from 'typescript/unstable/ast';
 import { repository } from './package-artifacts.ts';
+import { checkInnerEffects } from './feature-effects.ts';
 
 export type FeatureProfile = Readonly<{
   schemaVersion: number; status: string;
@@ -41,11 +42,12 @@ function assertPortable(path: string): void {
   assert.ok(path !== '' && !path.startsWith('/') && !path.includes('\\') && path.split('/').every(part => part !== '.' && part !== '..' && part !== ''), `Invalid profile path: ${path}`);
 }
 
-async function checkFacade(root: string, paths: readonly string[], allowed: readonly string[]): Promise<void> {
-  const graph = await observeSourceGraph({ consumerRoot: root, roots: paths });
+async function checkFacade(root: string, sourceRoot: string, paths: readonly string[], allowed: readonly string[]): Promise<void> {
+  const graph = await observeSourceGraph({ consumerRoot: root, roots: [sourceRoot] });
   assert.deepEqual(graph.parseFailures, [], 'Facade source graph is incomplete');
-  assert.deepEqual(graph.unresolved, [], 'Facade target cannot be resolved');
-  assert.deepEqual(graph.unresolvedRuntimeReferences, [], 'Computed facade loading is not supported');
+  assert.deepEqual(graph.unresolved.filter(edge => paths.includes(edge.from)), [], 'Facade target cannot be resolved');
+  assert.deepEqual(graph.unresolvedRuntimeReferences.filter(edge => paths.includes(edge.from)), [], 'Computed facade loading is not supported');
+  assert.deepEqual(graph.external.filter(edge => paths.includes(edge.from)), [], 'Module facades may forward only owned feature surfaces');
   const api = new API({ cwd: root });
   try {
     using snapshot = api.updateSnapshot({ openFiles: paths.map(path => join(root, path)) });
@@ -60,7 +62,7 @@ async function checkFacade(root: string, paths: readonly string[], allowed: read
       }
     }
   } finally { api.close(); }
-  for (const edge of graph.edges) {
+  for (const edge of graph.edges.filter(item => paths.includes(item.from))) {
     assert.ok(allowed.includes(edge.to), `Facade bypasses an owned curated feature surface: ${edge.from} -> ${edge.to}`);
   }
 }
@@ -95,10 +97,23 @@ async function checkModule(root: string, module: FeatureProfile['modules'][numbe
     assert.ok(module.moduleAssembly.includes(file) || module.features.some(feature => within(file, feature.root)), `Source outside declared feature ownership: ${file}`);
   }
   const manifest = JSON.parse(await readFile(join(root, module.root, 'package.json'), 'utf8')) as { exports: Record<string, { types: string; import: string }> };
-  const exported = Object.values(manifest.exports).map(target => `${module.sourceRoot}/${target.import.replace(/^\.\/dist\//u, '').replace(/\.js$/u, '.ts')}`).toSorted();
+  const exported = Object.values(manifest.exports).map(target => {
+    assert.deepEqual(Object.keys(target).toSorted(), ['import', 'types'], `${module.id}: exports must use the supported ESM and declaration conditions`);
+    assert.match(target.import, /^\.\/dist\/.+\.js$/u, `${module.id}: invalid runtime export target`);
+    assert.match(target.types, /^\.\/dist\/.+\.d\.ts$/u, `${module.id}: invalid declaration export target`);
+    const runtime = target.import.replace(/^\.\/dist\//u, '').replace(/\.js$/u, '.ts');
+    const declaration = target.types.replace(/^\.\/dist\//u, '').replace(/\.d\.ts$/u, '.ts');
+    assertPortable(runtime); assertPortable(declaration);
+    assert.equal(declaration, runtime, `${module.id}: runtime and declaration exports must reach the same curated facade`);
+    return `${module.sourceRoot}/${runtime}`;
+  }).toSorted();
   assert.deepEqual(exported, [...module.publicEntrypoints].toSorted(), `${module.id}: public manifest targets differ from the declared entrypoints`);
+  for (const path of module.publicEntrypoints) {
+    assert.ok(module.moduleAssembly.includes(path), `${module.id}: public export must use a declared module facade: ${path}`);
+  }
   const curated = Object.values(module.surfaces).flat();
-  await checkFacade(root, module.moduleAssembly, curated);
+  await checkFacade(root, module.sourceRoot, module.moduleAssembly, curated);
+  await checkInnerEffects(root, module);
   const testRoots: string[] = [];
   for (const testRoot of module.testRoots) {
     const testTree = await entries(root, testRoot);
