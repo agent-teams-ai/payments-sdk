@@ -68,17 +68,27 @@ export async function createNodeHttpHost(options: PaymentRuntimeOptions, verify:
       outgoing.writeHead(response.status, Object.fromEntries(response.headers)); outgoing.end(Buffer.from(await response.arrayBuffer()));
     } catch { outgoing.writeHead(500).end(); }
   }
-  const server = createServer((incoming, outgoing) => {
+  const server = createServer({ requestTimeout: 15_000, headersTimeout: 10_000, connectionsCheckingInterval: 1_000 }, (incoming, outgoing) => {
     void respond(incoming, outgoing).catch((error: unknown) => {
       outgoing.destroy(error instanceof Error ? error : new Error('HTTP response failed', { cause: error }));
     });
   });
   await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
   const address = server.address(); if (address === null || typeof address === 'string') {throw new Error('Expected TCP listener');}
-  return { payments, url: `http://127.0.0.1:${address.port}`, async close() {
-    await new Promise<void>((resolve, reject) => {
-      server.close(error => { if (error) { reject(error); } else { resolve(); } });
-    });
-    payments.stop(); await payments.drain();
-  } };
+  let closing: Promise<void> | undefined;
+  const close = (): Promise<void> => {
+    closing ??= (async () => {
+      const errors: unknown[] = [];
+      try {
+        await new Promise<void>((resolve, reject) => {
+          server.close(error => {if (error) {reject(error);} else {resolve();}});
+        });
+      } catch (error) {errors.push(error);}
+      try {payments.stop();} catch (error) {errors.push(error);}
+      try {await payments.drain();} catch (error) {errors.push(error);}
+      if (errors.length !== 0) {throw new AggregateError(errors, 'Node payment host cleanup failed');}
+    })().catch((error: unknown) => {closing = undefined; throw error;});
+    return closing;
+  };
+  return { payments, url: `http://127.0.0.1:${address.port}`, close };
 }

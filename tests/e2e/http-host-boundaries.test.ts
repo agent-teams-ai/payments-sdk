@@ -116,7 +116,7 @@ await test('a failed worker stop still admits both drains and concurrent callers
   });
   const first = close();
   assert.equal(close(), first);
-  const rejected = assert.rejects(first, (error: unknown) => error instanceof PaymentHostCloseError && error.errors[0] === stopFailure && error.report === drained).then(() => {completed = true;});
+  const rejected = assert.rejects(first, (error: unknown) => error instanceof PaymentHostCloseError && error.errors[0] === stopFailure && error.report === drained).then(() => {completed = true; return undefined;});
   await Promise.all([jobsEntered.promise, coreEntered.promise]);
   jobsReleased.resolve();
   await Promise.resolve();

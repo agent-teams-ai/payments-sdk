@@ -47,17 +47,20 @@ export async function readPaymentBody(request: Request, limits: PaymentBodyLimit
   const reader = request.body.getReader();
   const bytes = new Uint8Array(maximum);
   let size = 0, fragments = 0;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  let abort: (() => void) | undefined;
-  const stopped = new Promise<never>((_resolve, reject) => {
-    abort = () => reject(new PaymentBodyError(408, 'Request aborted'));
-    request.signal.addEventListener('abort', abort, { once: true });
-    timer = setTimeout(() => reject(new PaymentBodyError(408, 'Body read deadline exceeded')), timeout);
-    if (request.signal.aborted) {abort();}
-  });
+  let interrupted: PaymentBodyError | undefined;
+  const interrupt = (error: PaymentBodyError) => {
+    interrupted ??= error;
+    // Cancelling a reader settles pending reads even when the source's cancellation hangs.
+    void reader.cancel(error).catch(() => {});
+  };
+  const abort = () => {interrupt(new PaymentBodyError(408, 'Request aborted'));};
+  request.signal.addEventListener('abort', abort, { once: true });
+  const timer = setTimeout(() => {interrupt(new PaymentBodyError(408, 'Body read deadline exceeded'));}, timeout);
+  if (request.signal.aborted) {abort();}
   try {
     for (;;) {
-      const item = await Promise.race([reader.read(), stopped]);
+      const item = await reader.read();
+      if (interrupted !== undefined) {throw interrupted;}
       if (item.done) {break;}
       fragments += 1;
       if (fragments > maximum + 1) {throw new PaymentBodyError(413, 'Too many body fragments');}
@@ -75,8 +78,8 @@ export async function readPaymentBody(request: Request, limits: PaymentBodyLimit
     if (error instanceof PaymentBodyError) {throw error;}
     throw new PaymentBodyError(400, 'Unreadable request body', error);
   } finally {
-    if (timer !== undefined) {clearTimeout(timer);}
-    if (abort !== undefined) {request.signal.removeEventListener('abort', abort);}
+    clearTimeout(timer);
+    request.signal.removeEventListener('abort', abort);
     reader.releaseLock();
   }
 }

@@ -40,7 +40,11 @@ export function createPaymentHostCloser(payments: PaymentLifetime, jobs: JobLife
 
 /** Preserve the original construction failure as well as every failed cleanup. */
 export async function failPaymentHostStartup(error: unknown, close: () => Promise<PaymentJobStopResult>): Promise<never> {
+  let cleanupFailure: { error: unknown } | undefined;
   try {await close();}
-  catch (cleanup) {throw new AggregateError([error, cleanup], 'Payment host startup and cleanup failed', { cause: error });}
+  catch (cleanup) {cleanupFailure = { error: cleanup };}
+  if (cleanupFailure !== undefined) {
+    throw new AggregateError([error, cleanupFailure.error], 'Payment host startup and cleanup failed', { cause: error });
+  }
   throw error;
 }
