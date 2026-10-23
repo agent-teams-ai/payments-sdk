@@ -3,12 +3,14 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import { Pool } from 'pg';
 import { canonicalJson, createPayments, digest } from '@agent-teams/payments-core';
-import type { EvidenceMessage, OfferSnapshot, PaymentOperation, PaymentProvider, PaymentScope, PaymentStore, VerifiedInput } from '@agent-teams/payments-core';
+import type { EvidenceMessage, OfferSnapshot, PaymentScope, VerifiedInput } from '@agent-teams/payments-core';
+import type { PaymentOperation, PaymentStore } from '@agent-teams/payments-core/store';
+import type { PaymentProvider } from '@agent-teams/payments-core/provider';
 import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
 import { createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema, PaymentDatabaseError } from '@agent-teams/payments-postgres';
 import { CreditFixture } from '../fixtures/consumers/index.ts';
 import type { Effect } from '../fixtures/consumers/index.ts';
-import { postgresFaultProxy } from '../../packages/payments-postgres/test/fault-proxy.ts';
+import { postgresFaultProxy } from '@agent-teams/payments-postgres/testing';
 import { sqlWakeupFixture } from './queue-transport-fixture.ts';
 
 const scope: PaymentScope = { applicationId: 'queue-contract', provider: 'fixture', paymentAccountId: 'merchant', environment: 'sandbox' };

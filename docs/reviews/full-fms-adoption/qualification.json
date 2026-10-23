@@ -1,0 +1,416 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-23T01:19:03.018148+00:00",
+  "subject": {
+    "localCommit": "40b37351e3b3d40587a2a5aa7f1f4699682a9660",
+    "publishedCommit": "8732e38bf66d427668ae8976ad9d1982b9a76ce4",
+    "tree": "d871e8f08bafe42f494e17568c4424630231c314",
+    "repository": "agent-teams-ai/payments-sdk",
+    "pr": 10,
+    "cleanAtRunStart": true,
+    "authorLogin": "777genius",
+    "committerLogin": "777genius"
+  },
+  "toolchain": {
+    "platform": "linux",
+    "arch": "x64",
+    "pnpm": "11.25.0",
+    "typescript": "7.0.2",
+    "postgresql": "18.4",
+    "drizzle": "1.0.0-rc.5"
+  },
+  "localFullChecks": [
+    {
+      "node": "24.22.1",
+      "command": "pnpm check",
+      "exitCode": 0,
+      "logName": "payments-full-check-node24-final.log",
+      "logSha256": "6991d12cd97ac0ae8806625b2f2f24483dfe975edeb487525f58a0a12efed49b",
+      "logScope": "Retained session log; accessible source-bound hosted PR CI is linked separately."
+    },
+    {
+      "node": "26.12.1",
+      "command": "pnpm check",
+      "exitCode": 0,
+      "logName": "payments-full-check-node26-reviewed-final.log",
+      "logSha256": "48c13cec5d828a7393623230f76d86e6a839618500c2144a149155dc451e5154",
+      "logScope": "Retained session log; accessible source-bound hosted PR CI is linked separately."
+    }
+  ],
+  "perCommandPassingTests": {
+    "publishedModularAdoption": 16,
+    "toolingBoundaries": 49,
+    "coreAndReconciliation": 58,
+    "paddleSDK": 18,
+    "modularComposition": 15,
+    "postgresAndQueue": 52,
+    "connectedE2E": 81,
+    "packedObservation": 4,
+    "installedAlternateQueue": 4,
+    "installedFinancialAndPgBoss": 2
+  },
+  "countLimit": "Per command, not unique scenarios; boundary route also reaches adoption cases. Compiler, lint, artifact and release gates are not counted as tests.",
+  "hosted": {
+    "runId": 39881560719,
+    "url": "https://github.com/agent-teams-ai/payments-sdk/actions/runs/39881560719",
+    "event": "pull_request",
+    "headSHA": "8732e38bf66d427668ae8976ad9d1982b9a76ce4",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 120179863593,
+        "name": "build",
+        "conclusion": "success",
+        "startedAt": "2026-10-23T01:01:12Z",
+        "completedAt": "2026-10-23T01:01:40Z"
+      },
+      {
+        "id": 120180032396,
+        "name": "quality",
+        "conclusion": "success",
+        "startedAt": "2026-10-23T01:01:43Z",
+        "completedAt": "2026-10-23T01:03:16Z"
+      },
+      {
+        "id": 120180032409,
+        "name": "scenarios (24.22.1)",
+        "conclusion": "success",
+        "startedAt": "2026-10-23T01:01:43Z",
+        "completedAt": "2026-10-23T01:03:38Z"
+      },
+      {
+        "id": 120180032437,
+        "name": "scenarios (26.12.1)",
+        "conclusion": "success",
+        "startedAt": "2026-10-23T01:01:43Z",
+        "completedAt": "2026-10-23T01:04:11Z"
+      },
+      {
+        "id": 120180841518,
+        "name": "Required checks",
+        "conclusion": "success",
+        "startedAt": "2026-10-23T01:04:14Z",
+        "completedAt": "2026-10-23T01:04:17Z"
+      }
+    ],
+    "runAttempt": 1,
+    "testedCheckout": {
+      "kind": "synthetic-pull-request-merge",
+      "sha": "815ee0671f3d1e26fef7447d8b0fb91e03dd6c84",
+      "tree": "d871e8f08bafe42f494e17568c4424630231c314",
+      "parents": [
+        "dcfadb0c199e69654b0aa25280f1b2a828b6d04f",
+        "8732e38bf66d427668ae8976ad9d1982b9a76ce4"
+      ],
+      "treeEqualsPublishedSource": true,
+      "verification": "Actual build/scenario checkout logs and independently read Git commit/tree/parents."
+    }
+  },
+  "packages": [
+    {
+      "filename": "agent-teams-payments-core-0.4.0.tgz",
+      "sha256": "a081b59cf9180e1ee0fcf2bd3b0ccc48db4ee774088282781b3c3acca856e563"
+    },
+    {
+      "filename": "agent-teams-payments-get-modular-0.4.0.tgz",
+      "sha256": "3212dab88e5f4ad60bb8485f1d6425841767d515193a02a85620d70eabc70d2b"
+    },
+    {
+      "filename": "agent-teams-payments-paddle-0.4.0.tgz",
+      "sha256": "b04e41726b3ca2e37ea2d179c39b5eaf502fafb9314b179dd584a1d039e41044"
+    },
+    {
+      "filename": "agent-teams-payments-postgres-0.4.0.tgz",
+      "sha256": "f655e992425d3090adc28c32b85fb6aa99d5d1133082ce8682ea052dc89fc279"
+    }
+  ],
+  "consumerProfiles": [
+    {
+      "node": "24.22.1",
+      "observation": {
+        "status": "passed",
+        "manifestSha256": "6f6190afcfcee4d0fec1d9bbba210b12fc678ded4777e0664aba406517fee5ea",
+        "paymentsArtifacts": [
+          {
+            "name": "@agent-teams/payments-core",
+            "sha256": "a081b59cf9180e1ee0fcf2bd3b0ccc48db4ee774088282781b3c3acca856e563"
+          },
+          {
+            "name": "@agent-teams/payments-paddle",
+            "sha256": "b04e41726b3ca2e37ea2d179c39b5eaf502fafb9314b179dd584a1d039e41044"
+          },
+          {
+            "name": "@agent-teams/payments-postgres",
+            "sha256": "f655e992425d3090adc28c32b85fb6aa99d5d1133082ce8682ea052dc89fc279"
+          },
+          {
+            "name": "@agent-teams/payments-get-modular",
+            "sha256": "3212dab88e5f4ad60bb8485f1d6425841767d515193a02a85620d70eabc70d2b"
+          }
+        ],
+        "resolvers": [
+          {
+            "resolution": "NodeNext",
+            "strict": true,
+            "exactOptionalPropertyTypes": true,
+            "noUncheckedIndexedAccess": true,
+            "skipLibCheck": false,
+            "passed": true
+          },
+          {
+            "resolution": "Bundler",
+            "strict": true,
+            "exactOptionalPropertyTypes": true,
+            "noUncheckedIndexedAccess": true,
+            "skipLibCheck": false,
+            "passed": true
+          }
+        ]
+      },
+      "installedConsumers": [
+        {
+          "profile": "packed-postgres-root",
+          "resultSha256": "81b926935b6d02ae99f48dcaa2d4a63e39efe45ba7db2cbc343f4cf603e7dde6",
+          "status": "passed",
+          "resolvers": [
+            {
+              "resolution": "NodeNext",
+              "strict": true,
+              "exactOptionalPropertyTypes": true,
+              "noUncheckedIndexedAccess": true,
+              "skipLibCheck": false,
+              "pgBossDeclarationsReachable": false,
+              "listFilesSha256": "b7456e4c2851d86195eaba3f29c3bafec8d8c3ba61b5504b265d61adb3fef2f8",
+              "passed": true
+            },
+            {
+              "resolution": "Bundler",
+              "strict": true,
+              "exactOptionalPropertyTypes": true,
+              "noUncheckedIndexedAccess": true,
+              "skipLibCheck": false,
+              "pgBossDeclarationsReachable": false,
+              "listFilesSha256": "b7456e4c2851d86195eaba3f29c3bafec8d8c3ba61b5504b265d61adb3fef2f8",
+              "passed": true
+            }
+          ],
+          "paymentsArtifacts": null,
+          "drizzle": null
+        },
+        {
+          "profile": "packed-queue",
+          "resultSha256": "7604df9c8228800302b6d8719d7ca8154fc462e73b8b8ef0feff616b0daf5dd6",
+          "status": "passed",
+          "resolvers": [
+            {
+              "resolution": "NodeNext",
+              "strict": true,
+              "exactOptionalPropertyTypes": true,
+              "noUncheckedIndexedAccess": true,
+              "skipLibCheck": false,
+              "pgBossDeclarationsReachable": false,
+              "listFilesSha256": "72524b998349d67680ca4f81ab9306a67b1111b3f7629aec087add67650943eb",
+              "passed": true
+            },
+            {
+              "resolution": "Bundler",
+              "strict": true,
+              "exactOptionalPropertyTypes": true,
+              "noUncheckedIndexedAccess": true,
+              "skipLibCheck": false,
+              "pgBossDeclarationsReachable": false,
+              "listFilesSha256": "72524b998349d67680ca4f81ab9306a67b1111b3f7629aec087add67650943eb",
+              "passed": true
+            }
+          ],
+          "paymentsArtifacts": null,
+          "drizzle": null
+        },
+        {
+          "profile": "packed-npm",
+          "resultSha256": "f358c9c07eb7b5f1db5c43a5a034cdd0ca3314b87b735c52173365376da2d9d2",
+          "status": "passed",
+          "resolvers": [
+            {
+              "resolution": "NodeNext",
+              "strict": true,
+              "exactOptionalPropertyTypes": true,
+              "noUncheckedIndexedAccess": true,
+              "skipLibCheck": false,
+              "ormDeclarationsReachable": false,
+              "listFilesSha256": "97d78c30b7536b837ef9fce2d4d72e50eb0ca0307100400fce8ed26551fa657a",
+              "passed": true
+            },
+            {
+              "resolution": "Bundler",
+              "strict": true,
+              "exactOptionalPropertyTypes": true,
+              "noUncheckedIndexedAccess": true,
+              "skipLibCheck": false,
+              "ormDeclarationsReachable": false,
+              "listFilesSha256": "97d78c30b7536b837ef9fce2d4d72e50eb0ca0307100400fce8ed26551fa657a",
+              "passed": true
+            }
+          ],
+          "paymentsArtifacts": null,
+          "drizzle": {
+            "version": "1.0.0-rc.5",
+            "integrity": "sha512-7BMYTsAZbQ9DcQCtLG4G202Hq6nc/e8o1EBKN6nBweRI8EGPFe/VdyvWQCsU9fuZSiRjNpELolUSi//JFBq+lw==",
+            "manifestSha256": "d08d970eb29814190456591dfe1225e81214512158359ecdcc9b3c01c32ba559",
+            "correctedDeclarationTargetsUnpatched": 8,
+            "declarationFilesUnpatched": 1782,
+            "declarationManifestSha256": "f45653b465c0601494898c8db1504cf46e841e605c6ff2404926bb1fc93627de",
+            "runtimeFiles": 1783,
+            "runtimeManifestSha256": "b36cfce07b077a924614367f1bee5ed89477145af7dd7085d71d74c2caa6a99a"
+          }
+        }
+      ]
+    },
+    {
+      "node": "26.12.1",
+      "observation": {
+        "status": "passed",
+        "manifestSha256": "6f6190afcfcee4d0fec1d9bbba210b12fc678ded4777e0664aba406517fee5ea",
+        "paymentsArtifacts": [
+          {
+            "name": "@agent-teams/payments-core",
+            "sha256": "a081b59cf9180e1ee0fcf2bd3b0ccc48db4ee774088282781b3c3acca856e563"
+          },
+          {
+            "name": "@agent-teams/payments-paddle",
+            "sha256": "b04e41726b3ca2e37ea2d179c39b5eaf502fafb9314b179dd584a1d039e41044"
+          },
+          {
+            "name": "@agent-teams/payments-postgres",
+            "sha256": "f655e992425d3090adc28c32b85fb6aa99d5d1133082ce8682ea052dc89fc279"
+          },
+          {
+            "name": "@agent-teams/payments-get-modular",
+            "sha256": "3212dab88e5f4ad60bb8485f1d6425841767d515193a02a85620d70eabc70d2b"
+          }
+        ],
+        "resolvers": [
+          {
+            "resolution": "NodeNext",
+            "strict": true,
+            "exactOptionalPropertyTypes": true,
+            "noUncheckedIndexedAccess": true,
+            "skipLibCheck": false,
+            "passed": true
+          },
+          {
+            "resolution": "Bundler",
+            "strict": true,
+            "exactOptionalPropertyTypes": true,
+            "noUncheckedIndexedAccess": true,
+            "skipLibCheck": false,
+            "passed": true
+          }
+        ]
+      },
+      "installedConsumers": [
+        {
+          "profile": "packed-postgres-root",
+          "resultSha256": "b528d5b6e99595fe9f036f8e8f7c2e3b73b2cf9a859984fdf6385fb820dab678",
+          "status": "passed",
+          "resolvers": [
+            {
+              "resolution": "NodeNext",
+              "strict": true,
+              "exactOptionalPropertyTypes": true,
+              "noUncheckedIndexedAccess": true,
+              "skipLibCheck": false,
+              "pgBossDeclarationsReachable": false,
+              "listFilesSha256": "822bb6278bf795035e4b7c657d6594d8b77bc1393aa9fc0315cb68a31118184b",
+              "passed": true
+            },
+            {
+              "resolution": "Bundler",
+              "strict": true,
+              "exactOptionalPropertyTypes": true,
+              "noUncheckedIndexedAccess": true,
+              "skipLibCheck": false,
+              "pgBossDeclarationsReachable": false,
+              "listFilesSha256": "822bb6278bf795035e4b7c657d6594d8b77bc1393aa9fc0315cb68a31118184b",
+              "passed": true
+            }
+          ],
+          "paymentsArtifacts": null,
+          "drizzle": null
+        },
+        {
+          "profile": "packed-queue",
+          "resultSha256": "5b49b2ff206fb5fb73386ce3cadba6fd87904e60a52ea11ca62e45fe605c3060",
+          "status": "passed",
+          "resolvers": [
+            {
+              "resolution": "NodeNext",
+              "strict": true,
+              "exactOptionalPropertyTypes": true,
+              "noUncheckedIndexedAccess": true,
+              "skipLibCheck": false,
+              "pgBossDeclarationsReachable": false,
+              "listFilesSha256": "d188498a47baffa0babc41af09e0cc53a753122ab7e5374ca7ded9b9d2a13c4b",
+              "passed": true
+            },
+            {
+              "resolution": "Bundler",
+              "strict": true,
+              "exactOptionalPropertyTypes": true,
+              "noUncheckedIndexedAccess": true,
+              "skipLibCheck": false,
+              "pgBossDeclarationsReachable": false,
+              "listFilesSha256": "d188498a47baffa0babc41af09e0cc53a753122ab7e5374ca7ded9b9d2a13c4b",
+              "passed": true
+            }
+          ],
+          "paymentsArtifacts": null,
+          "drizzle": null
+        },
+        {
+          "profile": "packed-npm",
+          "resultSha256": "e61775d92e30e8a07a63372293b1e13770c070d84b29f10dba50ed7a3641137b",
+          "status": "passed",
+          "resolvers": [
+            {
+              "resolution": "NodeNext",
+              "strict": true,
+              "exactOptionalPropertyTypes": true,
+              "noUncheckedIndexedAccess": true,
+              "skipLibCheck": false,
+              "ormDeclarationsReachable": false,
+              "listFilesSha256": "3a9ae9f9989b3dc6d00744038c359b2df2296ad7a3b09bf9df70dd7f8d8419e0",
+              "passed": true
+            },
+            {
+              "resolution": "Bundler",
+              "strict": true,
+              "exactOptionalPropertyTypes": true,
+              "noUncheckedIndexedAccess": true,
+              "skipLibCheck": false,
+              "ormDeclarationsReachable": false,
+              "listFilesSha256": "3a9ae9f9989b3dc6d00744038c359b2df2296ad7a3b09bf9df70dd7f8d8419e0",
+              "passed": true
+            }
+          ],
+          "paymentsArtifacts": null,
+          "drizzle": {
+            "version": "1.0.0-rc.5",
+            "integrity": "sha512-7BMYTsAZbQ9DcQCtLG4G202Hq6nc/e8o1EBKN6nBweRI8EGPFe/VdyvWQCsU9fuZSiRjNpELolUSi//JFBq+lw==",
+            "manifestSha256": "d08d970eb29814190456591dfe1225e81214512158359ecdcc9b3c01c32ba559",
+            "correctedDeclarationTargetsUnpatched": 8,
+            "declarationFilesUnpatched": 1782,
+            "declarationManifestSha256": "f45653b465c0601494898c8db1504cf46e841e605c6ff2404926bb1fc93627de",
+            "runtimeFiles": 1783,
+            "runtimeManifestSha256": "b36cfce07b077a924614367f1bee5ed89477145af7dd7085d71d74c2caa6a99a"
+          }
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Exact subject only; later heads require their own actual hosted checks.",
+    "Central protected identity/admission activation pending.",
+    "No main-push release qualification, npm publication, real Paddle credentials/payment, production ledger or deployment/restore/HA admission."
+  ]
+}

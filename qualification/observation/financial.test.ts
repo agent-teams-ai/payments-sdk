@@ -6,7 +6,7 @@ import { smoke } from '@get-modular/conformance';
 import type { ListenerError } from '@get-modular/observation';
 import { delivered, liveSubscriptions, settled } from '@get-modular/observation/testing';
 import { CreditFixture } from '../../tests/fixtures/consumers/index.ts';
-import { fixturePeriod, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '../../packages/payments-paddle/test/fixtures.ts';
+import { fixturePeriod, paddleIds, responseFixture, subscriptionFixture, transactionFixture } from '@agent-teams/payments-paddle/testing';
 import { deliver, durableWorld, emulatePaddle, producerNamespace, scope, success } from './test-support.ts';
 import { PurchaseReader, ProjectionConfiguration, ProjectionRenderer, purchaseObservationGroup, purchaseProjectionModule, purchaseProjectionDisplayModule, purchaseProjectionDisplayDeclaration, purchaseReadInput, projectionConfigurationInput, projectionRendererInput } from '@agent-teams/payments-get-modular/observation';
 import type { PurchaseObservationCapabilities, PurchaseProjectionState, PurchaseReadPort } from '@agent-teams/payments-get-modular/observation';
@@ -97,7 +97,7 @@ void test('packed payments and installed observation: absent, failing and closed
     assert.equal(Object.isFrozen(readyA.purchase.intent), true);
     assert.equal(Object.isFrozen(readyA.purchase.transactions), true);
     originalQuery.intentId = 'caller-mutation-after-selection';
-    borrowed.intent.buyerId = 'caller-mutation-after-read';
+    assert.equal(Reflect.set(borrowed.intent, 'buyerId', 'caller-mutation-after-read'), true);
     assert.equal(readyA.query.intentId, initial.intentId, 'selection keeps its own copied query');
     assert.equal(readyA.purchase.intent.buyerId, 'buyer-a', 'the frozen view owns a detached copy of the borrowed result');
     assert.ok(screensA.some(state => state.status === 'ready'));

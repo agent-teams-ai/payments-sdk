@@ -1,0 +1,267 @@
+{
+  "schemaVersion": 1,
+  "status": "adopted",
+  "owner": "payments-sdk/architecture",
+  "standard": {
+    "id": "agent-teams.feature-module-standard",
+    "version": "v1.1",
+    "repository": "agent-teams-ai/.github",
+    "commit": "1b17053bc92766742fec2329ee153171395e658e",
+    "path": "docs/architecture/feature-module-standard/v1.1.md",
+    "digest": "sha256:cfa088ef7396139554fe5e3bcc839271b23299c6b60c569a3a7f1cd7c9f0bc6c"
+  },
+  "architectureDocument": "docs/feature-module-adoption.md",
+  "decision": "docs/feature-module-adoption.md#decision",
+  "decisionRecords": [
+    "docs/feature-module-adoption.md#decision"
+  ],
+  "productionRoots": [
+    "packages"
+  ],
+  "applicationRoots": [],
+  "excludedRoots": [],
+  "topology": {
+    "sourcePolicy": "architecture/foundation/source-dependencies.yaml"
+  },
+  "enforcementCommands": [
+    "pnpm architecture:features:check",
+    "pnpm quality:coverage:scope",
+    "pnpm lint",
+    "pnpm foundation:check",
+    "pnpm test:boundaries",
+    "pnpm check"
+  ],
+  "extensions": [],
+  "deviations": [],
+  "modules": [
+    {
+      "id": "payments-core",
+      "packageName": "@agent-teams/payments-core",
+      "root": "packages/payments-core",
+      "sourceRoot": "packages/payments-core/src",
+      "role": "sdk",
+      "testRoots": [
+        "packages/payments-core/test"
+      ],
+      "publicEntrypoints": [
+        "packages/payments-core/src/index.ts",
+        "packages/payments-core/src/memory.ts",
+        "packages/payments-core/src/store.ts",
+        "packages/payments-core/src/provider.ts"
+      ],
+      "moduleAssembly": [
+        "packages/payments-core/src/index.ts",
+        "packages/payments-core/src/memory.ts",
+        "packages/payments-core/src/store.ts",
+        "packages/payments-core/src/provider.ts"
+      ],
+      "features": [
+        {
+          "id": "payment-evidence",
+          "root": "packages/payments-core/src/features/payment-evidence",
+          "layers": [
+            {
+              "root": "packages/payments-core/src/features/payment-evidence/domain",
+              "role": "domain"
+            },
+            {
+              "root": "packages/payments-core/src/features/payment-evidence/application",
+              "role": "application"
+            },
+            {
+              "root": "packages/payments-core/src/features/payment-evidence/testing",
+              "role": "testing"
+            },
+            {
+              "root": "packages/payments-core/src/features/payment-evidence/composition",
+              "role": "composition"
+            }
+          ]
+        }
+      ],
+      "surfaces": {
+        "public": [
+          "packages/payments-core/src/features/payment-evidence/composition/public.ts",
+          "packages/payments-core/src/features/payment-evidence/composition/store.ts",
+          "packages/payments-core/src/features/payment-evidence/composition/provider.ts",
+          "packages/payments-core/src/features/payment-evidence/testing/public.ts"
+        ],
+        "testing": [
+          "packages/payments-core/src/features/payment-evidence/testing/public.ts"
+        ]
+      },
+      "useEdges": [],
+      "exceptions": [],
+      "generatedRoots": []
+    },
+    {
+      "id": "payments-paddle",
+      "packageName": "@agent-teams/payments-paddle",
+      "root": "packages/payments-paddle",
+      "sourceRoot": "packages/payments-paddle/src",
+      "role": "integration",
+      "testRoots": [
+        "packages/payments-paddle/test"
+      ],
+      "publicEntrypoints": [
+        "packages/payments-paddle/src/index.ts",
+        "packages/payments-paddle/src/testing.ts"
+      ],
+      "moduleAssembly": [
+        "packages/payments-paddle/src/index.ts",
+        "packages/payments-paddle/src/testing.ts"
+      ],
+      "features": [
+        {
+          "id": "paddle-integration",
+          "root": "packages/payments-paddle/src/features/paddle-integration",
+          "layers": [
+            {
+              "root": "packages/payments-paddle/src/features/paddle-integration/adapters",
+              "role": "adapters"
+            },
+            {
+              "root": "packages/payments-paddle/src/features/paddle-integration/composition",
+              "role": "composition"
+            },
+            {
+              "root": "packages/payments-paddle/src/features/paddle-integration/testing",
+              "role": "testing"
+            }
+          ]
+        }
+      ],
+      "surfaces": {
+        "public": [
+          "packages/payments-paddle/src/features/paddle-integration/composition/index.ts",
+          "packages/payments-paddle/src/features/paddle-integration/testing/public.ts"
+        ],
+        "testing": [
+          "packages/payments-paddle/src/features/paddle-integration/testing/public.ts"
+        ]
+      },
+      "useEdges": [],
+      "exceptions": [],
+      "generatedRoots": []
+    },
+    {
+      "id": "payments-postgres",
+      "packageName": "@agent-teams/payments-postgres",
+      "root": "packages/payments-postgres",
+      "sourceRoot": "packages/payments-postgres/src",
+      "role": "platform",
+      "testRoots": [
+        "packages/payments-postgres/test"
+      ],
+      "publicEntrypoints": [
+        "packages/payments-postgres/src/index.ts",
+        "packages/payments-postgres/src/job-transport.ts",
+        "packages/payments-postgres/src/node-postgres.ts",
+        "packages/payments-postgres/src/testing.ts"
+      ],
+      "moduleAssembly": [
+        "packages/payments-postgres/src/index.ts",
+        "packages/payments-postgres/src/job-transport.ts",
+        "packages/payments-postgres/src/node-postgres.ts",
+        "packages/payments-postgres/src/pg-boss-declarations.ts",
+        "packages/payments-postgres/src/testing.ts"
+      ],
+      "features": [
+        {
+          "id": "payment-custody",
+          "root": "packages/payments-postgres/src/features/payment-custody",
+          "layers": [
+            {
+              "root": "packages/payments-postgres/src/features/payment-custody/adapters",
+              "role": "adapters"
+            },
+            {
+              "root": "packages/payments-postgres/src/features/payment-custody/composition",
+              "role": "composition"
+            },
+            {
+              "root": "packages/payments-postgres/src/features/payment-custody/testing",
+              "role": "testing"
+            }
+          ]
+        }
+      ],
+      "surfaces": {
+        "public": [
+          "packages/payments-postgres/src/features/payment-custody/composition/index.ts",
+          "packages/payments-postgres/src/features/payment-custody/composition/job-transport.ts",
+          "packages/payments-postgres/src/features/payment-custody/composition/node-postgres.ts",
+          "packages/payments-postgres/src/features/payment-custody/composition/pg-boss-declarations.ts",
+          "packages/payments-postgres/src/features/payment-custody/testing/public.ts"
+        ],
+        "testing": [
+          "packages/payments-postgres/src/features/payment-custody/testing/public.ts"
+        ]
+      },
+      "useEdges": [],
+      "exceptions": [],
+      "generatedRoots": []
+    },
+    {
+      "id": "payments-get-modular",
+      "packageName": "@agent-teams/payments-get-modular",
+      "root": "packages/payments-get-modular",
+      "sourceRoot": "packages/payments-get-modular/src",
+      "role": "integration",
+      "testRoots": [
+        "packages/payments-get-modular/test"
+      ],
+      "publicEntrypoints": [
+        "packages/payments-get-modular/src/index.ts",
+        "packages/payments-get-modular/src/observation/index.ts"
+      ],
+      "moduleAssembly": [
+        "packages/payments-get-modular/src/index.ts",
+        "packages/payments-get-modular/src/observation/index.ts"
+      ],
+      "features": [
+        {
+          "id": "payment-runtime",
+          "root": "packages/payments-get-modular/src/features/payment-runtime",
+          "layers": [
+            {
+              "root": "packages/payments-get-modular/src/features/payment-runtime/application",
+              "role": "application"
+            },
+            {
+              "root": "packages/payments-get-modular/src/features/payment-runtime/composition",
+              "role": "composition"
+            }
+          ]
+        },
+        {
+          "id": "purchase-observation",
+          "root": "packages/payments-get-modular/src/features/purchase-observation",
+          "layers": [
+            {
+              "root": "packages/payments-get-modular/src/features/purchase-observation/application",
+              "role": "application"
+            },
+            {
+              "root": "packages/payments-get-modular/src/features/purchase-observation/composition",
+              "role": "composition"
+            }
+          ]
+        }
+      ],
+      "surfaces": {
+        "compositionContract": [
+          "packages/payments-get-modular/src/features/payment-runtime/composition/payment-runtime.contracts.ts",
+          "packages/payments-get-modular/src/features/purchase-observation/composition/purchase-observation.contracts.ts"
+        ],
+        "public": [
+          "packages/payments-get-modular/src/features/payment-runtime/composition/public.ts",
+          "packages/payments-get-modular/src/features/purchase-observation/composition/public.ts"
+        ]
+      },
+      "useEdges": [],
+      "exceptions": [],
+      "generatedRoots": []
+    }
+  ]
+}

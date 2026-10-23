@@ -2,7 +2,8 @@
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createPayments } from '@agent-teams/payments-core';
-import type { PaymentRuntimeOptions, Payments, ProviderResult, VerifiedInput } from '@agent-teams/payments-core';
+import type { PaymentRuntimeOptions, Payments, VerifiedInput } from '@agent-teams/payments-core';
+import type { ProviderResult } from '@agent-teams/payments-core/provider';
 
 export type WebhookVerifier = (body: Uint8Array, signature: string) => Promise<ProviderResult<VerifiedInput>>;
 export type HostedPayments = Pick<Payments, 'startPurchase' | 'readPurchase' | 'readObservedSubscription' | 'refreshPurchase' | 'refreshSubscription' | 'ingestVerifiedInput' | 'processInbox' | 'flushPublication' | 'repair' | 'registerConsumer' | 'readDeliveries' | 'acknowledgeDelivery' | 'requestCancellation' | 'openPaymentUpdate' | 'createManagementLink'>;

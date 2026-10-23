@@ -91,7 +91,7 @@ export async function qualifyNpmConsumer(target: string, packages: readonly Cons
 
   // Reuse the existing independently asserted 225-credit/renewed-access/lost-ACK scenario.
   // Only fixture owners and test inputs are copied; every SDK operation uses its installed export.
-  for (const path of ['qualification/observation/financial.test.ts', 'qualification/observation/test-support.ts', 'tests/fixtures/consumers', 'packages/payments-paddle/test/fixtures.ts', 'qualification/queue/pg-boss.test.ts']) {
+  for (const path of ['qualification/observation/financial.test.ts', 'qualification/observation/test-support.ts', 'tests/fixtures/consumers', 'qualification/queue/pg-boss.test.ts']) {
     await cp(join(repository, path), join(target, path), { recursive: true });
   }
   const source = packages.flatMap(item => item.entrypoints).map((specifier, index) => `import * as api${index} from '${specifier}';\nvoid api${index};`).join('\n');
@@ -104,7 +104,7 @@ export async function qualifyNpmConsumer(target: string, packages: readonly Cons
       module: resolution === 'Bundler' ? 'ESNext' : 'NodeNext', moduleResolution: resolution,
       strict: true, exactOptionalPropertyTypes: true, noUncheckedIndexedAccess: true, skipLibCheck: false,
       noEmit: true, allowImportingTsExtensions: true, types: ['node'],
-    }, include: ['index.ts', 'qualification/observation/*.ts', 'qualification/queue/*.ts', 'tests/fixtures/consumers/*.ts', 'packages/payments-paddle/test/fixtures.ts'] }));
+    }, include: ['index.ts', 'qualification/observation/*.ts', 'qualification/queue/*.ts', 'tests/fixtures/consumers/*.ts'] }));
     const files = await command(process.execPath, [compiler, '-p', 'tsconfig.json', '--listFiles'], target);
     const paths = files.trim().split('\n');
     assert.ok(paths.includes(join(target, 'index.ts')), 'The actual all-export consumer must appear in the compiler file graph');
@@ -164,7 +164,7 @@ export async function qualifyNpmQueueConsumer(target: string, packages: readonly
   for (const require of [createRequire(join(target, 'package.json')), createRequire(join(target, 'node_modules/@agent-teams/payments-postgres/package.json'))]) {
     for (const absent of ['pg-boss', '@agent-teams/engineering-foundation', 'node-or-bun', ...(withNodePostgres ? [] : ['pg', '@types/pg'])]) {assert.throws(() => require.resolve(absent), { code: 'MODULE_NOT_FOUND' });}
   }
-  for (const path of withNodePostgres ? ['tests/e2e/queue-transport.test.ts', 'tests/e2e/queue-transport-fixture.ts', 'tests/fixtures/consumers', 'packages/payments-postgres/test/fault-proxy.ts'] : []) {
+  for (const path of withNodePostgres ? ['tests/e2e/queue-transport.test.ts', 'tests/e2e/queue-transport-fixture.ts', 'tests/fixtures/consumers'] : []) {
     await cp(join(repository, path), join(target, path), { recursive: true });
   }
   await writeFile(join(target, 'index.ts'), "import * as api from '@agent-teams/payments-postgres';\nvoid api;\n");
@@ -174,7 +174,7 @@ export async function qualifyNpmQueueConsumer(target: string, packages: readonly
       target: 'ES2024', lib: ['ES2024', 'DOM'], module: resolution === 'Bundler' ? 'ESNext' : 'NodeNext', moduleResolution: resolution,
       strict: true, exactOptionalPropertyTypes: true, noUncheckedIndexedAccess: true, skipLibCheck: false,
       noEmit: true, allowImportingTsExtensions: true, types: withNodePostgres ? ['node'] : [],
-    }, include: withNodePostgres ? ['index.ts', 'tests/e2e/queue-transport*.ts', 'tests/fixtures/consumers/*.ts', 'packages/payments-postgres/test/fault-proxy.ts'] : ['index.ts'] }));
+    }, include: withNodePostgres ? ['index.ts', 'tests/e2e/queue-transport*.ts', 'tests/fixtures/consumers/*.ts'] : ['index.ts'] }));
     const files = await command(process.execPath, [compiler, '-p', 'tsconfig.json', '--listFiles'], target);
     for (const path of files.trim().split('\n')) {
       if (!withNodePostgres) {assert.equal(/(?:^|[/\\])(?:pg|@types[/\\]pg)(?:[/\\]|$)/u.test(path), false, `Driver declarations leaked through the root export: ${path}`);}

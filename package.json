@@ -10,10 +10,10 @@
     "pnpm": ">=11.25.0 <12"
   },
   "scripts": {
-    "build": "tsc -b",
-    "typecheck": "tsc -b && tsc -p tsconfig.checks.json",
+    "build": "node tools/build.ts",
+    "typecheck": "pnpm build && pnpm typecheck:checks",
     "toolchain:check": "node tools/toolchain.ts",
-    "lint": "oxlint --config .oxlintrc.json packages tests tools examples qualification",
+    "lint": "pnpm lint:production && pnpm lint:development",
     "foundation:check": "agent-teams-foundation check",
     "foundation:status": "agent-teams-foundation status",
     "foundation:attach": "agent-teams-foundation attach",
@@ -32,12 +32,18 @@
     "test:packed:npm": "node tools/packed-consumers.ts npm",
     "test:drizzle:admission": "node tools/qualify-drizzle.ts",
     "release:dry-run": "node tools/release-dry-run.ts",
-    "check:fast": "pnpm toolchain:check && pnpm typecheck && pnpm lint && pnpm foundation:check && pnpm test:modular:adoption",
-    "check": "pnpm check:fast && pnpm test:runtime-security && pnpm foundation:assert-dev-only && pnpm foundation:assert-registry && pnpm test:boundaries && pnpm test:drizzle:admission && pnpm test:core && pnpm test:paddle && pnpm test:modular && pnpm test:postgres && pnpm test:e2e && pnpm test:observation && pnpm test:packed && pnpm test:packed:npm && pnpm release:dry-run",
-    "test:observation": "node tools/qualify-observation.ts"
+    "check:fast": "pnpm toolchain:check && pnpm typecheck && pnpm architecture:features:check && pnpm quality:coverage:scope && pnpm foundation:check",
+    "check": "pnpm check:fast && pnpm lint && pnpm test:runtime-security && pnpm foundation:assert-dev-only && pnpm foundation:assert-registry && pnpm test:boundaries && pnpm test:drizzle:admission && pnpm test:core && pnpm test:paddle && pnpm test:modular && pnpm test:postgres && pnpm test:e2e && pnpm test:observation && pnpm test:packed && pnpm test:packed:npm && pnpm release:dry-run",
+    "test:observation": "node tools/qualify-observation.ts",
+    "architecture:features:check": "node tools/check-feature-modules.ts && pnpm test:modular:adoption",
+    "architecture:features:plan": "node tools/plan-feature.ts",
+    "quality:coverage:scope": "agent-teams-foundation quality check --consumer . --scope-only",
+    "lint:production": "agent-teams-foundation quality check --consumer .",
+    "lint:development": "oxlint --config .oxlintrc.development.json packages/*/test tools tests examples qualification",
+    "typecheck:checks": "tsc -p tsconfig.checks.json"
   },
   "devDependencies": {
-    "@agent-teams/engineering-foundation": "1.10.1",
+    "@agent-teams/engineering-foundation": "2.1.1",
     "@agent-teams/payments-core": "workspace:*",
     "@agent-teams/payments-paddle": "workspace:*",
     "@agent-teams/payments-postgres": "workspace:*",
@@ -55,6 +61,8 @@
     "node-or-bun": "catalog:",
     "typescript": "catalog:",
     "undici": "catalog:",
-    "yaml": "catalog:"
-  }
+    "yaml": "catalog:",
+    "@agent-teams/feature-module-standard": "0.2.3"
+  },
+  "repositoryAdmission": 1
 }

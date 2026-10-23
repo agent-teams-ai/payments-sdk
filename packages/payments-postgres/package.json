@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/payments-postgres",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Durable PostgreSQL payment custody, worker contracts and optional pg-boss transport for the Agent Teams payments SDK",
   "type": "module",
   "license": "Apache-2.0",
@@ -24,11 +24,15 @@
     "./node-postgres": {
       "types": "./dist/node-postgres.d.ts",
       "import": "./dist/node-postgres.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
     }
   },
   "sideEffects": false,
   "dependencies": {
-    "@agent-teams/payments-core": "workspace:^",
+    "@agent-teams/payments-core": "workspace:*",
     "drizzle-orm": "catalog:"
   },
   "devDependencies": {

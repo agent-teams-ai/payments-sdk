@@ -1,17 +1,17 @@
 {
   "name": "drizzle-orm",
-  "version": "1.0.0-rc.5-5935859",
-  "status": "official prerelease snapshot with declaration-only maintainer correction",
-  "channel": "rc5",
-  "registry": "https://registry.npmjs.org/drizzle-orm/1.0.0-rc.5-5935859",
-  "tarball": "https://registry.npmjs.org/drizzle-orm/-/drizzle-orm-1.0.0-rc.5-5935859.tgz",
-  "integrity": "sha512-PkVjyxhamD7IOVfpDMn3BmV9afyvj3eeLvIPind3NmPv+cfv6/jh6GN0fHP0zzgrprGx/jGE4mkE0ttRFlzHwA==",
-  "sourceCommit": "59358596b5be6a79f9cc1a2a20d39d276f6ab4b5",
-  "publishedAt": "2026-09-09T10:25:53.776Z",
-  "retrievedAt": "2026-10-20",
+  "version": "1.0.0-rc.5",
+  "status": "official release candidate with declaration-only maintainer correction",
+  "channel": "rc",
+  "registry": "https://registry.npmjs.org/drizzle-orm/1.0.0-rc.5",
+  "tarball": "https://registry.npmjs.org/drizzle-orm/-/drizzle-orm-1.0.0-rc.5.tgz",
+  "integrity": "sha512-7BMYTsAZbQ9DcQCtLG4G202Hq6nc/e8o1EBKN6nBweRI8EGPFe/VdyvWQCsU9fuZSiRjNpELolUSi//JFBq+lw==",
+  "sourceCommit": "5d71fc408add08bd207f4753f4554578ec9e0640",
+  "publishedAt": "2026-10-21T17:59:58.381Z",
+  "retrievedAt": "2026-10-22",
   "typescript": "7.0.2",
   "patch": {
-    "path": "patches/drizzle-orm@1.0.0-rc.5-5935859.patch",
+    "path": "patches/drizzle-orm@1.0.0-rc.5.patch",
     "sha256": "c0ac842c102d0e7a339e79a1676c02fa0dd803a11f6cc82e4b42007c8e153efb",
     "files": [
       {
@@ -23,8 +23,8 @@
           "using",
           "withCheck"
         ],
-        "originalSha256": "afefa089118a9a916fb396b09580a6664bbeda37d21fcc5486597277b648b05b",
-        "patchedSha256": "bc7ac0281412ea91c255f26ae3268c69a81928d06d6d2b551bb46a388a8ed761"
+        "originalSha256": "5ac56fdcdd9b5eb87b8bcc5f2126e50dec0e7e976caf1b1b6a07a49b83587e3b",
+        "patchedSha256": "f484fd1b3dc3d8d55370f21644fcb10c9e4c63e8c816bed9b5fece5a1a4f2ad1"
       },
       {
         "path": "cockroach-core/policies.d.ts",
@@ -35,8 +35,8 @@
           "using",
           "withCheck"
         ],
-        "originalSha256": "e8a96a0b24a0e17d55c0c661abbf2befab6ef96c604fb71e99965eb8b3316a4a",
-        "patchedSha256": "8c28fcd71d519ad5ebc4b76aea4421db422f3631d85b9ff1efd87f9852426ea4"
+        "originalSha256": "6ba1f687798b873da1275f44f7a1ee6f040a0cab3a68b1984eb3cffec56ab004",
+        "patchedSha256": "b87fb922a2de9238457d0ebcd40e69a1dbe0cb08853edbd5a9626d3db60d8edb"
       },
       {
         "path": "cockroach-core/roles.d.cts",
@@ -44,8 +44,8 @@
           "createDb",
           "createRole"
         ],
-        "originalSha256": "0caab04f8b891aee8335d9e5770d1db89ef7622f7bace95d81ea638488424e49",
-        "patchedSha256": "05de43891b5dc0304dcde0d21f66e1470ee8bc23968dbdc445f8ab0c88d1c183"
+        "originalSha256": "e599ca07603f43c4aec71462b67d7c3e7de033563f51737ef5fe450a3007109f",
+        "patchedSha256": "44ec740193419a8688ef9f73f839b2fee0e3b578b91adeac8ae78a655d4273ed"
       },
       {
         "path": "cockroach-core/roles.d.ts",
@@ -53,8 +53,8 @@
           "createDb",
           "createRole"
         ],
-        "originalSha256": "96db4e0d7a120a1ddf3ae9a578d6aef230155c4367e6ac3a6b67cbaf8e270b4c",
-        "patchedSha256": "a836c1f32287e6f9286ac60c8b1fac57def2f75439de1e802778530c96c36b80"
+        "originalSha256": "59d610e7c49bb527008cba3a4f00d654949557f349c3904e240e6c1707b657cf",
+        "patchedSha256": "a0b7169e58e9bd91c9156fd6264f9213465c1b590d3aa7dcf73557734ee97bec"
       },
       {
         "path": "pg-core/policies.d.cts",
@@ -65,8 +65,8 @@
           "using",
           "withCheck"
         ],
-        "originalSha256": "dc07e1af25bbc34fb758b2e8f18b05658c418b476c2005be2e0390fa2431df36",
-        "patchedSha256": "d05123e7b0f71128e63999aaa190693ae225449763c61aef7b0db4876294e08a"
+        "originalSha256": "bbede913c042479b1fde32f3aba21293241d86b2cc1f1ed05b918702dc9f9546",
+        "patchedSha256": "0ee827b9716e234bcb3141e4e58490c94d840b2b2de3742c1c7fc4a1b6ebf71b"
       },
       {
         "path": "pg-core/policies.d.ts",
@@ -77,8 +77,8 @@
           "using",
           "withCheck"
         ],
-        "originalSha256": "44a234f5b9cb4a151c94da9b9745a0d680aed3767b68a1a756a70fdfa56df7a6",
-        "patchedSha256": "c81a92bf80ba4d8ff4e9c60818052ea8f4b67fbdb3b8e69c95e3b511ee276bc7"
+        "originalSha256": "adbdec0762f170c76bd0e9576f71efae58a32082906a318e98e55e03959868e1",
+        "patchedSha256": "7ef72c8dea30a944d4d61cf7890feb428f373fc7044d91ce50e81fd73de3cd93"
       },
       {
         "path": "pg-core/roles.d.cts",
@@ -87,8 +87,8 @@
           "createRole",
           "inherit"
         ],
-        "originalSha256": "d368309134f88f64602643f554f2f277f765959f82a3b13f2a8e0a36465103c4",
-        "patchedSha256": "50f508662128015fbf58dbda7e851f7bb16e3e5be2984aec28b8fac08f90f078"
+        "originalSha256": "e5f0a99a56d9b7086498fb392716f69582bfff6d85053106d27f27af856e8c46",
+        "patchedSha256": "9e786c0b96a544828fd55e36b0ca51ecf7ae2309a7c152fc34b1186c5dfdc0c4"
       },
       {
         "path": "pg-core/roles.d.ts",
@@ -97,20 +97,25 @@
           "createRole",
           "inherit"
         ],
-        "originalSha256": "43e350a5b320d0b6b17366f9ddaef30a5b0ddf592fdc0e0c1fa176d0694773e5",
-        "patchedSha256": "3d00464b87e0e133ea7075e11efd32f5f9837f5efd05e1a688d0dc5ea66f5a98"
+        "originalSha256": "be087003112f00fe86879f7692c3d6b3aa84b9ed4436c981d4b8413f8d382967",
+        "patchedSha256": "4a530d44ecbe7fc7f530f3a65dc81447de03320856cab932bcbf5291904a5831"
       }
     ]
   },
   "runtime": {
-    "files": 1743,
-    "sha256Manifest": "b55c1e931df5efbcae510e60fd12b6018b75fa13b5f0431286fb67195ef10292",
+    "files": 1783,
+    "sha256Manifest": "b36cfce07b077a924614367f1bee5ed89477145af7dd7085d71d74c2caa6a99a",
     "manifestEncoding": "sorted relative .js/.cjs path, TAB, lowercase SHA256, LF"
   },
-  "packageJsonSha256": "a0c98fa732cd389f5b4d983390cfb3fc47d797f0f4651b5c511dea8f6dfe7e1a",
+  "packageJsonSha256": "d08d970eb29814190456591dfe1225e81214512158359ecdcc9b3c01c32ba559",
   "declaration": {
-    "files": 1742,
-    "sha256Manifest": "9ec1dfc99dc72ef18ec08b114ecb54f19858985def6c6d576ad4f2384b3ac1f4",
+    "files": 1782,
+    "sha256Manifest": "f45653b465c0601494898c8db1504cf46e841e605c6ff2404926bb1fc93627de",
     "manifestEncoding": "sorted relative .d.ts/.d.cts path, TAB, lowercase SHA256, LF"
+  },
+  "provenance": {
+    "predicateType": "https://slsa.dev/provenance/v1",
+    "source": "https://registry.npmjs.org/-/npm/v1/attestations/drizzle-orm@1.0.0-rc.5",
+    "subjectSha512": "ec13184ec0196d0f437100ad2c6e06db4d87aba9dcfdef28d4404a37a9c1c1e448f0418f15efd5772bd6402b14f5fb994a246336910ba255128bffc9141abe97"
   }
 }

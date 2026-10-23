@@ -15,7 +15,7 @@ const files: string[] = [];
 for await (const file of glob(groups[name])) {files.push(file);}
 assert.ok(files.length > 0, `Required test group ${name} has no tests`);
 files.sort();
-const child = spawn(process.execPath, ['--test', ...files], { stdio: 'inherit', env: process.env });
+const child = spawn(process.execPath, ['--import', './tools/source-test-resolver.ts', '--test', ...files], { stdio: 'inherit', env: process.env });
 child.on('error', (error) => { throw error; });
 child.on('exit', (code, signal) => {
   if (signal) {process.kill(process.pid, signal);}
