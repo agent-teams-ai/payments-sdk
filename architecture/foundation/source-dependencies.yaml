@@ -295,6 +295,8 @@ boundaries:
     entrypoints:
       - examples/fetch-modular.ts
       - examples/node-http.ts
+      - examples/request-body.ts
+      - examples/host-lifecycle.ts
     allow:
       boundaries:
         - payments.core
