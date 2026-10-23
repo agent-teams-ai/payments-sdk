@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -14,9 +15,9 @@ const repository = resolve(import.meta.dirname, '../..');
 const profilePath = 'architecture/get-modular-consumer-profile.json';
 const sourcePolicyPath = 'architecture/foundation/source-dependencies.yaml';
 const standard = {
-  repository: 'agent-teams-ai/get-modular', commit: 'fe4a2fdc878b46feebaececa3b0172b4534be935',
-  path: 'docs/architecture/common-assembly.md', sha256: 'a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882',
-  guide: 'docs/guides/module-authoring.md', guideSha256: '8d9e6ced096c3259ec8d7a35a1ee3c2f15e5832ba23c95da57f8cfc4c8622cfd',
+  repository: 'agent-teams-ai/get-modular', commit: 'b70ba39304ac71964175c42a77309406a7c30ca2',
+  path: 'docs/architecture/common-assembly.md', sha256: '11a389b223506dc303fa986a7a37350b847013d85beb2de9d74cb8c97363e824',
+  guide: 'docs/guides/module-authoring.md', guideSha256: '9bdbc6a6eac511691cf429c7e7e12b4cf4fd86ec16a348fb3af7a46c989af144',
 };
 type Authored = Record<string, Record<string, string[]>>;
 type Profile = {
@@ -204,5 +205,38 @@ void test('scoped adoption permits owner-local helpers and rejects meaningful dr
         await assert.rejects(check(root), message);
       } finally { await rm(root, { recursive: true, force: true }); }
     });
+  }
+});
+
+void test('unused conflicting descriptor fragments reject at the final interface', async context => {
+  const directory = await mkdtemp(join(tmpdir(), 'payments-descriptor-fragments-'));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  await writeFile(join(directory, 'package.json'), '{"type":"module"}\n');
+  await writeFile(join(directory, 'tsconfig.json'), JSON.stringify({ compilerOptions: {
+    target: 'ES2024', module: 'NodeNext', moduleResolution: 'NodeNext', strict: true,
+    skipLibCheck: false, noEmit: true, types: [],
+  }, files: ['fixture.ts'] }));
+  const imports = [
+    `import type { CapabilitiesOf, Contract } from ${JSON.stringify(join(repository, 'node_modules/@get-modular/assembly/dist/index.js'))};`,
+    `import type { Checkout, Read, PaymentsCapabilities } from ${JSON.stringify(join(repository, 'packages/payments-get-modular/dist/index.js'))};`,
+    'type PaymentContracts = typeof Checkout | typeof Read;',
+  ].join('\n');
+  const cases = [
+    { name: 'value', conflict: 'Contract<typeof Checkout.id, { readonly incompatible: true }, typeof Checkout.revision>' },
+    { name: 'revision metadata', conflict: "Contract<typeof Checkout.id, PaymentsCapabilities[typeof Checkout.id]['value'], 99>" },
+  ];
+  for (const scenario of cases) {
+    await writeFile(join(directory, 'fixture.ts'), `${imports}\n`
+      + `type Conflict = ${scenario.conflict};\n`
+      + 'interface Invalid extends CapabilitiesOf<PaymentContracts>, CapabilitiesOf<Conflict> {}\n');
+    const result = spawnSync(process.execPath, [join(repository, 'node_modules/typescript/bin/tsc'), '-p', join(directory, 'tsconfig.json'), '--pretty', 'false'], {
+      cwd: repository, encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024,
+    });
+    assert.equal(result.error, undefined, scenario.name);
+    assert.equal(result.signal, null, scenario.name);
+    assert.equal(result.status, 1, `${scenario.name}: ${result.stdout}${result.stderr}`);
+    assert.match(result.stdout, /error TS2320: Interface 'Invalid' cannot simultaneously extend types/u, scenario.name);
+    assert.match(result.stdout, /agent-teams\/payments\/checkout/u, scenario.name);
+    assert.equal((result.stdout.match(/error TS\d+:/gu) ?? []).length, 1, result.stdout);
   }
 });

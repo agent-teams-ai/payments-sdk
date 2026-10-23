@@ -32,14 +32,19 @@ tests; the main entry still imports without Observation installed.
 ## Reviewed authorities and actual artifacts
 
 The CMS and module-authoring guide were reviewed together at Get Modular
-[`fe4a2fdc878b46feebaececa3b0172b4534be935`](https://github.com/agent-teams-ai/get-modular/commit/fe4a2fdc878b46feebaececa3b0172b4534be935).
+[`b70ba39304ac71964175c42a77309406a7c30ca2`](https://github.com/agent-teams-ai/get-modular/commit/b70ba39304ac71964175c42a77309406a7c30ca2).
 The profile pins the complete CMS document SHA-256
-`a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882`
+`11a389b223506dc303fa986a7a37350b847013d85beb2de9d74cb8c97363e824`
 and guide SHA-256
-`8d9e6ced096c3259ec8d7a35a1ee3c2f15e5832ba23c95da57f8cfc4c8622cfd`.
-The reviewed delta adds report-and-await load shutdown guidance: escalation
-reports unresolved work while the original close keeps draining through physical
-settlement and finally cleanup. The module-authoring guide bytes are unchanged.
+`9bdbc6a6eac511691cf429c7e7e12b4cf4fd86ec16a348fb3af7a46c989af144`.
+The reviewed delta replaces direct feature-map inheritance with complete
+descriptor unions and separate `CapabilitiesOf` bases per source (ADR-0041).
+It preserves unused and transitive entries, full revision metadata and early
+conflict rejection. Custom maps with additional properties, signatures or
+map-level polymorphic `this` retain their existing complete interfaces.
+The shared mechanism stays in Assembly; Payments adds only a conformance example
+using its actual descriptors, without a new local type framework or public API.
+The earlier report-and-await shutdown obligations remain in force.
 The profile accepts the repaired published artifacts and exact catalog/lock pins.
 The isolated packed consumer passed on Linux ARM64 Node `24.22.1` and `26.12.1`
 with PostgreSQL `18`, strict NodeNext/Bundler and identical four SDK archives.
@@ -117,6 +122,17 @@ observes real declaration/module imports and use-case exports. FMS separately
 owns curated facades, source census, dependency direction and mirrored feature
 tests. These checks do not infer financial policy or establish runtime behavior;
 semantic ownership and lifecycle guarantees retain their scenarios and review.
+
+The test-only [descriptor fragment example](../packages/payments-get-modular/test/module/descriptor-fragments.test.ts)
+combines unions of the actual payment and observation descriptors through a
+separate `CapabilitiesOf<SourceContracts>` clause per source. The strict test
+project proves that the final concrete map retains every existing key and the
+complete capability entry, including revision metadata. The ordinary adoption
+test gate also requires TS2320 for an unused conflicting value or revision at
+the final interface. The existing six-descriptor production maps already use
+concrete descriptor unions and need no runtime or public API change. This
+recipe concerns descriptor-derived maps; it makes no claim about arbitrary
+polymorphic `this` or call-signature inheritance.
 
 ## Startup and shutdown guarantees
 
