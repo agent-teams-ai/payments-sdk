@@ -85,13 +85,13 @@ void test('unknown mutation is never automatically retried and late old success 
   assert.equal(result.kind, 'outcome_unknown');
   assert.equal(context.payments.lifecycle().unresolvedExternalCalls, 1);
   await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'request' }); await context.payments.repair(); assert.equal(context.calls(), 1);
-  const operation = await context.payments.readOperation(result.operationId); assert.ok(operation);
+  const operation = await context.payments.inspectOperation(result.operationId); assert.ok(operation);
   assert.deepEqual(await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'ticket', reason: 'reviewed', action: 'retry' }), { kind: 'rejected', code: 'validation' });
   const resolved = await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'ticket', reason: 'reviewed', action: 'retry', acceptedDuplicateRisk: true }); assert.equal(resolved.kind, 'succeeded');
   context.replaceCreate(async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'new-tx', checkout: { token: 'new' } } }));
   assert.equal((await context.payments.executeOperation(operation.operationId)).kind, 'succeeded');
   first.resolve({ kind: 'succeeded', value: { intentId: firstIntent, transactionRef: 'old-tx', checkout: { token: 'old' } } }); await context.payments.drain();
-  const final = await context.payments.readOperation(operation.operationId); assert.equal(final?.state, 'succeeded'); assert.equal(final.attempts.length, 2);
+  const final = await context.payments.inspectOperation(operation.operationId); assert.equal(final?.state, 'succeeded'); assert.equal(final.attempts.length, 2);
   assert.equal((final.result?.kind === 'succeeded' ? (final.result.value as { transactionRef: string }).transactionRef : ''), 'new-tx');
   assert.deepEqual((await context.payments.readPurchase('buyer', firstIntent))?.intent.transactionRefs.toSorted(), ['new-tx', 'old-tx']);
 });
@@ -212,7 +212,7 @@ async function duplicateStreams() {
   const context = setup('monthly', false, 1), first = deferred<ProviderResult<{ intentId: string; transactionRef: string; checkout: { token: string } }>>(); let intentId = '';
   context.replaceCreate(async command => { intentId = command.intentId; return first.promise; });
   const unknownResult = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'request' }); assert.equal(unknownResult.kind, 'outcome_unknown');
-  const operation = await context.payments.readOperation(unknownResult.operationId); assert.ok(operation);
+  const operation = await context.payments.inspectOperation(unknownResult.operationId); assert.ok(operation);
   await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'duplicate-risk', reason: 'recover', action: 'retry', acceptedDuplicateRisk: true });
   context.replaceCreate(async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'initial-b', checkout: { token: 'b' } } }));
   await context.payments.executeOperation(operation.operationId);
@@ -303,7 +303,7 @@ void test('late success before an authorized retry is dispatched prevents a grat
   const context = setup('one_time', false, 1), reply = deferred<ProviderResult<{ intentId: string; transactionRef: string; checkout: { token: string } }>>(); let intentId = '';
   context.replaceCreate(async command => { intentId = command.intentId; return reply.promise; });
   const unknownResult = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'request' }); assert.equal(unknownResult.kind, 'outcome_unknown');
-  const operation = await context.payments.readOperation(unknownResult.operationId); assert.ok(operation);
+  const operation = await context.payments.inspectOperation(unknownResult.operationId); assert.ok(operation);
   await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'risk', reason: 'retry authorized', action: 'retry', acceptedDuplicateRisk: true });
   reply.resolve({ kind: 'succeeded', value: { intentId, transactionRef: 'proven-existing', checkout: { token: 'existing' } } }); await context.payments.drain();
   assert.equal((await context.payments.executeOperation(operation.operationId)).kind, 'succeeded'); assert.equal(context.calls(), 1);
@@ -342,7 +342,7 @@ async function duplicateMonthly() {
   const context = setup('monthly', false, 1), first = deferred<ProviderResult<{ intentId: string; transactionRef: string; checkout: { token: string } }>>(); let intentId = '';
   context.replaceCreate(async command => { intentId = command.intentId; return first.promise; });
   const pending = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'request' }); assert.equal(pending.kind, 'outcome_unknown');
-  const operation = await context.payments.readOperation(pending.operationId); assert.ok(operation);
+  const operation = await context.payments.inspectOperation(pending.operationId); assert.ok(operation);
   assert.equal((await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'duplicate-risk', reason: 'reviewed retry', action: 'retry', acceptedDuplicateRisk: true })).kind, 'succeeded');
   context.replaceCreate(async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'initial-b', checkout: { token: 'b' } } }));
   assert.equal((await context.payments.executeOperation(operation.operationId)).kind, 'succeeded');
@@ -360,11 +360,11 @@ void test('audited cancellation retry preserves its pinned provider subject acro
   const result = await context.payments.requestCancellation({ buyerId: 'buyer', bindingId: context.basis, requestKey: 'pinned-cancel', timing: 'now' }); assert.equal(result.kind, 'outcome_unknown');
   const selection = await context.payments.readSubscriptionSelection('buyer', context.basis, 'sub-b'); assert.ok(selection);
   assert.equal((await context.payments.selectSubscriptionStream({ buyerId: 'buyer', bindingId: context.basis, providerSubscriptionRef: 'sub-b', version: selection.version, actorId: 'operator', auditRef: 'select-b', reason: 'choose stream' })).kind, 'succeeded');
-  const operation = await context.payments.readOperation(result.operationId); assert.ok(operation);
+  const operation = await context.payments.inspectOperation(result.operationId); assert.ok(operation);
   assert.equal((await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'retry-a', reason: 'retry same command', action: 'retry', acceptedDuplicateRisk: true })).kind, 'succeeded');
   assert.equal((await context.payments.executeOperation(operation.operationId)).kind, 'succeeded');
   assert.deepEqual(targets, ['sub-a', 'sub-a']);
-  const saved = await context.payments.readOperation(operation.operationId); assert.equal(saved?.providerSubscriptionRef, 'sub-a'); assert.deepEqual(saved.attempts.map(attempt => attempt.providerSubscriptionRef), ['sub-a', 'sub-a']); assert.equal(new Set(saved.attempts.map(attempt => attempt.fingerprint)).size, 1);
+  const saved = await context.payments.inspectOperation(operation.operationId); assert.equal(saved?.providerSubscriptionRef, 'sub-a'); assert.deepEqual(saved.attempts.map(attempt => attempt.providerSubscriptionRef), ['sub-a', 'sub-a']); assert.equal(new Set(saved.attempts.map(attempt => attempt.fingerprint)).size, 1);
   old.resolve({ kind: 'outcome_unknown' }); await context.payments.drain();
 });
 
@@ -382,23 +382,23 @@ void test('cancellation timing constrains provider and audited success before re
     context.provider.cancelSubscription = async () => { dispatches += 1; return { kind: 'succeeded', value: mismatched }; };
     const command = { buyerId: 'buyer', bindingId, requestKey: `cancel-${timing}`, timing };
     const unknownResult = await context.payments.requestCancellation(command); assert.equal(unknownResult.kind, 'outcome_unknown');
-    const operation = await context.payments.readOperation(unknownResult.operationId); assert.ok(operation);
+    const operation = await context.payments.inspectOperation(unknownResult.operationId); assert.ok(operation);
     assert.equal(operation.state, 'outcome_unknown'); assert.equal(operation.result, undefined);
     assert.deepEqual(operation.attempts[0]?.observations, [{ kind: 'succeeded', value: mismatched }]);
     assert.equal(dispatches, 1);
 
     const waiting = await context.payments.requestCancellation({ ...command, requestKey: `waiting-${timing}` }); assert.equal(waiting.kind, 'pending');
-    assert.equal((await context.payments.readOperation(waiting.operationId))?.attempts.length, 0);
+    assert.equal((await context.payments.inspectOperation(waiting.operationId))?.attempts.length, 0);
     assert.equal(dispatches, 1, 'a mismatched provider success must retain the mutation lane');
     const audit = { operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: `timing-proof-${timing}`, reason: 'reviewed cancellation evidence', action: 'bind_outcome' as const };
     assert.deepEqual(await context.payments.resolveUnknownOperation({ ...audit, outcome: { kind: 'succeeded', value: mismatched } }), { kind: 'rejected', code: 'validation' });
-    assert.deepEqual(await context.payments.readOperation(operation.operationId), operation, 'invalid audit must not change the operation or append an audit');
+    assert.deepEqual(await context.payments.inspectOperation(operation.operationId), operation, 'invalid audit must not change the operation or append an audit');
     assert.equal((await context.payments.executeOperation(waiting.operationId)).kind, 'pending');
     assert.equal(dispatches, 1, 'a rejected audit must not release the unresolved lane');
 
     assert.equal((await context.payments.resolveUnknownOperation({ ...audit, outcome: { kind: 'succeeded', value: matching } })).kind, 'succeeded');
     assert.deepEqual(await context.payments.requestCancellation(command), { kind: 'succeeded', value: matching });
-    const resolved = await context.payments.readOperation(operation.operationId); assert.equal(resolved?.audits.length, 1);
+    const resolved = await context.payments.inspectOperation(operation.operationId); assert.equal(resolved?.audits.length, 1);
     assert.deepEqual(resolved.attempts, operation.attempts, 'resolution preserves the mismatched provider response as attempt evidence');
     context.provider.cancelSubscription = async () => { dispatches += 1; return { kind: 'succeeded', value: matching }; };
     assert.deepEqual(await context.payments.executeOperation(waiting.operationId), { kind: 'succeeded', value: matching });
@@ -413,10 +413,10 @@ void test('audited payment update retry preserves its pinned provider subject ac
   const result = await context.payments.openPaymentUpdate({ buyerId: 'buyer', bindingId: context.basis, requestKey: 'pinned-update' }); assert.equal(result.kind, 'outcome_unknown');
   const selection = await context.payments.readSubscriptionSelection('buyer', context.basis, 'sub-b'); assert.ok(selection);
   assert.equal((await context.payments.selectSubscriptionStream({ buyerId: 'buyer', bindingId: context.basis, providerSubscriptionRef: 'sub-b', version: selection.version, actorId: 'operator', auditRef: 'select-b', reason: 'choose stream' })).kind, 'succeeded');
-  const operation = await context.payments.readOperation(result.operationId); assert.ok(operation);
+  const operation = await context.payments.inspectOperation(result.operationId); assert.ok(operation);
   assert.equal((await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'retry-a', reason: 'retry same command', action: 'retry', acceptedDuplicateRisk: true })).kind, 'succeeded');
   assert.equal((await context.payments.executeOperation(operation.operationId)).kind, 'succeeded');
-  assert.deepEqual(targets, ['sub-a', 'sub-a']); assert.equal((await context.payments.readOperation(operation.operationId))?.providerSubscriptionRef, 'sub-a');
+  assert.deepEqual(targets, ['sub-a', 'sub-a']); assert.equal((await context.payments.inspectOperation(operation.operationId))?.providerSubscriptionRef, 'sub-a');
   old.resolve({ kind: 'outcome_unknown' }); await context.payments.drain();
 });
 
@@ -660,7 +660,7 @@ void test('audited payment update outcomes bind the same durable purpose and rec
     if (early.lines.presence !== 'known') {throw new Error('Fixture');}
     await observe(context, { ...early, lines: yes(early.lines.value.map(line => ({ ...line, period: yes({ startsAt: '2026-02-01T00:00:00Z', endsAt: '2026-03-01T00:00:00Z' }) }))) });
     const priorFact = (await context.payments.readPurchase('buyer', checkout.intentId))?.transactions.find(aggregate => aggregate.transactionRef === ref)?.completion;
-    const operation = await context.payments.readOperation(unknownResult.operationId); assert.ok(operation);
+    const operation = await context.payments.inspectOperation(unknownResult.operationId); assert.ok(operation);
     const value = { intentId: checkout.intentId, transactionRef: ref, purpose, checkout: { token: 'proven-checkout' } };
     const resolved = await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: `proven-${purpose}`, reason: 'verified provider outcome', action: 'bind_outcome', outcome: { kind: 'succeeded', value } }); assert.equal(resolved.kind, 'succeeded');
     assert.deepEqual(await context.payments.openPaymentUpdate({ buyerId: 'buyer', bindingId: basis, requestKey: `operator-${purpose}` }), { kind: 'succeeded', value });
@@ -677,7 +677,7 @@ void test('invalid audited successful outcomes preserve the unknown operation an
   const basis = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok((typeof basis === 'string' && basis.length > 0)); Object.assign(context.provider.capabilities, { paymentUpdate: true });
   let updates = 0; context.provider.openPaymentUpdate = async () => { updates += 1; return { kind: 'outcome_unknown' }; };
   const unknownResult = await context.payments.openPaymentUpdate({ buyerId: 'buyer', bindingId: basis, requestKey: 'invalid-operator' }); assert.equal(unknownResult.kind, 'outcome_unknown');
-  const operation = await context.payments.readOperation(unknownResult.operationId); assert.ok(operation);
+  const operation = await context.payments.inspectOperation(unknownResult.operationId); assert.ok(operation);
   const invalidValues: readonly JsonValue[] = [null, [], {},
     { intentId: checkout.intentId, transactionRef: 'invalid-proof', purpose: 'recovery', checkout: null },
     { intentId: checkout.intentId, transactionRef: 'invalid-proof', purpose: 'recovery', checkout: [] },
@@ -689,7 +689,7 @@ void test('invalid audited successful outcomes preserve the unknown operation an
   ];
   for (const invalid of invalidValues) {
     assert.deepEqual(await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'bad-proof', reason: 'invalid proof submitted', action: 'bind_outcome', outcome: { kind: 'succeeded', value: invalid } }), { kind: 'rejected', code: 'validation' });
-    assert.deepEqual(await context.payments.readOperation(operation.operationId), operation);
+    assert.deepEqual(await context.payments.inspectOperation(operation.operationId), operation);
   }
   assert.deepEqual(await context.payments.openPaymentUpdate({ buyerId: 'buyer', bindingId: basis, requestKey: 'invalid-operator' }), { kind: 'outcome_unknown', operationId: operation.operationId });
   assert.equal(updates, 1);
@@ -727,15 +727,15 @@ void test('public operation reads detach snapshots and strip provider diagnostic
   assert.deepEqual(await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'diagnostic' }), { kind: 'rejected', code: 'rate_limited' });
   const stored = await context.store.findRequest(scope, 'buyer', 'diagnostic'); assert.ok(stored);
   assert.deepEqual(stored.result, { kind: 'rejected', code: 'rate_limited', diagnostic: { requestId: 'provider-secret-id', providerCode: 'raw-provider-code' } });
-  const snapshot = await context.payments.readOperation(stored.operationId, 'buyer'); assert.ok(snapshot);
+  const snapshot = await context.payments.readOperation({ operationId: stored.operationId, buyerId: 'buyer' }); assert.ok(snapshot);
   assert.deepEqual(snapshot.result, { kind: 'rejected', code: 'rate_limited' });
   assert.deepEqual(snapshot.attempts[0]?.observations, [{ kind: 'rejected', code: 'rate_limited' }]);
   assert.equal(JSON.stringify(snapshot).includes('provider-secret-id'), false);
   Object.assign(snapshot, { buyerId: 'tampered' });
   Object.assign(snapshot.attempts, { length: 0 });
-  assert.equal((await context.payments.readOperation(stored.operationId, 'buyer'))?.buyerId, 'buyer');
-  assert.equal((await context.payments.readOperation(stored.operationId, 'buyer'))?.attempts.length, 1);
-  assert.equal(await context.payments.readOperation(stored.operationId, 'other-buyer'), undefined);
+  assert.equal((await context.payments.readOperation({ operationId: stored.operationId, buyerId: 'buyer' }))?.buyerId, 'buyer');
+  assert.equal((await context.payments.readOperation({ operationId: stored.operationId, buyerId: 'buyer' }))?.attempts.length, 1);
+  assert.equal(await context.payments.readOperation({ operationId: stored.operationId, buyerId: 'other-buyer' }), undefined);
 });
 
 void test('purchase and subscription snapshots hide mutable policy metadata and detach nested values', async () => {

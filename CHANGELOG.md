@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.0 — explicit buyer authority and bounded mutation execution
+
+- Require an explicit buyer-scoped operation query; move privileged inspection to the
+  processing capability. Remove the optional-buyer overload instead of retaining a shim.
+- Bound per-runtime physical mutation admission before the durable dispatch marker.
+  Return a distinct durable `deferred` result without dispatching or consuming the
+  worker fault budget when capacity is occupied. Caller deadlines do not release slots.
+- Retain absolute provider retry advice on known rejections and private attempt
+  diagnostics, without treating an unknown mutation as safely retryable.
+- Update all Get Modular contract revisions affected by the public value types,
+  tests and independently installed consumers together.
+
+See the [0.5 migration](docs/migrations/0.5.md). Source versions are not npm publication.
+
 ## 0.4.0 — full feature ownership and explicit SDK boundaries
 
 - Adopt full FMS for every production package, the published FMS kernel and

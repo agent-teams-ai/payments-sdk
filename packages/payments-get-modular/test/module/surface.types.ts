@@ -2,7 +2,7 @@ import type { PaymentsCheckout, PaymentsRead, PaymentsProcessing, PaymentsModule
 
 /** Compile-time consumer boundary; intentionally never invoked by runtime tests. */
 export function readFacetDoesNotCarryCommands(read: PaymentsRead, checkout: PaymentsCheckout, module: PaymentsModule): void {
-  void read.readOperation('operation');
+  void read.readOperation({ operationId: 'operation', buyerId: 'buyer' });
   void checkout.startPurchase({ buyerId: 'buyer', offerId: 'offer', requestKey: 'request' });
   // @ts-expect-error read-only consumers cannot create purchases
   void ('startPurchase' satisfies keyof PaymentsRead);

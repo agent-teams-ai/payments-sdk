@@ -19,7 +19,7 @@ void test('published composition prepares without effects and matches an indepen
   assert.equal(result.status, 'prepared');
 
   assert.equal(host.calls(), 0);
-  assert.deepEqual([PaymentsConfiguration, Checkout, Read, Management, Processing, Delivery].map(contract => contract.revision), [1, 1, 2, 1, 2, 1]);
+  assert.deepEqual([PaymentsConfiguration, Checkout, Read, Management, Processing, Delivery].map(contract => contract.revision), [2, 2, 3, 2, 3, 1]);
   const declarations = [paymentsDeclaration, paymentsConfigurationDeclaration];
   checkNamespaces({ namespace: 'agent-teams/payments', declarations });
   checkWiring(result.composition, [{
@@ -45,6 +45,8 @@ void test('real isolation exposes segregated immutable capability facets and dis
   assert.equal(built.capabilities[Processing.id], built.instance.processing);
   assert.ok(Object.isFrozen(built.instance.checkout));
   assert.equal('startPurchase' in built.capabilities[Read.id], false);
+  assert.equal('inspectOperation' in built.capabilities[Read.id], false);
+  assert.equal(typeof built.capabilities[Processing.id].inspectOperation, 'function');
   assert.equal('control' in built.instance, false);
   assert.equal(host.calls(), 0);
   assert.equal((await built.capabilities[Checkout.id].startPurchase(command)).kind, 'succeeded');
@@ -186,7 +188,7 @@ void test('a public Assembly runtime can audit and select duplicate initial subs
   try {
     const unknown = await checkout.startPurchase(command);
     assert.equal(unknown.kind, 'outcome_unknown');
-    const operation = await read.readOperation(unknown.operationId); assert.ok(operation);
+    const operation = await processing.inspectOperation(unknown.operationId); assert.ok(operation);
     assert.equal((await processing.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'accepted-duplicate-risk', reason: 'recover unknown checkout', action: 'retry', acceptedDuplicateRisk: true })).kind, 'succeeded');
     host.replaceCheckout(async input => ({ kind: 'succeeded', value: { intentId: input.intentId, transactionRef: 'initial-b', checkout: { token: 'b' } } }));
     assert.equal((await processing.executeOperation(operation.operationId)).kind, 'succeeded');

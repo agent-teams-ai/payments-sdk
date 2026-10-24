@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/payments-postgres",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Durable PostgreSQL payment custody, worker contracts and optional pg-boss transport for the Agent Teams payments SDK",
   "type": "module",
   "license": "Apache-2.0",

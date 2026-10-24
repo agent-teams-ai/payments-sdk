@@ -44,7 +44,7 @@ void test('the optional pg-boss entrypoint bootstraps, dispatches prepared work 
     await jobs.start({ payments, store });
     await dispatched.promise;
     await jobs.stop(); await jobs.drain();
-    assert.equal((await payments.readOperation(operation.operationId))?.state, 'succeeded');
+    assert.equal((await payments.inspectOperation(operation.operationId))?.state, 'succeeded');
     assert.equal(calls, 1); assert.deepEqual(errors, []);
     assert.equal((await pool.query<{ alive: number }>('SELECT 1 AS alive')).rows[0]?.alive, 1);
   } finally {

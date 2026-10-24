@@ -340,7 +340,7 @@ void test('actual SDK unknown outcome and approved duplicate-risk retry retain o
     });
     const unknown = await payments.startPurchase({ buyerId: 'buyer-a', offerId: 'monthly', requestKey: 'transfer-initial' });
     assert.equal(unknown.kind, 'outcome_unknown');
-    const operation = await payments.readOperation(unknown.operationId); assert.ok(operation);
+    const operation = await payments.inspectOperation(unknown.operationId); assert.ok(operation);
     success(await payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'authorized-risk-owner', auditRef: 'explicit-duplicate-risk', reason: 'reviewed missing first create', action: 'retry', acceptedDuplicateRisk: true }));
     api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(201, responseFixture(transactionFixture({ id: paddleIds.secondTransaction, intentId, status: 'ready', customerRef: null })));
     const checkout = success(await payments.executeOperation(operation.operationId));
