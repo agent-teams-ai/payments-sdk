@@ -29,6 +29,7 @@ export function createRuntimeFacets(runtime: Payments, signal: AbortSignal): Rea
     createManagementLink: track(runtime.createManagementLink),
   });
   const processing = Object.freeze({
+    inspectOperation: track(runtime.inspectOperation),
     ingestVerifiedInput: track(runtime.ingestVerifiedInput),
     processInbox: track(runtime.processInbox),
     processReclassification: track(runtime.processReclassification),

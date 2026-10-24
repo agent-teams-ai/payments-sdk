@@ -72,7 +72,7 @@ void test('alternate durable transport uses the same store/runner for atomic adm
     await prepare(f.store, 'purchase');
     await jobs.start({ payments, store: f.store });
     const prepared = await f.wakeups.pump('prepared'); assert.ok(prepared);
-    assert.equal((await payments.readOperation('op-purchase'))?.state, 'succeeded'); assert.equal(original.calls(), 1);
+    assert.equal((await payments.inspectOperation('op-purchase'))?.state, 'succeeded'); assert.equal(original.calls(), 1);
     await payments.ingestVerifiedInput(input('tx-purchase', 'paid'));
     await f.wakeups.empty(); payments.stop(); await jobs.stop(); await jobs.drain();
 
@@ -143,7 +143,7 @@ void test('alternate enqueue shares the real unknown COMMIT boundary and no wake
     assert.equal((await f.pool.query(`SELECT 1 FROM "${f.wakeSchema}".wakeups WHERE kind = 'unknown'`)).rows.length, 1, 'marker and replacement wake-up committed atomically');
     await f.wakeups.empty(); await f.jobs.start({ payments: context.payments, store }); await f.wakeups.pumpAll();
     await context.payments.repair();
-    assert.equal((await context.payments.readOperation(saved.operationId))?.state, 'dispatch_started', 'manual-review quarantine preserves the uncertain durable marker'); assert.equal(context.calls(), 0);
+    assert.equal((await context.payments.inspectOperation(saved.operationId))?.state, 'dispatch_started', 'manual-review quarantine preserves the uncertain durable marker'); assert.equal(context.calls(), 0);
   } finally { context?.payments.stop(); await context?.payments.drain(); await f.close(); await proxyPool.end(); await proxy.close(); }
 });
 

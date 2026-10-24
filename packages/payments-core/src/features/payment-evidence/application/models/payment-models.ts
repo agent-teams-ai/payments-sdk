@@ -7,11 +7,18 @@ export type OperationResult<T> = Readonly<{
     kind: 'pending';
     operationId: string;
 }> | Readonly<{
+    /** Durable command remains prepared; no dispatch marker or provider call was made. */
+    kind: 'deferred';
+    operationId: string;
+    reason: 'mutation_capacity';
+}> | Readonly<{
     kind: 'outcome_unknown';
     operationId: string;
 }> | Readonly<{
     kind: 'rejected';
     code: ErrorCode;
+    /** Absolute provider retry advice, not permission to redispatch an uncertain operation. */
+    retryAt?: string;
 }> | Readonly<{
     kind: 'unsupported';
     capability: string;
@@ -133,4 +140,6 @@ export type PaymentRuntimeOptions = Readonly<{
     newId?: () => string;
     maxEvidenceBytes?: number;
     operationTimeoutMs?: number;
+    /** Per-runtime bound, held through physical provider settlement, not just caller timeout. */
+    maxConcurrentMutations?: number;
 }>;

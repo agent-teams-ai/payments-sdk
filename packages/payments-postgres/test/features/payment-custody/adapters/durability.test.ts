@@ -83,7 +83,7 @@ void test('a lost real COMMIT reply cannot authorize a Paddle-style external mut
     assert.equal(saved?.state, 'dispatch_started', 'server commit happened even though the client could not confirm it');
     await context.payments.repair();
     assert.equal(context.calls(), 0, 'durable dispatch marker forbids automatic redispatch');
-    assert.equal((await context.payments.readOperation(saved.operationId))?.state, 'outcome_unknown');
+    assert.equal((await context.payments.inspectOperation(saved.operationId))?.state, 'outcome_unknown');
     await context.payments.drain();
   } finally { await pool.end(); await proxy.close(); await f.close(); }
 });
@@ -125,7 +125,7 @@ void test('late old checkout evidence cannot release a newer unresolved subscrip
     context.provider.createCheckout = () => old.promise;
     const first = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'initial' });
     assert.equal(first.kind, 'outcome_unknown');
-    const op = await context.payments.readOperation(first.operationId); assert.ok((op?.intentId !== undefined && op.intentId !== ''));
+    const op = await context.payments.inspectOperation(first.operationId); assert.ok((op?.intentId !== undefined && op.intentId !== ''));
     assert.equal((await context.payments.resolveUnknownOperation({ operationId: op.operationId, expectedRevision: op.revision, actorId: 'operator', auditRef: 'approved-risk', reason: 'reviewed', action: 'retry', acceptedDuplicateRisk: true })).kind, 'succeeded');
     successfulRetry.provider.createCheckout = async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'new-tx', checkout: {} } });
     assert.equal((await successfulRetry.payments.executeOperation(op.operationId)).kind, 'succeeded');

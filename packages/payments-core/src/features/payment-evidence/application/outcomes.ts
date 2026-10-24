@@ -8,7 +8,7 @@ export function toResult<T>(operation: PaymentOperation): OperationResult<T> {
         return { kind: 'succeeded', value: operation.result.value as T };
     }
     if (operation.state === 'rejected' && operation.result?.kind === 'rejected') {
-        return { kind: 'rejected', code: operation.result.code };
+        return { kind: 'rejected', code: operation.result.code, ...(operation.result.retryAt === undefined ? {} : { retryAt: operation.result.retryAt }) };
     }
     if (operation.result?.kind === 'unsupported') {
         return { kind: 'unsupported', capability: operation.result.capability };

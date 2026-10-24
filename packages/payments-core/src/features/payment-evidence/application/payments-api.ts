@@ -60,6 +60,8 @@ export type PaymentStopReport = Readonly<{
 }>;
 export type PaymentLifecycle = {
     accepting: boolean;
+    mutationCapacity: number;
+    admittedMutations: number;
     unresolvedExternalCalls: number;
     pendingWork: number;
 };
@@ -67,8 +69,9 @@ export type PaymentLifecycle = {
 export type PaymentsCheckout = {
     startPurchase: (command: StartPurchase) => Promise<OperationResult<CheckoutReady>>;
 };
+export type ReadOperation = Readonly<{ operationId: string; buyerId: string }>;
 export type PaymentsRead = {
-    readOperation: (operationId: string, buyerId?: string) => Promise<PaymentOperationRead | undefined>;
+    readOperation: (query: ReadOperation) => Promise<PaymentOperationRead | undefined>;
     readPurchase: (buyerId: string, intentId: string) => Promise<PurchaseRead | undefined>;
     readObservedSubscription: (buyerId: string, bindingId: string) => Promise<ObservedSubscriptionRead | undefined>;
     readSubscriptionSelection: (buyerId: string, bindingId: string, providerSubscriptionRef?: string) => Promise<SubscriptionSelection | undefined>;
@@ -79,6 +82,8 @@ export type PaymentsManagement = {
     createManagementLink: (command: CreateManagementLink) => Promise<OperationResult<ManagementLink>>;
 };
 export type PaymentsProcessing = {
+    /** Privileged operator/worker inspection. Never expose through the buyer read facet. */
+    inspectOperation: (operationId: string) => Promise<PaymentOperationRead | undefined>;
     ingestVerifiedInput: (input: VerifiedInput) => Promise<VerifiedInputResult>;
     processInbox: (inputId: string) => Promise<'processed' | 'duplicate' | 'quarantined' | 'conflict' | 'recovery_fenced' | 'missing'>;
     processReclassification: (bindingId: string, limit?: number) => Promise<'committed' | 'conflict' | 'recovery_fenced'>;

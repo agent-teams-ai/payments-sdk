@@ -27,6 +27,8 @@ export type ProviderResult<T> = Readonly<{
 }> | Readonly<{
     kind: 'rejected';
     code: ErrorCode;
+    /** Absolute provider retry advice, not permission to redispatch an uncertain operation. */
+    retryAt?: string;
     diagnostic?: Readonly<{
         requestId?: string;
         providerCode?: string;

@@ -5,6 +5,7 @@ import { assertIdentifier, digest } from '../domain/values.js';
 import type { PaymentRuntimeContext } from './runtime-context.js';
 import { unavailable } from './runtime-context.js';
 import { subscriptionAuthority } from './authority.js';
+import { reserveMutation } from './mutation-admission.js';
 import { jsonResult, toResult, operationCommit, resultState, successfulOutcomeChanges } from './outcomes.js';
 
 export async function settleAttempt(ctx: PaymentRuntimeContext, operationId: string, attemptId: string, result: ProviderResult<JsonValue>): Promise<void> {
@@ -44,6 +45,10 @@ export async function executeOperation(ctx: PaymentRuntimeContext, operationId: 
     if (input.operation.state !== 'prepared') {return toResult(input.operation);}
     const authority = input.operation.kind === 'purchase' ? undefined : await subscriptionAuthority(ctx, input.operation);
     if (authority && authority.kind !== 'succeeded') {return authority;}
+    const release = reserveMutation(ctx);
+    if (release === undefined) {return { kind: 'deferred', operationId, reason: 'mutation_capacity' };}
+    let transferred = false;
+    try {
     const operation = structuredClone(input.operation), attemptId = newId();
     operation.state = 'dispatch_started'; operation.revision += 1;
     operation.attempts.push({ attemptId, fingerprint: operation.fingerprint, dispatchedAt: now(), ...((typeof operation.providerSubscriptionRef === 'string' && operation.providerSubscriptionRef.length > 0) ? { providerSubscriptionRef: operation.providerSubscriptionRef } : {}), observations: [] });
@@ -61,7 +66,8 @@ export async function executeOperation(ctx: PaymentRuntimeContext, operationId: 
       } catch { return { kind: 'outcome_unknown' }; }
     };
     const task = invoke().then(async result => { await settleAttempt(ctx, operationId, attemptId, result); return result; });
-    active.add(task); void task.finally(() => active.delete(task)).catch(() => {});
+    active.add(task); transferred = true;
+    void task.finally(() => {active.delete(task); release();}).catch(() => {});
     let cancelDeadline: (() => void) | undefined;
     const deadline = new Promise<'deadline'>(resolve => { cancelDeadline = platform.schedule(timeoutMs, () => { resolve('deadline'); }); });
     try {
@@ -74,6 +80,7 @@ export async function executeOperation(ctx: PaymentRuntimeContext, operationId: 
       await markUnknown(ctx, operationId, attemptId).catch(() => {});
       return { kind: 'outcome_unknown', operationId };
     } finally { cancelDeadline?.(); }
+    } finally {if (!transferred) {release();}}
   }
 
 export async function startPurchase(ctx: PaymentRuntimeContext, command: StartPurchase): Promise<OperationResult<CheckoutReady>> {

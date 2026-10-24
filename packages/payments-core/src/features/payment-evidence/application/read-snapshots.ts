@@ -4,7 +4,7 @@ import type { OperationObservation, PaymentOperationRead, PurchaseIntentRead, Su
 function outcomeSnapshot(result: ProviderResult<JsonValue>): OperationObservation {
 switch(result.kind) {
 case 'succeeded': return {kind: result.kind, value: result.value};
-case 'rejected': return {kind: result.kind, code: result.code};
+case 'rejected': return {kind: result.kind, code: result.code, ...(result.retryAt === undefined ? {} : {retryAt: result.retryAt})};
 case 'outcome_unknown': return {kind: result.kind};
 case 'unsupported': return {kind: result.kind, capability: result.capability};
 }}

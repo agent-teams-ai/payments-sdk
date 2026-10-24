@@ -150,7 +150,7 @@ void test('permanently lost Paddle create replies recover through audited bindin
         const response = await context.post('/purchases', command); assert.equal(response.status, 200);
         const unknown = JSON.parse(response.body) as OperationResult<CheckoutReady>; assert.equal(unknown.kind, 'outcome_unknown');
         assert.equal(creates - beforeCreates, 1);
-        const adminBeforeRestart = context.operator(), operation = await adminBeforeRestart.readOperation(unknown.operationId); assert.ok(operation?.intentId !== undefined && operation.intentId !== '');
+        const adminBeforeRestart = context.operator(), operation = await adminBeforeRestart.inspectOperation(unknown.operationId); assert.ok(operation?.intentId !== undefined && operation.intentId !== '');
         const providerCreated = providerCreations.get(operation.intentId); assert.ok(providerCreated);
         assert.equal(operation.state, 'outcome_unknown'); assert.equal(operation.attempts.length, 1);
         assert.deepEqual(operation.attempts[0]!.observations, [{ kind: 'outcome_unknown' }]);
@@ -169,7 +169,7 @@ void test('permanently lost Paddle create replies recover through audited bindin
         const unresolved = (await context.pool.query<{ body: { flags: readonly string[]; completion?: unknown } }>(`SELECT body FROM "${context.schema}".records WHERE kind='transactions' AND id=$1`, [paddleIds.transaction])).rows[0]?.body;
         assert.ok(unresolved?.flags.includes('unresolved_binding') === true); assert.equal(unresolved.completion, undefined);
         assert.equal((await context.credit.decisions()).length, 0); assert.equal((await context.access.decisions()).length, 0);
-        const before = await admin.readOperation(operation.operationId); assert.ok(before);
+        const before = await admin.inspectOperation(operation.operationId); assert.ok(before);
         assert.equal(before.state, 'outcome_unknown'); assert.equal(before.attempts.length, 1);
 
         // The operator established this exact provider transaction independently. A signed
@@ -197,7 +197,7 @@ void test('permanently lost Paddle create replies recover through audited bindin
         const restartedAccess = new AccessFixture({ pool: context.pool, schema: context.access.owner.options.schema, trust: context.trust, now: () => '2026-10-15T00:00:00Z' });
         assert.equal(await assertFulfilled(restartedCredit, restartedAccess), originalGrant);
         const replayed = await context.payments.readPurchase('buyer-a', operation.intentId); assert.equal(replayed?.transactions[0]?.completion?.factId, factId);
-        assert.equal((await context.operator().readOperation(operation.operationId))?.audits.length, 1);
+        assert.equal((await context.operator().inspectOperation(operation.operationId))?.audits.length, 1);
         assert.equal(creates - beforeCreates, 1, 'recovery and all financial redeliveries never create a second provider transaction');
       } finally { await context.close(); }
     });}
@@ -314,7 +314,7 @@ void test('lost Paddle cancellation replies retain the mutation lane while read-
         const command = { buyerId: 'buyer-a', bindingId, requestKey: 'cancel-response-lost', timing: 'now' as const };
         const unknown = await context.payments.requestCancellation(command); assert.equal(unknown.kind, 'outcome_unknown');
         assert.equal(cancellations - beforeCancellations, 1);
-        const original = await context.operator().readOperation(unknown.operationId); assert.ok(original);
+        const original = await context.operator().inspectOperation(unknown.operationId); assert.ok(original);
         assert.equal(original.state, 'outcome_unknown'); assert.equal(original.attempts.length, 1);
         assert.deepEqual(original.attempts[0]!.observations, [{ kind: 'outcome_unknown' }]);
 
@@ -333,7 +333,7 @@ void test('lost Paddle cancellation replies retain the mutation lane while read-
         // lifecycle state; neither receipt claims to settle the unknown command attempt.
         assert.equal((await context.webhook(JSON.stringify(eventFixture('subscription.canceled', providerSubscription, paddleIds.thirdEvent)))).status, 200);
         await context.flush();
-        assert.equal((await admin.readOperation(unknown.operationId))?.state, 'outcome_unknown');
+        assert.equal((await admin.inspectOperation(unknown.operationId))?.state, 'outcome_unknown');
         const restricted = (await context.access.decisions())[0]!.body;
         assert.deepEqual([restricted.status, restricted.newAction, restricted.expand, restricted.read, restricted.export, restricted.cancel], ['canceled', false, false, true, true, true]);
         assert.ok(restricted.restrictions.includes('lifecycle_canceled'));
@@ -342,7 +342,7 @@ void test('lost Paddle cancellation replies retain the mutation lane while read-
 
         const blocked = await context.payments.requestCancellation({ ...command, requestKey: 'fresh-key-cannot-bypass-unknown' }); assert.equal(blocked.kind, 'pending');
         assert.notEqual(blocked.operationId, unknown.operationId);
-        const blockedOperation = await admin.readOperation(blocked.operationId); assert.ok(blockedOperation);
+        const blockedOperation = await admin.inspectOperation(blocked.operationId); assert.ok(blockedOperation);
         assert.equal(blockedOperation.state, 'prepared'); assert.equal(blockedOperation.attempts.length, 0);
         await context.payments.repair(100);
         assert.equal(cancellations - beforeCancellations, 1, 'fresh keys and repair cannot bypass the saved unknown mutation lane');
@@ -354,7 +354,7 @@ void test('lost Paddle cancellation replies retain the mutation lane while read-
         assert.equal((await context.access.decisions())[0]!.body.newAction, false, 'older paid completion cannot reopen a canceled lifecycle');
         assert.equal(await assertSingleGrant(context.credit), originalGrant);
 
-        const current = await admin.readOperation(unknown.operationId); assert.ok(current);
+        const current = await admin.inspectOperation(unknown.operationId); assert.ok(current);
         const resolution = { operationId: unknown.operationId, expectedRevision: current.revision, actorId: 'authorized-cancellation-owner', auditRef: 'proved-terminal-cancellation', reason: 'verified canceled lifecycle and original cancellation command', action: 'bind_outcome' as const, outcome: { kind: 'succeeded' as const, value: { kind: 'applied' as const, observedStatus: 'canceled' } } };
         const resolved = success(await admin.resolveUnknownOperation(resolution));
         assert.equal(resolved.state, 'succeeded'); assert.deepEqual(resolved.attempts, original.attempts);
@@ -369,7 +369,7 @@ void test('lost Paddle cancellation replies retain the mutation lane while read-
         assert.equal((await context.access.decisions())[0]!.body.newAction, false);
         // The competing command remains prepared. This fixture proves lane release,
         // without dispatching an unnecessary second cancellation of a terminal entity.
-        assert.equal((await admin.readOperation(blocked.operationId))?.attempts.length, 0);
+        assert.equal((await admin.inspectOperation(blocked.operationId))?.attempts.length, 0);
       } finally { await context.close(); }
     });}
     agent.assertNoPendingInterceptors();

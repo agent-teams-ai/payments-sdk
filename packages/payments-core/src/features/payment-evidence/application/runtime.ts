@@ -2,7 +2,7 @@ import type { PaymentRuntimeOptions } from './models/payment-models.js';
 import type { Payments } from './payments-api.js';
 import type { PaymentRuntimeContext, RuntimePlatform } from './runtime-context.js';
 import { assertIdentifier, assertScope, sameScope } from '../domain/values.js';
-import { readOperation, readPurchase, readObservedSubscription } from './queries.js';
+import { readOperation, inspectOperation, readPurchase, readObservedSubscription } from './queries.js';
 import { startPurchase, executeOperation } from './operations.js';
 import { requestCancellation, openPaymentUpdate, createManagementLink } from './subscriptions.js';
 import { resolveUnknownOperation } from './resolutions.js';
@@ -19,13 +19,16 @@ export function createPaymentRuntime(options: PaymentRuntimeOptions, platform: R
   if (requiredCapabilities.some(capability => capability !== true)) {throw new TypeError('Required provider capability missing');}
   const now = options.now ?? platform.now, newId = options.newId ?? platform.newId;
   const maxBytes = options.maxEvidenceBytes ?? 262_144, timeoutMs = options.operationTimeoutMs ?? 15_000;
+  const maxConcurrentMutations = options.maxConcurrentMutations ?? 32;
+  if (!Number.isSafeInteger(maxConcurrentMutations) || maxConcurrentMutations < 1 || maxConcurrentMutations > 1024) {throw new RangeError('Invalid mutation concurrency bound');}
   if (!Number.isInteger(maxBytes) || maxBytes < 4096 || maxBytes > 16_777_216) {throw new RangeError('Invalid evidence limit');}
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300_000) {throw new RangeError('Invalid operation deadline');}
 
- const ctx: PaymentRuntimeContext = {provider, store, catalog, producerNamespace, scope, now, newId, maxBytes, timeoutMs, platform, active: new Set(), work: new Set(), accepting: true};
+ const ctx: PaymentRuntimeContext = {provider, store, catalog, producerNamespace, scope, now, newId, maxBytes, timeoutMs, maxConcurrentMutations, admittedMutations: 0, platform, active: new Set(), work: new Set(), accepting: true};
  return { scope,
 startPurchase: tracked(ctx, (...args: Parameters<Payments['startPurchase']>) => startPurchase(ctx, ...args)),
 readOperation: tracked(ctx, (...args: Parameters<Payments['readOperation']>) => readOperation(ctx, ...args)),
+inspectOperation: tracked(ctx, (operationId: string) => inspectOperation(ctx, operationId)),
 executeOperation: tracked(ctx, (...args: Parameters<Payments['executeOperation']>) => executeOperation(ctx, ...args)),
 ingestVerifiedInput: tracked(ctx, (...args: Parameters<Payments['ingestVerifiedInput']>) => ingestVerifiedInput(ctx, ...args)),
 processInbox: tracked(ctx, (...args: Parameters<Payments['processInbox']>) => processInbox(ctx, ...args)),
@@ -45,5 +48,5 @@ readObservedSubscription: tracked(ctx, (...args: Parameters<Payments['readObserv
 registerConsumer: tracked(ctx, (consumerId: string, backfill = false) => { assertIdentifier(consumerId); return store.registerConsumer(scope, consumerId, backfill); }),
 readDeliveries: tracked(ctx, (consumerId: string, limit = 25) => store.listDeliveries(scope, consumerId, limit)),
 acknowledgeDelivery: tracked(ctx, (consumerId: string, messageId: string, bodyDigest: string) => store.acknowledgeDelivery(scope, consumerId, messageId, bodyDigest)),
-stop: () => stop(ctx), drain: () => drain(ctx), lifecycle: () => ({accepting: ctx.accepting, unresolvedExternalCalls: ctx.active.size, pendingWork: ctx.work.size}),
+stop: () => stop(ctx), drain: () => drain(ctx), lifecycle: () => ({accepting: ctx.accepting, mutationCapacity: ctx.maxConcurrentMutations, admittedMutations: ctx.admittedMutations, unresolvedExternalCalls: ctx.active.size, pendingWork: ctx.work.size}),
 }; }

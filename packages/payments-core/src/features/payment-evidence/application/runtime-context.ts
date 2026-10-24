@@ -5,6 +5,6 @@ export type RuntimePlatform = Readonly<{ now: () => string; newId: () => string;
 export type PaymentRuntimeContext = Readonly<{
 provider: PaymentRuntimeOptions['provider']; store: PaymentRuntimeOptions['store']; catalog: PaymentRuntimeOptions['catalog'];
 producerNamespace: string; scope: PaymentScope; now: () => string; newId: () => string;
-maxBytes: number; timeoutMs: number; active: Set<Promise<unknown>>; work: Set<Promise<unknown>>; platform: RuntimePlatform;
-}> & { accepting: boolean };
+maxBytes: number; timeoutMs: number; maxConcurrentMutations: number; active: Set<Promise<unknown>>; work: Set<Promise<unknown>>; platform: RuntimePlatform;
+}> & { accepting: boolean; admittedMutations: number };
 export const unavailable = {kind: 'rejected', code: 'unavailable'} as const;

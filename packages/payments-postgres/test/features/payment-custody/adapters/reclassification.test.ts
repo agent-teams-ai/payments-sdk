@@ -19,7 +19,7 @@ async function duplicateCheckout(context: Context, store: PaymentStore): Promise
   try {
     const result = await context.payments.startPurchase({ buyerId: 'buyer', offerId: 'monthly', requestKey: 'duplicate' });
     assert.equal(result.kind, 'outcome_unknown');
-    const operation = await context.payments.readOperation(result.operationId); assert.ok((operation?.intentId !== undefined && operation.intentId !== ''));
+    const operation = await context.payments.inspectOperation(result.operationId); assert.ok((operation?.intentId !== undefined && operation.intentId !== ''));
     success(await context.payments.resolveUnknownOperation({ operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: 'accept-risk', reason: 'reviewed duplicate risk', action: 'retry', acceptedDuplicateRisk: true }));
     context.provider.createCheckout = async command => ({ kind: 'succeeded', value: { intentId: command.intentId, transactionRef: 'initial-b', checkout: {} } });
     const retry = createPayments({ scope, producerNamespace: 'database-fixture', provider: context.provider, store, catalog: { resolveOffer: async () => offer }, operationTimeoutMs: 1000 });

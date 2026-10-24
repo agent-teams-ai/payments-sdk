@@ -81,7 +81,7 @@ void test('bootstrap binds the namespace and runtime starts scheduling, work and
     await runtimeBoss.supervise();
     assert.equal((await runtimeBoss.getSchedule('payments_repair', 'durable_obligations'))?.cron, '* * * * *');
     await prepare(store, 'runtime-role');
-    await until(async () => (await core.payments.readOperation('operation-runtime-role'))?.state === 'succeeded', 'runtime-role prepared worker');
+    await until(async () => (await core.payments.inspectOperation('operation-runtime-role'))?.state === 'succeeded', 'runtime-role prepared worker');
     assert.equal(core.calls(), 1);
     assert.deepEqual(errors, []);
     assert.equal((await jobs.stop()).transportStopped, true);
@@ -117,7 +117,7 @@ void test('deleted jobs are rebuilt from payment obligations; T2 replay and exac
     await f.boss.fail('payments_work', claimed);
     await f.boss.retry('payments_work', claimed.map(job => job.id));
     await f.jobs.start({ payments: core.payments, store: f.store, consumers: { credits: consume('credits'), access: consume('access') } });
-    await until(async () => (await core.payments.readOperation('operation-prepared'))?.state === 'succeeded' && (await core.payments.readDeliveries('credits')).length === 0 && (await core.payments.readDeliveries('access')).length === 0, 'prepared and independent consumer delivery');
+    await until(async () => (await core.payments.inspectOperation('operation-prepared'))?.state === 'succeeded' && (await core.payments.readDeliveries('credits')).length === 0 && (await core.payments.readDeliveries('access')).length === 0, 'prepared and independent consumer delivery');
     assert.equal(core.calls(), 2);
     const purchase = await core.payments.readPurchase('buyer', checkout.value.intentId);
     assert.equal(purchase?.transactions[0]?.completion?.total.minorUnits, '1000');
@@ -216,7 +216,7 @@ void test('a retained terminal pg-boss job cannot suppress its immediately requi
     assert.equal((await f.pool.query<{ state: string }>(`SELECT state FROM ${f.jobSchema}.job WHERE id = $1`, [claimed[0]?.id])).rows[0]?.state, 'failed');
     assert.equal((await f.jobs.repair(1)).enqueued, 1, 'a terminal row is retained, but repair creates a new runnable row now');
     await f.jobs.start({ payments: core.payments, store: f.store });
-    await until(async () => (await core.payments.readOperation('operation-terminal'))?.state === 'succeeded', 'terminal wake-up repair');
+    await until(async () => (await core.payments.inspectOperation('operation-terminal'))?.state === 'succeeded', 'terminal wake-up repair');
     assert.equal(core.calls(), 1);
   } finally {core.payments.stop(); await f.cleanup();}
 });
@@ -235,8 +235,8 @@ void test('cold transactional pg-boss enqueue and startup repair use only a one-
     await prepare(unqueued, 'cold-repair');
     core = runtime(store); const payments = core.payments;
     await jobs.start({ payments, store });
-    await until(async () => (await payments.readOperation('operation-cold-enqueue'))?.state === 'succeeded'
-      && (await payments.readOperation('operation-cold-repair'))?.state === 'succeeded', 'one-checkout cold enqueue and repair');
+    await until(async () => (await payments.inspectOperation('operation-cold-enqueue'))?.state === 'succeeded'
+      && (await payments.inspectOperation('operation-cold-repair'))?.state === 'succeeded', 'one-checkout cold enqueue and repair');
     assert.equal(core.calls(), 2); assert.equal(pool.totalCount, 1); assert.deepEqual(f.errors, []);
   } finally {core?.payments.stop(); await jobs.stop(); await jobs.drain(); await pool.end(); await f.cleanup();}
 });
@@ -327,7 +327,7 @@ void test('logical cooldown and quarantine survive queue deletion; unknown comma
     }
     await until(async () => { await jobs.repair(); return (await f.store.readCheckpoint(scope, 'scan-fixture'))?.status === 'complete'; }, 'forward-progress scan does not spend the fault retry bound');
     assert.equal(resumed, 3); assert.equal(acquired, 3);
-    assert.equal((await core.payments.readOperation(unknown.operationId))?.state, 'outcome_unknown');
+    assert.equal((await core.payments.inspectOperation(unknown.operationId))?.state, 'outcome_unknown');
     await jobs.redrive({ kind: 'unknown', id: unknown.operationId }, 'review-ticket-1');
     assert.equal((await f.pool.query<{ count: number }>(`SELECT count(*)::int AS count FROM ${f.paymentSchema}.records WHERE kind = 'jobRedrives'`)).rows[0]?.count, 1);
     assert.equal((await f.pool.query<{ state: string }>(`SELECT state FROM ${f.paymentSchema}.obligations WHERE kind = 'delivery' AND id = 'missing-target'`)).rows[0]?.state, 'quarantined');
@@ -392,7 +392,7 @@ void test('shutdown reports a physically unresolved SDK call and leaves the shar
     held.resolve({ kind: 'succeeded', value: { intentId, transactionRef: 'late-transaction', checkout: { token: 'late' } } });
     const drained = await f.jobs.drain();
     assert.equal(drained.unresolvedExternalCalls, 0); assert.equal(drained.admittedHandlers, 0); assert.equal(drained.transportStopped, true);
-    assert.equal((await core.payments.readOperation('operation-held'))?.state, 'succeeded'); assert.equal(core.calls(), 1);
+    assert.equal((await core.payments.inspectOperation('operation-held'))?.state, 'succeeded'); assert.equal(core.calls(), 1);
     const missing = createPostgresPaymentJobs({ ...sibling, transport: createPgBossPaymentTransport({ ...sibling, jobSchema: 'missing_jobs_fixture' }) });
     await assert.rejects(missing.start({ payments: runtime(sibling.store).payments, store: sibling.store }));
     assert.equal(missing.status().transportStopped, true); assert.equal(missing.status().admittedHandlers, 0);
@@ -433,7 +433,7 @@ void test('partial worker startup retains physical SDK debt and cannot replace i
     held.resolve({ kind: 'succeeded', value: { intentId: 'startup-debt', transactionRef: 'startup-late', checkout: {} } });
     const result = await draining;
     assert.deepEqual(result, { transportStopped: true, admittedHandlers: 0, unresolvedExternalCalls: 0, pendingCoreWork: 0 });
-    assert.equal((await core.payments.readOperation('operation-startup-debt'))?.state, 'succeeded');
+    assert.equal((await core.payments.inspectOperation('operation-startup-debt'))?.state, 'succeeded');
     assert.equal(core.calls(), 1);
     assert.equal((await f.pool.query<{ alive: number }>('SELECT 1 AS alive')).rows[0]?.alive, 1);
   } finally { held.resolve({ kind: 'outcome_unknown' }); await core.payments.drain(); await f.cleanup(); }
