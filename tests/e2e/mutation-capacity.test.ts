@@ -40,7 +40,7 @@ void test('real SQL worker preserves retry budget while physical provider capaci
       await f.pool.query(`UPDATE "${f.schema}".obligations SET next_attempt_at = clock_timestamp() WHERE kind = 'prepared' AND id = $1`, [waiting.operationId]);
       await jobs.repair();
       const pumped = await wakeups.pump('prepared'); assert.equal(pumped?.id, waiting.operationId);
-      const work = (await f.pool.query<{ attempts: number; state: string; issue: string }>(`SELECT attempts, state, issue FROM "${f.schema}".obligations WHERE kind = 'prepared' AND id = $1`, [waiting.operationId])).rows[0];
+      const work: { attempts: number; state: string; issue: string } | undefined = (await f.pool.query<{ attempts: number; state: string; issue: string }>(`SELECT attempts, state, issue FROM "${f.schema}".obligations WHERE kind = 'prepared' AND id = $1`, [waiting.operationId])).rows[0];
       assert.deepEqual(work, { attempts: 0, state: 'pending', issue: 'mutation_capacity' });
       assert.equal((await payments.inspectOperation(waiting.operationId))?.attempts.length, 0);
     }
