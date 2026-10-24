@@ -1,0 +1,35 @@
+name: Materialize approved SDK source objects
+on:
+  push:
+    branches: [chore/sdk-05-source-transfer]
+permissions:
+  contents: write
+jobs:
+  materialize:
+    if: github.actor == '777genius' && github.repository == 'agent-teams-ai/payments-sdk'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          path: helper
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: 40e61f82c6f645e6b42116c0499925a5457adb2d
+          path: source
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.22.1
+      - name: Validate source identity and create Git blobs and tree only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node helper/tools/materialize-approved-source.ts
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: approved-source-tree
+          path: source-tree-result.json
+          if-no-files-found: error
+          retention-days: 7
