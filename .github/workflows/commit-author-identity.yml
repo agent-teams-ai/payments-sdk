@@ -1,0 +1,14 @@
+name: Commit author identity
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  identity:
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+    uses: agent-teams-ai/.github/.github/workflows/commit-author-identity-check.yml@1f8dc7a2ee33e3cc3810f0c4c2d5e9f3f20241d0
