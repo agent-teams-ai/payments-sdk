@@ -32,14 +32,26 @@ void test('real SQL worker preserves retry budget while physical provider capaci
   try {
     const firstCall = payments.startPurchase({ buyerId: 'buyer', offerId: offer.offerId, requestKey: 'first' });
     await firstEntered.promise;
-    assert.equal((await firstCall).kind, 'outcome_unknown');
+    const first = await firstCall;
+    assert.equal(first.kind, 'outcome_unknown');
     const waiting = await payments.startPurchase({ buyerId: 'buyer', offerId: offer.offerId, requestKey: 'waiting' });
     assert.equal(waiting.kind, 'deferred');
     await jobs.start({ payments, store });
+    const pumpWaiting = async () => {
+      for (let count = 0; count < 2; count += 1) {
+        const pumped = await wakeups.pump('prepared'); assert.ok(pumped);
+        if (pumped.id === waiting.operationId) {return;}
+        // Admission leaves the first operation's stale prepared wake-up. UUID order
+        // is not a correctness oracle; consuming it must never redispatch unknown work.
+        assert.equal(pumped.id, first.operationId);
+        assert.equal(calls, 1);
+      }
+      assert.fail('Deferred operation was not reached within its two known wake-ups');
+    };
     for (let turn = 0; turn < 3; turn += 1) {
       await f.pool.query(`UPDATE "${f.schema}".obligations SET next_attempt_at = clock_timestamp() WHERE kind = 'prepared' AND id = $1`, [waiting.operationId]);
       await jobs.repair();
-      const pumped = await wakeups.pump('prepared'); assert.equal(pumped?.id, waiting.operationId);
+      await pumpWaiting();
       const work: { attempts: number; state: string; issue: string } | undefined = (await f.pool.query<{ attempts: number; state: string; issue: string }>(`SELECT attempts, state, issue FROM "${f.schema}".obligations WHERE kind = 'prepared' AND id = $1`, [waiting.operationId])).rows[0];
       assert.deepEqual(work, { attempts: 0, state: 'pending', issue: 'mutation_capacity' });
       assert.equal((await payments.inspectOperation(waiting.operationId))?.attempts.length, 0);
@@ -48,7 +60,7 @@ void test('real SQL worker preserves retry budget while physical provider capaci
     release.resolve({ kind: 'succeeded', value: { intentId: firstIntent, transactionRef: 'tx-first', checkout: {} } });
     await payments.drain();
     await f.pool.query(`UPDATE "${f.schema}".obligations SET next_attempt_at = clock_timestamp() WHERE kind = 'prepared' AND id = $1`, [waiting.operationId]);
-    await jobs.repair(); await wakeups.pump('prepared');
+    await jobs.repair(); await pumpWaiting();
     assert.equal((await payments.inspectOperation(waiting.operationId))?.state, 'succeeded');
     assert.equal(calls, 2); assert.deepEqual(errors, []);
   } finally {

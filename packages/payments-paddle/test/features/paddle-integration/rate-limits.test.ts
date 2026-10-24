@@ -20,7 +20,7 @@ void test('official SDK rate hints are absolute and never turn unknown mutations
     await t.test('documented 429 retains a bounded absolute hint for the host', async () => {
       api.intercept({ path: /^\/transactions\??$/u, method: 'POST' }).reply(429, error('too_many_requests'), { headers: { 'retry-after': '60' } });
       const before = Date.now(), result = await create(), after = Date.now();
-      assert.equal(result.kind, 'rejected'); assert.equal(result.code, 'rate_limited'); assert.ok(result.retryAt);
+      assert.equal(result.kind, 'rejected'); assert.equal(result.code, 'rate_limited'); assert.ok(typeof result.retryAt === 'string' && result.retryAt.length > 0);
       const retry = Date.parse(result.retryAt);
       assert.ok(retry >= before + 60_000 && retry <= after + 60_000);
     });
