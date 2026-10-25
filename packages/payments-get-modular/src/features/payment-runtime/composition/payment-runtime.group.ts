@@ -1,6 +1,4 @@
-import { group } from '@get-modular/assembly';
-import { paymentsModule } from './payments.module.js';
+import { group } from "@get-modular/assembly";
+import { paymentsModule } from "./payments.module.js";
 
-export const paymentsGroup = group('payment-runtime', [
-  paymentsModule,
-]);
+export const paymentsGroup = group("payment-runtime", [paymentsModule]);

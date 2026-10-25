@@ -31,8 +31,8 @@ Wrap the host-owned pool once and pass the resulting `database` to migrations,
 store, recovery and worker/transport options:
 
 ```ts
-import { Pool } from 'pg';
-import { createNodePostgresPaymentDatabase } from '@agent-teams/payments-postgres/node-postgres';
+import { Pool } from "pg";
+import { createNodePostgresPaymentDatabase } from "@agent-teams/payments-postgres/node-postgres";
 
 const pool = new Pool({ connectionString });
 const database = createNodePostgresPaymentDatabase(pool);
@@ -102,13 +102,13 @@ workspace's pnpm patch. Packed consumer qualification verifies that boundary.
 Run bootstrap explicitly with a migration role before starting application traffic:
 
 ```ts
-import { migratePaymentSchema } from '@agent-teams/payments-postgres';
-import { createPgBossPaymentTransport } from '@agent-teams/payments-postgres/pg-boss';
+import { migratePaymentSchema } from "@agent-teams/payments-postgres";
+import { createPgBossPaymentTransport } from "@agent-teams/payments-postgres/pg-boss";
 
 const namespace = {
   database,
-  paymentSchema: 'payments_application_a',
-  jobSchema: 'payment_jobs_application_a',
+  paymentSchema: "payments_application_a",
+  jobSchema: "payment_jobs_application_a",
   scope,
   onError: (error: Error) => logger.error(error),
 };
@@ -131,9 +131,12 @@ queue row surviving that retention period.
 Construct and start the runtime explicitly:
 
 ```ts
-import { createPayments } from '@agent-teams/payments-core';
-import { createPostgresPaymentJobs, createPostgresPaymentStore } from '@agent-teams/payments-postgres';
-import { createPgBossPaymentTransport } from '@agent-teams/payments-postgres/pg-boss';
+import { createPayments } from "@agent-teams/payments-core";
+import {
+  createPostgresPaymentJobs,
+  createPostgresPaymentStore,
+} from "@agent-teams/payments-postgres";
+import { createPgBossPaymentTransport } from "@agent-teams/payments-postgres/pg-boss";
 
 const transport = createPgBossPaymentTransport(namespace);
 const jobs = createPostgresPaymentJobs({ ...namespace, transport });
@@ -148,19 +151,21 @@ await jobs.start({
   payments,
   store,
   consumers: {
-    credits: async message => {
+    credits: async (message) => {
       // Owned by this consumer: commit its dedup receipt and effect together (T3).
       await creditConsumer.consume(message);
       return { messageId: message.messageId, bodyDigest: message.bodyDigest };
     },
   },
   // Optional: one read-only reconciliation action; never call an external mutation.
-  inspectUnknown: async operation => {
+  inspectUnknown: async (operation) => {
     await reconciliation.inspect(operation);
-    return 'review';
+    return "review";
   },
   // Optional: a single bounded provider page through the public checkpoint protocol.
-  resumeScan: async checkpoint => { await reconciler.resumeScan(checkpoint.scanId); },
+  resumeScan: async (checkpoint) => {
+    await reconciler.resumeScan(checkpoint.scanId);
+  },
 });
 ```
 
@@ -258,7 +263,7 @@ repair never turns them into a new prepared mutation.
 After resolving the underlying fault, an operator may call:
 
 ```ts
-await jobs.redrive({ kind: 'delivery', id: deliveryIdentity }, 'incident-123');
+await jobs.redrive({ kind: "delivery", id: deliveryIdentity }, "incident-123");
 ```
 
 Redrive resets an unfinished obligation's logical cooldown/attempts and persists
@@ -298,8 +303,7 @@ host pool. A sibling scope using the same pool remains usable. If an SDK promise
 remains unresolved forever, draining it remains the host's operational decision;
 an unknown durable outcome must not be treated as safe to resend.
 
-Supported qualification targets are Linux Node 24.22.1 and 26.12.1 with PostgreSQL
-18. The durable profile requires logged tables, `fsync=on`, durable WAL and one
+Supported qualification targets are Linux Node 24.22.1 and 26.12.1 with PostgreSQL 18. The durable profile requires logged tables, `fsync=on`, durable WAL and one
 primary without automatic lossy failover. Restore or possible WAL loss requires
 the documented recovery fence and owner-led reconciliation; queue repair cannot
 reconstruct a lost dispatch marker or independently prove an RPO0 failover.

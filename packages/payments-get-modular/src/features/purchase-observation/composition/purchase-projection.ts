@@ -1,29 +1,39 @@
-import { createStore } from '@get-modular/observation';
-import type { Resources } from '@get-modular/resources';
-import type { PurchaseProjectionRecord, PurchaseQuery } from '../application/models/projection-models.js';
-import { copyQuery } from '../application/use-cases/copy-query.js';
-import { copyPurchase } from '../application/use-cases/copy-purchase.js';
-import { loading } from '../application/use-cases/loading-state.js';
-import type { PurchaseProjection, PurchaseProjectionConfiguration } from './projection-types.js';
+import { createStore } from "@get-modular/observation";
+import type { Resources } from "@get-modular/resources";
+import type {
+  PurchaseProjectionRecord,
+  PurchaseQuery,
+} from "../application/models/projection-models.js";
+import { copyQuery } from "../application/use-cases/copy-query.js";
+import { copyPurchase } from "../application/use-cases/copy-purchase.js";
+import { loading } from "../application/use-cases/loading-state.js";
+import type { PurchaseProjection, PurchaseProjectionConfiguration } from "./projection-types.js";
 
-function createProjectionStores(configuration: PurchaseProjectionConfiguration, resources: Resources) {
+function createProjectionStores(
+  configuration: PurchaseProjectionConfiguration,
+  resources: Resources,
+) {
   const initial = copyQuery(configuration.initialQuery);
-  const requests = createStore<{ readonly request: Readonly<{ query: PurchaseQuery | undefined }> }>(
+  const requests = createStore<{
+    readonly request: Readonly<{ query: PurchaseQuery | undefined }>;
+  }>(
     { request: { query: initial } },
-    { name: 'payments-purchase/requests', resources, reportError: configuration.reportError },
+    { name: "payments-purchase/requests", resources, reportError: configuration.reportError },
   );
   const output = createStore<PurchaseProjectionRecord>(
     { state: loading(initial) },
-    { name: 'payments-purchase/view', resources, reportError: configuration.reportError },
+    { name: "payments-purchase/view", resources, reportError: configuration.reportError },
   );
 
-  requests.readonly().load(requests.readonly().read(['request']), {
+  requests.readonly().load(requests.readonly().read(["request"]), {
     resources,
-    name: 'payments-purchase/read',
+    name: "payments-purchase/read",
     loader: async ({ values }, { signal }) => {
       signal.throwIfAborted();
       const query = values.request.query;
-      if (query === undefined) {return;}
+      if (query === undefined) {
+        return;
+      }
       // readPurchase has no cancellation contract. Await its physical settlement, including the
       // reader's cleanup, even when superseded. Never race it against the observation signal.
       const purchase = await configuration.read.readPurchase(query.buyerId, query.intentId);
@@ -31,15 +41,24 @@ function createProjectionStores(configuration: PurchaseProjectionConfiguration, 
       // Store.set takes ownership and freezes. A borrowed public read result must remain untouched.
       return copyPurchase(purchase);
     },
-    onLoading: ({ values }) => { output.set({ state: loading(values.request.query) }); },
+    onLoading: ({ values }) => {
+      output.set({ state: loading(values.request.query) });
+    },
     onResult: (purchase, { values }) => {
       const query = copyQuery(values.request.query);
-      output.set({ state: query === undefined ? { status: 'idle' } : { status: 'ready', query, purchase } });
+      output.set({
+        state: query === undefined ? { status: "idle" } : { status: "ready", query, purchase },
+      });
     },
     onError: (_cause, { values }) => {
       const query = copyQuery(values.request.query);
       // Raw database/provider error text and non-plain Error objects never enter the read view.
-      output.set({ state: query === undefined ? { status: 'idle' } : { status: 'failed', query, error: { code: 'purchase_read_failed' } } });
+      output.set({
+        state:
+          query === undefined
+            ? { status: "idle" }
+            : { status: "failed", query, error: { code: "purchase_read_failed" } },
+      });
     },
   });
 
@@ -72,8 +91,10 @@ export function createPurchaseProjection(
       select,
       refresh: (): undefined => {
         resources.signal.throwIfAborted();
-        const query = requests.read(['request']).values.request.query;
-        if (query !== undefined) {select(query);}
+        const query = requests.read(["request"]).values.request.query;
+        if (query !== undefined) {
+          select(query);
+        }
         return undefined;
       },
     }),

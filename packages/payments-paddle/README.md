@@ -5,13 +5,22 @@
 **Runtime security qualification, 2026-10-21:** use the corrected official Linux Node **24.22.1 LTS** or **26.12.1** floors. Verified binaries contain Undici **7.30.1** / **8.12.2** and complete the bounded unmodified global-fetch probe normally. The [current runtime qualification](https://github.com/agent-teams-ai/payments-sdk/blob/main/docs/runtime-security-admission.md) retains artifact/source evidence, and the [reviewed hosted baselines](https://github.com/agent-teams-ai/payments-sdk/blob/main/docs/qualification.md#reviewed-hosted-baselines) passed. Each later revision requires its own reviewed CI; separate account/deployment gates remain required before production use. Updating development-only Undici does not patch the production runtime; no live Paddle attack or account qualification is claimed.
 
 ```ts
-import { createPaddleProvider } from '@agent-teams/payments-paddle';
+import { createPaddleProvider } from "@agent-teams/payments-paddle";
 
 const provider = createPaddleProvider({
-  scope: { applicationId: 'app', provider: 'paddle', paymentAccountId: 'stable-merchant', environment: 'sandbox' },
-  apiKey: process.env['PADDLE_API_KEY']!,
+  scope: {
+    applicationId: "app",
+    provider: "paddle",
+    paymentAccountId: "stable-merchant",
+    environment: "sandbox",
+  },
+  apiKey: process.env["PADDLE_API_KEY"]!,
   apiVersion: 1,
-  webhook: { endpointId: 'version-1-destination', secret: process.env['PADDLE_WEBHOOK_SECRET']!, apiVersion: 1 },
+  webhook: {
+    endpointId: "version-1-destination",
+    secret: process.env["PADDLE_WEBHOOK_SECRET"]!,
+    apiVersion: 1,
+  },
 });
 ```
 

@@ -1,8 +1,20 @@
-import type { PaymentScope } from '@agent-teams/payments-core';
-import type { DatabaseTimeouts, PaymentPostgresDatabase, PaymentSqlTransaction } from './database.js';
+import type { PaymentScope } from "@agent-teams/payments-core";
+import type {
+  DatabaseTimeouts,
+  PaymentPostgresDatabase,
+  PaymentSqlTransaction,
+} from "./database.js";
 /** A wake-up identity. Payment records, never a transport payload, authorize the work. */
-export type PaymentJobWork = Readonly<{ kind: 'inbox' | 'publication' | 'reclassification' | 'prepared' | 'unknown' | 'delivery' | 'scan'; id: string }>;
-export type PaymentJobNamespace = Readonly<{ database: PaymentPostgresDatabase; paymentSchema: string; scope: PaymentScope; timeouts?: DatabaseTimeouts }>;
+export type PaymentJobWork = Readonly<{
+  kind: "inbox" | "publication" | "reclassification" | "prepared" | "unknown" | "delivery" | "scan";
+  id: string;
+}>;
+export type PaymentJobNamespace = Readonly<{
+  database: PaymentPostgresDatabase;
+  paymentSchema: string;
+  scope: PaymentScope;
+  timeouts?: DatabaseTimeouts;
+}>;
 export type PaymentJobEvents = Readonly<{ onError: (error: Error) => void }>;
 
 /** Infrastructure-only same-transaction admission. Use only the supplied bounded executor;
@@ -22,7 +34,10 @@ export type PaymentJobTransportHandlers = Readonly<{
   work: (payload: unknown) => Promise<void>;
   repair: () => Promise<void>;
 }>;
-export type PaymentJobWorkerOptions = Readonly<{ concurrency: number; pollingIntervalSeconds: number }>;
+export type PaymentJobWorkerOptions = Readonly<{
+  concurrency: number;
+  pollingIntervalSeconds: number;
+}>;
 
 /** PostgreSQL transactional wake-up transport. No SQL or transport object enters core.
  * Construction is inert. start may admit callbacks before it settles. A successful stop closes
@@ -43,6 +58,7 @@ export function reportPaymentJobError(events: PaymentJobEvents, error: Error): v
     const sink: Readonly<{ onError: (error: Error) => unknown }> = events;
     const report = sink.onError(error);
     void Promise.resolve(report).catch(() => {});
+  } catch {
+    /* The host owns its diagnostic sink; never recursively report a sink failure. */
   }
-  catch { /* The host owns its diagnostic sink; never recursively report a sink failure. */ }
 }
