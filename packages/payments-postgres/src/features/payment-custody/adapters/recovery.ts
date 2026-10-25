@@ -5,9 +5,8 @@ import { assertPostgresDurability, withPaymentTransaction } from "./database.js"
 import type { PaymentSqlTransaction } from "./database.js";
 import { assertBatchLimit, PaymentRecords } from "./records.js";
 import type { StoredRecord } from "./records.js";
+import { PaymentRecoveryConflictError, PaymentRecoveryBlockedError } from "./recovery-model.js";
 import {
-  PaymentRecoveryConflictError,
-  PaymentRecoveryBlockedError,
   text,
   auditInput,
   laneId,
@@ -29,7 +28,7 @@ import {
   recordRecoveryOperationUncertainty,
   markRecoveryLane,
   assertResumedRecoveryOperation,
-} from "./recovery-model.js";
+} from "./recovery-state.js";
 import type {
   PaymentRecoveryOptions,
   RecoveryAudit,
@@ -37,9 +36,8 @@ import type {
   RecoveryManifest,
   PaymentRecoveryAuditRecord,
   PaymentRecoverySession,
-  Lane,
-  RecoveryConfiguration,
 } from "./recovery-model.js";
+import type { Lane, RecoveryConfiguration } from "./recovery-state.js";
 import {
   readRecoveryAudits,
   exportRecoveryCheckpoints,

@@ -7,8 +7,8 @@ import {
   PaymentRecoveryConflictError,
   PaymentRecoveryBlockedError,
   recoveryCheckpointDigest,
-  validCheckpoint,
 } from "./recovery-model.js";
+import { validCheckpoint } from "./recovery-state.js";
 import type {
   PaymentRecoveryOptions,
   PaymentRecoveryAuditRecord,

@@ -1,3 +1,10 @@
+import type {
+  EvidenceMessage,
+  Payments,
+  ScanCheckpoint,
+  PaymentOperationRead,
+} from "@agent-teams/payments-core";
+import type { PaymentStore } from "@agent-teams/payments-core/store";
 import {
   WorkIssue,
   isWork,
@@ -7,8 +14,6 @@ import {
   reclassifyJobObligation,
   repairJobObligations,
 } from "./job-obligation-operations.js";
-import type { PaymentJobHandlers } from "./job-obligation-operations.js";
-export type { PaymentDeliveryReceipt, PaymentJobHandlers } from "./job-obligation-operations.js";
 
 import { canonicalJson, digest } from "@agent-teams/payments-core";
 import type { PaymentSqlTransaction } from "./database.js";
@@ -22,6 +27,21 @@ import type {
   PaymentJobWork,
 } from "./work-transport.js";
 import { assertBatchLimit, PaymentRecords } from "./records.js";
+
+export type PaymentDeliveryReceipt = Readonly<{ messageId: string; bodyDigest: string }>;
+
+export type PaymentJobHandlers = Readonly<{
+  payments: Payments;
+  store: PaymentStore;
+  /** Resolve only after the consumer's own durable receipt + effect transaction (T3). */
+  consumers?: Readonly<
+    Record<string, (message: EvidenceMessage) => Promise<PaymentDeliveryReceipt>>
+  >;
+  /** Read-only acquisition/reconciliation. This callback must never redispatch an external mutation. */
+  inspectUnknown?: (operation: PaymentOperationRead) => Promise<"review" | "retry">;
+  /** Host-owned bounded scan page, using the public checkpoint/admission protocol. */
+  resumeScan?: (checkpoint: Readonly<ScanCheckpoint>) => Promise<void>;
+}>;
 
 export type PaymentJobOptions = PaymentJobNamespace &
   PaymentJobEvents &
