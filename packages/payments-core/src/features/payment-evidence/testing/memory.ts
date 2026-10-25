@@ -1,434 +1,498 @@
-import type { TransactionBinding, PaymentScope, JsonValue, ProviderResult, Observation, VerifiedInput, PaymentOperation, AggregateIdentity, EvidenceMessage, TransactionAggregate, SubscriptionAggregate, ScanCheckpoint, PaymentState } from '../domain/model.js';
-import type { PaymentReadVersion, ReductionInput, ReductionCommit, IntentAdmission, OperationInput, OperationCommit, StoreCommitResult } from '../application/models/payment-models.js';
-import type { PaymentStore } from '../application/ports/payment-ports.js';
-import { admitInput, objectVersionDependentRoutes, transactionAggregate } from '../domain/reducer.js';
-import { canonicalJson, createEmptyPaymentState, digest, objectVersionKey, sameOperationCommand, sameScope, scopeKey } from '../domain/values.js';
+import { mutableTables, buildMemoryWorkingSet } from "./memory-working-set.js";
+import {
+  admitMemoryIntent,
+  admitMemoryOperation,
+  findMemoryRequest,
+  loadMemoryOperation,
+  readMemoryPurchase,
+  readMemorySubscription,
+  recordMemoryAttemptObservation,
+  commitMemoryOperation,
+} from "./memory-operation-state.js";
+import type {
+  PaymentScope,
+  JsonValue,
+  ProviderResult,
+  VerifiedInput,
+  PaymentOperation,
+  AggregateIdentity,
+  EvidenceMessage,
+  TransactionAggregate,
+  SubscriptionAggregate,
+  ScanCheckpoint,
+  PaymentState,
+} from "../domain/model.js";
+import type {
+  PaymentReadVersion,
+  ReductionInput,
+  ReductionCommit,
+  IntentAdmission,
+  OperationInput,
+  OperationCommit,
+  StoreCommitResult,
+} from "../application/models/payment-models.js";
+import type { PaymentStore } from "../application/ports/payment-ports.js";
+import { admitInput } from "../domain/reducer.js";
+import { canonicalJson, createEmptyPaymentState, sameScope, scopeKey } from "../domain/values.js";
 
-type VersionTable = PaymentReadVersion['table'];
-const mutableTables = ['intents', 'operations', 'bindings', 'subscriptionBindings', 'reclassifications', 'transactions', 'subscriptions', 'versionEvidence', 'inbox'] as const;
+type VersionTable = PaymentReadVersion["table"];
+
 /** Test-only implementation of the same record/CAS protocol as the durable adapter. */
-function hasDispatchAuthority(commit: OperationCommit): boolean {
-    if (commit.operation.kind === 'purchase') {
-        return true;
-    }
-    const ref = commit.operation.providerSubscriptionRef, expected = commit.expectedReadSet ?? [];
-    return typeof ref === 'string' && ref.length > 0
-        && expected.some(item => item.table === 'subscriptionBindings' && item.id === commit.operation.subscriptionBindingId)
-        && expected.some(item => item.table === 'subscriptions' && item.id === ref);
-}
-function operationRevisionMatches(current: PaymentOperation | undefined, commit: OperationCommit): boolean {
-    return current ? sameOperationCommand(current, commit.operation) && current.revision === commit.expectedRevision : commit.expectedRevision === 0;
-}
-function dispatchLaneAvailable(state: PaymentState, operation: PaymentOperation): boolean {
-    return !Object.values(state.operations).some(candidate => candidate.operationId !== operation.operationId
-        && typeof candidate.subscriptionBindingId === 'string' && candidate.subscriptionBindingId.length > 0
-        && candidate.subscriptionBindingId === operation.subscriptionBindingId && ['dispatch_started', 'outcome_unknown'].includes(candidate.state));
-}
-function startsPreparedOperation(current: PaymentOperation | undefined, operation: PaymentOperation): boolean {
-    return current?.state === 'prepared' && operation.state === 'dispatch_started';
-}
-function applyTransactionBinding(state: PaymentState, binding: TransactionBinding): boolean {
-    const existing = state.bindings[binding.transactionRef];
-    if (existing && (existing.intentId !== binding.intentId || existing.buyerId !== binding.buyerId
-        || (existing.purpose !== binding.purpose && !(existing.purpose === 'commercial' && binding.purpose === 'recovery')))) {
-        return false;
-    }
-    state.bindings[binding.transactionRef] = existing?.customerRef !== null && existing?.customerRef !== undefined ? { ...binding, customerRef: existing.customerRef } : binding;
-    const aggregate = transactionAggregate(state, binding.transactionRef);
-    aggregate.revision += 1;
-    aggregate.publicationRequired = true;
-    return true;
-}
-function workingSetSubject(state: PaymentState, inputId: string, aggregate: AggregateIdentity | undefined): Readonly<{transactionRef: string | undefined; subscriptionRef: string | undefined; incoming: Observation | undefined}> | undefined {
-    if (aggregate) {
-        return { transactionRef: aggregate.type === 'transaction' ? aggregate.id : undefined, subscriptionRef: aggregate.type === 'subscription' ? aggregate.id : undefined, incoming: undefined };
-    }
-    const record = state.inbox[inputId];
-    if (!record) {
-        return;
-    }
-    const observation = record.input.observation;
-    const transactionRef = record.input.adverseTransactionRef ?? ('transactionRef' in observation ? observation.transactionRef : undefined);
-    const subscriptionRef = 'subscriptionRef' in observation && typeof observation.subscriptionRef === 'string' ? observation.subscriptionRef
-        : observation.kind === 'transaction' && observation.subscriptionRef.presence === 'known' ? observation.subscriptionRef.value ?? undefined : undefined;
-    return { transactionRef, subscriptionRef, incoming: observation };
-}
+
 export class MemoryPaymentStore implements PaymentStore {
-private readonly states = new Map<string, PaymentState>();
-private readonly versions = new Map<string, Map<string, number>>();
-private readonly tails = new Map<string, Promise<unknown>>();
-private revision(scope: PaymentScope, table: VersionTable, id: string): number | null { return this.versions.get(scopeKey(scope))?.get(canonicalJson([table, id])) ?? null; }
-private bump(scope: PaymentScope, table: VersionTable, id: string): void {
-    const key = scopeKey(scope), versions = this.versions.get(key) ?? new Map<string, number>();
-    versions.set(canonicalJson([table, id]), (versions.get(canonicalJson([table, id])) ?? 0) + 1); this.versions.set(key, versions);
+  private readonly states = new Map<string, PaymentState>();
+  private readonly versions = new Map<string, Map<string, number>>();
+  private readonly tails = new Map<string, Promise<unknown>>();
+  private revision(scope: PaymentScope, table: VersionTable, id: string): number | null {
+    return this.versions.get(scopeKey(scope))?.get(canonicalJson([table, id])) ?? null;
   }
-private async atomic<T>(scope: PaymentScope, mutation: (draft: PaymentState) => T): Promise<T> {
-        const key = scopeKey(scope), previous = this.tails.get(key) ?? Promise.resolve();
-        const current = previous.catch(() => { }).then(() => {
-            const before = this.states.get(key) ?? createEmptyPaymentState(), draft = structuredClone(before);
-            const result = mutation(draft);
-            if (typeof result === 'object' && result !== null && 'then' in result) {
-                throw new TypeError('Store mutation must be synchronous');
-            }
-            this.recordChanges(scope, before, draft);
-            draft.revision += 1;
-            this.states.set(key, structuredClone(draft));
-            return structuredClone(result);
-        });
-        this.tails.set(key, current);
-        try {
-            return await current;
+  private bump(scope: PaymentScope, table: VersionTable, id: string): void {
+    const key = scopeKey(scope),
+      versions = this.versions.get(key) ?? new Map<string, number>();
+    versions.set(canonicalJson([table, id]), (versions.get(canonicalJson([table, id])) ?? 0) + 1);
+    this.versions.set(key, versions);
+  }
+  private async atomic<T>(scope: PaymentScope, mutation: (draft: PaymentState) => T): Promise<T> {
+    const key = scopeKey(scope),
+      previous = this.tails.get(key) ?? Promise.resolve();
+    const current = previous
+      .catch(() => {})
+      .then(() => {
+        const before = this.states.get(key) ?? createEmptyPaymentState(),
+          draft = structuredClone(before);
+        const result = mutation(draft);
+        if (typeof result === "object" && result !== null && "then" in result) {
+          throw new TypeError("Store mutation must be synchronous");
         }
-        finally {
-            if (this.tails.get(key) === current) {
-                this.tails.delete(key);
-            }
-        }
+        this.recordChanges(scope, before, draft);
+        draft.revision += 1;
+        this.states.set(key, structuredClone(draft));
+        return structuredClone(result);
+      });
+    this.tails.set(key, current);
+    try {
+      return await current;
+    } finally {
+      if (this.tails.get(key) === current) {
+        this.tails.delete(key);
+      }
     }
-private async view<T>(scope: PaymentScope, read: (state: PaymentState) => T): Promise<T> {
-    const key = scopeKey(scope); await this.tails.get(key)?.catch(() => {});
+  }
+  private async view<T>(scope: PaymentScope, read: (state: PaymentState) => T): Promise<T> {
+    const key = scopeKey(scope);
+    await this.tails.get(key)?.catch(() => {});
     return structuredClone(read(this.states.get(key) ?? createEmptyPaymentState()));
   }
-async admitIntent(scope: PaymentScope, admission: IntentAdmission): ReturnType<PaymentStore['admitIntent']> {
-    return this.atomic(scope, state => {
-      if (state.recoveryFenced) {return { kind: 'recovery_fenced' } as const;}
-      const key = canonicalJson([admission.operation.buyerId, admission.operation.requestKey]), id = state.requestKeys[key], previous = (typeof id === 'string' && id.length > 0) ? state.operations[id] : undefined;
-      if (previous) {return previous.fingerprint === admission.operation.fingerprint ? { kind: 'existing', operation: previous } as const : { kind: 'conflict' } as const;}
-      state.requestKeys[key] = admission.operation.operationId; state.operations[admission.operation.operationId] = admission.operation;
-      state.intents[admission.intent.intentId] = admission.intent;
-      if (admission.subscriptionBinding) {state.subscriptionBindings[admission.subscriptionBinding.bindingId] = admission.subscriptionBinding;}
-      return { kind: 'created', operation: admission.operation } as const;
+  async admitIntent(
+    scope: PaymentScope,
+    admission: IntentAdmission,
+  ): ReturnType<PaymentStore["admitIntent"]> {
+    return this.atomic(scope, (state) => admitMemoryIntent(state, admission));
+  }
+  async admitOperation(
+    scope: PaymentScope,
+    operation: PaymentOperation,
+  ): ReturnType<PaymentStore["admitOperation"]> {
+    return this.atomic(scope, (state) => admitMemoryOperation(state, operation));
+  }
+  async findRequest(
+    scope: PaymentScope,
+    buyerId: string,
+    requestKey: string,
+  ): Promise<PaymentOperation | undefined> {
+    return this.view(scope, (state) => findMemoryRequest(state, buyerId, requestKey));
+  }
+  async loadOperation(
+    scope: PaymentScope,
+    operationId: string,
+  ): Promise<OperationInput | undefined> {
+    return this.view(scope, (state) =>
+      loadMemoryOperation(state, operationId, (current, operation) =>
+        this.laneRevision(current, operation),
+      ),
+    );
+  }
+
+  private laneRevision(state: PaymentState, operation: PaymentOperation): number {
+    return Object.values(state.operations)
+      .filter(
+        (candidate) =>
+          typeof candidate.subscriptionBindingId === "string" &&
+          candidate.subscriptionBindingId.length > 0 &&
+          candidate.subscriptionBindingId === operation.subscriptionBindingId,
+      )
+      .reduce((sum, candidate) => sum + candidate.revision, 0);
+  }
+
+  private async operationCommit(
+    scope: PaymentScope,
+    commit: OperationCommit,
+    dispatch: boolean,
+  ): Promise<StoreCommitResult> {
+    return this.atomic(scope, (state) =>
+      commitMemoryOperation(
+        state,
+        commit,
+        dispatch,
+        () => this.readSetMatches(scope, commit.expectedReadSet),
+        (current, operation) => this.laneRevision(current, operation),
+      ),
+    );
+  }
+  beginExternalDispatch(scope: PaymentScope, commit: OperationCommit): Promise<StoreCommitResult> {
+    return this.operationCommit(scope, commit, true);
+  }
+  finishAttempt(scope: PaymentScope, commit: OperationCommit): Promise<StoreCommitResult> {
+    return this.operationCommit(scope, commit, false);
+  }
+  commitOperation(scope: PaymentScope, commit: OperationCommit): Promise<StoreCommitResult> {
+    return this.operationCommit(scope, commit, false);
+  }
+  async recordAttemptObservation(
+    scope: PaymentScope,
+    operationId: string,
+    attemptId: string,
+    result: ProviderResult<JsonValue>,
+  ): Promise<void> {
+    await this.atomic(scope, (state) => {
+      recordMemoryAttemptObservation(state, operationId, attemptId, result);
     });
   }
-async admitOperation(scope: PaymentScope, operation: PaymentOperation): ReturnType<PaymentStore['admitOperation']> {
-    return this.atomic(scope, state => {
-      if (state.recoveryFenced) {return { kind: 'recovery_fenced' } as const;}
-      const key = canonicalJson([operation.buyerId, operation.requestKey]), id = state.requestKeys[key], previous = (typeof id === 'string' && id.length > 0) ? state.operations[id] : undefined;
-      if (previous) {return previous.fingerprint === operation.fingerprint ? { kind: 'existing', operation: previous } as const : { kind: 'conflict' } as const;}
-      const binding = (typeof operation.subscriptionBindingId === 'string' && operation.subscriptionBindingId.length > 0) ? state.subscriptionBindings[operation.subscriptionBindingId] : undefined;
-      if (!binding || binding.buyerId !== operation.buyerId) {return { kind: 'conflict' } as const;}
-      state.requestKeys[key] = operation.operationId; state.operations[operation.operationId] = operation;
-      return { kind: 'created', operation } as const;
-    });
-  }
-async findRequest(scope: PaymentScope, buyerId: string, requestKey: string): Promise<PaymentOperation | undefined> {
-    return this.view(scope, state => { const id = state.requestKeys[canonicalJson([buyerId, requestKey])]; return (typeof id === 'string' && id.length > 0) ? state.operations[id] : undefined; });
-  }
-async loadOperation(scope: PaymentScope, operationId: string): Promise<OperationInput | undefined> {
-    return this.view(scope, state => {
-      const operation = state.operations[operationId]; if (!operation) {return;}
-      const intent = (typeof operation.intentId === 'string' && operation.intentId.length > 0) ? state.intents[operation.intentId] : undefined;
-      const subscriptionBinding = (typeof operation.subscriptionBindingId === 'string' && operation.subscriptionBindingId.length > 0) ? state.subscriptionBindings[operation.subscriptionBindingId] : (typeof intent?.subscriptionBasisId === 'string' && intent.subscriptionBasisId.length > 0) ? state.subscriptionBindings[intent.subscriptionBasisId] : undefined;
-      return { operation, ...(intent ? { intent } : {}), ...(subscriptionBinding ? { subscriptionBinding } : {}), laneRevision: this.laneRevision(state, operation) };
-    });
-  }
-private laneRevision(state: PaymentState, operation: PaymentOperation): number {
-    return Object.values(state.operations).filter(candidate => (typeof candidate.subscriptionBindingId === 'string' && candidate.subscriptionBindingId.length > 0) && candidate.subscriptionBindingId === operation.subscriptionBindingId).reduce((sum, candidate) => sum + candidate.revision, 0);
-  }
-private async operationCommit(scope: PaymentScope, commit: OperationCommit, dispatch: boolean): Promise<StoreCommitResult> {
-        return this.atomic(scope, state => {
-            if (state.recoveryFenced) {
-                return { kind: 'recovery_fenced' };
-            }
-            const current = state.operations[commit.operation.operationId];
-            if (!this.readSetMatches(scope, commit.expectedReadSet)) {
-                return { kind: 'conflict' };
-            }
-            if (dispatch && !hasDispatchAuthority(commit)) {
-                return { kind: 'conflict' };
-            }
-            if (!operationRevisionMatches(current, commit)) {
-                return { kind: 'conflict' };
-            }
-            if (this.laneRevision(state, current ?? commit.operation) !== commit.expectedLaneRevision) {
-                return { kind: 'conflict' };
-            }
-            if (dispatch && !dispatchLaneAvailable(state, commit.operation)) {
-                return { kind: 'conflict' };
-            }
-            if (dispatch && !startsPreparedOperation(current, commit.operation)) {
-                return { kind: 'conflict' };
-            }
-            const key = canonicalJson([commit.operation.buyerId, commit.operation.requestKey]), existingId = state.requestKeys[key];
-            if ((typeof existingId === 'string' && existingId.length > 0) && existingId !== commit.operation.operationId) {
-                return { kind: 'conflict' };
-            }
-            if (commit.binding && !applyTransactionBinding(state, commit.binding)) {
-                return { kind: 'conflict' };
-            }
-            state.operations[commit.operation.operationId] = commit.operation;
-            state.requestKeys[key] = commit.operation.operationId;
-            if (commit.intent) {
-                state.intents[commit.intent.intentId] = commit.intent;
-            }
-            if (commit.subscriptionBinding) {
-                state.subscriptionBindings[commit.subscriptionBinding.bindingId] = commit.subscriptionBinding;
-            }
-            return { kind: 'committed' };
-        });
+  async admitVerifiedInputs(
+    scope: PaymentScope,
+    inputs: readonly VerifiedInput[],
+  ): ReturnType<PaymentStore["admitVerifiedInputs"]> {
+    if (inputs.some((input) => !sameScope(input.scope, scope))) {
+      throw new TypeError("Input scope mismatch");
     }
-beginExternalDispatch(scope: PaymentScope, commit: OperationCommit): Promise<StoreCommitResult> { return this.operationCommit(scope, commit, true); }
-finishAttempt(scope: PaymentScope, commit: OperationCommit): Promise<StoreCommitResult> { return this.operationCommit(scope, commit, false); }
-commitOperation(scope: PaymentScope, commit: OperationCommit): Promise<StoreCommitResult> { return this.operationCommit(scope, commit, false); }
-async recordAttemptObservation(scope: PaymentScope, operationId: string, attemptId: string, result: ProviderResult<JsonValue>): Promise<void> {
-    await this.atomic(scope, state => {
-      const operation = state.operations[operationId], attempt = operation?.attempts.find(item => item.attemptId === attemptId);
-      if (!attempt || !operation) {throw new Error('Unknown operation attempt');}
-      if (!attempt.observations.some(item => digest(item) === digest(result))) { attempt.observations.push(result); operation.revision += 1; }
-    });
-  }
-async admitVerifiedInputs(scope: PaymentScope, inputs: readonly VerifiedInput[]): ReturnType<PaymentStore['admitVerifiedInputs']> {
-    if (inputs.some(input => !sameScope(input.scope, scope))) {throw new TypeError('Input scope mismatch');}
-    if (inputs.length > 100) {throw new RangeError('Admission batch too large');}
-    return this.atomic(scope, state => inputs.map(input => ({ inputId: input.inputId, kind: admitInput(state, input) })));
-  }
-private workingSet(scope: PaymentScope, state: PaymentState, inputId: string, aggregate?: AggregateIdentity): ReductionInput | undefined {
-        const slice = createEmptyPaymentState(), expected: PaymentReadVersion[] = [];
-        slice.recoveryFenced = state.recoveryFenced;
-        slice.consumers = [...state.consumers];
-        expected.push({ table: 'configuration', id: 'scope', revision: this.revision(scope, 'configuration', 'scope') });
-        const status = { incomplete: false, invalidVersion: false };
-        const guard = (id: string): void => { if (!expected.some(item => item.table === 'guards' && item.id === id)) {
-            expected.push({ table: 'guards', id, revision: this.revision(scope, 'guards', id) });
-        } };
-        const add = (table: typeof mutableTables[number], id: string): void => {
-            if (expected.some(item => item.table === table && item.id === id)) {
-                return;
-            }
-            if (expected.length >= 128) {
-                status.incomplete = true;
-                return;
-            }
-            expected.push({ table, id, revision: this.revision(scope, table, id) });
-            const record = state[table][id];
-            if (record !== undefined) {
-                (slice[table] as Record<string, unknown>)[id] = structuredClone(record);
-            }
-            if (table === 'inbox') {
-                const observation = state.inbox[id]?.input.observation;
-                if (observation) {
-                    includeVersion(observation);
-                }
-            }
-            if (table === 'subscriptions') {
-                const observation = state.subscriptions[id]?.current;
-                if (observation) {
-                    includeVersion(observation);
-                }
-            }
-            if (table === 'transactions') {
-                for (const observation of state.transactions[id]?.observations ?? []) {
-                    includeVersion(observation);
-                }
-                for (const adjustment of Object.values(state.transactions[id]?.adjustments ?? {})) {
-                    includeVersion(adjustment);
-                }
-            }
-        };
-        const includeVersion = (observation: Observation): void => { try {
-            const key = objectVersionKey(observation);
-            if ((typeof key === 'string' && key.length > 0)) {
-                add('versionEvidence', key);
-            }
-        }
-        catch {
-            status.invalidVersion = true;
-        } };
-        const includeIntent = (intentId: string): void => {
-            guard(`intent:${intentId}`);
-            add('intents', intentId);
-            const intent = state.intents[intentId];
-            if (!intent) {
-                return;
-            }
-            if ((typeof intent.subscriptionBasisId === 'string' && intent.subscriptionBasisId.length > 0)) {
-                add('subscriptionBindings', intent.subscriptionBasisId);
-                add('reclassifications', intent.subscriptionBasisId);
-            }
-            for (const candidate of Object.values(state.transactions)) {
-                if (candidate.completion?.intentId === intentId && ['initial', 'one_time'].includes(candidate.completion.classification)) {
-                    add('transactions', candidate.transactionRef);
-                }
-            }
-        };
-        const subject = workingSetSubject(state, inputId, aggregate);
-        if (!subject) {
-            return;
-        }
-        if (!aggregate) {
-            add('inbox', inputId);
-        }
-        const { transactionRef, subscriptionRef, incoming } = subject;
-        const subscriptionRefs = new Set((typeof subscriptionRef === 'string' && subscriptionRef.length > 0) ? [subscriptionRef] : []);
-        const includeTransaction = (ref: string): void => {
-            add('transactions', ref);
-            add('bindings', ref);
-            const binding = state.bindings[ref];
-            if (binding) {
-                includeIntent(binding.intentId);
-            }
-            const current = state.transactions[ref]?.current;
-            if (current?.subscriptionRef.presence === 'known' && (typeof current.subscriptionRef.value === 'string' && current.subscriptionRef.value.length > 0)) {
-                subscriptionRefs.add(current.subscriptionRef.value);
-            }
-        };
-        if ((typeof transactionRef === 'string' && transactionRef.length > 0)) {
-            includeTransaction(transactionRef);
-        }
-        const includeIncomingRoutes = (observation: Observation): void => {
-            let evidence: PaymentState['versionEvidence'][string] | undefined;
-            try {
-                const key = objectVersionKey(observation);
-                evidence = (typeof key === 'string' && key.length > 0) ? state.versionEvidence[key] : undefined;
-            }
-            catch {
-                status.invalidVersion = true;
-            }
-            for (const route of objectVersionDependentRoutes(observation, evidence)) {
-                if (route.type === 'transaction') {
-                    includeTransaction(route.id);
-                }
-                else {
-                    subscriptionRefs.add(route.id);
-                }
-            }
-        };
-        if (incoming) {
-            includeIncomingRoutes(incoming);
-        }
-        for (const ref of subscriptionRefs) {
-            guard(`subscription:${ref}`);
-            add('subscriptions', ref);
-            for (const binding of Object.values(state.subscriptionBindings)) {
-                if (binding.providerSubscriptionRefs.includes(ref)) {
-                    add('subscriptionBindings', binding.bindingId);
-                    add('reclassifications', binding.bindingId);
-                    includeIntent(binding.originatingIntentId);
-                }
-            }
-        }
-        if (status.invalidVersion) {
-            return { inputId, state: slice, expected, incompleteReason: 'invalid_object_version' };
-        }
-        if (status.incomplete) {
-            return { inputId, state: slice, expected, incompleteReason: 'working_set_limit' };
-        }
-        return { inputId, state: slice, expected };
+    if (inputs.length > 100) {
+      throw new RangeError("Admission batch too large");
     }
-async loadReductionInput(scope: PaymentScope, inputId: string): Promise<ReductionInput | undefined> { return this.view(scope, state => this.workingSet(scope, state, inputId)); }
-async loadPublicationInput(scope: PaymentScope, aggregate: AggregateIdentity): Promise<ReductionInput | undefined> { return this.view(scope, state => this.workingSet(scope, state, '', aggregate)); }
-async commitReduction(scope: PaymentScope, commit: ReductionCommit): Promise<StoreCommitResult> {
-    return this.atomic(scope, state => {
-      if (state.recoveryFenced) {return { kind: 'recovery_fenced' } as const;}
-      if (commit.expected.some(item => this.revision(scope, item.table, item.id) !== item.revision)) {return { kind: 'conflict' } as const;}
+    return this.atomic(scope, (state) =>
+      inputs.map((input) => ({ inputId: input.inputId, kind: admitInput(state, input) })),
+    );
+  }
+  private workingSet(
+    scope: PaymentScope,
+    state: PaymentState,
+    inputId: string,
+    aggregate?: AggregateIdentity,
+  ): ReductionInput | undefined {
+    return buildMemoryWorkingSet(
+      state,
+      inputId,
+      (table, id) => this.revision(scope, table, id),
+      aggregate,
+    );
+  }
+  async loadReductionInput(
+    scope: PaymentScope,
+    inputId: string,
+  ): Promise<ReductionInput | undefined> {
+    return this.view(scope, (state) => this.workingSet(scope, state, inputId));
+  }
+  async loadPublicationInput(
+    scope: PaymentScope,
+    aggregate: AggregateIdentity,
+  ): Promise<ReductionInput | undefined> {
+    return this.view(scope, (state) => this.workingSet(scope, state, "", aggregate));
+  }
+  async commitReduction(scope: PaymentScope, commit: ReductionCommit): Promise<StoreCommitResult> {
+    return this.atomic(scope, (state) => {
+      if (state.recoveryFenced) {
+        return { kind: "recovery_fenced" } as const;
+      }
+      if (
+        commit.expected.some((item) => this.revision(scope, item.table, item.id) !== item.revision)
+      ) {
+        return { kind: "conflict" } as const;
+      }
       for (const table of mutableTables) {
-        if (!(typeof commit.heldReason === 'string' && commit.heldReason.length > 0) || table === 'inbox') {Object.assign(state[table], commit.state[table]);}
-        else if (table === 'transactions' || table === 'subscriptions') {
-          const records: Readonly<Record<string, TransactionAggregate | SubscriptionAggregate>> = commit.state[table];
+        if (
+          !(typeof commit.heldReason === "string" && commit.heldReason.length > 0) ||
+          table === "inbox"
+        ) {
+          Object.assign(state[table], commit.state[table]);
+        } else if (table === "transactions" || table === "subscriptions") {
+          const records: Readonly<Record<string, TransactionAggregate | SubscriptionAggregate>> =
+            commit.state[table];
           for (const [id, metadata] of Object.entries(records)) {
             const target = state[table][id];
-            if (target) { target.revision = metadata.revision; target.evidenceRevision = metadata.evidenceRevision; target.publicationRequired = metadata.publicationRequired; }
+            if (target) {
+              target.revision = metadata.revision;
+              target.evidenceRevision = metadata.evidenceRevision;
+              target.publicationRequired = metadata.publicationRequired;
+            }
           }
         }
       }
       for (const [id, message] of Object.entries(commit.state.evidence)) {
-        if (state.evidence[id] && state.evidence[id].bodyDigest !== message.bodyDigest) {return { kind: 'conflict' } as const;}
+        if (state.evidence[id] && state.evidence[id].bodyDigest !== message.bodyDigest) {
+          return { kind: "conflict" } as const;
+        }
         state.evidence[id] = message;
       }
-      Object.assign(state.deliveries, commit.state.deliveries); state.issues.push(...commit.state.issues);
-      return { kind: 'committed' } as const;
+      Object.assign(state.deliveries, commit.state.deliveries);
+      state.issues.push(...commit.state.issues);
+      return { kind: "committed" } as const;
     });
   }
-async processReclassification(scope: PaymentScope, bindingId: string, limit: number): Promise<StoreCommitResult> {
+  async processReclassification(
+    scope: PaymentScope,
+    bindingId: string,
+    limit: number,
+  ): Promise<StoreCommitResult> {
     this.limit(limit);
-    return this.atomic(scope, state => {
-      if (state.recoveryFenced) {return { kind: 'recovery_fenced' } as const;}
-      const obligation = state.reclassifications[bindingId], binding = state.subscriptionBindings[bindingId];
-      if (!obligation || obligation.complete) {return { kind: 'committed' } as const;}
-      if (!binding || obligation.decisionRevision !== binding.classificationDecision?.revision) {return { kind: 'conflict' } as const;}
-      const refs = Object.keys(state.bindings).filter(ref => state.bindings[ref]?.intentId === binding.originatingIntentId && state.transactions[ref] !== undefined && (obligation.afterTransactionRef === undefined || ref > obligation.afterTransactionRef)).toSorted();
+    return this.atomic(scope, (state) => {
+      if (state.recoveryFenced) {
+        return { kind: "recovery_fenced" } as const;
+      }
+      const obligation = state.reclassifications[bindingId],
+        binding = state.subscriptionBindings[bindingId];
+      if (!obligation || obligation.complete) {
+        return { kind: "committed" } as const;
+      }
+      if (!binding || obligation.decisionRevision !== binding.classificationDecision?.revision) {
+        return { kind: "conflict" } as const;
+      }
+      const refs = Object.keys(state.bindings)
+        .filter(
+          (ref) =>
+            state.bindings[ref]?.intentId === binding.originatingIntentId &&
+            state.transactions[ref] !== undefined &&
+            (obligation.afterTransactionRef === undefined || ref > obligation.afterTransactionRef),
+        )
+        .toSorted();
       const batch = refs.slice(0, limit);
-      for (const ref of batch) { const target = state.transactions[ref]; if (target) { target.revision += 1; target.publicationRequired = true; } }
-      const last = batch.at(-1); if (last !== undefined) {obligation.afterTransactionRef = last;}
+      for (const ref of batch) {
+        const target = state.transactions[ref];
+        if (target) {
+          target.revision += 1;
+          target.publicationRequired = true;
+        }
+      }
+      const last = batch.at(-1);
+      if (last !== undefined) {
+        obligation.afterTransactionRef = last;
+      }
       obligation.complete = refs.length <= limit;
-      return { kind: 'committed' } as const;
+      return { kind: "committed" } as const;
     });
   }
-async readPurchase(scope: PaymentScope, buyerId: string, intentId: string): ReturnType<PaymentStore['readPurchase']> {
-    return this.view(scope, state => { const intent = state.intents[intentId]; if (!intent || intent.buyerId !== buyerId) {return;} return { intent, transactions: Object.values(state.transactions).filter(item => state.bindings[item.transactionRef]?.intentId === intentId) }; });
+  async readPurchase(
+    scope: PaymentScope,
+    buyerId: string,
+    intentId: string,
+  ): ReturnType<PaymentStore["readPurchase"]> {
+    return this.view(scope, (state) => readMemoryPurchase(state, buyerId, intentId));
   }
-async readSubscription(scope: PaymentScope, buyerId: string, bindingId: string): ReturnType<PaymentStore['readSubscription']> {
-    return this.view(scope, state => { const binding = state.subscriptionBindings[bindingId]; if (!binding || binding.buyerId !== buyerId) {return;} return { binding, observations: binding.providerSubscriptionRefs.flatMap(ref => state.subscriptions[ref] ? [state.subscriptions[ref]] : []) }; });
+  async readSubscription(
+    scope: PaymentScope,
+    buyerId: string,
+    bindingId: string,
+  ): ReturnType<PaymentStore["readSubscription"]> {
+    return this.view(scope, (state) => readMemorySubscription(state, buyerId, bindingId));
   }
-async listWork(scope: PaymentScope, kind: 'inbox' | 'publication' | 'reclassification' | 'prepared' | 'unknown', limit: number): Promise<readonly string[]> {
+  async listWork(
+    scope: PaymentScope,
+    kind: "inbox" | "publication" | "reclassification" | "prepared" | "unknown",
+    limit: number,
+  ): Promise<readonly string[]> {
     this.limit(limit);
-    return this.view(scope, state => {
-      if (kind === 'inbox') {return Object.entries(state.inbox).filter(([, item]) => item.state === 'pending').map(([id]) => id).slice(0, limit);}
-      if (kind === 'reclassification') {return Object.values(state.reclassifications).filter(item => !item.complete).map(item => item.bindingId).slice(0, limit);}
-      if (kind === 'publication') {return [...Object.values(state.transactions).filter(item => item.publicationRequired).map(item => canonicalJson({ type: 'transaction', id: item.transactionRef })), ...Object.values(state.subscriptions).filter(item => item.publicationRequired).map(item => canonicalJson({ type: 'subscription', id: item.subscriptionRef }))].slice(0, limit);}
-      return Object.values(state.operations).filter(item => kind === 'prepared' ? item.state === 'prepared' : ['dispatch_started', 'outcome_unknown'].includes(item.state)).map(item => item.operationId).slice(0, limit);
+    return this.view(scope, (state) => {
+      if (kind === "inbox") {
+        return Object.entries(state.inbox)
+          .filter(([, item]) => item.state === "pending")
+          .map(([id]) => id)
+          .slice(0, limit);
+      }
+      if (kind === "reclassification") {
+        return Object.values(state.reclassifications)
+          .filter((item) => !item.complete)
+          .map((item) => item.bindingId)
+          .slice(0, limit);
+      }
+      if (kind === "publication") {
+        return [
+          ...Object.values(state.transactions)
+            .filter((item) => item.publicationRequired)
+            .map((item) => canonicalJson({ type: "transaction", id: item.transactionRef })),
+          ...Object.values(state.subscriptions)
+            .filter((item) => item.publicationRequired)
+            .map((item) => canonicalJson({ type: "subscription", id: item.subscriptionRef })),
+        ].slice(0, limit);
+      }
+      return Object.values(state.operations)
+        .filter((item) =>
+          kind === "prepared"
+            ? item.state === "prepared"
+            : ["dispatch_started", "outcome_unknown"].includes(item.state),
+        )
+        .map((item) => item.operationId)
+        .slice(0, limit);
     });
   }
-private limit(limit: number): void { if (!Number.isInteger(limit) || limit < 1 || limit > 100) {throw new RangeError('Invalid bounded batch limit');} }
-async registerConsumer(scope: PaymentScope, consumerId: string, backfill: boolean): Promise<void> {
-    await this.atomic(scope, state => {
-      if (!state.consumers.includes(consumerId)) { if (state.consumers.length >= 32) {throw new RangeError('Consumer limit');} state.consumers.push(consumerId); }
-      if (backfill) {for (const messageId of Object.keys(state.evidence)) {state.deliveries[canonicalJson([messageId, consumerId])] ??= { consumerId, messageId, acknowledged: false, attempts: 0 };}}
+  private limit(limit: number): void {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      throw new RangeError("Invalid bounded batch limit");
+    }
+  }
+  async registerConsumer(
+    scope: PaymentScope,
+    consumerId: string,
+    backfill: boolean,
+  ): Promise<void> {
+    await this.atomic(scope, (state) => {
+      if (!state.consumers.includes(consumerId)) {
+        if (state.consumers.length >= 32) {
+          throw new RangeError("Consumer limit");
+        }
+        state.consumers.push(consumerId);
+      }
+      if (backfill) {
+        for (const messageId of Object.keys(state.evidence)) {
+          state.deliveries[canonicalJson([messageId, consumerId])] ??= {
+            consumerId,
+            messageId,
+            acknowledged: false,
+            attempts: 0,
+          };
+        }
+      }
     });
   }
-async listDeliveries(scope: PaymentScope, consumerId: string, limit: number): Promise<readonly EvidenceMessage[]> {
-    this.limit(limit); return this.view(scope, state => Object.values(state.deliveries).filter(item => item.consumerId === consumerId && !item.acknowledged).slice(0, limit).flatMap(item => { const message = state.evidence[item.messageId]; return message ? [message] : []; }));
+  async listDeliveries(
+    scope: PaymentScope,
+    consumerId: string,
+    limit: number,
+  ): Promise<readonly EvidenceMessage[]> {
+    this.limit(limit);
+    return this.view(scope, (state) =>
+      Object.values(state.deliveries)
+        .filter((item) => item.consumerId === consumerId && !item.acknowledged)
+        .slice(0, limit)
+        .flatMap((item) => {
+          const message = state.evidence[item.messageId];
+          return message ? [message] : [];
+        }),
+    );
   }
-async acknowledgeDelivery(scope: PaymentScope, consumerId: string, messageId: string, bodyDigest: string): Promise<'acknowledged' | 'duplicate' | 'conflict'> {
-    return this.atomic(scope, state => { const delivery = state.deliveries[canonicalJson([messageId, consumerId])], message = state.evidence[messageId]; if (!delivery || !message || message.bodyDigest !== bodyDigest) {return 'conflict';} if (delivery.acknowledged) {return 'duplicate';} delivery.acknowledged = true; return 'acknowledged'; });
-  }
-async setRecoveryFence(scope: PaymentScope, fenced: boolean, auditRef: string): Promise<void> { await this.atomic(scope, state => { state.recoveryFenced = fenced; state.issues.push(`recovery-fence:${fenced}:${auditRef}`); }); }
-async readCheckpoint(scope: PaymentScope, scanId: string): Promise<ScanCheckpoint | undefined> { return this.view(scope, state => state.scans[scanId]); }
-async commitScanPage(scope: PaymentScope, expected: ScanCheckpoint | undefined, next: ScanCheckpoint, inputs: readonly VerifiedInput[]): Promise<StoreCommitResult> {
-    return this.atomic(scope, state => {
-      if (state.recoveryFenced) {return { kind: 'recovery_fenced' } as const;}
-      if (canonicalJson(state.scans[next.scanId] ?? null) !== canonicalJson(expected ?? null)) {return { kind: 'conflict' } as const;}
-      for (const input of inputs) {admitInput(state, input);}
-      state.scans[next.scanId] = next; return { kind: 'committed' } as const;
+  async acknowledgeDelivery(
+    scope: PaymentScope,
+    consumerId: string,
+    messageId: string,
+    bodyDigest: string,
+  ): Promise<"acknowledged" | "duplicate" | "conflict"> {
+    return this.atomic(scope, (state) => {
+      const delivery = state.deliveries[canonicalJson([messageId, consumerId])],
+        message = state.evidence[messageId];
+      if (!delivery || !message || message.bodyDigest !== bodyDigest) {
+        return "conflict";
+      }
+      if (delivery.acknowledged) {
+        return "duplicate";
+      }
+      delivery.acknowledged = true;
+      return "acknowledged";
     });
   }
-private recordChanges(scope: PaymentScope, before: PaymentState, draft: PaymentState): void {
-        for (const table of mutableTables) {
-            for (const id of new Set([...Object.keys(before[table]), ...Object.keys(draft[table])])) {
-                if (canonicalJson(before[table][id] ?? null) !== canonicalJson(draft[table][id] ?? null)) {
-                    this.bump(scope, table, id);
-                }
-            }
+  async setRecoveryFence(scope: PaymentScope, fenced: boolean, auditRef: string): Promise<void> {
+    await this.atomic(scope, (state) => {
+      state.recoveryFenced = fenced;
+      state.issues.push(`recovery-fence:${fenced}:${auditRef}`);
+    });
+  }
+  async readCheckpoint(scope: PaymentScope, scanId: string): Promise<ScanCheckpoint | undefined> {
+    return this.view(scope, (state) => state.scans[scanId]);
+  }
+  async commitScanPage(
+    scope: PaymentScope,
+    expected: ScanCheckpoint | undefined,
+    next: ScanCheckpoint,
+    inputs: readonly VerifiedInput[],
+  ): Promise<StoreCommitResult> {
+    return this.atomic(scope, (state) => {
+      if (state.recoveryFenced) {
+        return { kind: "recovery_fenced" } as const;
+      }
+      if (canonicalJson(state.scans[next.scanId] ?? null) !== canonicalJson(expected ?? null)) {
+        return { kind: "conflict" } as const;
+      }
+      for (const input of inputs) {
+        admitInput(state, input);
+      }
+      state.scans[next.scanId] = next;
+      return { kind: "committed" } as const;
+    });
+  }
+  private recordChanges(scope: PaymentScope, before: PaymentState, draft: PaymentState): void {
+    for (const table of mutableTables) {
+      for (const id of new Set([...Object.keys(before[table]), ...Object.keys(draft[table])])) {
+        if (canonicalJson(before[table][id] ?? null) !== canonicalJson(draft[table][id] ?? null)) {
+          this.bump(scope, table, id);
         }
-        this.recordTransactionGuards(scope, before, draft);
-        this.recordSubscriptionGuards(scope, before, draft);
-        if (canonicalJson(before.consumers) !== canonicalJson(draft.consumers) || before.recoveryFenced !== draft.recoveryFenced) {
-            this.bump(scope, 'configuration', 'scope');
-        }
+      }
     }
-private recordTransactionGuards(scope: PaymentScope, before: PaymentState, draft: PaymentState): void {
-        for (const ref of new Set([...Object.keys(before.transactions), ...Object.keys(draft.transactions)])) {
-            if (canonicalJson(before.transactions[ref] ?? null) === canonicalJson(draft.transactions[ref] ?? null)) {
-                continue;
-            }
-            const intent = draft.bindings[ref]?.intentId ?? before.bindings[ref]?.intentId;
-            if (typeof intent === 'string' && intent.length > 0) {
-                this.bump(scope, 'guards', `intent:${intent}`);
-            }
-        }
+    this.recordTransactionGuards(scope, before, draft);
+    this.recordSubscriptionGuards(scope, before, draft);
+    if (
+      canonicalJson(before.consumers) !== canonicalJson(draft.consumers) ||
+      before.recoveryFenced !== draft.recoveryFenced
+    ) {
+      this.bump(scope, "configuration", "scope");
     }
-private recordSubscriptionGuards(scope: PaymentScope, before: PaymentState, draft: PaymentState): void {
-        for (const id of new Set([...Object.keys(before.subscriptionBindings), ...Object.keys(draft.subscriptionBindings)])) {
-            if (canonicalJson(before.subscriptionBindings[id] ?? null) === canonicalJson(draft.subscriptionBindings[id] ?? null)) {
-                continue;
-            }
-            const refs = new Set([...(before.subscriptionBindings[id]?.providerSubscriptionRefs ?? []), ...(draft.subscriptionBindings[id]?.providerSubscriptionRefs ?? [])]);
-            for (const ref of refs) {
-                this.bump(scope, 'guards', `subscription:${ref}`);
-            }
-        }
+  }
+  private recordTransactionGuards(
+    scope: PaymentScope,
+    before: PaymentState,
+    draft: PaymentState,
+  ): void {
+    for (const ref of new Set([
+      ...Object.keys(before.transactions),
+      ...Object.keys(draft.transactions),
+    ])) {
+      if (
+        canonicalJson(before.transactions[ref] ?? null) ===
+        canonicalJson(draft.transactions[ref] ?? null)
+      ) {
+        continue;
+      }
+      const intent = draft.bindings[ref]?.intentId ?? before.bindings[ref]?.intentId;
+      if (typeof intent === "string" && intent.length > 0) {
+        this.bump(scope, "guards", `intent:${intent}`);
+      }
     }
-private readSetMatches(scope: PaymentScope, expected: readonly PaymentReadVersion[] | undefined): boolean {
-        return expected?.some(item => this.revision(scope, item.table, item.id) !== item.revision) !== true;
+  }
+  private recordSubscriptionGuards(
+    scope: PaymentScope,
+    before: PaymentState,
+    draft: PaymentState,
+  ): void {
+    for (const id of new Set([
+      ...Object.keys(before.subscriptionBindings),
+      ...Object.keys(draft.subscriptionBindings),
+    ])) {
+      if (
+        canonicalJson(before.subscriptionBindings[id] ?? null) ===
+        canonicalJson(draft.subscriptionBindings[id] ?? null)
+      ) {
+        continue;
+      }
+      const refs = new Set([
+        ...(before.subscriptionBindings[id]?.providerSubscriptionRefs ?? []),
+        ...(draft.subscriptionBindings[id]?.providerSubscriptionRefs ?? []),
+      ]);
+      for (const ref of refs) {
+        this.bump(scope, "guards", `subscription:${ref}`);
+      }
     }
+  }
+  private readSetMatches(
+    scope: PaymentScope,
+    expected: readonly PaymentReadVersion[] | undefined,
+  ): boolean {
+    return (
+      expected?.some((item) => this.revision(scope, item.table, item.id) !== item.revision) !== true
+    );
+  }
 }

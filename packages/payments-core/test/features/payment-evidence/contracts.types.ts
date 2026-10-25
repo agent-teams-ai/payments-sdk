@@ -1,12 +1,31 @@
-import type { EvidenceMessage, ObservedSubscriptionRead, OperationResult, PaymentOperationRead, PaymentsCheckout, PurchaseRead, StartPurchase, CheckoutReady } from '../../../src/index.ts';
-import type { PaymentProvider } from '../../../src/provider.ts';
+import type {
+  EvidenceMessage,
+  ObservedSubscriptionRead,
+  OperationResult,
+  PaymentOperationRead,
+  PaymentsCheckout,
+  PurchaseRead,
+  StartPurchase,
+  CheckoutReady,
+} from "../../../src/index.ts";
+import type { PaymentProvider } from "../../../src/provider.ts";
 
 /** Compile-only rejection witnesses; the runtime deliberately never calls these invalid operations. */
-export function rejectMutablePublicReads(operation: PaymentOperationRead, purchase: PurchaseRead, subscription: ObservedSubscriptionRead, evidence: EvidenceMessage): void {
+export function rejectMutablePublicReads(
+  operation: PaymentOperationRead,
+  purchase: PurchaseRead,
+  subscription: ObservedSubscriptionRead,
+  evidence: EvidenceMessage,
+): void {
   // @ts-expect-error Public operation snapshots cannot edit lifecycle state.
-  operation.state = 'prepared';
+  operation.state = "prepared";
   // @ts-expect-error Public attempts are readonly snapshots.
-  operation.attempts[0] = { attemptId: 'id', fingerprint: 'fingerprint', dispatchedAt: 'time', observations: [] };
+  operation.attempts[0] = {
+    attemptId: "id",
+    fingerprint: "fingerprint",
+    dispatchedAt: "time",
+    observations: [],
+  };
   // @ts-expect-error Provider diagnostics belong to provider and store ports.
   void operation.result?.diagnostic;
   // @ts-expect-error Publication control is private aggregate state.
@@ -15,13 +34,15 @@ export function rejectMutablePublicReads(operation: PaymentOperationRead, purcha
   void purchase.intent.fingerprint;
   // @ts-expect-error Stream classification decisions are private policy metadata.
   void subscription.binding.classificationDecision;
-  if (evidence.kind === 'subscription_complete') {
+  if (evidence.kind === "subscription_complete") {
     // @ts-expect-error Published binding evidence cannot expose a mutable stream list.
-    evidence.binding.providerSubscriptionRefs[0] = 'another-stream';
+    evidence.binding.providerSubscriptionRefs[0] = "another-stream";
   }
 }
 
-const startPurchase = async (_command: StartPurchase & { readonly buyerId: 'single-buyer' }): Promise<OperationResult<CheckoutReady>> => ({ kind: 'rejected', code: 'validation' });
+const startPurchase = async (
+  _command: StartPurchase & { readonly buyerId: "single-buyer" },
+): Promise<OperationResult<CheckoutReady>> => ({ kind: "rejected", code: "validation" });
 
 export function rejectStrongerCheckoutPrecondition(): void {
   // @ts-expect-error An application port cannot require one particular buyer.
@@ -30,11 +51,13 @@ export function rejectStrongerCheckoutPrecondition(): void {
 }
 
 export function rejectStrongerProviderPrecondition(provider: PaymentProvider): void {
-  const createCheckout = (input: Parameters<PaymentProvider['createCheckout']>[0] & { readonly buyerId: 'single-buyer' }) => provider.createCheckout(input);
+  const createCheckout = (
+    input: Parameters<PaymentProvider["createCheckout"]>[0] & { readonly buyerId: "single-buyer" },
+  ) => provider.createCheckout(input);
   // @ts-expect-error Provider replacement cannot strengthen the caller's preconditions.
   const replacement: PaymentProvider = { ...provider, createCheckout };
   void replacement;
 }
 
 // @ts-expect-error Mutable aggregates are selected explicitly through the store subpath.
-export type RootAggregate = import('../../../src/index.ts').TransactionAggregate;
+export type RootAggregate = import("../../../src/index.ts").TransactionAggregate;

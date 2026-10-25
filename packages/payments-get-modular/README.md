@@ -4,13 +4,13 @@ Optional Get Modular composition for the provider-neutral payment runtime. The H
 
 ## Supported composition profile
 
-| Package | Qualified artifact | Role |
-| --- | --- | --- |
-| `@get-modular/core` | `0.7.0` | Host peer |
-| `@get-modular/assembly` | `0.7.0` | Host peer; descriptors, entries, groups, preparation, runs |
-| `@get-modular/resources` | `0.2.1` | Host peer; explicit resource custody and close reports |
-| `@get-modular/conformance` | `0.5.0` | Development tests only |
-| `@get-modular/observation` | `0.2.0` | Optional Host peer; required only by `./observation` |
+| Package                    | Qualified artifact | Role                                                       |
+| -------------------------- | ------------------ | ---------------------------------------------------------- |
+| `@get-modular/core`        | `0.7.0`            | Host peer                                                  |
+| `@get-modular/assembly`    | `0.7.0`            | Host peer; descriptors, entries, groups, preparation, runs |
+| `@get-modular/resources`   | `0.2.1`            | Host peer; explicit resource custody and close reports     |
+| `@get-modular/conformance` | `0.5.0`            | Development tests only                                     |
+| `@get-modular/observation` | `0.2.0`            | Optional Host peer; required only by `./observation`       |
 
 Keep one physical Resources package identity and a compatible Core/Assembly peer set. `scoped` validates the run scope using package-local identity; an independent nested Resources copy is incompatible even if its version matches. The package manifest uses the workspace's exact catalog pins for qualification. The package is ESM and targets Linux Node `>=24.22.1 <25 || >=26.12.1 <27`. Maintained source and tests are ordinary `.ts`, checked with TypeScript `7.0.2`, strict options and `skipLibCheck:false`.
 
@@ -21,24 +21,24 @@ A framework-neutral application can use `payments-core` directly and omit this p
 The definitions are inert. Importing `paymentsModule` or preparing a template opens no connection and executes no payment command. Configuration is a declared per-run input; one prepared template can serve independent application/account/environment runs without global mutable configuration.
 
 ```ts
-import type { PaymentRuntimeOptions } from '@agent-teams/payments-core';
-import { assemblyFor } from '@get-modular/assembly';
-import { createScope, type CloseOptions } from '@get-modular/resources';
+import type { PaymentRuntimeOptions } from "@agent-teams/payments-core";
+import { assemblyFor } from "@get-modular/assembly";
+import { createScope, type CloseOptions } from "@get-modular/resources";
 import {
   PaymentsConfiguration,
   paymentsConfiguration,
   paymentsGroup,
   paymentsModule,
   type PaymentsCapabilities,
-} from '@agent-teams/payments-get-modular';
+} from "@agent-teams/payments-get-modular";
 
 const preparation = await assemblyFor<PaymentsCapabilities>().prepare({
-  profileId: 'my-host/payments',
+  profileId: "my-host/payments",
   modules: [paymentsGroup],
   inputs: { configuration: paymentsConfiguration },
   roots: { payments: paymentsModule },
 });
-if (preparation.status !== 'prepared') {
+if (preparation.status !== "prepared") {
   throw new Error(preparation.error.code, {
     cause: { error: preparation.error, diagnostics: preparation.diagnostics },
   });
@@ -53,11 +53,14 @@ export async function createPaymentHost(options: PaymentRuntimeOptions, signal?:
     scope: attempt.resources,
     inputs: { configuration: { [PaymentsConfiguration.id]: options } },
   });
-  if (outcome.status !== 'succeeded') {
+  if (outcome.status !== "succeeded") {
     const report = await attempt.control.close();
-    throw new Error(`Payment composition ${outcome.status}; cleanup ${report.complete ? 'complete' : 'incomplete'}`, {
-      cause: { outcome, cleanup: report },
-    });
+    throw new Error(
+      `Payment composition ${outcome.status}; cleanup ${report.complete ? "complete" : "incomplete"}`,
+      {
+        cause: { outcome, cleanup: report },
+      },
+    );
   }
   return {
     payments: outcome.roots.payments,
@@ -74,13 +77,13 @@ Retain preparation causes and Core diagnostics in the Host's startup error path.
 
 ## Capability facets
 
-| Descriptor | Value / root facet | Authority |
-| --- | --- | --- |
-| `Checkout` | `PaymentsCheckout` / `checkout` | `startPurchase` |
-| `Read` | `PaymentsRead` / `read` | `readOperation`, `readPurchase`, `readObservedSubscription`, `readSubscriptionSelection` |
-| `Management` | `PaymentsManagement` / `management` | Explicit cancellation, payment update, authorized management link |
+| Descriptor   | Value / root facet                  | Authority                                                                                                                                                           |
+| ------------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Checkout`   | `PaymentsCheckout` / `checkout`     | `startPurchase`                                                                                                                                                     |
+| `Read`       | `PaymentsRead` / `read`             | `readOperation`, `readPurchase`, `readObservedSubscription`, `readSubscriptionSelection`                                                                            |
+| `Management` | `PaymentsManagement` / `management` | Explicit cancellation, payment update, authorized management link                                                                                                   |
 | `Processing` | `PaymentsProcessing` / `processing` | Verified admission, inbox/publication processing, operation dispatch, refresh, audited unknown resolution, audited subscription stream selection and bounded repair |
-| `Delivery` | `PaymentsDelivery` / `delivery` | Consumer registration, durable delivery reads and acknowledgement |
+| `Delivery`   | `PaymentsDelivery` / `delivery`     | Consumer registration, durable delivery reads and acknowledgement                                                                                                   |
 
 The root also exposes the configured payment `scope` and read-only `lifecycle()` diagnostics. It does not expose the resource control or the core runtime's `stop()`/`drain()` methods. Consumers receive frozen facet objects and the actual core operation results, including `unsupported`, `pending`, and `outcome_unknown`.
 
@@ -107,22 +110,29 @@ Assembly returns ordinary promises and a construction journal; it does not roll 
 The public `@agent-teams/payments-get-modular/observation` subpath supplies one replaceable purchase read projection and an optional Assembly display consumer. Install Observation `0.2.0` when using that subpath. The main package entry remains a static composition surface and can be installed, typechecked and imported without Observation. Its optional peer metadata preserves that boundary; all participating modules must still share one physical Resources identity.
 
 ```ts
-import { createScope } from '@get-modular/resources';
-import { createPurchaseProjection } from '@agent-teams/payments-get-modular/observation';
+import { createScope } from "@get-modular/resources";
+import { createPurchaseProjection } from "@agent-teams/payments-get-modular/observation";
 
-const projectionScope = createScope({ name: 'authorized-purchase-view' });
-const projection = createPurchaseProjection({
-  read: { readPurchase: payments.readPurchase },
-  initialQuery: { buyerId: authorizedBuyerId, intentId: authorizedIntentId },
-  reportError: (report) => { hostErrors.push(report); },
-}, { resources: projectionScope.resources });
+const projectionScope = createScope({ name: "authorized-purchase-view" });
+const projection = createPurchaseProjection(
+  {
+    read: { readPurchase: payments.readPurchase },
+    initialQuery: { buyerId: authorizedBuyerId, intentId: authorizedIntentId },
+    reportError: (report) => {
+      hostErrors.push(report);
+    },
+  },
+  { resources: projectionScope.resources },
+);
 
-const snapshot = projection.view.read(['state']);
+const snapshot = projection.view.read(["state"]);
 render(snapshot.values.state); // Initial rendering is explicit.
 projection.view.watch(snapshot, {
   resources: projectionScope.resources,
-  name: 'purchase-screen',
-  onChange: ({ values }) => { render(values.state); },
+  name: "purchase-screen",
+  onChange: ({ values }) => {
+    render(values.state);
+  },
 });
 projection.commands.refresh(); // Explicitly re-read after a durable commit.
 projection.commands.select(undefined); // Synchronously clear the current view.

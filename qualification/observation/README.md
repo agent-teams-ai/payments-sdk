@@ -9,13 +9,18 @@ The October 20 train and its equality with the original upstream candidates rema
 The public `createPurchaseProjection` owns one selected purchase view and its explicit view commands:
 
 ```ts
-import { createPurchaseProjection } from '@agent-teams/payments-get-modular/observation';
+import { createPurchaseProjection } from "@agent-teams/payments-get-modular/observation";
 
-const projection = createPurchaseProjection({
-  read: { readPurchase: payments.readPurchase },
-  initialQuery: { buyerId: authorizedBuyerId, intentId: authorizedIntentId },
-  reportError: (report) => { hostErrors.push(report); },
-}, { resources: projectionScope.resources });
+const projection = createPurchaseProjection(
+  {
+    read: { readPurchase: payments.readPurchase },
+    initialQuery: { buyerId: authorizedBuyerId, intentId: authorizedIntentId },
+    reportError: (report) => {
+      hostErrors.push(report);
+    },
+  },
+  { resources: projectionScope.resources },
+);
 
 projection.commands.refresh(); // Explicitly re-read after a durable commit.
 projection.commands.select({ buyerId: anotherAuthorizedBuyer, intentId: anotherAuthorizedIntent });
@@ -35,17 +40,23 @@ The Host owns the existing `createPayments()` runtime, provider, storage adapter
 The public observation subpath exports declared inputs, required slots, a projection module and a display module. Definitions are inert. One prepared template can be run with independent per-run inputs:
 
 ```ts
-import { assemblyFor } from '@get-modular/assembly';
-import { createScope } from '@get-modular/resources';
+import { assemblyFor } from "@get-modular/assembly";
+import { createScope } from "@get-modular/resources";
 import {
-  PurchaseReader, ProjectionConfiguration, ProjectionRenderer,
-  purchaseObservationGroup, purchaseProjectionModule, purchaseProjectionDisplayModule,
-  purchaseReadInput, projectionConfigurationInput, projectionRendererInput,
+  PurchaseReader,
+  ProjectionConfiguration,
+  ProjectionRenderer,
+  purchaseObservationGroup,
+  purchaseProjectionModule,
+  purchaseProjectionDisplayModule,
+  purchaseReadInput,
+  projectionConfigurationInput,
+  projectionRendererInput,
   type PurchaseObservationCapabilities,
-} from '@agent-teams/payments-get-modular/observation';
+} from "@agent-teams/payments-get-modular/observation";
 
 const preparation = await assemblyFor<PurchaseObservationCapabilities>().prepare({
-  profileId: 'my-host/payments-observation',
+  profileId: "my-host/payments-observation",
   modules: [purchaseObservationGroup],
   roots: { projection: purchaseProjectionModule, display: purchaseProjectionDisplayModule },
   inputs: {
@@ -54,22 +65,34 @@ const preparation = await assemblyFor<PurchaseObservationCapabilities>().prepare
     renderer: projectionRendererInput,
   },
 });
-if (preparation.status !== 'prepared') throw new Error(preparation.error.code, {
-  cause: { error: preparation.error, diagnostics: preparation.diagnostics },
-});
-const hostOwner = createScope({ name: 'payment-host' });
+if (preparation.status !== "prepared")
+  throw new Error(preparation.error.code, {
+    cause: { error: preparation.error, diagnostics: preparation.diagnostics },
+  });
+const hostOwner = createScope({ name: "payment-host" });
 // Register Host-owned shared infrastructure before this existing runtime.
-hostOwner.resources.use({ [Symbol.asyncDispose]: async () => {
-  payments.stop();
-  await payments.drain();
-} }, 'payments-runtime');
-const attempt = hostOwner.resources.child({ name: 'purchase-view-attempt' });
+hostOwner.resources.use(
+  {
+    [Symbol.asyncDispose]: async () => {
+      payments.stop();
+      await payments.drain();
+    },
+  },
+  "payments-runtime",
+);
+const attempt = hostOwner.resources.child({ name: "purchase-view-attempt" });
 const outcome = await preparation.prepared.run({
   scope: attempt.resources,
   inputs: {
     read: { [PurchaseReader.id]: { readPurchase: payments.readPurchase } },
     configuration: { [ProjectionConfiguration.id]: { initialQuery, reportError } },
-    renderer: { [ProjectionRenderer.id]: { render: (state) => { screen.show(state); } } },
+    renderer: {
+      [ProjectionRenderer.id]: {
+        render: (state) => {
+          screen.show(state);
+        },
+      },
+    },
   },
 });
 // The Host closes attempt.control after failed startup or when the view ends.
@@ -78,7 +101,7 @@ const patientClose = attempt.control.close({ escalate: shutdownEscalation });
 const viewClose = await patientClose;
 if (!viewClose.complete) {
   // Retain hostOwner, the pool and attempt control when real cleanup failed.
-  throw new Error('Purchase view cleanup remains incomplete', { cause: viewClose });
+  throw new Error("Purchase view cleanup remains incomplete", { cause: viewClose });
 }
 await hostOwner.control.close(); // Only after every dependent view has completed.
 ```

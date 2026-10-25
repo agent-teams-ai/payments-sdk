@@ -1,4 +1,4 @@
-import type { Clock, ConstructorOptions } from 'pg-boss/dist/types.js';
+import type { Clock, ConstructorOptions } from "pg-boss/dist/types.js";
 /**
  * Exact declaration repair for pg-boss 12.38.0 (MIT; see the distributed NOTICE).
  * Upstream commit 2c1005b744952360e999c2000e155a1bfebb8951 marks these interfaces internal,
@@ -7,7 +7,7 @@ import type { Clock, ConstructorOptions } from 'pg-boss/dist/types.js';
  * Requalify/remove on upgrade. Packed NodeNext and Bundler consumers keep skipLibCheck:false.
  */
 
-declare module 'pg-boss/dist/types.js' {
+declare module "pg-boss/dist/types.js" {
   interface CompatibilityFlags {
     noSkipLocked?: boolean;
     noMultiMutationCte?: boolean;

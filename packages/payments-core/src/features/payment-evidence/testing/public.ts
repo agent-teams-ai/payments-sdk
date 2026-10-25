@@ -1,1 +1,1 @@
-export { MemoryPaymentStore } from './memory.js';
+export { MemoryPaymentStore } from "./memory.js";

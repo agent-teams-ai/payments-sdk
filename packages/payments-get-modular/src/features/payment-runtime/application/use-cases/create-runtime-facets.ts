@@ -1,10 +1,14 @@
-import type { Payments } from '@agent-teams/payments-core';
-import type { PaymentsModule } from '../ports/runtime-facets.js';
+import type { Payments } from "@agent-teams/payments-core";
+import type { PaymentsModule } from "../ports/runtime-facets.js";
 
 function createCallTracker(signal: AbortSignal, active: Set<Promise<unknown>>) {
-  return function track<A extends readonly unknown[], R>(call: (...args: A) => Promise<R>): (...args: A) => Promise<R> {
+  return function track<A extends readonly unknown[], R>(
+    call: (...args: A) => Promise<R>,
+  ): (...args: A) => Promise<R> {
     return (...args) => {
-      if (signal.aborted) {return Promise.reject(signal.reason);}
+      if (signal.aborted) {
+        return Promise.reject(signal.reason);
+      }
       const task = call(...args);
       active.add(task);
       void task.finally(() => active.delete(task)).catch(() => {});
@@ -13,7 +17,10 @@ function createCallTracker(signal: AbortSignal, active: Set<Promise<unknown>>) {
   };
 }
 
-export function createRuntimeFacets(runtime: Payments, signal: AbortSignal): Readonly<{ instance: PaymentsModule; close: () => Promise<void> }> {
+export function createRuntimeFacets(
+  runtime: Payments,
+  signal: AbortSignal,
+): Readonly<{ instance: PaymentsModule; close: () => Promise<void> }> {
   const active = new Set<Promise<unknown>>();
   const track = createCallTracker(signal, active);
   const checkout = Object.freeze({ startPurchase: track(runtime.startPurchase) });
@@ -46,7 +53,13 @@ export function createRuntimeFacets(runtime: Payments, signal: AbortSignal): Rea
     acknowledgeDelivery: track(runtime.acknowledgeDelivery),
   });
   const instance: PaymentsModule = Object.freeze({
-    scope: runtime.scope, checkout, read, management, processing, delivery, lifecycle: runtime.lifecycle,
+    scope: runtime.scope,
+    checkout,
+    read,
+    management,
+    processing,
+    delivery,
+    lifecycle: runtime.lifecycle,
   });
   return {
     instance,

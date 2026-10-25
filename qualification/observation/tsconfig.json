@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2024",
-    "lib": [
-      "ES2024",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
@@ -15,13 +11,9 @@
     "erasableSyntaxOnly": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "types": [
-      "node"
-    ]
+    "types": ["node"]
   },
-  "include": [
-    "*.ts"
-  ],
+  "include": ["*.ts"],
   "references": [
     { "path": "../../packages/payments-core" },
     { "path": "../../packages/payments-paddle" },

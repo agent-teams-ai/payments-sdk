@@ -1,1 +1,1 @@
-export { createNodePostgresPaymentDatabase } from '../adapters/node-postgres.js';
+export { createNodePostgresPaymentDatabase } from "../adapters/node-postgres.js";
