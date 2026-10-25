@@ -4,8 +4,15 @@ import type {
   ObjectVersionEvidence,
   EventIdentityEvidence,
   AggregateIdentity,
+  PaymentState,
 } from "./model.js";
-import { compareTime } from "./values.js";
+import {
+  compareTime,
+  exactTime,
+  objectVersionKey,
+  canonicalJson,
+  MAX_OBJECT_VERSION_EVIDENCE_BYTES,
+} from "./values.js";
 import { semantic, compatible, mergeFields } from "./observation-fields.js";
 
 export function inputRoutes(
@@ -203,4 +210,60 @@ export function mergeEventIdentityEvidence(
     projection,
     routes,
   };
+}
+
+type VersionedObservation = Exclude<Observation, { kind: "unsupported" }>;
+
+export function certifyObjectVersion(
+  state: PaymentState,
+  observation: VersionedObservation,
+):
+  | Readonly<{ kind: "certified"; observation: VersionedObservation }>
+  | Readonly<{ kind: "conflict" | "held" }> {
+  const key = objectVersionKey(observation);
+  if (!(typeof key === "string" && key.length > 0)) {
+    throw new Error("Versioned observation has no identity");
+  }
+  const time = exactTime(observation.version),
+    entityRef =
+      observation.kind === "transaction"
+        ? observation.transactionRef
+        : observation.kind === "subscription"
+          ? observation.subscriptionRef
+          : observation.adjustmentRef;
+  const original = state.versionEvidence[key];
+  if (original?.kind === "held") {
+    return { kind: "held" };
+  }
+  const { source, ...incoming } = observation;
+  if (
+    original &&
+    (!compatible(semantic(original.projection), semantic(incoming)) || original.conflict)
+  ) {
+    state.versionEvidence[key] = { ...original, conflict: true };
+    return { kind: "conflict" };
+  }
+  const projection = original ? mergeFields(original.projection, incoming) : incoming;
+  const evidence: ObjectVersionEvidence = {
+    kind: "certified",
+    entityKind: observation.kind,
+    entityRef,
+    seconds: time.seconds,
+    fraction: time.fraction,
+    projection,
+    conflict: false,
+  };
+  if (Buffer.byteLength(canonicalJson(evidence)) > MAX_OBJECT_VERSION_EVIDENCE_BYTES) {
+    state.versionEvidence[key] = {
+      kind: "held",
+      entityKind: observation.kind,
+      entityRef,
+      seconds: time.seconds,
+      fraction: time.fraction,
+      reason: "version_evidence_size_limit",
+    };
+    return { kind: "held" };
+  }
+  state.versionEvidence[key] = evidence;
+  return { kind: "certified", observation: { ...projection, source } };
 }

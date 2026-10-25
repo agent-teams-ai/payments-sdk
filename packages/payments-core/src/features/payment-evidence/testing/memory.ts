@@ -1,9 +1,18 @@
+import { mutableTables, buildMemoryWorkingSet } from "./memory-working-set.js";
+import {
+  admitMemoryIntent,
+  admitMemoryOperation,
+  findMemoryRequest,
+  loadMemoryOperation,
+  readMemoryPurchase,
+  readMemorySubscription,
+  recordMemoryAttemptObservation,
+  commitMemoryOperation,
+} from "./memory-operation-state.js";
 import type {
-  TransactionBinding,
   PaymentScope,
   JsonValue,
   ProviderResult,
-  Observation,
   VerifiedInput,
   PaymentOperation,
   AggregateIdentity,
@@ -23,129 +32,13 @@ import type {
   StoreCommitResult,
 } from "../application/models/payment-models.js";
 import type { PaymentStore } from "../application/ports/payment-ports.js";
-import {
-  admitInput,
-  objectVersionDependentRoutes,
-  transactionAggregate,
-} from "../domain/reducer.js";
-import {
-  canonicalJson,
-  createEmptyPaymentState,
-  digest,
-  objectVersionKey,
-  sameOperationCommand,
-  sameScope,
-  scopeKey,
-} from "../domain/values.js";
+import { admitInput } from "../domain/reducer.js";
+import { canonicalJson, createEmptyPaymentState, sameScope, scopeKey } from "../domain/values.js";
 
 type VersionTable = PaymentReadVersion["table"];
-const mutableTables = [
-  "intents",
-  "operations",
-  "bindings",
-  "subscriptionBindings",
-  "reclassifications",
-  "transactions",
-  "subscriptions",
-  "versionEvidence",
-  "inbox",
-] as const;
+
 /** Test-only implementation of the same record/CAS protocol as the durable adapter. */
-function hasDispatchAuthority(commit: OperationCommit): boolean {
-  if (commit.operation.kind === "purchase") {
-    return true;
-  }
-  const ref = commit.operation.providerSubscriptionRef,
-    expected = commit.expectedReadSet ?? [];
-  return (
-    typeof ref === "string" &&
-    ref.length > 0 &&
-    expected.some(
-      (item) =>
-        item.table === "subscriptionBindings" && item.id === commit.operation.subscriptionBindingId,
-    ) &&
-    expected.some((item) => item.table === "subscriptions" && item.id === ref)
-  );
-}
-function operationRevisionMatches(
-  current: PaymentOperation | undefined,
-  commit: OperationCommit,
-): boolean {
-  return current
-    ? sameOperationCommand(current, commit.operation) &&
-        current.revision === commit.expectedRevision
-    : commit.expectedRevision === 0;
-}
-function dispatchLaneAvailable(state: PaymentState, operation: PaymentOperation): boolean {
-  return !Object.values(state.operations).some(
-    (candidate) =>
-      candidate.operationId !== operation.operationId &&
-      typeof candidate.subscriptionBindingId === "string" &&
-      candidate.subscriptionBindingId.length > 0 &&
-      candidate.subscriptionBindingId === operation.subscriptionBindingId &&
-      ["dispatch_started", "outcome_unknown"].includes(candidate.state),
-  );
-}
-function startsPreparedOperation(
-  current: PaymentOperation | undefined,
-  operation: PaymentOperation,
-): boolean {
-  return current?.state === "prepared" && operation.state === "dispatch_started";
-}
-function applyTransactionBinding(state: PaymentState, binding: TransactionBinding): boolean {
-  const existing = state.bindings[binding.transactionRef];
-  if (
-    existing &&
-    (existing.intentId !== binding.intentId ||
-      existing.buyerId !== binding.buyerId ||
-      (existing.purpose !== binding.purpose &&
-        !(existing.purpose === "commercial" && binding.purpose === "recovery")))
-  ) {
-    return false;
-  }
-  state.bindings[binding.transactionRef] =
-    existing?.customerRef !== null && existing?.customerRef !== undefined
-      ? { ...binding, customerRef: existing.customerRef }
-      : binding;
-  const aggregate = transactionAggregate(state, binding.transactionRef);
-  aggregate.revision += 1;
-  aggregate.publicationRequired = true;
-  return true;
-}
-function workingSetSubject(
-  state: PaymentState,
-  inputId: string,
-  aggregate: AggregateIdentity | undefined,
-):
-  | Readonly<{
-      transactionRef: string | undefined;
-      subscriptionRef: string | undefined;
-      incoming: Observation | undefined;
-    }>
-  | undefined {
-  if (aggregate) {
-    return {
-      transactionRef: aggregate.type === "transaction" ? aggregate.id : undefined,
-      subscriptionRef: aggregate.type === "subscription" ? aggregate.id : undefined,
-      incoming: undefined,
-    };
-  }
-  const record = state.inbox[inputId];
-  if (!record) {
-    return;
-  }
-  const observation = record.input.observation;
-  const transactionRef =
-    record.input.adverseTransactionRef ??
-    ("transactionRef" in observation ? observation.transactionRef : undefined);
-  const subscriptionRef =
-    "subscriptionRef" in observation && typeof observation.subscriptionRef === "string"
-      ? observation.subscriptionRef
-      : observation.kind === "transaction" && observation.subscriptionRef.presence === "known"
-        ? (observation.subscriptionRef.value ?? undefined)
-        : undefined;
-  return { transactionRef, subscriptionRef, incoming: observation };
-}
+
 export class MemoryPaymentStore implements PaymentStore {
   private readonly states = new Map<string, PaymentState>();
   private readonly versions = new Map<string, Map<string, number>>();
@@ -194,95 +87,32 @@ export class MemoryPaymentStore implements PaymentStore {
     scope: PaymentScope,
     admission: IntentAdmission,
   ): ReturnType<PaymentStore["admitIntent"]> {
-    return this.atomic(scope, (state) => {
-      if (state.recoveryFenced) {
-        return { kind: "recovery_fenced" } as const;
-      }
-      const key = canonicalJson([admission.operation.buyerId, admission.operation.requestKey]),
-        id = state.requestKeys[key],
-        previous = typeof id === "string" && id.length > 0 ? state.operations[id] : undefined;
-      if (previous) {
-        return previous.fingerprint === admission.operation.fingerprint
-          ? ({ kind: "existing", operation: previous } as const)
-          : ({ kind: "conflict" } as const);
-      }
-      state.requestKeys[key] = admission.operation.operationId;
-      state.operations[admission.operation.operationId] = admission.operation;
-      state.intents[admission.intent.intentId] = admission.intent;
-      if (admission.subscriptionBinding) {
-        state.subscriptionBindings[admission.subscriptionBinding.bindingId] =
-          admission.subscriptionBinding;
-      }
-      return { kind: "created", operation: admission.operation } as const;
-    });
+    return this.atomic(scope, (state) => admitMemoryIntent(state, admission));
   }
   async admitOperation(
     scope: PaymentScope,
     operation: PaymentOperation,
   ): ReturnType<PaymentStore["admitOperation"]> {
-    return this.atomic(scope, (state) => {
-      if (state.recoveryFenced) {
-        return { kind: "recovery_fenced" } as const;
-      }
-      const key = canonicalJson([operation.buyerId, operation.requestKey]),
-        id = state.requestKeys[key],
-        previous = typeof id === "string" && id.length > 0 ? state.operations[id] : undefined;
-      if (previous) {
-        return previous.fingerprint === operation.fingerprint
-          ? ({ kind: "existing", operation: previous } as const)
-          : ({ kind: "conflict" } as const);
-      }
-      const binding =
-        typeof operation.subscriptionBindingId === "string" &&
-        operation.subscriptionBindingId.length > 0
-          ? state.subscriptionBindings[operation.subscriptionBindingId]
-          : undefined;
-      if (!binding || binding.buyerId !== operation.buyerId) {
-        return { kind: "conflict" } as const;
-      }
-      state.requestKeys[key] = operation.operationId;
-      state.operations[operation.operationId] = operation;
-      return { kind: "created", operation } as const;
-    });
+    return this.atomic(scope, (state) => admitMemoryOperation(state, operation));
   }
   async findRequest(
     scope: PaymentScope,
     buyerId: string,
     requestKey: string,
   ): Promise<PaymentOperation | undefined> {
-    return this.view(scope, (state) => {
-      const id = state.requestKeys[canonicalJson([buyerId, requestKey])];
-      return typeof id === "string" && id.length > 0 ? state.operations[id] : undefined;
-    });
+    return this.view(scope, (state) => findMemoryRequest(state, buyerId, requestKey));
   }
   async loadOperation(
     scope: PaymentScope,
     operationId: string,
   ): Promise<OperationInput | undefined> {
-    return this.view(scope, (state) => {
-      const operation = state.operations[operationId];
-      if (!operation) {
-        return;
-      }
-      const intent =
-        typeof operation.intentId === "string" && operation.intentId.length > 0
-          ? state.intents[operation.intentId]
-          : undefined;
-      const subscriptionBinding =
-        typeof operation.subscriptionBindingId === "string" &&
-        operation.subscriptionBindingId.length > 0
-          ? state.subscriptionBindings[operation.subscriptionBindingId]
-          : typeof intent?.subscriptionBasisId === "string" && intent.subscriptionBasisId.length > 0
-            ? state.subscriptionBindings[intent.subscriptionBasisId]
-            : undefined;
-      return {
-        operation,
-        ...(intent ? { intent } : {}),
-        ...(subscriptionBinding ? { subscriptionBinding } : {}),
-        laneRevision: this.laneRevision(state, operation),
-      };
-    });
+    return this.view(scope, (state) =>
+      loadMemoryOperation(state, operationId, (current, operation) =>
+        this.laneRevision(current, operation),
+      ),
+    );
   }
+
   private laneRevision(state: PaymentState, operation: PaymentOperation): number {
     return Object.values(state.operations)
       .filter(
@@ -293,57 +123,21 @@ export class MemoryPaymentStore implements PaymentStore {
       )
       .reduce((sum, candidate) => sum + candidate.revision, 0);
   }
+
   private async operationCommit(
     scope: PaymentScope,
     commit: OperationCommit,
     dispatch: boolean,
   ): Promise<StoreCommitResult> {
-    return this.atomic(scope, (state) => {
-      if (state.recoveryFenced) {
-        return { kind: "recovery_fenced" };
-      }
-      const current = state.operations[commit.operation.operationId];
-      if (!this.readSetMatches(scope, commit.expectedReadSet)) {
-        return { kind: "conflict" };
-      }
-      if (dispatch && !hasDispatchAuthority(commit)) {
-        return { kind: "conflict" };
-      }
-      if (!operationRevisionMatches(current, commit)) {
-        return { kind: "conflict" };
-      }
-      if (this.laneRevision(state, current ?? commit.operation) !== commit.expectedLaneRevision) {
-        return { kind: "conflict" };
-      }
-      if (dispatch && !dispatchLaneAvailable(state, commit.operation)) {
-        return { kind: "conflict" };
-      }
-      if (dispatch && !startsPreparedOperation(current, commit.operation)) {
-        return { kind: "conflict" };
-      }
-      const key = canonicalJson([commit.operation.buyerId, commit.operation.requestKey]),
-        existingId = state.requestKeys[key];
-      if (
-        typeof existingId === "string" &&
-        existingId.length > 0 &&
-        existingId !== commit.operation.operationId
-      ) {
-        return { kind: "conflict" };
-      }
-      if (commit.binding && !applyTransactionBinding(state, commit.binding)) {
-        return { kind: "conflict" };
-      }
-      state.operations[commit.operation.operationId] = commit.operation;
-      state.requestKeys[key] = commit.operation.operationId;
-      if (commit.intent) {
-        state.intents[commit.intent.intentId] = commit.intent;
-      }
-      if (commit.subscriptionBinding) {
-        state.subscriptionBindings[commit.subscriptionBinding.bindingId] =
-          commit.subscriptionBinding;
-      }
-      return { kind: "committed" };
-    });
+    return this.atomic(scope, (state) =>
+      commitMemoryOperation(
+        state,
+        commit,
+        dispatch,
+        () => this.readSetMatches(scope, commit.expectedReadSet),
+        (current, operation) => this.laneRevision(current, operation),
+      ),
+    );
   }
   beginExternalDispatch(scope: PaymentScope, commit: OperationCommit): Promise<StoreCommitResult> {
     return this.operationCommit(scope, commit, true);
@@ -361,15 +155,7 @@ export class MemoryPaymentStore implements PaymentStore {
     result: ProviderResult<JsonValue>,
   ): Promise<void> {
     await this.atomic(scope, (state) => {
-      const operation = state.operations[operationId],
-        attempt = operation?.attempts.find((item) => item.attemptId === attemptId);
-      if (!attempt || !operation) {
-        throw new Error("Unknown operation attempt");
-      }
-      if (!attempt.observations.some((item) => digest(item) === digest(result))) {
-        attempt.observations.push(result);
-        operation.revision += 1;
-      }
+      recordMemoryAttemptObservation(state, operationId, attemptId, result);
     });
   }
   async admitVerifiedInputs(
@@ -392,153 +178,12 @@ export class MemoryPaymentStore implements PaymentStore {
     inputId: string,
     aggregate?: AggregateIdentity,
   ): ReductionInput | undefined {
-    const slice = createEmptyPaymentState(),
-      expected: PaymentReadVersion[] = [];
-    slice.recoveryFenced = state.recoveryFenced;
-    slice.consumers = [...state.consumers];
-    expected.push({
-      table: "configuration",
-      id: "scope",
-      revision: this.revision(scope, "configuration", "scope"),
-    });
-    const status = { incomplete: false, invalidVersion: false };
-    const guard = (id: string): void => {
-      if (!expected.some((item) => item.table === "guards" && item.id === id)) {
-        expected.push({ table: "guards", id, revision: this.revision(scope, "guards", id) });
-      }
-    };
-    const add = (table: (typeof mutableTables)[number], id: string): void => {
-      if (expected.some((item) => item.table === table && item.id === id)) {
-        return;
-      }
-      if (expected.length >= 128) {
-        status.incomplete = true;
-        return;
-      }
-      expected.push({ table, id, revision: this.revision(scope, table, id) });
-      const record = state[table][id];
-      if (record !== undefined) {
-        (slice[table] as Record<string, unknown>)[id] = structuredClone(record);
-      }
-      if (table === "inbox") {
-        const observation = state.inbox[id]?.input.observation;
-        if (observation) {
-          includeVersion(observation);
-        }
-      }
-      if (table === "subscriptions") {
-        const observation = state.subscriptions[id]?.current;
-        if (observation) {
-          includeVersion(observation);
-        }
-      }
-      if (table === "transactions") {
-        for (const observation of state.transactions[id]?.observations ?? []) {
-          includeVersion(observation);
-        }
-        for (const adjustment of Object.values(state.transactions[id]?.adjustments ?? {})) {
-          includeVersion(adjustment);
-        }
-      }
-    };
-    const includeVersion = (observation: Observation): void => {
-      try {
-        const key = objectVersionKey(observation);
-        if (typeof key === "string" && key.length > 0) {
-          add("versionEvidence", key);
-        }
-      } catch {
-        status.invalidVersion = true;
-      }
-    };
-    const includeIntent = (intentId: string): void => {
-      guard(`intent:${intentId}`);
-      add("intents", intentId);
-      const intent = state.intents[intentId];
-      if (!intent) {
-        return;
-      }
-      if (typeof intent.subscriptionBasisId === "string" && intent.subscriptionBasisId.length > 0) {
-        add("subscriptionBindings", intent.subscriptionBasisId);
-        add("reclassifications", intent.subscriptionBasisId);
-      }
-      for (const candidate of Object.values(state.transactions)) {
-        if (
-          candidate.completion?.intentId === intentId &&
-          ["initial", "one_time"].includes(candidate.completion.classification)
-        ) {
-          add("transactions", candidate.transactionRef);
-        }
-      }
-    };
-    const subject = workingSetSubject(state, inputId, aggregate);
-    if (!subject) {
-      return;
-    }
-    if (!aggregate) {
-      add("inbox", inputId);
-    }
-    const { transactionRef, subscriptionRef, incoming } = subject;
-    const subscriptionRefs = new Set(
-      typeof subscriptionRef === "string" && subscriptionRef.length > 0 ? [subscriptionRef] : [],
+    return buildMemoryWorkingSet(
+      state,
+      inputId,
+      (table, id) => this.revision(scope, table, id),
+      aggregate,
     );
-    const includeTransaction = (ref: string): void => {
-      add("transactions", ref);
-      add("bindings", ref);
-      const binding = state.bindings[ref];
-      if (binding) {
-        includeIntent(binding.intentId);
-      }
-      const current = state.transactions[ref]?.current;
-      if (
-        current?.subscriptionRef.presence === "known" &&
-        typeof current.subscriptionRef.value === "string" &&
-        current.subscriptionRef.value.length > 0
-      ) {
-        subscriptionRefs.add(current.subscriptionRef.value);
-      }
-    };
-    if (typeof transactionRef === "string" && transactionRef.length > 0) {
-      includeTransaction(transactionRef);
-    }
-    const includeIncomingRoutes = (observation: Observation): void => {
-      let evidence: PaymentState["versionEvidence"][string] | undefined;
-      try {
-        const key = objectVersionKey(observation);
-        evidence =
-          typeof key === "string" && key.length > 0 ? state.versionEvidence[key] : undefined;
-      } catch {
-        status.invalidVersion = true;
-      }
-      for (const route of objectVersionDependentRoutes(observation, evidence)) {
-        if (route.type === "transaction") {
-          includeTransaction(route.id);
-        } else {
-          subscriptionRefs.add(route.id);
-        }
-      }
-    };
-    if (incoming) {
-      includeIncomingRoutes(incoming);
-    }
-    for (const ref of subscriptionRefs) {
-      guard(`subscription:${ref}`);
-      add("subscriptions", ref);
-      for (const binding of Object.values(state.subscriptionBindings)) {
-        if (binding.providerSubscriptionRefs.includes(ref)) {
-          add("subscriptionBindings", binding.bindingId);
-          add("reclassifications", binding.bindingId);
-          includeIntent(binding.originatingIntentId);
-        }
-      }
-    }
-    if (status.invalidVersion) {
-      return { inputId, state: slice, expected, incompleteReason: "invalid_object_version" };
-    }
-    if (status.incomplete) {
-      return { inputId, state: slice, expected, incompleteReason: "working_set_limit" };
-    }
-    return { inputId, state: slice, expected };
   }
   async loadReductionInput(
     scope: PaymentScope,
@@ -639,36 +284,14 @@ export class MemoryPaymentStore implements PaymentStore {
     buyerId: string,
     intentId: string,
   ): ReturnType<PaymentStore["readPurchase"]> {
-    return this.view(scope, (state) => {
-      const intent = state.intents[intentId];
-      if (!intent || intent.buyerId !== buyerId) {
-        return;
-      }
-      return {
-        intent,
-        transactions: Object.values(state.transactions).filter(
-          (item) => state.bindings[item.transactionRef]?.intentId === intentId,
-        ),
-      };
-    });
+    return this.view(scope, (state) => readMemoryPurchase(state, buyerId, intentId));
   }
   async readSubscription(
     scope: PaymentScope,
     buyerId: string,
     bindingId: string,
   ): ReturnType<PaymentStore["readSubscription"]> {
-    return this.view(scope, (state) => {
-      const binding = state.subscriptionBindings[bindingId];
-      if (!binding || binding.buyerId !== buyerId) {
-        return;
-      }
-      return {
-        binding,
-        observations: binding.providerSubscriptionRefs.flatMap((ref) =>
-          state.subscriptions[ref] ? [state.subscriptions[ref]] : [],
-        ),
-      };
-    });
+    return this.view(scope, (state) => readMemorySubscription(state, buyerId, bindingId));
   }
   async listWork(
     scope: PaymentScope,

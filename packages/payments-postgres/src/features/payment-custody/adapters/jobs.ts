@@ -1,16 +1,15 @@
-import type {
-  AggregateIdentity,
-  EvidenceMessage,
-  Payments,
-  ScanCheckpoint,
-  PaymentOperationRead,
-} from "@agent-teams/payments-core";
-import type {
-  PaymentStore,
-  SubscriptionReclassification,
-  Delivery,
-} from "@agent-teams/payments-core/store";
-import type { StoredRecord } from "./records.js";
+import {
+  WorkIssue,
+  isWork,
+  aggregate,
+  claimJobObligation,
+  deliverJobObligation,
+  reclassifyJobObligation,
+  repairJobObligations,
+} from "./job-obligation-operations.js";
+import type { PaymentJobHandlers } from "./job-obligation-operations.js";
+export type { PaymentDeliveryReceipt, PaymentJobHandlers } from "./job-obligation-operations.js";
+
 import { canonicalJson, digest } from "@agent-teams/payments-core";
 import type { PaymentSqlTransaction } from "./database.js";
 import { withPaymentTransaction } from "./database.js";
@@ -23,19 +22,7 @@ import type {
   PaymentJobWork,
 } from "./work-transport.js";
 import { assertBatchLimit, PaymentRecords } from "./records.js";
-export type PaymentDeliveryReceipt = Readonly<{ messageId: string; bodyDigest: string }>;
-export type PaymentJobHandlers = Readonly<{
-  payments: Payments;
-  store: PaymentStore;
-  /** Resolve only after the consumer's own durable receipt + effect transaction (T3). */
-  consumers?: Readonly<
-    Record<string, (message: EvidenceMessage) => Promise<PaymentDeliveryReceipt>>
-  >;
-  /** Read-only acquisition/reconciliation. This callback must never redispatch an external mutation. */
-  inspectUnknown?: (operation: PaymentOperationRead) => Promise<"review" | "retry">;
-  /** Host-owned bounded scan page, using the public checkpoint/admission protocol. */
-  resumeScan?: (checkpoint: Readonly<ScanCheckpoint>) => Promise<void>;
-}>;
+
 export type PaymentJobOptions = PaymentJobNamespace &
   PaymentJobEvents &
   Readonly<{
@@ -66,50 +53,6 @@ export class PaymentJobHandlerError extends Error {
   }
 }
 
-class WorkIssue extends Error {
-  readonly issue: string;
-  readonly quarantine: boolean;
-  constructor(issue: string, quarantine = false) {
-    super(issue);
-    this.issue = issue;
-    this.quarantine = quarantine;
-  }
-}
-function isWork(value: unknown): value is PaymentJobWork {
-  if (value === null || typeof value !== "object") {
-    return false;
-  }
-  const item = value as Partial<PaymentJobWork>;
-  return (
-    [
-      "inbox",
-      "publication",
-      "reclassification",
-      "prepared",
-      "unknown",
-      "delivery",
-      "scan",
-    ].includes(item.kind ?? "") &&
-    typeof item.id === "string" &&
-    item.id.length > 0 &&
-    item.id.length <= 4_096
-  );
-}
-function aggregate(id: string): AggregateIdentity {
-  const value: unknown = JSON.parse(id);
-  if (
-    value === null ||
-    typeof value !== "object" ||
-    !("type" in value) ||
-    !("id" in value) ||
-    (value.type !== "transaction" && value.type !== "subscription") ||
-    typeof value.id !== "string" ||
-    !value.id
-  ) {
-    throw new WorkIssue("invalid_publication_identity", true);
-  }
-  return { type: value.type, id: value.id };
-}
 function boundedInteger(value: number, min: number, max: number, label: string): number {
   if (!Number.isSafeInteger(value) || value < min || value > max) {
     throw new RangeError(`Invalid payment job ${label}`);
@@ -173,61 +116,21 @@ class PaymentJobRunner {
   async repair(limit = this.batch): Promise<Readonly<{ enqueued: number }>> {
     assertBatchLimit(limit);
     await this.qualify();
-    return withPaymentTransaction(
-      this.options.database,
-      async (tx) => {
-        if ((await this.records.configuration(tx, this.options.scope)).body.recoveryFenced) {
-          return { enqueued: 0 };
-        }
-        // Queue rows can all disappear. The payment-owned obligation is the only work authority.
-        // Existing runnable jobs are excluded before LIMIT, so an older live job cannot starve later
-        // obligations. Locking the obligation serializes competing repair replicas and admissions.
-        const pending = this.transport.pendingWorkSql("o.kind", "o.id");
-        const due = await tx.query<{ kind: string; id: string }>(
-          `SELECT o.kind, o.id FROM ${this.records.sql}.obligations o
-        WHERE o.state = 'pending' AND o.next_attempt_at <= clock_timestamp()
-        AND NOT (${pending.text})
-        ORDER BY o.next_attempt_at, o.kind, o.id LIMIT $${pending.values.length + 1} FOR UPDATE OF o SKIP LOCKED`,
-          [...pending.values, limit],
-        );
-        let enqueued = 0;
-        for (const work of due.rows) {
-          if (!isWork(work)) {
-            await tx.query(
-              `UPDATE ${this.records.sql}.obligations SET state = 'quarantined', issue = 'unsupported_work_kind' WHERE kind = $1 AND id = $2`,
-              [work.kind, work.id],
-            );
-            continue;
-          }
-          if (await this.transport.enqueue(work, tx)) {
-            enqueued += 1;
-          }
-        }
-        return { enqueued };
-      },
-      this.options.timeouts,
+    return repairJobObligations(
+      limit,
+      () => this.options,
+      () => this.records,
+      () => this.transport,
     );
   }
   private async claim(
     work: PaymentJobWork,
   ): Promise<Readonly<{ attempt: number; revision: string }> | undefined> {
-    return withPaymentTransaction(
-      this.options.database,
-      async (tx) => {
-        if ((await this.records.configuration(tx, this.options.scope)).body.recoveryFenced) {
-          return;
-        }
-        const row = await tx.query<{ attempts: number; revision: string }>(
-          `UPDATE ${this.records.sql}.obligations SET attempts = attempts + 1, revision = revision + 1,
-        next_attempt_at = clock_timestamp() + $3 * interval '1 second'
-        WHERE kind = $1 AND id = $2 AND state = 'pending' AND next_attempt_at <= clock_timestamp()
-        RETURNING attempts, revision::text`,
-          [work.kind, work.id, this.maxCooldown],
-        );
-        const claimed = row.rows[0];
-        return claimed ? { attempt: claimed.attempts, revision: claimed.revision } : undefined;
-      },
-      this.options.timeouts,
+    return claimJobObligation(
+      work,
+      () => this.options,
+      () => this.records,
+      () => this.maxCooldown,
     );
   }
   private async settle(
@@ -269,85 +172,13 @@ class PaymentJobRunner {
     );
   }
   private async deliver(work: PaymentJobWork, installed: PaymentJobHandlers): Promise<boolean> {
-    if (work.id.startsWith("backfill:")) {
-      const consumer = work.id.slice("backfill:".length);
-      const cursor = () =>
-        withPaymentTransaction(
-          this.options.database,
-          async (tx) => {
-            await this.records.configuration(tx, this.options.scope);
-            return (
-              await (this.records.read(tx, "backfills", consumer) as Promise<
-                | StoredRecord<{
-                    consumerId: string;
-                    after: string | null;
-                    state: "pending" | "complete";
-                  }>
-                | undefined
-              >)
-            )?.body;
-          },
-          this.options.timeouts,
-        );
-      const before = await cursor();
-      await installed.store.listDeliveries(this.options.scope, consumer, this.batch);
-      return canonicalJson(before ?? null) !== canonicalJson((await cursor()) ?? null);
-    }
-    const target = await withPaymentTransaction(
-      this.options.database,
-      async (tx) => {
-        if ((await this.records.configuration(tx, this.options.scope)).body.recoveryFenced) {
-          throw new WorkIssue("recovery_fenced");
-        }
-        const delivery = (
-          await (this.records.read(tx, "deliveries", work.id) as Promise<
-            StoredRecord<Delivery> | undefined
-          >)
-        )?.body;
-        if (!delivery) {
-          throw new WorkIssue("missing_delivery_authority", true);
-        }
-        if (canonicalJson([delivery.messageId, delivery.consumerId]) !== work.id) {
-          throw new WorkIssue("invalid_delivery_identity", true);
-        }
-        const message = (
-          await (this.records.read(tx, "evidence", delivery.messageId) as Promise<
-            StoredRecord<EvidenceMessage> | undefined
-          >)
-        )?.body;
-        if (
-          !message ||
-          message.messageId !== delivery.messageId ||
-          canonicalJson(message.scope) !== canonicalJson(this.options.scope)
-        ) {
-          throw new WorkIssue("missing_delivery_evidence", true);
-        }
-        return { delivery, message };
-      },
-      this.options.timeouts,
+    return deliverJobObligation(
+      work,
+      installed,
+      () => this.options,
+      () => this.records,
+      () => this.batch,
     );
-    if (!target.delivery.acknowledged) {
-      const consume = installed.consumers?.[target.delivery.consumerId];
-      if (!consume) {
-        throw new WorkIssue("consumer_not_installed");
-      }
-      const receipt = await consume(structuredClone(target.message));
-      if (
-        receipt.messageId !== target.message.messageId ||
-        receipt.bodyDigest !== target.message.bodyDigest
-      ) {
-        throw new WorkIssue("consumer_receipt_mismatch", true);
-      }
-    }
-    const result = await installed.payments.acknowledgeDelivery(
-      target.delivery.consumerId,
-      target.message.messageId,
-      target.message.bodyDigest,
-    );
-    if (result === "conflict") {
-      throw new WorkIssue("delivery_ack_conflict", true);
-    }
-    return false;
   }
   private run(work: PaymentJobWork, installed: PaymentJobHandlers): Promise<boolean> {
     switch (work.kind) {
@@ -378,27 +209,13 @@ class PaymentJobRunner {
     return false;
   }
   private async reclassify(id: string, installed: PaymentJobHandlers): Promise<boolean> {
-    const cursor = () =>
-      withPaymentTransaction(
-        this.options.database,
-        async (tx) => {
-          await this.records.configuration(tx, this.options.scope);
-          return (
-            await (this.records.read(tx, "reclassifications", id) as Promise<
-              StoredRecord<SubscriptionReclassification> | undefined
-            >)
-          )?.body;
-        },
-        this.options.timeouts,
-      );
-    const before = await cursor();
-    const result = await installed.payments.processReclassification(id, this.batch);
-    if (result === "conflict" || result === "recovery_fenced") {
-      throw new WorkIssue(result);
-    }
-    // A successful bounded page preserves the logical fault budget while more
-    // pages remain, including after queue deletion and worker restart.
-    return canonicalJson(before ?? null) !== canonicalJson((await cursor()) ?? null);
+    return reclassifyJobObligation(
+      id,
+      installed,
+      () => this.options,
+      () => this.records,
+      () => this.batch,
+    );
   }
   private async publish(id: string, installed: PaymentJobHandlers): Promise<boolean> {
     const result = await installed.payments.flushPublication(aggregate(id));
