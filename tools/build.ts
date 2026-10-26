@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { lstat, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { packageNames, pnpm, repository } from "./package-artifacts.ts";
+import { packageNames, repository } from "./package-artifacts.ts";
+import { stackCommand } from "./stack-command.ts";
 
 const outputs = [
   ...packageNames.flatMap((name) => [
@@ -58,7 +59,7 @@ export async function cleanBuildOutputs(root = repository): Promise<void> {
 
 export async function build(): Promise<void> {
   await cleanBuildOutputs();
-  await pnpm(["exec", "tsc", "--build", "--pretty", "false"]);
+  await stackCommand(["compile", "--build", "tsconfig.json"]);
 }
 
 if (

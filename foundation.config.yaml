@@ -10,3 +10,5 @@ capabilities:
     configPath: architecture/foundation/quality-source-coverage.yaml
   quality.suppression-governance:
     configPath: architecture/foundation/suppression-governance.yaml
+  quality.gate-runner:
+    configPath: architecture/foundation/quality-gates.yaml

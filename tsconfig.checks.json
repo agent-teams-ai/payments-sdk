@@ -7,7 +7,14 @@
     "declarationMap": false,
     "types": ["node", "./packages/payments-postgres/dist/pg-boss-declarations.d.ts"]
   },
-  "include": ["tools/**/*.ts", "qualification/queue/**/*.ts", "tests/**/*.ts", "examples/**/*.ts", "packages/*/test/**/*.ts", "packages/*/tests/**/*.ts"],
+  "include": [
+    "tools/**/*.ts",
+    "qualification/queue/**/*.ts",
+    "tests/**/*.ts",
+    "examples/**/*.ts",
+    "packages/*/test/**/*.ts",
+    "packages/*/tests/**/*.ts"
+  ],
   "references": [
     { "path": "packages/payments-core" },
     { "path": "packages/payments-paddle" },

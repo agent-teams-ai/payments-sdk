@@ -138,6 +138,8 @@ void test("archive admission validates identity/version and rejects unresolved o
       { pg: "catalog:" },
       { "@agent-teams/engineering-foundation": "1.10.0" },
       { "node-or-bun": "0.2.2" },
+      { "stack-toolchain": "0.1.1" },
+      { "@agent-teams/feature-module-standard": "0.3.0" },
     ]) {
       await archive({ ...manifest, dependencies });
       await assert.rejects(() => auditPackageArchive(tarball, manifest.name, "0.1.0"));

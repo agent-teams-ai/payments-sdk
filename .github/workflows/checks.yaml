@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CI: 'true'
+  CI: "true"
 
 jobs:
   build:
@@ -30,8 +30,7 @@ jobs:
           node-version: 24.22.1
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm toolchain:check
+      - run: pnpm check:fast
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: package-build
@@ -93,7 +92,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: test-only
           POSTGRES_DB: payments
-        ports: ['5432:5432']
+        ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U postgres -d payments"
           --health-interval 2s

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "profile": "typescript-node",
+  "typecheck": {
+    "projects": ["packages/payments-core/tsconfig.json"]
+  },
+  "lint": {
+    "config": ".oxlintrc.development.json",
+    "paths": [
+      "packages/payments-core/test",
+      "packages/payments-paddle/test",
+      "packages/payments-postgres/test",
+      "packages/payments-get-modular/test",
+      "tools",
+      "tests",
+      "examples",
+      "qualification"
+    ]
+  },
+  "format": {
+    "paths": [
+      "packages/*/src/**/*.ts",
+      "packages/*/test/**/*.ts",
+      "tools/**/*.ts",
+      "tests/**/*.ts",
+      "examples/**/*.ts",
+      "qualification/**/*.ts",
+      "package.json",
+      "tsconfig*.json",
+      "packages/*/tsconfig.json",
+      ".oxlintrc*.json",
+      "toolchain.config.json",
+      "foundation.config.yaml",
+      "architecture/foundation/*.yaml",
+      "architecture/get-modular-consumer-profile.json",
+      "docs/foundation-adoption.md",
+      "docs/developer-stack.md",
+      "docs/get-modular-adoption.md",
+      "packages/*/tests/**/*.ts",
+      "pnpm-workspace.yaml",
+      ".github/workflows/checks.yaml"
+    ]
+  }
+}

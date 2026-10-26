@@ -17,17 +17,17 @@ proposal is evidence to assess, not an automatically adopted requirement.
 
 ## Approved local stack
 
-| Concern | Choice and scope |
-| --- | --- |
-| Maintained runtime, tests and tools | Ordinary TypeScript `.ts`, compiler/parser **7.0.2 or newer**, owning strict projects and `skipLibCheck:false`; distribute ESM JavaScript and declarations |
-| Product runtime and database | The Linux Node and PostgreSQL profile in [qualification](qualification.md); broader compatibility requires evidence |
-| Payment provider | Official Paddle Node SDK inside `payments-paddle`; follow its [adapter guide](../packages/payments-paddle/README.md) and separate browser admission gate |
-| Persistence query/schema toolkit | **Drizzle inside `payments-postgres`**, approved by the owner on 2026-10-20; private typed query compilation, with PostgreSQL transaction/recovery guarantees owned by the adapter |
-| PostgreSQL connection mechanism | Adapter-owned `PaymentPostgresDatabase` / `PaymentPostgresConnection`; optional `/node-postgres` wrapper borrows the host's existing pool, including a pool used by Drizzle |
-| Durable PostgreSQL work | Infrastructure-owned transactional enqueue/worker transport contracts; optional `/pg-boss` implementation with atomic enqueue through the existing bounded payment transaction |
-| Optional composition | Get Modular inside `payments-get-modular`; use the coherent published peer profile and explicit observation release gate in its [guide](../packages/payments-get-modular/README.md) |
-| Captured development commands | Exact `node-or-bun` Node adapter inside the existing tooling helper; see [scope, artifact and process guarantees](node-or-bun-adoption.md); no SDK runtime or Bun admission |
-| Development architecture tooling | Engineering Foundation's [selected complete profile](foundation-adoption.md): shared strict compiler/type-aware lint presets, registry lifecycle and repository-owned [source](../architecture/foundation/source-dependencies.yaml)/[dependency](../architecture/foundation/dependency-declarations.yaml) policies; development-only, full FMS for all production packages |
+| Concern                             | Choice and scope                                                                                                                                                                                                                                                                                                                                                                                           |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Maintained runtime, tests and tools | Ordinary TypeScript `.ts`, compiler/parser **7.0.2 or newer**, owning strict projects and `skipLibCheck:false`; distribute ESM JavaScript and declarations                                                                                                                                                                                                                                                 |
+| Product runtime and database        | The Linux Node and PostgreSQL profile in [qualification](qualification.md); broader compatibility requires evidence                                                                                                                                                                                                                                                                                        |
+| Payment provider                    | Official Paddle Node SDK inside `payments-paddle`; follow its [adapter guide](../packages/payments-paddle/README.md) and separate browser admission gate                                                                                                                                                                                                                                                   |
+| Persistence query/schema toolkit    | **Drizzle inside `payments-postgres`**, approved by the owner on 2026-10-20; private typed query compilation, with PostgreSQL transaction/recovery guarantees owned by the adapter                                                                                                                                                                                                                         |
+| PostgreSQL connection mechanism     | Adapter-owned `PaymentPostgresDatabase` / `PaymentPostgresConnection`; optional `/node-postgres` wrapper borrows the host's existing pool, including a pool used by Drizzle                                                                                                                                                                                                                                |
+| Durable PostgreSQL work             | Infrastructure-owned transactional enqueue/worker transport contracts; optional `/pg-boss` implementation with atomic enqueue through the existing bounded payment transaction                                                                                                                                                                                                                             |
+| Optional composition                | Get Modular inside `payments-get-modular`; use the coherent published peer profile and explicit observation release gate in its [guide](../packages/payments-get-modular/README.md)                                                                                                                                                                                                                        |
+| Captured development commands       | Exact `node-or-bun` Node adapter inside the existing tooling helper; see [scope, artifact and process guarantees](node-or-bun-adoption.md); no SDK runtime or Bun admission                                                                                                                                                                                                                                |
+| Development architecture tooling    | Engineering Foundation's [selected complete profile](foundation-adoption.md): Stack-owned strict compiler/type-aware lint presets, explicit reference builds, registry lifecycle and repository-owned [source](../architecture/foundation/source-dependencies.yaml)/[dependency](../architecture/foundation/dependency-declarations.yaml) policies; development-only, full FMS for all production packages |
 
 Exact admitted dependency versions belong to the workspace catalog, package
 manifests and frozen lockfile. Check [upstream qualification](upstream-qualification.md)
@@ -104,3 +104,13 @@ not a claim that the proposal merged or a pin to its mutable branch.
 The local [Q source](https://github.com/777genius/agent-rules/blob/5f1b5aefa96d64448d909ae9c04a823afe145ea8/skills/q/SKILL.md)
 remains applicable: protect policy with consumer-owned contracts, depend inward,
 introduce the minimum useful boundary and verify real adapter behavior.
+
+## Current development-tool adoption
+
+The exact root Stack development pin owns ordinary technical tools; the
+[adoption guide](foundation-adoption.md#stack-and-native-tooling-scope) records
+reference-build and native semantic API limits. Foundation3.0.0 and FMS0.3.0
+provide the current conformance mechanisms. These development dependencies do
+not alter SDK runtime dependencies, Linux/Node floors, PostgreSQL18, patched
+Drizzle or public ESM/declaration boundaries. Qualify a changed lock and actual
+consumer gates; producer qualification alone does not qualify this consumer.

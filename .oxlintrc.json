@@ -1,32 +1,22 @@
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
   "extends": [
-    "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/type-aware.json",
-    "./node_modules/@agent-teams/engineering-foundation/presets/oxlint/maintainability.json"
+    "./node_modules/stack-toolchain/presets/oxlint/type-aware.json",
+    "./node_modules/stack-toolchain/presets/oxlint/maintainability.json"
   ],
   "rules": {
     "no-debugger": "error",
     "no-unused-vars": "error",
     "typescript/no-explicit-any": "error",
-    "typescript/method-signature-style": [
-      "error",
-      "property"
-    ]
+    "typescript/method-signature-style": ["error", "property"]
   },
-  "ignorePatterns": [
-    "**/dist/**",
-    "**/node_modules/**",
-    "**/.artifacts/**"
-  ],
+  "ignorePatterns": ["**/dist/**", "**/node_modules/**", "**/.artifacts/**"],
   "options": {
     "respectEslintDisableDirectives": false,
     "reportUnusedDisableDirectives": "error"
   },
   "overrides": [
     {
-      "files": [
-        "packages/payments-get-modular/src/features/**/*.ts"
-      ],
+      "files": ["packages/payments-get-modular/src/features/**/*.ts"],
       "rules": {
         "max-lines": [
           "error",
@@ -44,16 +34,11 @@
             "skipComments": true
           }
         ],
-        "max-params": [
-          "error",
-          4
-        ]
+        "max-params": ["error", 4]
       }
     },
     {
-      "files": [
-        "packages/payments-get-modular/src/features/**/composition/*.module.ts"
-      ],
+      "files": ["packages/payments-get-modular/src/features/**/composition/*.module.ts"],
       "rules": {
         "max-lines": [
           "error",

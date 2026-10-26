@@ -117,7 +117,8 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    reason: Provider replacement cannot strengthen the caller's preconditions. This is an intentional
+    reason:
+      Provider replacement cannot strengthen the caller's preconditions. This is an intentional
       strict-compiler rejection witness.
     owner: payments-sdk/core
     createdOn: 2026-10-22
@@ -129,7 +130,8 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    reason: Mutable aggregates are selected explicitly through the store subpath. This is an intentional
+    reason:
+      Mutable aggregates are selected explicitly through the store subpath. This is an intentional
       strict-compiler rejection witness.
     owner: payments-sdk/core
     createdOn: 2026-10-22
@@ -141,7 +143,8 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    reason: read-only consumers cannot create purchases This is an intentional strict-compiler rejection
+    reason:
+      read-only consumers cannot create purchases This is an intentional strict-compiler rejection
       witness.
     owner: payments-sdk/modular
     createdOn: 2026-10-22
@@ -153,7 +156,8 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    reason: the Host retains resource control outside the module This is an intentional strict-compiler
+    reason:
+      the Host retains resource control outside the module This is an intentional strict-compiler
       rejection witness.
     owner: payments-sdk/modular
     createdOn: 2026-10-22
@@ -201,7 +205,8 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    reason: a replacement must accept the full declared buyer identifier domain This is an intentional
+    reason:
+      a replacement must accept the full declared buyer identifier domain This is an intentional
       strict-compiler rejection witness.
     owner: payments-sdk/modular
     createdOn: 2026-10-22
@@ -213,7 +218,8 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    reason: intent custody does not escape through the read facet This is an intentional strict-compiler
+    reason:
+      intent custody does not escape through the read facet This is an intentional strict-compiler
       rejection witness.
     owner: payments-sdk/modular
     createdOn: 2026-10-22
@@ -225,7 +231,8 @@ waivers:
     directive: typescript-expect-error
     rules:
       - typescript/type-error
-    reason: aggregate publication work stays private This is an intentional strict-compiler rejection
+    reason:
+      aggregate publication work stays private This is an intentional strict-compiler rejection
       witness.
     owner: payments-sdk/modular
     createdOn: 2026-10-22

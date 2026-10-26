@@ -60,7 +60,12 @@ export async function auditPackageArchive(
       `${expectedName}: unresolved publish protocol ${dependency}`,
     );
     assert.ok(
-      !["@agent-teams/engineering-foundation", "node-or-bun"].includes(dependency),
+      ![
+        "@agent-teams/engineering-foundation",
+        "@agent-teams/feature-module-standard",
+        "stack-toolchain",
+        "node-or-bun",
+      ].includes(dependency),
       `${expectedName}: development tooling leaked into runtime`,
     );
   }
