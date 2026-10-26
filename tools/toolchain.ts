@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 import ts from "typescript";
 import { parse } from "yaml";
 import { command } from "./package-artifacts.ts";
+import { checkToolchainAdoption } from "./toolchain-adoption.ts";
+import { resolveStack } from "./stack-command.ts";
 
 const root = resolve(import.meta.dirname, "..");
 const [major, minor, patch] = process.versions.node.split(".").map(Number);
@@ -13,6 +15,13 @@ assert.ok(
   `Unsupported qualification runtime ${process.versions.node}`,
 );
 assert.equal(process.platform, "linux", "The initial qualification profile is Linux");
+await checkToolchainAdoption();
+const stack = await resolveStack();
+assert.equal(
+  ts.version,
+  stack.pins["typescript"],
+  "Native API compiler must match qualified Stack compiler",
+);
 
 function admittedCompiler(version: string): boolean {
   const parts = /^(\d+)\.(\d+)\.(\d+)(?:\+.*)?$/u.exec(version);

@@ -1,0 +1,11 @@
+schemaVersion: 2
+profiles:
+  - id: fast
+    packageManager: pnpm
+    concurrency: 1
+    tasks:
+      - id: toolchain:doctor
+      - id: typecheck:ordinary
+        needs: [toolchain:doctor]
+      - id: format:check
+        needs: [typecheck:ordinary]

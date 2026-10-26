@@ -7,14 +7,13 @@ policies:
   catalogVersions: exact
   internalDependencies: workspace-protocol
   reservedScopes:
-    - '@agent-teams/'
+    - "@agent-teams/"
   developmentOnlyPackages:
     - typescript
-    - oxlint
-    - oxlint-tsgolint
     - node-or-bun
-    - '@types/node'
+    - "@types/node"
     - undici
   exactRegistryDevelopmentOnlyPackages:
-    - '@agent-teams/engineering-foundation'
-    - '@agent-teams/feature-module-standard'
+    - "@agent-teams/engineering-foundation"
+    - "@agent-teams/feature-module-standard"
+    - stack-toolchain

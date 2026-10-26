@@ -240,6 +240,7 @@ boundaries:
         - "@agent-teams/feature-module-standard"
         - "@get-modular/conformance"
         - node-or-bun
+        - stack-toolchain
         - typescript
         - undici
         - yaml

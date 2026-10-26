@@ -32,12 +32,12 @@ tests; the main entry still imports without Observation installed.
 ## Reviewed authorities and actual artifacts
 
 The CMS and module-authoring guide were reviewed together at Get Modular
-[`b70ba39304ac71964175c42a77309406a7c30ca2`](https://github.com/agent-teams-ai/get-modular/commit/b70ba39304ac71964175c42a77309406a7c30ca2).
+[`081ae02b49123e14121e100eccfe99f2e74c3600`](https://github.com/agent-teams-ai/get-modular/commit/081ae02b49123e14121e100eccfe99f2e74c3600).
 The profile pins the complete CMS document SHA-256
-`11a389b223506dc303fa986a7a37350b847013d85beb2de9d74cb8c97363e824`
+`3c5814ebf1ab1bd17688e49955aa0baa2ee91dd3a369adcea4d38aaccd53ba86`
 and guide SHA-256
 `9bdbc6a6eac511691cf429c7e7e12b4cf4fd86ec16a348fb3af7a46c989af144`.
-The reviewed delta replaces direct feature-map inheritance with complete
+The earlier reviewed delta replaced direct feature-map inheritance with complete
 descriptor unions and separate `CapabilitiesOf` bases per source (ADR-0041).
 It preserves unused and transitive entries, full revision metadata and early
 conflict rejection. Custom maps with additional properties, signatures or
@@ -45,14 +45,22 @@ map-level polymorphic `this` retain their existing complete interfaces.
 The shared mechanism stays in Assembly; Payments adds only a conformance example
 using its actual descriptors, without a new local type framework or public API.
 The earlier report-and-await shutdown obligations remain in force.
+The current b70-to-081 content delta only changes four upstream producer command
+examples to `bun run`; it changes no consumer normative rule or authoring guide
+byte. The separately retained successor8305ea6409757da8e60dca074dce163d95c85e88
+has identical CMS/guide bytes; it was not observed as main during this readback.
+This explicit mutable profile/gate migration preserves all accepted decisions
+and published qualification histories. The current organization delta adds
+language/runtime, TS7 and universal-tool catalog guidance; no product or
+composition scope is changed.
 The profile accepts the repaired published artifacts and exact catalog/lock pins.
 The isolated packed consumer passed on Linux ARM64 Node `24.22.1` and `26.12.1`
 with PostgreSQL `18`, strict NodeNext/Bundler and identical four SDK archives.
 These are official registry runs; earlier candidate evidence stays historical.
 
 The organization quality source is retained at
-[`a34ecc6bc9bb165771f3962dccd25970dd5c0d98`](https://github.com/agent-teams-ai/.github/blob/a34ecc6bc9bb165771f3962dccd25970dd5c0d98/docs/engineering-quality-standard.md),
-SHA-256 `a65fb5150837b010a71abe36cefd26c32709eb9b9e89f3938498a647e72f5587`.
+[`c8f3e7ba220241f79292c84c72712653019aa1df`](https://github.com/agent-teams-ai/.github/blob/c8f3e7ba220241f79292c84c72712653019aa1df/docs/engineering-quality-standard.md),
+SHA-256 `034ef5cb23a64c2210da81bee8b3403f6abdf0180775a6565959fee69c673b3a`.
 These are reviewed source identities, not moving branch aliases. The retained
 organization source does not silently replace accepted product decisions.
 
@@ -68,7 +76,7 @@ artifact-record digest; the gate compares catalog versions and lock integrity.
 The [October 20 record](../qualification/observation/published-artifacts-2026-10-20.json)
 preserves the earlier train.
 
-Engineering Foundation `2.1.1` supplies the shared source graph and development
+Engineering Foundation `3.0.0` supplies the shared source graph and development
 quality profile described in [its adoption record](foundation-adoption.md).
 The repository's FMS checker delegates structural rules to the published
 Feature Module Standard kernel. This composition gate calls the real published
@@ -93,15 +101,15 @@ public entrypoints. Each feature has a flat `composition/` directory. Every
 runtime entry imports its own separately declared module. Each entry belongs
 to exactly one feature group; inputs import only their host declarations.
 
-| Path below `packages/payments-get-modular/src/features/` | Responsibility |
-| --- | --- |
-| `payment-runtime/application/ports/` | Explicit frozen payment capability facets and the managed root shape; no framework types |
-| `payment-runtime/application/use-cases/` | Track admitted calls and retain physical core work through close |
-| `payment-runtime/composition/` | Named role contracts, configuration/runtime declarations, declared input, scoped entry, feature group and curated public facade |
-| `purchase-observation/application/models/` | Finite readonly query and purchase display values |
-| `purchase-observation/application/ports/` | Borrowed purchase read only; no financial or lifecycle authority |
-| `purchase-observation/application/use-cases/` | Validate/copy a query, derive loading state and detach finite purchase values |
-| `purchase-observation/composition/` | Observation/Resources integration, role contracts, independent declarations and entries, declared inputs, one group and curated public facade |
+| Path below `packages/payments-get-modular/src/features/` | Responsibility                                                                                                                                |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `payment-runtime/application/ports/`                     | Explicit frozen payment capability facets and the managed root shape; no framework types                                                      |
+| `payment-runtime/application/use-cases/`                 | Track admitted calls and retain physical core work through close                                                                              |
+| `payment-runtime/composition/`                           | Named role contracts, configuration/runtime declarations, declared input, scoped entry, feature group and curated public facade               |
+| `purchase-observation/application/models/`               | Finite readonly query and purchase display values                                                                                             |
+| `purchase-observation/application/ports/`                | Borrowed purchase read only; no financial or lifecycle authority                                                                              |
+| `purchase-observation/application/use-cases/`            | Validate/copy a query, derive loading state and detach finite purchase values                                                                 |
+| `purchase-observation/composition/`                      | Observation/Resources integration, role contracts, independent declarations and entries, declared inputs, one group and curated public facade |
 
 The package roots re-export only their feature public facades. The main entry
 has no Observation import. Query/value semantics remain framework independent;

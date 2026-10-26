@@ -16,9 +16,9 @@ const profilePath = "architecture/get-modular-consumer-profile.json";
 const sourcePolicyPath = "architecture/foundation/source-dependencies.yaml";
 const standard = {
   repository: "agent-teams-ai/get-modular",
-  commit: "b70ba39304ac71964175c42a77309406a7c30ca2",
+  commit: "081ae02b49123e14121e100eccfe99f2e74c3600",
   path: "docs/architecture/common-assembly.md",
-  sha256: "11a389b223506dc303fa986a7a37350b847013d85beb2de9d74cb8c97363e824",
+  sha256: "3c5814ebf1ab1bd17688e49955aa0baa2ee91dd3a369adcea4d38aaccd53ba86",
   guide: "docs/guides/module-authoring.md",
   guideSha256: "9bdbc6a6eac511691cf429c7e7e12b4cf4fd86ec16a348fb3af7a46c989af144",
 };
@@ -120,9 +120,9 @@ async function check(root: string): Promise<void> {
     profile.organization,
     {
       repository: "agent-teams-ai/.github",
-      commit: "a34ecc6bc9bb165771f3962dccd25970dd5c0d98",
+      commit: "c8f3e7ba220241f79292c84c72712653019aa1df",
       path: "docs/engineering-quality-standard.md",
-      sha256: "a65fb5150837b010a71abe36cefd26c32709eb9b9e89f3938498a647e72f5587",
+      sha256: "034ef5cb23a64c2210da81bee8b3403f6abdf0180775a6565959fee69c673b3a",
     },
     "organization source pin drift",
   );

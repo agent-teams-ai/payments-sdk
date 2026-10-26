@@ -1,5 +1,5 @@
 {
-  "extends": "@agent-teams/engineering-foundation/presets/typescript/node.json",
+  "extends": "stack-toolchain/presets/typescript/node.json",
   "compilerOptions": {
     "target": "ES2024",
     "lib": ["ES2024", "DOM", "DOM.Iterable"],

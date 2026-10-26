@@ -2,13 +2,8 @@
   "name": "@agent-teams/payments-workspace",
   "version": "0.0.0",
   "private": true,
-  "type": "module",
   "license": "Apache-2.0",
-  "packageManager": "pnpm@11.25.0",
-  "engines": {
-    "node": ">=24.22.1 <25 || >=26.12.1 <27",
-    "pnpm": ">=11.25.0 <12"
-  },
+  "type": "module",
   "scripts": {
     "build": "node tools/build.ts",
     "typecheck": "pnpm build && pnpm typecheck:checks",
@@ -32,37 +27,45 @@
     "test:packed:npm": "node tools/packed-consumers.ts npm",
     "test:drizzle:admission": "node tools/qualify-drizzle.ts",
     "release:dry-run": "node tools/release-dry-run.ts",
-    "check:fast": "pnpm toolchain:check && pnpm typecheck && pnpm architecture:features:check && pnpm quality:coverage:scope && pnpm foundation:check",
+    "check:fast": "pnpm toolchain:check && pnpm typecheck && pnpm architecture:features:check && pnpm quality:coverage:scope && pnpm foundation:check && pnpm gate:fast",
     "check": "pnpm check:fast && pnpm lint && pnpm test:runtime-security && pnpm foundation:assert-dev-only && pnpm foundation:assert-registry && pnpm test:boundaries && pnpm test:drizzle:admission && pnpm test:core && pnpm test:paddle && pnpm test:modular && pnpm test:postgres && pnpm test:e2e && pnpm test:observation && pnpm test:packed && pnpm test:packed:npm && pnpm release:dry-run",
     "test:observation": "node tools/qualify-observation.ts",
     "architecture:features:check": "node tools/check-feature-modules.ts && pnpm test:modular:adoption",
     "architecture:features:plan": "node tools/plan-feature.ts",
     "quality:coverage:scope": "agent-teams-foundation quality check --consumer . --scope-only",
     "lint:production": "agent-teams-foundation quality check --consumer .",
-    "lint:development": "oxlint --config .oxlintrc.development.json packages/*/test tools tests examples qualification",
-    "typecheck:checks": "tsc -p tsconfig.checks.json"
+    "lint:development": "node tools/stack-command.ts lint",
+    "typecheck:checks": "node tools/stack-command.ts compile --project tsconfig.checks.json",
+    "toolchain:doctor": "node tools/stack-command.ts doctor",
+    "typecheck:ordinary": "node tools/stack-command.ts typecheck",
+    "format:check": "node tools/stack-command.ts format:check",
+    "gate:fast": "agent-teams-foundation gate run fast"
   },
   "devDependencies": {
-    "@agent-teams/engineering-foundation": "2.1.1",
+    "@agent-teams/engineering-foundation": "3.0.0",
+    "@agent-teams/feature-module-standard": "0.3.0",
     "@agent-teams/payments-core": "workspace:*",
+    "@agent-teams/payments-get-modular": "workspace:*",
     "@agent-teams/payments-paddle": "workspace:*",
     "@agent-teams/payments-postgres": "workspace:*",
-    "@agent-teams/payments-get-modular": "workspace:*",
-    "@get-modular/core": "catalog:",
     "@get-modular/assembly": "catalog:",
-    "@get-modular/resources": "catalog:",
-    "@get-modular/observation": "catalog:",
     "@get-modular/conformance": "catalog:",
+    "@get-modular/core": "catalog:",
+    "@get-modular/observation": "catalog:",
+    "@get-modular/resources": "catalog:",
     "@types/node": "catalog:",
     "@types/pg": "catalog:",
-    "pg": "catalog:",
-    "oxlint": "catalog:",
-    "oxlint-tsgolint": "catalog:",
     "node-or-bun": "catalog:",
+    "pg": "catalog:",
+    "stack-toolchain": "0.1.1",
     "typescript": "catalog:",
     "undici": "catalog:",
-    "yaml": "catalog:",
-    "@agent-teams/feature-module-standard": "0.2.3"
+    "yaml": "catalog:"
   },
+  "engines": {
+    "node": ">=24.22.1 <25 || >=26.12.1 <27",
+    "pnpm": ">=11.25.0 <12"
+  },
+  "packageManager": "pnpm@11.25.0",
   "repositoryAdmission": 1
 }
