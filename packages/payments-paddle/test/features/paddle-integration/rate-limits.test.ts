@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { MockAgent, getGlobalDispatcher, setGlobalDispatcher, install } from 'undici';
 import { createPaddleProvider } from '../../../src/index.ts';
-import { paddleIds } from '@agent-teams/payments-paddle/testing';
+import { paddleIds } from '../../../src/testing.ts';
 import type { OfferSnapshot, PaymentScope } from '@agent-teams/payments-core';
 
 const scope: PaymentScope = { applicationId: 'rate-fixture', provider: 'paddle', paymentAccountId: 'merchant-fixture', environment: 'sandbox' };
