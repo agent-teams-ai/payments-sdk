@@ -55,24 +55,39 @@ const rejections: Readonly<Record<string, ErrorCode>> = {
   subscription_immediate_charge_24_hour_limit_exceeded: "rate_limited",
 };
 
+/** Absolute retry advice is evidence, never permission to dispatch an uncertain mutation. */
+function retryAdvice(error: ApiError, code: ErrorCode): Readonly<{ retryAt?: string }> {
+  if (
+    code !== "rate_limited" ||
+    error.retryAfter === null ||
+    !Number.isSafeInteger(error.retryAfter) ||
+    error.retryAfter < 0
+  ) {
+    return {};
+  }
+  const milliseconds = Date.now() + error.retryAfter * 1_000;
+  if (!Number.isSafeInteger(milliseconds) || milliseconds > 8_640_000_000_000_000) {
+    return {};
+  }
+  const date = new Date(milliseconds);
+  return date.getUTCFullYear() > 9999 ? {} : { retryAt: date.toISOString() };
+}
+
 export function translatePaddleError(error: unknown, mutation: boolean): ProviderResult<never> {
   if (error instanceof ApiError) {
     const diagnostic = { providerCode: error.code };
     const code = rejections[error.code];
     if (code !== undefined) {
-      return { kind: "rejected", code, diagnostic };
+      return { kind: "rejected", code, diagnostic, ...retryAdvice(error, code) };
     }
     if (!mutation) {
-      return {
-        kind: "rejected",
-        code:
-          error.retryAfter !== null
-            ? "rate_limited"
-            : error.type === "api_error"
-              ? "unavailable"
-              : "unclassified_external_state",
-        diagnostic,
-      };
+      const readCode: ErrorCode =
+        error.retryAfter !== null
+          ? "rate_limited"
+          : error.type === "api_error"
+            ? "unavailable"
+            : "unclassified_external_state";
+      return { kind: "rejected", code: readCode, diagnostic, ...retryAdvice(error, readCode) };
     }
     return { kind: "outcome_unknown", diagnostic };
   }

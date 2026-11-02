@@ -351,7 +351,7 @@ void test(
             assert.equal(unknown.kind, "outcome_unknown");
             assert.equal(creates - beforeCreates, 1);
             const adminBeforeRestart = context.operator(),
-              operation = await adminBeforeRestart.readOperation(unknown.operationId);
+              operation = await adminBeforeRestart.inspectOperation(unknown.operationId);
             assert.ok(operation?.intentId !== undefined && operation.intentId !== "");
             const providerCreated = providerCreations.get(operation.intentId);
             assert.ok(providerCreated);
@@ -391,7 +391,7 @@ void test(
             assert.equal(unresolved.completion, undefined);
             assert.equal((await context.credit.decisions()).length, 0);
             assert.equal((await context.access.decisions()).length, 0);
-            const before = await admin.readOperation(operation.operationId);
+            const before = await admin.inspectOperation(operation.operationId);
             assert.ok(before);
             assert.equal(before.state, "outcome_unknown");
             assert.equal(before.attempts.length, 1);
@@ -488,7 +488,7 @@ void test(
             const replayed = await context.payments.readPurchase("buyer-a", operation.intentId);
             assert.equal(replayed?.transactions[0]?.completion?.factId, factId);
             assert.equal(
-              (await context.operator().readOperation(operation.operationId))?.audits.length,
+              (await context.operator().inspectOperation(operation.operationId))?.audits.length,
               1,
             );
             assert.equal(
@@ -804,7 +804,7 @@ void test(
             const unknown = await context.payments.requestCancellation(command);
             assert.equal(unknown.kind, "outcome_unknown");
             assert.equal(cancellations - beforeCancellations, 1);
-            const original = await context.operator().readOperation(unknown.operationId);
+            const original = await context.operator().inspectOperation(unknown.operationId);
             assert.ok(original);
             assert.equal(original.state, "outcome_unknown");
             assert.equal(original.attempts.length, 1);
@@ -852,7 +852,7 @@ void test(
             );
             await context.flush();
             assert.equal(
-              (await admin.readOperation(unknown.operationId))?.state,
+              (await admin.inspectOperation(unknown.operationId))?.state,
               "outcome_unknown",
             );
             const restricted = (await context.access.decisions())[0]!.body;
@@ -881,7 +881,7 @@ void test(
             });
             assert.equal(blocked.kind, "pending");
             assert.notEqual(blocked.operationId, unknown.operationId);
-            const blockedOperation = await admin.readOperation(blocked.operationId);
+            const blockedOperation = await admin.inspectOperation(blocked.operationId);
             assert.ok(blockedOperation);
             assert.equal(blockedOperation.state, "prepared");
             assert.equal(blockedOperation.attempts.length, 0);
@@ -913,7 +913,7 @@ void test(
             );
             assert.equal(await assertSingleGrant(context.credit), originalGrant);
 
-            const current = await admin.readOperation(unknown.operationId);
+            const current = await admin.inspectOperation(unknown.operationId);
             assert.ok(current);
             const resolution = {
               operationId: unknown.operationId,
@@ -958,7 +958,7 @@ void test(
             assert.equal((await context.access.decisions())[0]!.body.newAction, false);
             // The competing command remains prepared. This fixture proves lane release,
             // without dispatching an unnecessary second cancellation of a terminal entity.
-            assert.equal((await admin.readOperation(blocked.operationId))?.attempts.length, 0);
+            assert.equal((await admin.inspectOperation(blocked.operationId))?.attempts.length, 0);
           } finally {
             await context.close();
           }

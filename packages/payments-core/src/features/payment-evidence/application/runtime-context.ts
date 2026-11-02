@@ -16,8 +16,9 @@ export type PaymentRuntimeContext = Readonly<{
   newId: () => string;
   maxBytes: number;
   timeoutMs: number;
+  maxConcurrentMutations: number;
   active: Set<Promise<unknown>>;
   work: Set<Promise<unknown>>;
   platform: RuntimePlatform;
-}> & { accepting: boolean };
+}> & { accepting: boolean; admittedMutations: number };
 export const unavailable = { kind: "rejected", code: "unavailable" } as const;

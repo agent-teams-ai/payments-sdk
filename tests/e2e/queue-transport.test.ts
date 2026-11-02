@@ -243,7 +243,7 @@ void test(
       await jobs.start({ payments, store: f.store });
       const prepared = await f.wakeups.pump("prepared");
       assert.ok(prepared);
-      assert.equal((await payments.readOperation("op-purchase"))?.state, "succeeded");
+      assert.equal((await payments.inspectOperation("op-purchase"))?.state, "succeeded");
       assert.equal(original.calls(), 1);
       await payments.ingestVerifiedInput(input("tx-purchase", "paid"));
       await f.wakeups.empty();
@@ -440,7 +440,7 @@ void test(
       await f.wakeups.pumpAll();
       await context.payments.repair();
       assert.equal(
-        (await context.payments.readOperation(saved.operationId))?.state,
+        (await context.payments.inspectOperation(saved.operationId))?.state,
         "dispatch_started",
         "manual-review quarantine preserves the uncertain durable marker",
       );

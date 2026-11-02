@@ -44,6 +44,8 @@ export type ProviderResult<T> =
   | Readonly<{
       kind: "rejected";
       code: ErrorCode;
+      /** Absolute provider retry instant; not a mutation retry permit. */
+      retryAt?: string;
       diagnostic?: Readonly<{
         requestId?: string;
         providerCode?: string;

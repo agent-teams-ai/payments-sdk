@@ -33,6 +33,7 @@ export type {
   StartPurchase,
   ResolveUnknown,
   PaymentRuntimeOptions,
+  ReadOperation,
   RequestCancellation,
   OpenPaymentUpdate,
   CreateManagementLink,

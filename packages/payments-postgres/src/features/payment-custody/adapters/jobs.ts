@@ -29,6 +29,7 @@ import type {
 import { assertBatchLimit, PaymentRecords } from "./records.js";
 
 export type PaymentDeliveryReceipt = Readonly<{ messageId: string; bodyDigest: string }>;
+type WorkProgress = boolean | "deferred";
 
 export type PaymentJobHandlers = Readonly<{
   payments: Payments;
@@ -157,7 +158,7 @@ class PaymentJobRunner {
     work: PaymentJobWork,
     claimed: Readonly<{ attempt: number; revision: string }>,
     issue: WorkIssue | undefined,
-    progress: boolean,
+    progress: WorkProgress,
   ): Promise<void> {
     await withPaymentTransaction(
       this.options.database,
@@ -171,8 +172,8 @@ class PaymentJobRunner {
         // claimant's outcome. The logical retry counter survives deletion of every queue job.
         await tx.query(
           `UPDATE ${this.records.sql}.obligations SET
-        revision = revision + 1, state = CASE WHEN $8 THEN 'pending' WHEN $4 OR attempts >= $5 THEN 'quarantined' ELSE 'pending' END,
-        attempts = CASE WHEN $8 THEN 0 ELSE attempts END,
+        revision = revision + 1, state = CASE WHEN $8 OR $10 THEN 'pending' WHEN $4 OR attempts >= $5 THEN 'quarantined' ELSE 'pending' END,
+        attempts = CASE WHEN $8 THEN 0 WHEN $10 THEN GREATEST(attempts - 1, 0) ELSE attempts END,
         next_attempt_at = clock_timestamp() + $6 * interval '1 second', issue = $7
         WHERE kind = $1 AND id = $2 AND state = 'pending' AND attempts = $3 AND revision = $9`,
           [
@@ -181,10 +182,15 @@ class PaymentJobRunner {
             claimed.attempt,
             issue?.quarantine ?? false,
             this.maxAttempts,
-            progress ? this.cooldown : seconds,
-            progress ? null : (issue?.issue ?? "work_remains_pending"),
-            progress,
+            progress === "deferred" ? this.poll : progress ? this.cooldown : seconds,
+            progress === "deferred"
+              ? "mutation_capacity"
+              : progress
+                ? null
+                : (issue?.issue ?? "work_remains_pending"),
+            progress === true,
             claimed.revision,
+            progress === "deferred",
           ],
         );
       },
@@ -200,7 +206,7 @@ class PaymentJobRunner {
       () => this.batch,
     );
   }
-  private run(work: PaymentJobWork, installed: PaymentJobHandlers): Promise<boolean> {
+  private run(work: PaymentJobWork, installed: PaymentJobHandlers): Promise<WorkProgress> {
     switch (work.kind) {
       case "inbox":
         return this.processInbox(work.id, installed);
@@ -247,19 +253,22 @@ class PaymentJobRunner {
     }
     return false;
   }
-  private async executePrepared(id: string, installed: PaymentJobHandlers): Promise<boolean> {
+  private async executePrepared(id: string, installed: PaymentJobHandlers): Promise<WorkProgress> {
     // A queue payload never authorizes dispatch. Re-read its durable marker.
-    const operation = await installed.payments.readOperation(id);
+    const operation = await installed.payments.inspectOperation(id);
     if (!operation) {
       throw new WorkIssue("missing_operation_authority", true);
     }
     if (operation.state === "prepared") {
-      await installed.payments.executeOperation(id);
+      const result = await installed.payments.executeOperation(id);
+      if (result.kind === "deferred") {
+        return "deferred";
+      }
     }
     return false;
   }
   private async inspectUncertain(id: string, installed: PaymentJobHandlers): Promise<boolean> {
-    const operation = await installed.payments.readOperation(id);
+    const operation = await installed.payments.inspectOperation(id);
     if (!operation) {
       throw new WorkIssue("missing_operation_authority", true);
     }
@@ -306,7 +315,7 @@ class PaymentJobRunner {
     }
     let issue: WorkIssue | undefined;
     let failure: PaymentJobHandlerError | undefined;
-    let progress = false;
+    let progress: WorkProgress = false;
     try {
       progress = await this.run(work, installed);
     } catch (error) {

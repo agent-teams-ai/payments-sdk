@@ -56,7 +56,7 @@ async function duplicateCheckout(
       requestKey: "duplicate",
     });
     assert.equal(result.kind, "outcome_unknown");
-    const operation = await context.payments.readOperation(result.operationId);
+    const operation = await context.payments.inspectOperation(result.operationId);
     assert.ok(operation?.intentId !== undefined && operation.intentId !== "");
     success(
       await context.payments.resolveUnknownOperation({

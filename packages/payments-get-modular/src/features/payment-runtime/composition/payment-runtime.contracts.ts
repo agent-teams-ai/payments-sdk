@@ -12,10 +12,10 @@ import { defineContract, type Contract, type CapabilitiesOf } from "@get-modular
 export const PaymentsConfiguration: Contract<
   "agent-teams/payments/configuration",
   PaymentRuntimeOptions,
-  1
+  2
 > = defineContract<PaymentRuntimeOptions>()({
   id: "agent-teams/payments/configuration",
-  revision: 1,
+  revision: 2,
 });
 export type {
   PaymentsCheckout,
@@ -27,19 +27,19 @@ export type {
 
 export const Checkout = defineContract<PaymentsCheckout>()({
   id: "agent-teams/payments/checkout",
-  revision: 1,
+  revision: 2,
 });
 export const Read = defineContract<PaymentsRead>()({
   id: "agent-teams/payments/read",
-  revision: 2,
+  revision: 3,
 });
 export const Management = defineContract<PaymentsManagement>()({
   id: "agent-teams/payments/management",
-  revision: 1,
+  revision: 2,
 });
 export const Processing = defineContract<PaymentsProcessing>()({
   id: "agent-teams/payments/processing",
-  revision: 2,
+  revision: 3,
 });
 export const Delivery = defineContract<PaymentsDelivery>()({
   id: "agent-teams/payments/delivery",

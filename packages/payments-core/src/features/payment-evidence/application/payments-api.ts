@@ -81,6 +81,8 @@ export type PaymentStopReport = Readonly<{
 }>;
 export type PaymentLifecycle = {
   accepting: boolean;
+  mutationCapacity: number;
+  admittedMutations: number;
   unresolvedExternalCalls: number;
   pendingWork: number;
 };
@@ -88,11 +90,9 @@ export type PaymentLifecycle = {
 export type PaymentsCheckout = {
   startPurchase: (command: StartPurchase) => Promise<OperationResult<CheckoutReady>>;
 };
+export type ReadOperation = Readonly<{ operationId: string; buyerId: string }>;
 export type PaymentsRead = {
-  readOperation: (
-    operationId: string,
-    buyerId?: string,
-  ) => Promise<PaymentOperationRead | undefined>;
+  readOperation: (query: ReadOperation) => Promise<PaymentOperationRead | undefined>;
   readPurchase: (buyerId: string, intentId: string) => Promise<PurchaseRead | undefined>;
   readObservedSubscription: (
     buyerId: string,
@@ -112,6 +112,8 @@ export type PaymentsManagement = {
   createManagementLink: (command: CreateManagementLink) => Promise<OperationResult<ManagementLink>>;
 };
 export type PaymentsProcessing = {
+  /** Privileged operator/worker inspection, not exposed on the buyer read capability. */
+  inspectOperation: (operationId: string) => Promise<PaymentOperationRead | undefined>;
   ingestVerifiedInput: (input: VerifiedInput) => Promise<VerifiedInputResult>;
   processInbox: (
     inputId: string,

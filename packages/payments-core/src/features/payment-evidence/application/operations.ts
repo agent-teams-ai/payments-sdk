@@ -10,6 +10,7 @@ import { assertIdentifier, digest } from "../domain/values.js";
 import type { PaymentRuntimeContext } from "./runtime-context.js";
 import { unavailable } from "./runtime-context.js";
 import { subscriptionAuthority } from "./authority.js";
+import { reserveMutation } from "./mutation-admission.js";
 import {
   jsonResult,
   toResult,
@@ -108,93 +109,110 @@ export async function executeOperation(
   if (authority && authority.kind !== "succeeded") {
     return authority;
   }
-  const operation = structuredClone(input.operation),
-    attemptId = newId();
-  operation.state = "dispatch_started";
-  operation.revision += 1;
-  operation.attempts.push({
-    attemptId,
-    fingerprint: operation.fingerprint,
-    dispatchedAt: now(),
-    ...(typeof operation.providerSubscriptionRef === "string" &&
-    operation.providerSubscriptionRef.length > 0
-      ? { providerSubscriptionRef: operation.providerSubscriptionRef }
-      : {}),
-    observations: [],
-  });
-  const marked = await store.beginExternalDispatch(scope, {
-    ...operationCommit(input, operation),
-    ...(authority?.kind === "succeeded" ? { expectedReadSet: authority.value } : {}),
-  });
-  if (marked.kind !== "committed") {
-    return marked.kind === "recovery_fenced" ? unavailable : { kind: "pending", operationId };
+  const release = reserveMutation(ctx);
+  if (release === undefined) {
+    return { kind: "deferred", operationId, reason: "mutation_capacity" };
   }
-  // This is the only mutation dispatch site. No retry catches surround provider calls.
-  const invoke = async (): Promise<ProviderResult<JsonValue>> => {
-    try {
-      if (operation.kind === "purchase" && input.intent) {
-        return jsonResult(
-          await provider.createCheckout({
-            intentId: input.intent.intentId,
-            attemptId,
-            buyerId: operation.buyerId,
-            offer: input.intent.offer,
-          }),
-        );
-      }
-      const subscriptionRef = operation.providerSubscriptionRef;
-      if (!(typeof subscriptionRef === "string" && subscriptionRef.length > 0)) {
-        return { kind: "rejected", code: "ownership_mismatch" };
-      }
-      if (operation.kind === "cancellation" && operation.timing && provider.cancelSubscription) {
-        return jsonResult(
-          await provider.cancelSubscription({
-            subscriptionRef,
-            timing: operation.timing,
-            attemptId,
-          }),
-        );
-      }
-      if (operation.kind === "payment_update" && provider.openPaymentUpdate) {
-        return jsonResult(
-          await provider.openPaymentUpdate({
-            subscriptionRef,
-            intentId: input.subscriptionBinding?.originatingIntentId ?? "",
-            attemptId,
-          }),
-        );
-      }
-      return { kind: "unsupported", capability: operation.kind };
-    } catch {
-      return { kind: "outcome_unknown" };
-    }
-  };
-  const task = invoke().then(async (result) => {
-    await settleAttempt(ctx, operationId, attemptId, result);
-    return result;
-  });
-  active.add(task);
-  void task.finally(() => active.delete(task)).catch(() => {});
-  let cancelDeadline: (() => void) | undefined;
-  const deadline = new Promise<"deadline">((resolve) => {
-    cancelDeadline = platform.schedule(timeoutMs, () => {
-      resolve("deadline");
-    });
-  });
+  let transferred = false;
   try {
-    const completed = await Promise.race([task, deadline]);
-    if (completed === "deadline") {
-      await markUnknown(ctx, operationId, attemptId);
-      return { kind: "outcome_unknown", operationId };
+    const operation = structuredClone(input.operation),
+      attemptId = newId();
+    operation.state = "dispatch_started";
+    operation.revision += 1;
+    operation.attempts.push({
+      attemptId,
+      fingerprint: operation.fingerprint,
+      dispatchedAt: now(),
+      ...(typeof operation.providerSubscriptionRef === "string" &&
+      operation.providerSubscriptionRef.length > 0
+        ? { providerSubscriptionRef: operation.providerSubscriptionRef }
+        : {}),
+      observations: [],
+    });
+    const marked = await store.beginExternalDispatch(scope, {
+      ...operationCommit(input, operation),
+      ...(authority?.kind === "succeeded" ? { expectedReadSet: authority.value } : {}),
+    });
+    if (marked.kind !== "committed") {
+      return marked.kind === "recovery_fenced" ? unavailable : { kind: "pending", operationId };
     }
-    const latest = await store.loadOperation(scope, operationId);
-    return latest ? toResult(latest.operation) : { kind: "outcome_unknown", operationId };
-  } catch {
-    // Provider may have acted; failed local settlement must never authorize another dispatch.
-    await markUnknown(ctx, operationId, attemptId).catch(() => {});
-    return { kind: "outcome_unknown", operationId };
+    // This is the only mutation dispatch site. No retry catches surround provider calls.
+    const invoke = async (): Promise<ProviderResult<JsonValue>> => {
+      try {
+        if (operation.kind === "purchase" && input.intent) {
+          return jsonResult(
+            await provider.createCheckout({
+              intentId: input.intent.intentId,
+              attemptId,
+              buyerId: operation.buyerId,
+              offer: input.intent.offer,
+            }),
+          );
+        }
+        const subscriptionRef = operation.providerSubscriptionRef;
+        if (!(typeof subscriptionRef === "string" && subscriptionRef.length > 0)) {
+          return { kind: "rejected", code: "ownership_mismatch" };
+        }
+        if (operation.kind === "cancellation" && operation.timing && provider.cancelSubscription) {
+          return jsonResult(
+            await provider.cancelSubscription({
+              subscriptionRef,
+              timing: operation.timing,
+              attemptId,
+            }),
+          );
+        }
+        if (operation.kind === "payment_update" && provider.openPaymentUpdate) {
+          return jsonResult(
+            await provider.openPaymentUpdate({
+              subscriptionRef,
+              intentId: input.subscriptionBinding?.originatingIntentId ?? "",
+              attemptId,
+            }),
+          );
+        }
+        return { kind: "unsupported", capability: operation.kind };
+      } catch {
+        return { kind: "outcome_unknown" };
+      }
+    };
+    const task = invoke().then(async (result) => {
+      await settleAttempt(ctx, operationId, attemptId, result);
+      return result;
+    });
+    active.add(task);
+    transferred = true;
+    void task
+      .finally(() => {
+        active.delete(task);
+        release();
+      })
+      .catch(() => {});
+    let cancelDeadline: (() => void) | undefined;
+    const deadline = new Promise<"deadline">((resolve) => {
+      cancelDeadline = platform.schedule(timeoutMs, () => {
+        resolve("deadline");
+      });
+    });
+    try {
+      const completed = await Promise.race([task, deadline]);
+      if (completed === "deadline") {
+        await markUnknown(ctx, operationId, attemptId);
+        return { kind: "outcome_unknown", operationId };
+      }
+      const latest = await store.loadOperation(scope, operationId);
+      return latest ? toResult(latest.operation) : { kind: "outcome_unknown", operationId };
+    } catch {
+      // Provider may have acted; failed local settlement must never authorize another dispatch.
+      await markUnknown(ctx, operationId, attemptId).catch(() => {});
+      return { kind: "outcome_unknown", operationId };
+    } finally {
+      cancelDeadline?.();
+    }
   } finally {
-    cancelDeadline?.();
+    if (!transferred) {
+      release();
+    }
   }
 }
 

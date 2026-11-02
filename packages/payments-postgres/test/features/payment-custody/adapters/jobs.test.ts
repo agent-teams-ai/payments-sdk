@@ -278,7 +278,7 @@ void test(
       await prepare(store, "runtime-role");
       await until(
         async () =>
-          (await core.payments.readOperation("operation-runtime-role"))?.state === "succeeded",
+          (await core.payments.inspectOperation("operation-runtime-role"))?.state === "succeeded",
         "runtime-role prepared worker",
       );
       assert.equal(core.calls(), 1);
@@ -367,7 +367,7 @@ void test(
       });
       await until(
         async () =>
-          (await core.payments.readOperation("operation-prepared"))?.state === "succeeded" &&
+          (await core.payments.inspectOperation("operation-prepared"))?.state === "succeeded" &&
           (await core.payments.readDeliveries("credits")).length === 0 &&
           (await core.payments.readDeliveries("access")).length === 0,
         "prepared and independent consumer delivery",
@@ -587,7 +587,7 @@ void test(
       await f.jobs.start({ payments: core.payments, store: f.store });
       await until(
         async () =>
-          (await core.payments.readOperation("operation-terminal"))?.state === "succeeded",
+          (await core.payments.inspectOperation("operation-terminal"))?.state === "succeeded",
         "terminal wake-up repair",
       );
       assert.equal(core.calls(), 1);
@@ -633,8 +633,8 @@ void test(
       await jobs.start({ payments, store });
       await until(
         async () =>
-          (await payments.readOperation("operation-cold-enqueue"))?.state === "succeeded" &&
-          (await payments.readOperation("operation-cold-repair"))?.state === "succeeded",
+          (await payments.inspectOperation("operation-cold-enqueue"))?.state === "succeeded" &&
+          (await payments.inspectOperation("operation-cold-repair"))?.state === "succeeded",
         "one-checkout cold enqueue and repair",
       );
       assert.equal(core.calls(), 2);
@@ -873,7 +873,7 @@ void test(
       assert.equal(resumed, 3);
       assert.equal(acquired, 3);
       assert.equal(
-        (await core.payments.readOperation(unknown.operationId))?.state,
+        (await core.payments.inspectOperation(unknown.operationId))?.state,
         "outcome_unknown",
       );
       await jobs.redrive({ kind: "unknown", id: unknown.operationId }, "review-ticket-1");
@@ -1032,7 +1032,7 @@ void test(
       assert.equal(drained.unresolvedExternalCalls, 0);
       assert.equal(drained.admittedHandlers, 0);
       assert.equal(drained.transportStopped, true);
-      assert.equal((await core.payments.readOperation("operation-held"))?.state, "succeeded");
+      assert.equal((await core.payments.inspectOperation("operation-held"))?.state, "succeeded");
       assert.equal(core.calls(), 1);
       const missing = createPostgresPaymentJobs({
         ...sibling,
@@ -1136,7 +1136,7 @@ void test(
         pendingCoreWork: 0,
       });
       assert.equal(
-        (await core.payments.readOperation("operation-startup-debt"))?.state,
+        (await core.payments.inspectOperation("operation-startup-debt"))?.state,
         "succeeded",
       );
       assert.equal(core.calls(), 1);
