@@ -1,6 +1,6 @@
 {
   "extends": [
-    "./node_modules/stack-toolchain/presets/oxlint/type-aware.json",
+    "./node_modules/unreviewed-toolchain/presets/oxlint/type-aware.json",
     "./node_modules/stack-toolchain/presets/oxlint/maintainability.json"
   ],
   "rules": {
