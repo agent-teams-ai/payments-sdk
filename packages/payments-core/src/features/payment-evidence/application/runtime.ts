@@ -2,7 +2,12 @@ import type { PaymentRuntimeOptions } from "./models/payment-models.js";
 import type { Payments } from "./payments-api.js";
 import type { PaymentRuntimeContext, RuntimePlatform } from "./runtime-context.js";
 import { assertIdentifier, assertScope, sameScope } from "../domain/values.js";
-import { readOperation, inspectOperation, readPurchase, readObservedSubscription } from "./queries.js";
+import {
+  readOperation,
+  inspectOperation,
+  readPurchase,
+  readObservedSubscription,
+} from "./queries.js";
 import { startPurchase, executeOperation } from "./operations.js";
 import { requestCancellation, openPaymentUpdate, createManagementLink } from "./subscriptions.js";
 import { resolveUnknownOperation } from "./resolutions.js";
@@ -83,9 +88,7 @@ export function createPaymentRuntime(
     readOperation: tracked(ctx, (...args: Parameters<Payments["readOperation"]>) =>
       readOperation(ctx, ...args),
     ),
-    inspectOperation: tracked(ctx, (operationId: string) =>
-      inspectOperation(ctx, operationId),
-    ),
+    inspectOperation: tracked(ctx, (operationId: string) => inspectOperation(ctx, operationId)),
     executeOperation: tracked(ctx, (...args: Parameters<Payments["executeOperation"]>) =>
       executeOperation(ctx, ...args),
     ),

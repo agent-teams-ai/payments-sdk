@@ -1401,7 +1401,10 @@ void test("cancellation timing constrains provider and audited success before re
       requestKey: `waiting-${timing}`,
     });
     assert.equal(waiting.kind, "pending");
-    assert.equal((await context.payments.inspectOperation(waiting.operationId))?.attempts.length, 0);
+    assert.equal(
+      (await context.payments.inspectOperation(waiting.operationId))?.attempts.length,
+      0,
+    );
     assert.equal(dispatches, 1, "a mismatched provider success must retain the mutation lane");
     const audit = {
       operationId: operation.operationId,
@@ -2851,7 +2854,10 @@ void test("public operation reads detach snapshots and strip provider diagnostic
     code: "rate_limited",
     diagnostic: { requestId: "provider-secret-id", providerCode: "raw-provider-code" },
   });
-  const snapshot = await context.payments.readOperation({ operationId: stored.operationId, buyerId: "buyer" });
+  const snapshot = await context.payments.readOperation({
+    operationId: stored.operationId,
+    buyerId: "buyer",
+  });
   assert.ok(snapshot);
   assert.deepEqual(snapshot.result, { kind: "rejected", code: "rate_limited" });
   assert.deepEqual(snapshot.attempts[0]?.observations, [
@@ -2861,14 +2867,22 @@ void test("public operation reads detach snapshots and strip provider diagnostic
   Object.assign(snapshot, { buyerId: "tampered" });
   Object.assign(snapshot.attempts, { length: 0 });
   assert.equal(
-    (await context.payments.readOperation({ operationId: stored.operationId, buyerId: "buyer" }))?.buyerId,
+    (await context.payments.readOperation({ operationId: stored.operationId, buyerId: "buyer" }))
+      ?.buyerId,
     "buyer",
   );
   assert.equal(
-    (await context.payments.readOperation({ operationId: stored.operationId, buyerId: "buyer" }))?.attempts.length,
+    (await context.payments.readOperation({ operationId: stored.operationId, buyerId: "buyer" }))
+      ?.attempts.length,
     1,
   );
-  assert.equal(await context.payments.readOperation({ operationId: stored.operationId, buyerId: "other-buyer" }), undefined);
+  assert.equal(
+    await context.payments.readOperation({
+      operationId: stored.operationId,
+      buyerId: "other-buyer",
+    }),
+    undefined,
+  );
 });
 
 void test("purchase and subscription snapshots hide mutable policy metadata and detach nested values", async () => {
