@@ -2,7 +2,7 @@ import type { PaymentRuntimeOptions } from "./models/payment-models.js";
 import type { Payments } from "./payments-api.js";
 import type { PaymentRuntimeContext, RuntimePlatform } from "./runtime-context.js";
 import { assertIdentifier, assertScope, sameScope } from "../domain/values.js";
-import { readOperation, readPurchase, readObservedSubscription } from "./queries.js";
+import { readOperation, inspectOperation, readPurchase, readObservedSubscription } from "./queries.js";
 import { startPurchase, executeOperation } from "./operations.js";
 import { requestCancellation, openPaymentUpdate, createManagementLink } from "./subscriptions.js";
 import { resolveUnknownOperation } from "./resolutions.js";
@@ -43,6 +43,14 @@ export function createPaymentRuntime(
     newId = options.newId ?? platform.newId;
   const maxBytes = options.maxEvidenceBytes ?? 262_144,
     timeoutMs = options.operationTimeoutMs ?? 15_000;
+  const maxConcurrentMutations = options.maxConcurrentMutations ?? 32;
+  if (
+    !Number.isSafeInteger(maxConcurrentMutations) ||
+    maxConcurrentMutations < 1 ||
+    maxConcurrentMutations > 1024
+  ) {
+    throw new RangeError("Invalid mutation concurrency bound");
+  }
   if (!Number.isInteger(maxBytes) || maxBytes < 4096 || maxBytes > 16_777_216) {
     throw new RangeError("Invalid evidence limit");
   }
@@ -60,6 +68,8 @@ export function createPaymentRuntime(
     newId,
     maxBytes,
     timeoutMs,
+    maxConcurrentMutations,
+    admittedMutations: 0,
     platform,
     active: new Set(),
     work: new Set(),
@@ -72,6 +82,9 @@ export function createPaymentRuntime(
     ),
     readOperation: tracked(ctx, (...args: Parameters<Payments["readOperation"]>) =>
       readOperation(ctx, ...args),
+    ),
+    inspectOperation: tracked(ctx, (operationId: string) =>
+      inspectOperation(ctx, operationId),
     ),
     executeOperation: tracked(ctx, (...args: Parameters<Payments["executeOperation"]>) =>
       executeOperation(ctx, ...args),
@@ -143,6 +156,8 @@ export function createPaymentRuntime(
     drain: () => drain(ctx),
     lifecycle: () => ({
       accepting: ctx.accepting,
+      mutationCapacity: ctx.maxConcurrentMutations,
+      admittedMutations: ctx.admittedMutations,
       unresolvedExternalCalls: ctx.active.size,
       pendingWork: ctx.work.size,
     }),

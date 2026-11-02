@@ -22,12 +22,20 @@ export type OperationResult<T> =
       operationId: string;
     }>
   | Readonly<{
+      /** Durable command remains prepared; no provider mutation has been dispatched. */
+      kind: "deferred";
+      operationId: string;
+      reason: "mutation_capacity";
+    }>
+  | Readonly<{
       kind: "outcome_unknown";
       operationId: string;
     }>
   | Readonly<{
       kind: "rejected";
       code: ErrorCode;
+      /** Absolute retry advice, not authorization to retry an unknown mutation. */
+      retryAt?: string;
     }>
   | Readonly<{
       kind: "unsupported";
@@ -167,4 +175,6 @@ export type PaymentRuntimeOptions = Readonly<{
   newId?: () => string;
   maxEvidenceBytes?: number;
   operationTimeoutMs?: number;
+  /** Reserved through physical provider settlement, independently of caller deadlines. */
+  maxConcurrentMutations?: number;
 }>;

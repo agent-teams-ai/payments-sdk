@@ -1073,7 +1073,7 @@ void test(
         requestKey: "transfer-initial",
       });
       assert.equal(unknown.kind, "outcome_unknown");
-      const operation = await payments.readOperation(unknown.operationId);
+      const operation = await payments.inspectOperation(unknown.operationId);
       assert.ok(operation);
       success(
         await payments.resolveUnknownOperation({

@@ -23,7 +23,11 @@ function outcomeSnapshot(result: ProviderResult<JsonValue>): OperationObservatio
     case "succeeded":
       return { kind: result.kind, value: result.value };
     case "rejected":
-      return { kind: result.kind, code: result.code };
+      return {
+        kind: result.kind,
+        code: result.code,
+        ...(result.retryAt === undefined ? {} : { retryAt: result.retryAt }),
+      };
     case "outcome_unknown":
       return { kind: result.kind };
     case "unsupported":

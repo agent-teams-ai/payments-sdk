@@ -20,6 +20,8 @@ export type OperationObservation =
   | Readonly<{
       kind: "rejected";
       code: ErrorCode;
+      /** Absolute retry advice, never a permission to redispatch. */
+      retryAt?: string;
     }>
   | Readonly<{
       kind: "outcome_unknown";

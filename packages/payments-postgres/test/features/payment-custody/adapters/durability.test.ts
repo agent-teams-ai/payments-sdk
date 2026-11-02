@@ -250,7 +250,7 @@ void test(
       await context.payments.repair();
       assert.equal(context.calls(), 0, "durable dispatch marker forbids automatic redispatch");
       assert.equal(
-        (await context.payments.readOperation(saved.operationId))?.state,
+        (await context.payments.inspectOperation(saved.operationId))?.state,
         "outcome_unknown",
       );
       await context.payments.drain();
@@ -352,7 +352,7 @@ void test(
         requestKey: "initial",
       });
       assert.equal(first.kind, "outcome_unknown");
-      const op = await context.payments.readOperation(first.operationId);
+      const op = await context.payments.inspectOperation(first.operationId);
       assert.ok(op?.intentId !== undefined && op.intentId !== "");
       assert.equal(
         (

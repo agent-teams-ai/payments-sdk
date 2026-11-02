@@ -24,7 +24,7 @@ Trials, mixed baskets/seats, plan-change/proration commands, pause/resume, manua
 
 For Paddle with durable storage, choose core + Paddle + PostgreSQL. The PostgreSQL root requires neither `pg` nor `pg-boss`: select the optional `/node-postgres` driver wrapper and `/pg-boss` transport explicitly, or supply the adapter-owned database and transactional transport contracts. The driver wrapper can borrow an existing host pool, including one used by Drizzle. Get Modular is optional for every other package; observation hooks do not replace durable financial delivery.
 
-All four packages currently declare **`0.4.0`** and emit ESM JavaScript and declarations. This version is **not published to npm**. Build this checkout, or use matching verified prerelease tarballs when available. The [release and installation guide](docs/releasing.md) covers checksums, package overrides and installation; the [0.4 migration guide](docs/migrations/0.4.md) explains the separate provider/storage contracts and Get Modular revision changes. Earlier changes remain in the [changelog](CHANGELOG.md).
+All four packages currently declare **`0.5.0`** and emit ESM JavaScript and declarations. This version is **not published to npm**. Build this checkout, or use matching verified prerelease tarballs when available. The [release and installation guide](docs/releasing.md) covers checksums, package overrides and installation; the [0.5 migration guide](docs/migrations/0.5.md) explains the separate provider/storage contracts and Get Modular revision changes. Earlier changes remain in the [changelog](CHANGELOG.md).
 
 **Current qualification:** Linux Node **24.22.1 LTS** and **26.12.1** are the corrected runtime floors. The [0.4 source candidate](docs/qualification.md#sdk-04-source-candidate) has its own fresh qualification; [older hosted baselines](docs/qualification.md#reviewed-hosted-baselines) remain bound to their recorded sources. Each revision requires its own checks; deployment and Paddle-account gates remain separate. See [runtime admission status](docs/runtime-security-admission.md) and [qualification](docs/qualification.md) before production use.
 
@@ -54,7 +54,20 @@ export function createCheckoutHost(options: PaymentRuntimeOptions) {
 }
 ```
 
-Reuse the same `requestKey` for retries of one logical purchase. A `succeeded` result contains `value.intentId`, `value.transactionRef` and the provider's `value.checkout` descriptor (optional URL/token). It means checkout is prepared. Preserve the distinct `pending`, `outcome_unknown`, `rejected` and `unsupported` results instead of treating them as confirmation or starting another mutation.
+Reuse the same `requestKey` for retries of one logical purchase. A `succeeded` result contains `value.intentId`, `value.transactionRef` and the provider's `value.checkout` descriptor (optional URL/token). It means checkout is prepared. Preserve the distinct `pending`, `deferred`, `outcome_unknown`, `rejected` and `unsupported` results instead of treating them as confirmation or starting another mutation.
+
+Buyer operation queries require both identifiers: `payments.readOperation({ operationId, buyerId })`.
+The Host must derive `buyerId` from authentication. Worker/operator inspection uses the
+separate `inspectOperation(operationId)` processing capability; never expose it through
+a buyer route. There is no optional-buyer overload.
+
+The runtime defaults to at most **32 physically unfinished external mutations**.
+Choose `maxConcurrentMutations` for the Host's budget. A `deferred` result means the
+command is saved but has no dispatch marker or external call yet; a worker can execute
+that prepared command later. A caller timeout never frees the slot of a still-running
+provider call. This local bound is not a distributed account/IP rate limiter.
+Known rate-limit rejection may include absolute `retryAt` advice. It never authorizes
+a retry of an `outcome_unknown` mutation.
 
 A complete integration also needs verified webhook custody, background processing and delivery to independent consumers. [Getting started](docs/getting-started.md) walks through trusted identities, catalog snapshots, migrations, checkout, webhooks and consumer acknowledgement. Each consumer commits its receipt plus effect or durable held obligation in its own transaction before acknowledgement; the SDK exposes no shared payment-plus-credit transaction.
 

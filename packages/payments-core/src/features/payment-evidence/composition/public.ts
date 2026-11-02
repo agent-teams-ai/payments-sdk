@@ -19,6 +19,7 @@ export type {
   PaymentRepairResult,
   PaymentStopReport,
   PaymentLifecycle,
+  ReadOperation,
   PaymentsCheckout,
   PaymentsRead,
   PaymentsManagement,

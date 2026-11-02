@@ -377,7 +377,7 @@ void test("unknown mutation is never automatically retried and late old success 
   });
   await context.payments.repair();
   assert.equal(context.calls(), 1);
-  const operation = await context.payments.readOperation(result.operationId);
+  const operation = await context.payments.inspectOperation(result.operationId);
   assert.ok(operation);
   assert.deepEqual(
     await context.payments.resolveUnknownOperation({
@@ -410,7 +410,7 @@ void test("unknown mutation is never automatically retried and late old success 
     value: { intentId: firstIntent, transactionRef: "old-tx", checkout: { token: "old" } },
   });
   await context.payments.drain();
-  const final = await context.payments.readOperation(operation.operationId);
+  const final = await context.payments.inspectOperation(operation.operationId);
   assert.equal(final?.state, "succeeded");
   assert.equal(final.attempts.length, 2);
   assert.equal(
@@ -801,7 +801,7 @@ async function duplicateStreams() {
     requestKey: "request",
   });
   assert.equal(unknownResult.kind, "outcome_unknown");
-  const operation = await context.payments.readOperation(unknownResult.operationId);
+  const operation = await context.payments.inspectOperation(unknownResult.operationId);
   assert.ok(operation);
   await context.payments.resolveUnknownOperation({
     operationId: operation.operationId,
@@ -1105,7 +1105,7 @@ void test("late success before an authorized retry is dispatched prevents a grat
     requestKey: "request",
   });
   assert.equal(unknownResult.kind, "outcome_unknown");
-  const operation = await context.payments.readOperation(unknownResult.operationId);
+  const operation = await context.payments.inspectOperation(unknownResult.operationId);
   assert.ok(operation);
   await context.payments.resolveUnknownOperation({
     operationId: operation.operationId,
@@ -1255,7 +1255,7 @@ async function duplicateMonthly() {
     requestKey: "request",
   });
   assert.equal(pending.kind, "outcome_unknown");
-  const operation = await context.payments.readOperation(pending.operationId);
+  const operation = await context.payments.inspectOperation(pending.operationId);
   assert.ok(operation);
   assert.equal(
     (
@@ -1330,7 +1330,7 @@ void test("audited cancellation retry preserves its pinned provider subject acro
     ).kind,
     "succeeded",
   );
-  const operation = await context.payments.readOperation(result.operationId);
+  const operation = await context.payments.inspectOperation(result.operationId);
   assert.ok(operation);
   assert.equal(
     (
@@ -1348,7 +1348,7 @@ void test("audited cancellation retry preserves its pinned provider subject acro
   );
   assert.equal((await context.payments.executeOperation(operation.operationId)).kind, "succeeded");
   assert.deepEqual(targets, ["sub-a", "sub-a"]);
-  const saved = await context.payments.readOperation(operation.operationId);
+  const saved = await context.payments.inspectOperation(operation.operationId);
   assert.equal(saved?.providerSubscriptionRef, "sub-a");
   assert.deepEqual(
     saved.attempts.map((attempt) => attempt.providerSubscriptionRef),
@@ -1387,7 +1387,7 @@ void test("cancellation timing constrains provider and audited success before re
     const command = { buyerId: "buyer", bindingId, requestKey: `cancel-${timing}`, timing };
     const unknownResult = await context.payments.requestCancellation(command);
     assert.equal(unknownResult.kind, "outcome_unknown");
-    const operation = await context.payments.readOperation(unknownResult.operationId);
+    const operation = await context.payments.inspectOperation(unknownResult.operationId);
     assert.ok(operation);
     assert.equal(operation.state, "outcome_unknown");
     assert.equal(operation.result, undefined);
@@ -1401,7 +1401,7 @@ void test("cancellation timing constrains provider and audited success before re
       requestKey: `waiting-${timing}`,
     });
     assert.equal(waiting.kind, "pending");
-    assert.equal((await context.payments.readOperation(waiting.operationId))?.attempts.length, 0);
+    assert.equal((await context.payments.inspectOperation(waiting.operationId))?.attempts.length, 0);
     assert.equal(dispatches, 1, "a mismatched provider success must retain the mutation lane");
     const audit = {
       operationId: operation.operationId,
@@ -1419,7 +1419,7 @@ void test("cancellation timing constrains provider and audited success before re
       { kind: "rejected", code: "validation" },
     );
     assert.deepEqual(
-      await context.payments.readOperation(operation.operationId),
+      await context.payments.inspectOperation(operation.operationId),
       operation,
       "invalid audit must not change the operation or append an audit",
     );
@@ -1439,7 +1439,7 @@ void test("cancellation timing constrains provider and audited success before re
       kind: "succeeded",
       value: matching,
     });
-    const resolved = await context.payments.readOperation(operation.operationId);
+    const resolved = await context.payments.inspectOperation(operation.operationId);
     assert.equal(resolved?.audits.length, 1);
     assert.deepEqual(
       resolved.attempts,
@@ -1514,7 +1514,7 @@ void test("audited payment update retry preserves its pinned provider subject ac
     ).kind,
     "succeeded",
   );
-  const operation = await context.payments.readOperation(result.operationId);
+  const operation = await context.payments.inspectOperation(result.operationId);
   assert.ok(operation);
   assert.equal(
     (
@@ -1533,7 +1533,7 @@ void test("audited payment update retry preserves its pinned provider subject ac
   assert.equal((await context.payments.executeOperation(operation.operationId)).kind, "succeeded");
   assert.deepEqual(targets, ["sub-a", "sub-a"]);
   assert.equal(
-    (await context.payments.readOperation(operation.operationId))?.providerSubscriptionRef,
+    (await context.payments.inspectOperation(operation.operationId))?.providerSubscriptionRef,
     "sub-a",
   );
   old.resolve({ kind: "outcome_unknown" });
@@ -2598,7 +2598,7 @@ void test("audited payment update outcomes bind the same durable purpose and rec
     const priorFact = (
       await context.payments.readPurchase("buyer", checkout.intentId)
     )?.transactions.find((aggregate) => aggregate.transactionRef === ref)?.completion;
-    const operation = await context.payments.readOperation(unknownResult.operationId);
+    const operation = await context.payments.inspectOperation(unknownResult.operationId);
     assert.ok(operation);
     const value = {
       intentId: checkout.intentId,
@@ -2681,7 +2681,7 @@ void test("invalid audited successful outcomes preserve the unknown operation an
     requestKey: "invalid-operator",
   });
   assert.equal(unknownResult.kind, "outcome_unknown");
-  const operation = await context.payments.readOperation(unknownResult.operationId);
+  const operation = await context.payments.inspectOperation(unknownResult.operationId);
   assert.ok(operation);
   const invalidValues: readonly JsonValue[] = [
     null,
@@ -2738,7 +2738,7 @@ void test("invalid audited successful outcomes preserve the unknown operation an
       }),
       { kind: "rejected", code: "validation" },
     );
-    assert.deepEqual(await context.payments.readOperation(operation.operationId), operation);
+    assert.deepEqual(await context.payments.inspectOperation(operation.operationId), operation);
   }
   assert.deepEqual(
     await context.payments.openPaymentUpdate({
@@ -2851,7 +2851,7 @@ void test("public operation reads detach snapshots and strip provider diagnostic
     code: "rate_limited",
     diagnostic: { requestId: "provider-secret-id", providerCode: "raw-provider-code" },
   });
-  const snapshot = await context.payments.readOperation(stored.operationId, "buyer");
+  const snapshot = await context.payments.readOperation({ operationId: stored.operationId, buyerId: "buyer" });
   assert.ok(snapshot);
   assert.deepEqual(snapshot.result, { kind: "rejected", code: "rate_limited" });
   assert.deepEqual(snapshot.attempts[0]?.observations, [
@@ -2861,14 +2861,14 @@ void test("public operation reads detach snapshots and strip provider diagnostic
   Object.assign(snapshot, { buyerId: "tampered" });
   Object.assign(snapshot.attempts, { length: 0 });
   assert.equal(
-    (await context.payments.readOperation(stored.operationId, "buyer"))?.buyerId,
+    (await context.payments.readOperation({ operationId: stored.operationId, buyerId: "buyer" }))?.buyerId,
     "buyer",
   );
   assert.equal(
-    (await context.payments.readOperation(stored.operationId, "buyer"))?.attempts.length,
+    (await context.payments.readOperation({ operationId: stored.operationId, buyerId: "buyer" }))?.attempts.length,
     1,
   );
-  assert.equal(await context.payments.readOperation(stored.operationId, "other-buyer"), undefined);
+  assert.equal(await context.payments.readOperation({ operationId: stored.operationId, buyerId: "other-buyer" }), undefined);
 });
 
 void test("purchase and subscription snapshots hide mutable policy metadata and detach nested values", async () => {
