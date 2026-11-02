@@ -28,7 +28,7 @@ All four packages currently declare **`0.5.0`** and emit ESM JavaScript and decl
 
 **Current qualification:** Linux Node **24.22.1 LTS** and **26.12.1** are the corrected runtime floors. The [0.4 source candidate](docs/qualification.md#sdk-04-source-candidate) has its own fresh qualification; [older hosted baselines](docs/qualification.md#reviewed-hosted-baselines) remain bound to their recorded sources. Each revision requires its own checks; deployment and Paddle-account gates remain separate. See [runtime admission status](docs/runtime-security-admission.md) and [qualification](docs/qualification.md) before production use.
 
-**Governance rollout:** full FMS and native SDK checks are part of this source. Installation of the new central identity/admission workflows and organization-wide registration remain a separate [tracked activation](docs/governance-rollout.md); source integration does not claim that administrative deployment is complete.
+**Governance rollout:** canonical central identity and Repository admission callers accompany the full FMS and native SDK checks. Their immutable versions, remote enforcement evidence and independent organization-registration boundaries are recorded in the [tracked activation](docs/governance-rollout.md).
 
 ## Start here
 
@@ -101,9 +101,9 @@ Use Linux Node **24.22.1** or **26.12.1**, pnpm **11.25.0**, TypeScript **7.0.2*
 The owner-selected [full Feature Module Standard adoption](docs/feature-module-adoption.md)
 and [local profile](architecture/feature-module-standard.json) define the four
 packages' module and feature boundaries. The
-[proposed central bootstrap rollout](https://github.com/agent-teams-ai/.github/pull/381)
-owns new-repository registration and enforcement; its pending activation is
-separate from the native full-FMS checks. The
+[central bootstrap guide](https://github.com/agent-teams-ai/.github/blob/main/docs/repository-admission.md#new-repository-bootstrap)
+owns new-repository registration and enforcement, with separate evidence from
+the native full-FMS checks. The
 [delivery boundary](docs/governance-rollout.md) and original
 [delivery plan](docs/reviews/full-fms-adoption/plan.md) distinguish source
 implementation, hosted qualification, registration and remote enforcement.
