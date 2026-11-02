@@ -1,0 +1,56 @@
+name: SDK 0.5 exact formatter preview
+on:
+  push:
+    branches:
+      - automation/sdk05-format-probe
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 0e06524ac87e75a410b51736fd6b9af0254cd675
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.22.1
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Read-only preview of exact pinned oxfmt output
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { createRequire } from 'node:module';
+          import { dirname, resolve } from 'node:path';
+          import { spawnSync } from 'node:child_process';
+          const require = createRequire(import.meta.url);
+          const stack = createRequire(require.resolve('stack-toolchain/package.json'));
+          const file = stack.resolve('oxfmt/package.json');
+          const entry = stack(file).bin;
+          const path = resolve(dirname(file), typeof entry === 'string' ? entry : entry.oxfmt);
+          const files = [
+            'packages/payments-core/src/features/payment-evidence/application/runtime.ts',
+            'packages/payments-core/test/features/payment-evidence/core.test.ts',
+            'packages/payments-core/test/features/payment-evidence/public-boundaries.test.ts',
+            'packages/payments-paddle/test/features/paddle-integration/rate-limits.test.ts',
+            'tests/e2e/mutation-capacity.test.ts'
+          ];
+          const result = spawnSync(process.execPath, [path, '--write', '--config', 'node_modules/stack-toolchain/presets/format.json', ...files], { stdio: 'inherit' });
+          if (result.status !== 0) process.exit(result.status ?? 1);
+          NODE
+          git diff --check
+          echo 'SDK05_FORMAT_PATCH_BEGIN'
+          git diff --no-ext-diff --no-color --unified=3 -- \
+            packages/payments-core/src/features/payment-evidence/application/runtime.ts \
+            packages/payments-core/test/features/payment-evidence/core.test.ts \
+            packages/payments-core/test/features/payment-evidence/public-boundaries.test.ts \
+            packages/payments-paddle/test/features/paddle-integration/rate-limits.test.ts \
+            tests/e2e/mutation-capacity.test.ts
+          echo 'SDK05_FORMAT_PATCH_END'
