@@ -11,4 +11,4 @@ jobs:
       contents: read
       pull-requests: read
       statuses: write
-    uses: agent-teams-ai/.github/.github/workflows/commit-author-identity-check.yml@77a0f46cbfc7688cbabbe12ee819e50ba6f64234
+    uses: agent-teams-ai/.github/.github/workflows/commit-author-identity-check.yml@1f8dc7a2ee33e3cc3810f0c4c2d5e9f3f20241d0
