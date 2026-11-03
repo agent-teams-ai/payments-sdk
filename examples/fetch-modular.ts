@@ -1,6 +1,6 @@
 /** Fetch handler with the published static Get Modular assembly, not a second payment runtime. */
 import { assemblyFor, formatFailure } from '@get-modular/assembly';
-import { createScope } from '@get-modular/resources';
+import { createScope, type CloseOptions } from '@get-modular/resources';
 import { PaymentsConfiguration, paymentsConfiguration, paymentsGroup, paymentsModule } from '@agent-teams/payments-get-modular';
 import type { PaymentsCapabilities } from '@agent-teams/payments-get-modular';
 import type { PaymentRuntimeOptions } from '@agent-teams/payments-core';
@@ -26,5 +26,5 @@ export async function createFetchModularHost(options: PaymentRuntimeOptions, ver
   }
   const root = result.roots.payments;
   const payments: HostedPayments = { ...root.checkout, ...root.read, ...root.management, ...root.processing, ...root.delivery };
-  return { payments, handle: (request: Request) => handlePaymentRequest(request, payments, verify, authenticate), close: () => scope.control.close() };
+  return { payments, handle: (request: Request) => handlePaymentRequest(request, payments, verify, authenticate), close: (closeOptions?: CloseOptions) => scope.control.close(closeOptions) };
 }

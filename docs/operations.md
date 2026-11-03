@@ -22,6 +22,14 @@ Payment-owned obligations remain authoritative after queue retention/cleanup. Th
 
 Persistent faults become visible quarantine with bounded cooldown/attempts. After fixing a fault, use `jobs.redrive(workIdentity, auditRef)` to reopen its unfinished local obligation. This changes neither the operation nor its mutation authorization. Unknown operations require read-only inspection or the core's audited resolution. Missing handlers are a configuration failure, not an instruction to auto-dispatch.
 
+Delivery backfill and ACK share the delivery lock, so backfill cannot reopen a
+concurrently acknowledged target. If an older version left pending work for an
+already acknowledged delivery, the worker validates its retained message and
+replays the producer ACK to complete that obligation without calling the consumer
+again. A duplicate ACK checks the saved body digest and reasserts completion.
+Workers do not automatically claim quarantined obligations; use the audited
+redrive procedure above to resume that worker path.
+
 | Incident | Response |
 | --- | --- |
 | Webhook body/signature invalid | Reject before trusted admission; inspect endpoint configuration without logging secrets |

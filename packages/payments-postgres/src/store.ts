@@ -657,6 +657,9 @@ class PostgresPaymentStore implements PaymentStore {
       const cursor = (await (this.records.read(tx, 'backfills', consumerId) as Promise<StoredRecord<{ consumerId: string; after: string | null; state: string }> | undefined>))?.body;
       if (!cursor || cursor.state === 'complete') {return;}
       const messages = await this.records.listKeys(tx, 'evidence', cursor.after, 100);
+      // ACK owns the same delivery lock. Read its state only after locking the page,
+      // so a concurrent committed ACK cannot be reopened by stale backfill state.
+      await this.records.lock(tx, messages.map(row => ({ kind: 'deliveries', id: canonicalJson([row.id, consumerId]) })));
       for (const row of messages) {
         const id = canonicalJson([row.id, consumerId]);
         const existing = await (this.records.read(tx, 'deliveries', id) as Promise<StoredRecord<Delivery> | undefined>);
@@ -691,11 +694,14 @@ class PostgresPaymentStore implements PaymentStore {
       const delivery = (await (this.records.read(tx, 'deliveries', id) as Promise<StoredRecord<Delivery> | undefined>))?.body;
       const message = (await (this.records.read(tx, 'evidence', messageId) as Promise<StoredRecord<EvidenceMessage> | undefined>))?.body;
       if (!delivery || !message || message.bodyDigest !== bodyDigest) {return 'conflict';}
-      if (delivery.acknowledged) {return 'duplicate';}
-      delivery.acknowledged = true;
-      await this.records.write(tx, 'deliveries', id, delivery);
+      const result = delivery.acknowledged ? 'duplicate' : 'acknowledged';
+      if (!delivery.acknowledged) {
+        delivery.acknowledged = true;
+        await this.records.write(tx, 'deliveries', id, delivery);
+      }
+      // Reassert completion after a replay, including debt left by an older backfill.
       await this.work(tx, { kind: 'delivery', id }, 'complete');
-      return 'acknowledged';
+      return result;
     });
   }
 

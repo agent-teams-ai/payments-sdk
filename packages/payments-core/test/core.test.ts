@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addMoney, assertIdentifier, assertScope, canonicalJson, compareTime, compareEventIdentity, createPayments, digest, eventIdentityEvidence, mergeEventIdentityEvidence, exactTime, money, objectVersionKey, processInput, publishEvidence, reduceObservation, MAX_OBJECT_VERSION_EVIDENCE_BYTES, type AdjustmentObservation, type JsonValue, type Observation, type EvidenceSource, type Field, type OfferSnapshot, type PaymentProvider, type PaymentScope, type ProviderResult, type SubscriptionObservation, type TransactionObservation, type VerifiedInput } from '../dist/index.js';
+import { addMoney, assertIdentifier, assertScope, canonicalJson, compareTime, compareEventIdentity, createPayments, digest, eventIdentityEvidence, mergeEventIdentityEvidence, exactTime, money, objectVersionKey, processInput, publishEvidence, reduceObservation, MAX_OBJECT_VERSION_EVIDENCE_BYTES, type AdjustmentObservation, type CancellationOutcome, type JsonValue, type Observation, type EvidenceSource, type Field, type OfferSnapshot, type PaymentProvider, type PaymentScope, type ProviderResult, type SubscriptionObservation, type TransactionObservation, type VerifiedInput } from '../dist/index.js';
 import { MemoryPaymentStore } from '../dist/memory.js';
 
 const scope: PaymentScope = { applicationId: 'app-a', provider: 'fake', paymentAccountId: 'merchant', environment: 'sandbox' };
@@ -364,6 +364,44 @@ void test('audited cancellation retry preserves its pinned provider subject acro
   assert.deepEqual(targets, ['sub-a', 'sub-a']);
   const saved = await context.payments.readOperation(operation.operationId); assert.equal(saved?.providerSubscriptionRef, 'sub-a'); assert.deepEqual(saved.attempts.map(attempt => attempt.providerSubscriptionRef), ['sub-a', 'sub-a']); assert.equal(new Set(saved.attempts.map(attempt => attempt.fingerprint)).size, 1);
   old.resolve({ kind: 'outcome_unknown' }); await context.payments.drain();
+});
+
+void test('cancellation timing constrains provider and audited success before releasing the unresolved mutation lane', async () => {
+  for (const timing of ['now', 'period_end'] as const) {
+    const context = setup('monthly'), checkout = await purchase(context);
+    await observe(context, transaction(checkout.transactionRef, `cancellation-timing-${timing}`, 'monthly'));
+    const bindingId = (await context.payments.readPurchase('buyer', checkout.intentId))?.intent.subscriptionBasisId; assert.ok(typeof bindingId === 'string' && bindingId.length > 0);
+    Object.assign(context.provider.capabilities, { cancellation: ['now', 'period_end'] });
+    const scheduled: CancellationOutcome = { kind: 'scheduled', effectiveAt: period.endsAt };
+    // Terminal status interpretation belongs to this provider; core checks the requested timing.
+    const applied: CancellationOutcome = { kind: 'applied', observedStatus: 'provider-terminal-state' };
+    const matching = timing === 'now' ? applied : scheduled, mismatched = timing === 'now' ? scheduled : applied;
+    let dispatches = 0;
+    context.provider.cancelSubscription = async () => { dispatches += 1; return { kind: 'succeeded', value: mismatched }; };
+    const command = { buyerId: 'buyer', bindingId, requestKey: `cancel-${timing}`, timing };
+    const unknownResult = await context.payments.requestCancellation(command); assert.equal(unknownResult.kind, 'outcome_unknown');
+    const operation = await context.payments.readOperation(unknownResult.operationId); assert.ok(operation);
+    assert.equal(operation.state, 'outcome_unknown'); assert.equal(operation.result, undefined);
+    assert.deepEqual(operation.attempts[0]?.observations, [{ kind: 'succeeded', value: mismatched }]);
+    assert.equal(dispatches, 1);
+
+    const waiting = await context.payments.requestCancellation({ ...command, requestKey: `waiting-${timing}` }); assert.equal(waiting.kind, 'pending');
+    assert.equal((await context.payments.readOperation(waiting.operationId))?.attempts.length, 0);
+    assert.equal(dispatches, 1, 'a mismatched provider success must retain the mutation lane');
+    const audit = { operationId: operation.operationId, expectedRevision: operation.revision, actorId: 'operator', auditRef: `timing-proof-${timing}`, reason: 'reviewed cancellation evidence', action: 'bind_outcome' as const };
+    assert.deepEqual(await context.payments.resolveUnknownOperation({ ...audit, outcome: { kind: 'succeeded', value: mismatched } }), { kind: 'rejected', code: 'validation' });
+    assert.deepEqual(await context.payments.readOperation(operation.operationId), operation, 'invalid audit must not change the operation or append an audit');
+    assert.equal((await context.payments.executeOperation(waiting.operationId)).kind, 'pending');
+    assert.equal(dispatches, 1, 'a rejected audit must not release the unresolved lane');
+
+    assert.equal((await context.payments.resolveUnknownOperation({ ...audit, outcome: { kind: 'succeeded', value: matching } })).kind, 'succeeded');
+    assert.deepEqual(await context.payments.requestCancellation(command), { kind: 'succeeded', value: matching });
+    const resolved = await context.payments.readOperation(operation.operationId); assert.equal(resolved?.audits.length, 1);
+    assert.deepEqual(resolved.attempts, operation.attempts, 'resolution preserves the mismatched provider response as attempt evidence');
+    context.provider.cancelSubscription = async () => { dispatches += 1; return { kind: 'succeeded', value: matching }; };
+    assert.deepEqual(await context.payments.executeOperation(waiting.operationId), { kind: 'succeeded', value: matching });
+    assert.equal(dispatches, 2, 'matching audited evidence releases the lane for the waiting command');
+  }
 });
 
 void test('audited payment update retry preserves its pinned provider subject across independent stream selection', async () => {

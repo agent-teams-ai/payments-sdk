@@ -9,6 +9,7 @@ import { createNodePostgresPaymentDatabase } from '../dist/node-postgres.js';
 import { createPaymentSqlExecutor } from '../dist/database.js';
 import { createPgBossPaymentTransport } from '../dist/job-transport.js';
 import { createPostgresPaymentJobs, createPostgresPaymentStore, migratePaymentSchema, PaymentJobHandlerError } from '../dist/index.js';
+import type { PaymentPostgresDatabase, PaymentSqlRow } from '../dist/index.js';
 import { paymentBossFixture } from './pg-boss-fixture.ts';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -123,6 +124,84 @@ void test('deleted jobs are rebuilt from payment obligations; T2 replay and exac
     assert.equal(deliveries.rows.length, 2); assert.ok(deliveries.rows.every(row => row.body.acknowledged));
     assert.deepEqual(f.errors, []);
   } finally { core.payments.stop(); await f.cleanup(); }
+});
+
+void test('concurrent backfill preserves a committed delivery ACK and repairs older acknowledged work debt', { timeout: 30_000 }, async () => {
+  const f = await fixture(), readDelivery = deferred<void>(), releaseBackfill = deferred<void>();
+  let pause = false;
+  const database: PaymentPostgresDatabase = {
+    async acquire() {
+      const connection = await f.database.acquire();
+      return {
+        // oxlint-disable-next-line typescript/no-unnecessary-type-parameters -- Preserve the connection caller's SQL row shape.
+        async query<Row extends PaymentSqlRow = PaymentSqlRow>(text: string, values: readonly unknown[] | undefined, timeoutMs: number) {
+          const result = await connection.query<Row>(text, values, timeoutMs);
+          if (pause && text.startsWith('select ') && values?.[0] === 'deliveries') {
+            pause = false;
+            const row = result.rows[0]; assert.ok(row);
+            assert.equal((row.body as { acknowledged: boolean }).acknowledged, false);
+            readDelivery.resolve();
+            await releaseBackfill.promise;
+          }
+          return result;
+        },
+        release: () => { connection.release(); }, destroy: () => { connection.destroy(); },
+      };
+    },
+  };
+  let recovering: ReturnType<typeof createPostgresPaymentJobs> | undefined;
+  let backfill: Promise<void> | undefined;
+  let acknowledgement: Promise<unknown> | undefined;
+  try {
+    const store = await createPostgresPaymentStore({ database, schema: f.paymentSchema, scope, queue: f.jobs.queue });
+    const { payments } = runtime(store);
+    await payments.registerConsumer('credits');
+    const receipt = input('backfill-ack-transaction', 'backfill-ack-receipt');
+    assert.equal((await payments.ingestVerifiedInput(receipt)).kind, 'succeeded');
+    assert.equal(await payments.processInbox(receipt.inputId), 'processed');
+    const message = (await store.listDeliveries(scope, 'credits', 10))[0];
+    assert.ok(message);
+    const id = JSON.stringify([message.messageId, 'credits']);
+    pause = true;
+    backfill = payments.registerConsumer('credits', true);
+    await readDelivery.promise;
+    let acknowledged = false;
+    acknowledgement = payments.acknowledgeDelivery('credits', message.messageId, message.bodyDigest).then(result => {
+      assert.equal(result, 'acknowledged'); acknowledged = true;
+      return null;
+    });
+    // Baseline ACK can commit while backfill holds its stale read. The corrected
+    // writer shares ACK's advisory lock, so wait for that real lock contention instead.
+    // Either observed boundary is sufficient to release the deterministic barrier;
+    // the independent oracle remains that ACK and obligation are complete afterward.
+    await until(async () => acknowledged || (await f.pool.query(`SELECT 1 FROM pg_locks
+      WHERE locktype = 'advisory' AND NOT granted
+      AND database = (SELECT oid FROM pg_database WHERE datname = current_database())
+      AND classid = ((hashtextextended($1, 0) >> 32) & 4294967295)::oid
+      AND objid = (hashtextextended($1, 0) & 4294967295)::oid`, [JSON.stringify([f.paymentSchema, 'deliveries', id])])).rows.length > 0, 'ACK completion or delivery lock contention');
+    releaseBackfill.resolve();
+    await Promise.all([backfill, acknowledgement]);
+    const delivery = (await f.pool.query<{ body: { acknowledged: boolean } }>(`SELECT body FROM ${f.paymentSchema}.records WHERE kind = 'deliveries' AND id = $1`, [id])).rows[0]?.body;
+    assert.equal(delivery?.acknowledged, true);
+    assert.deepEqual((await f.pool.query(`SELECT state, attempts FROM ${f.paymentSchema}.obligations WHERE kind = 'delivery' AND id = $1`, [id])).rows[0], { state: 'complete', attempts: 0 });
+
+    // Emulate debt persisted by the old race. The saved consumer ACK and immutable
+    // message remain authoritative; recovery must not invoke the consumer again.
+    await f.pool.query(`UPDATE ${f.paymentSchema}.obligations SET state = 'pending', revision = revision + 1 WHERE kind = 'delivery' AND id = $1`, [id]);
+    await f.boss.deleteAllJobs();
+    recovering = createPostgresPaymentJobs({ ...f, maxAttempts: 1, cooldownSeconds: 1, maxCooldownSeconds: 1, pollingIntervalSeconds: 0.5 });
+    await recovering.start({ payments, store, consumers: { credits: async () => { assert.fail('an acknowledged target must not repeat consumer T3'); } } });
+    await until(async () => (await f.pool.query<{ state: string }>(`SELECT state FROM ${f.paymentSchema}.obligations WHERE kind = 'delivery' AND id = $1`, [id])).rows[0]?.state === 'complete', 'already acknowledged delivery debt repaired');
+    assert.equal((await store.listDeliveries(scope, 'credits', 10)).length, 0);
+    assert.deepEqual((await f.pool.query<{ body: unknown }>(`SELECT body FROM ${f.paymentSchema}.records WHERE kind = 'deliveries' AND id = $1`, [id])).rows[0]?.body, delivery);
+    assert.equal((await f.pool.query<{ state: string }>(`SELECT state FROM ${f.paymentSchema}.obligations WHERE kind = 'delivery' AND id = $1`, [id])).rows[0]?.state, 'complete');
+    assert.deepEqual(f.errors, []);
+  } finally {
+    releaseBackfill.resolve();
+    await Promise.allSettled([backfill, acknowledgement]);
+    await recovering?.stop(); await recovering?.drain();
+    await f.cleanup();
+  }
 });
 
 void test('a retained terminal pg-boss job cannot suppress its immediately required repair wake-up', { timeout: 15_000 }, async () => {
