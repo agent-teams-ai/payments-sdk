@@ -49,7 +49,7 @@ export async function handlePaymentRequest(
   let buyerId: string | undefined;
   if (path === "/purchases") {
     try {
-      buyerId = request.headers.get("x-buyer-id") ?? (await authenticate(request));
+      buyerId = await authenticate(request);
     } catch {
       return new Response("Authentication unavailable", { status: 503 });
     }

@@ -17,7 +17,6 @@ function ownsSubscription(
   const binding = input.state.subscriptionBindings[bindingId];
   return (
     binding !== undefined &&
-    binding.buyerId === operation.buyerId &&
     binding.providerSubscriptionRefs.includes(ref) &&
     input.state.subscriptions[ref]?.flags.includes("ownership_mismatch") !== true
   );
