@@ -11,7 +11,10 @@ import { committed, conflict, fenced, PaymentStoreContext } from "./store-contex
 
 /** Bounded local reclassification and durable publication scheduling. */
 export class PaymentReclassificationCustody {
-  constructor(private readonly context: PaymentStoreContext) {}
+  private readonly context: PaymentStoreContext;
+  constructor(context: PaymentStoreContext) {
+    this.context = context;
+  }
 
   async processReclassification(
     scope: PaymentScope,

@@ -7,7 +7,10 @@ import { PaymentStoreContext } from "./store-context.js";
 
 /** Consumer registration, bounded backfill and ACK share payment-owned SQL custody. */
 export class PaymentDeliveryCustody {
-  constructor(private readonly context: PaymentStoreContext) {}
+  private readonly context: PaymentStoreContext;
+  constructor(context: PaymentStoreContext) {
+    this.context = context;
+  }
 
   async registerConsumer(
     scope: PaymentScope,
