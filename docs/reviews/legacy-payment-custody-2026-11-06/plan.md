@@ -2,7 +2,7 @@
 
 Date: 2026-11-06
 Base: main at 6fdcf6070b4c86393ac5484b83867e83f4fa997d
-Status: execution plan, preliminary critical passes recorded; exact-head CI and independent reviewers still required.
+Status: implementation delivered; original exact-head CI passed. Owner-authorized self-review is the mandatory review path; fresh final-head CI and post-merge verification are still required.
 
 ## 1. Goal and baseline
 
@@ -87,8 +87,8 @@ An adjacent issue enters scope only after it is reproduced or supported by sourc
 - Avoid extra test scaffolding unless an independently asserted outcome cannot otherwise be checked.
 
 ### Phase 4 — critical review and hardening
-- Review exact PR diff from independent perspectives: architectural owner/boundaries, payment correctness/SQL concurrency, failure recovery, public compatibility and packaging.
-- Request available independent external review; do not misrepresent one self-review as multiple models.
+- Conduct separate documented self-review passes over the exact PR diff: architecture/ownership, payment correctness/SQL concurrency, failure recovery/security, public compatibility and packaging.
+- Independent external review (ReviewRouter/Copilot/Cubic) is optional if available; record incompleteness truthfully and never misrepresent self-review as independent model approval.
 - Triage severity; fix only material scoped issues and push immediately. Repeat until no material findings remain.
 - If reviewers identify a correctness problem requiring a public contract or schema migration, stop that **part** and document a separate scoped successor rather than silently expanding this refactor.
 
@@ -116,7 +116,7 @@ An adjacent issue enters scope only after it is reproduced or supported by sourc
 - **Pass C — skeptical verification.** Source reshuffling alone does not prove safety; exact-head hosted Postgres 18, packed consumer and full-system E2E checks are mandatory. No claim of tests until logs confirm. The plan explicitly protects negatives PR #29/#30.
 - **Pass D — compatibility.** Removing re-export surfaces, changing providers or financial contract vocabulary would multiply migration risk. Rejected; only internal classes and facade delegations.
 
-These are structured local critical perspectives, **not** a claim that independently launched xhigh reviewers have executed. An actual independent review is still an acceptance gate.
+These are structured local critical perspectives, **not** a claim that independently launched xhigh reviewers have executed. By owner decision on 2026-11-06, a documented, substantial self-review and green required CI are sufficient review evidence when external reviewers are unavailable; external AI review is advisory.
 
 ## 8. Estimates, stop conditions and evidence
 
@@ -124,4 +124,38 @@ Expected implementation footprint: roughly 250–450 moved source lines, 20–70
 
 Stop/revert a slice if it changes serialized payloads, lock order, transaction ownership, public API, or test semantics unexpectedly; if the broad suite fails with an unexplained regression; or if it requires a new architecture or dependency not approved by the existing owner. Preserve uncertain legacy, record candidate debt and avoid speculative deletion.
 
-Evidence to record per commit: SHA, mechanically checked diff, scope review, exact test commands and CI run URLs/conclusions, findings and resolutions; final merged main SHA and post-merge checks. A draft PR remains draft while these gates are incomplete.
+Evidence to record per commit: SHA, mechanically checked diff, scope review, exact test commands and CI run URLs/conclusions, findings and resolutions; final merged main SHA and post-merge checks. A draft PR remains draft until the documented self-review and exact-head required gates pass.
+
+## 9. Executed code review and owner review-process decision — 2026-11-06
+
+The owner explicitly authorized a self-review workflow and requested that ReviewRouter **not** block merging. This changes only the former independent-review acceptance criterion in this *mutable* task plan and the maintained AGENTS.md instructions; it does not change accepted ADRs, schemas, security policy, branch protection, financial runtime, or deployment qualification. Reviewer: implementing ChatGPT assistant, **not** independently launched GPT-6.1 reviewers.
+
+Reviewed source base: `6fdcf6070b4c86393ac5484b83867e83f4fa997d`; implementation head: `292ae3eeb29676e6d4c0d4befb89d6efd3f6b80b`.
+
+### Pass 1 — responsibility and dependency direction
+
+- `PaymentStore` remains the public adapter and single shared `PaymentStoreContext` is passed to `PaymentDeliveryCustody` and `PaymentReclassificationCustody`. No extra database transaction owner, abstract repository, or dependency introduced.
+- Source import chain: store → custody → store-context → records/database; store-context has no reverse import into store. New classes stay under the already accepted `payments.postgres.implementation` boundary.
+- Public package exports, feature profile, API signatures and packages remain unchanged. No substantive concern found.
+
+### Pass 2 — financial correctness and isolation
+
+- Compared **each of five original method bodies character-for-character** with the extracted methods: `registerConsumer`, `backfillConsumer`, `listDeliveries`, `acknowledgeDelivery`, `processReclassification` are **5/5 identical**.
+- Facade forwards the same argument order and returns the same Promises. The custody classes share the original context; no duplicate pool, queue or singleton.
+- No edits to payment-core, Paddle, immutable evidence, external mutation retry policy, reconciliation, credit grants or SQL schema. No new material findings.
+
+### Pass 3 — concurrency, recovery and adverse cases
+
+- Delivery lock and ACK digest verification remain in the original transaction; backfill cursor, 100-record page bound, existing ACK completion reassertion and obligation writes are preserved.
+- Reclassification maintains binding/guard/cursor lock order, decision-revision CAS, bounded working set and publication obligation scheduling. Recovery fence remains effective.
+- Real PostgreSQL witness `jobs.test.ts`: concurrent backfill vs committed ACK, plus repaired historical work debt after restart. `reclassification.test.ts`: 205 renewals across pages, stale CAS, concurrent selection/reset, restarts and immutable historical evidence. Tests assert outcomes independently of the moved source.
+- No code changes justified; adding duplicate tests solely for extraction would add noise without improved coverage.
+
+### Pass 4 — TypeScript, package stability, qualification and skeptical checks
+
+- The initial TypeScript `TS1294` constructor-property error was corrected in `292ae3e` without weakening `erasableSyntaxOnly`.
+- [Exact implementation-head Checks 42131939488](https://github.com/agent-teams-ai/payments-sdk/actions/runs/42131939488): `build`, `quality`, both Node 24.22.1 and 26.12.1 real-Postgres 18 scenarios and `Required checks` **success**. This includes strict TS 7.0.2/FMS/lint, core/Paddle/Postgres, E2E, replay, packed NodeNext/Bundler/npm consumer checks and release dry-run. [Repository admission 42131939857](https://github.com/agent-teams-ai/payments-sdk/actions/runs/42131939857) **success**.
+- ReviewRouter [run 42175874699](https://github.com/agent-teams-ai/payments-sdk/actions/runs/42175874699) was **not a completed review**: HTTP 503, `relay_saturated`, `review_agent_not_dispatched`, `required_work_exhausted`. Cubic [response](https://github.com/agent-teams-ai/payments-sdk/pull/31#issuecomment-6678367318) cites quota until 17 Nov 2026. Neither is a code finding or merge protection requirement.
+- The previous implementation-head success is evidence for unchanged code only. The subsequent review/documentation-policy commit must have its **own exact-head required CI** before merge.
+
+**Disposition:** Four substantive self-review passes, 5/5 unchanged method bodies, zero confirmed material findings. External independent review unavailable; owner explicitly accepted self-review for this PR. No unresolved code issue requiring another implementation commit. Do not merge before the updated exact-head required checks are green, and verify actual merge attribution plus fresh main CI afterward.
