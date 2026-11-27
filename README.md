@@ -122,3 +122,5 @@ DATABASE_URL=postgresql://postgres:test-only@127.0.0.1:5432/payments pnpm check
 ## License
 
 [Apache-2.0](LICENSE).
+
+See the [documentation map](docs/README.md) for task-oriented navigation.
