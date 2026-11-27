@@ -1,5 +1,7 @@
 # Payments SDK contributor instructions
 
+Use the [documentation map](docs/README.md) to select the owning contract, guide or evidence for your task.
+
 Implement the accepted `docs/implementation-plan.md` incrementally. Keep payment operations, commercial access, credit accounting and usage independently owned. Core must not import Paddle, PostgreSQL, an ORM, Get Modular, HTTP frameworks or Engineering Foundation. Contract ownership and observable guarantees matter more than file counts.
 
 <!-- agent-teams:quality-standard:start -->
